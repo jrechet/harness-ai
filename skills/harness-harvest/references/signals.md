@@ -38,9 +38,22 @@ Chaque adaptateur produit un tableau JSON de ce type, une entrée par évidence 
 
 Le script ne juge pas : il ne décide ni du verdict ni de la formulation. Il ne fait que repérer, dater, lier et proposer une clé de regroupement.
 
-## Adaptateur GitHub — ce que `scripts/github.py` doit produire
+## Adaptateur GitHub — `scripts/github.py`
 
-Entrées : `--repo owner/repo`, `--since <date>`, `--agent-markers <liste>` (logins bots, trailers `Co-Authored-By`, préfixes de branche, labels). Sortie : le JSON ci-dessus sur stdout, les erreurs sur stderr, code de retour non nul si une source n'a pas pu être lue.
+Python 3 standard, sans dépendance ; transport `gh api` (déjà authentifié sur un poste de dev et dans les sessions Claude Code).
+
+```
+python3 scripts/github.py --repo owner/repo --agents-md AGENTS.md \
+    --agent-login claude --agent-branch-prefix claude/ --agent-label agent \
+    --agent-trailer "Co-Authored-By: Claude" --summary > evidence.json
+```
+
+- Fenêtre : `--since AAAA-MM-JJ`, sinon le marqueur `<!-- harvest: last=… -->` de `--agents-md`, sinon 30 jours (annoncé sur stderr).
+- Marqueurs d'agent, tous répétables : `--agent-login`, `--agent-branch-prefix`, `--agent-label`, `--agent-trailer`. Un login en `[bot]` est toujours un agent.
+- Seuils exposés : `--fix-window-hours 48`, `--min-recurrence 2` (S3, S4, S7), `--min-task-count 3` (S6), `--burst-commits 3`, `--burst-minutes 60`, `--max-prs 200`.
+- Sortie : sur stdout, un objet `{source, repo, since, default_branch, prs_scanned, agent_prs, counts, errors, evidence}` où `evidence` est le tableau du schéma ci-dessus. Erreurs sur stderr ; code de retour 2 si une source n'a pas pu être lue, les autres évidences sont quand même produites.
+- Récurrence (S3, S6, S7) : regroupement glouton par similarité de Jaccard sur les mots-clés, seuils 0,6 / 0,6 / 0,5 en constantes du script. `group_key` porte les mots communs du groupe.
+- Tests : `python3 -m unittest discover -s skills/harness-harvest/scripts`, sans réseau, sur un dépôt factice qui exerce les sept signaux.
 
 | Signal | Où le trouver | Règle de détection |
 |---|---|---|
