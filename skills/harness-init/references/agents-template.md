@@ -43,6 +43,9 @@ Chaque tâche récurrente a son contrat dans `.claude/skills/` :
 - Avant d'ajouter une phrase, chercher si un linter, un test ou un check CI peut porter la règle : une règle vérifiée est raccourcie, une règle racontée est une dette.
 - Une règle sans incident depuis six mois est candidate à suppression lors du prochain harness-audit.
 - Ce fichier est relu par `harness-audit` ; la ligne « Mode » fixe la sévérité.
+- `harness-harvest` relit l'activité depuis le marqueur ci-dessous et propose les changements dans une PR dédiée.
+
+<!-- harvest: last=<AAAA-MM-JJ de l'init> ref=init -->
 ```
 
 ## 1b. Variante assistance

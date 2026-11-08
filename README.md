@@ -21,6 +21,7 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 | Skill | Rôle |
 |---|---|
 | [`harness-init`](skills/harness-init/SKILL.md) | Met en place l'instrumentation IA d'un repo à partir de zéro : entretien (délégation par défaut ou assistance), reconnaissance, AGENTS.md court comme source unique, stubs CLAUDE.md / Copilot / Cursor, premier contrat de tâche, convention de retour `rule:`, puis harness-audit en mode gate. |
+| [`harness-harvest`](skills/harness-harvest/SKILL.md) | Fait évoluer AGENTS.md et les contrats à partir de l'activité depuis le dernier harvest : `rule:`, corrections après coup sur PRs d'agent, checks ignorés, règles orphelines, tâches récurrentes. Un catalogue de signaux indépendant de la source, GitHub en premier adaptateur, une PR dédiée avec un commit par candidat. |
 | [`harness-audit`](skills/harness-audit/SKILL.md) | Audite un harness ou un AGENTS.md/CLAUDE.md, classe chaque élément dans la grille L1–L4, rend un verdict par élément (KEEP / INLINE / PUSH_DOWN / PROMOTE / MERGE / SPLIT / BLOCK) et un plan de remédiation. Rapport à format fixe (Markdown + JSON) défini dans `references/report-template.md`. |
 
 ## Parcours
@@ -28,7 +29,7 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 1. `harness-init` pose le squelette et la boucle de retour.
 2. L'équipe marque les incidents en review avec `rule:` ; les règles entrent de préférence en CI, sinon dans AGENTS.md avec leur justification.
 3. `harness-audit` relit périodiquement : règles racontées sans garde-fou, coût de contexte, règles orphelines à retirer.
-4. À venir : `harness-harvest`, qui collecte les `rule:` et les PRs d'agent rejetées et ouvre une PR de proposition.
+4. `harness-harvest` collecte les signaux depuis le dernier harvest et ouvre une PR de proposition : push-down en CI, ajout, raccourcissement, retrait, nouveau contrat.
 
 ## Installation
 
@@ -68,6 +69,7 @@ harness-ai/
 ├── skills/
 │   ├── harness-audit/
 │   ├── harness-init/
+│   ├── harness-harvest/
 │   └── <nom-du-skill>/
 │       ├── SKILL.md         # instructions chargées par l'agent
 │       ├── references/      # fichiers lus à la demande (templates, grilles)
