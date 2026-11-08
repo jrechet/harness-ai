@@ -1,0 +1,14 @@
+{
+  "name": "harness-ai",
+  "owner": { "name": "jrechet" },
+  "metadata": {
+    "description": "Skills pour concevoir, auditer et fiabiliser des harness agentiques."
+  },
+  "plugins": [
+    {
+      "name": "harness-ai",
+      "source": "./",
+      "description": "Skills Claude Code pour concevoir, auditer et fiabiliser des harness agentiques (agents, skills, CLI, workflows)."
+    }
+  ]
+}
