@@ -119,6 +119,41 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
             "ok": not (missed or wrong or sane_flagged or global_problems)}
 
 
+INSTRUMENTATION = ["AGENTS.md", "CLAUDE.md", ".claude", ".cursor", ".agents", ".github/copilot-instructions.md", ".harness"]
+
+
+def bare_copy(fixture_dir: str, dest: str, branch: str = "develop") -> list[str]:
+    """Copie `repo/` d'une fixture dans `dest` sans son instrumentation IA, et en fait un dépôt git
+    avec un commit : le dépôt « nu » sur lequel on évalue harness-init à l'aveugle.
+    Retourne la liste de ce qui a été retiré."""
+    import shutil
+    import subprocess
+    src = os.path.join(fixture_dir, "repo")
+    if os.path.exists(dest) and os.listdir(dest):
+        raise SystemExit(f"{dest} existe et n'est pas vide")
+    shutil.copytree(src, dest, dirs_exist_ok=True)
+    removed = []
+    for rel in INSTRUMENTATION:
+        path = os.path.join(dest, rel)
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+            removed.append(rel + "/")
+        elif os.path.exists(path):
+            os.remove(path)
+            removed.append(rel)
+    readme = os.path.join(dest, "README.md")
+    if os.path.exists(readme):
+        with open(readme, encoding="utf-8") as fh:
+            lines = [l for l in fh.read().splitlines() if "fixture" not in l.lower() and "pièges" not in l.lower()]
+        with open(readme, "w", encoding="utf-8") as fh:
+            fh.write("\n".join(lines).rstrip() + "\n")
+    env = {**os.environ, "GIT_AUTHOR_NAME": "owner", "GIT_AUTHOR_EMAIL": "owner@example.test",
+           "GIT_COMMITTER_NAME": "owner", "GIT_COMMITTER_EMAIL": "owner@example.test"}
+    for args in (["init", "-q", "-b", branch], ["add", "-A"], ["commit", "-q", "-m", "import"]):
+        subprocess.run(["git", "-C", dest, *args], check=True, env=env, capture_output=True)
+    return removed
+
+
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="fixture_command", required=True)
@@ -126,6 +161,10 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     c.add_argument("name", help="nom de la fixture (dossier de fixtures/repos) ou chemin")
     c.add_argument("--audit", help="JSON d'audit à noter contre les pièges")
     c.add_argument("--today", help="AAAA-MM-JJ pour une mesure reproductible")
+    b = sub.add_parser("bare", help="copie d'une fixture sans instrumentation IA, pour évaluer harness-init")
+    b.add_argument("name", help="nom de la fixture ou chemin")
+    b.add_argument("dest", help="dossier de destination (créé, doit être vide)")
+    b.add_argument("--branch", default="develop")
     return p
 
 
@@ -133,6 +172,10 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
     if args is None:
         args = build_parser().parse_args(argv)
     fixture_dir = args.name if os.path.isdir(args.name) else os.path.join(FIXTURES_ROOT, args.name)
+    if args.fixture_command == "bare":
+        removed = bare_copy(fixture_dir, args.dest, args.branch)
+        print(f"dépôt nu dans {args.dest} (branche {args.branch}) ; retiré : {', '.join(removed) or 'rien'}")
+        return 0
     with open(os.path.join(fixture_dir, "expected.json"), encoding="utf-8") as fh:
         expected = json.load(fh)
     today = date.fromisoformat(args.today) if args.today else None

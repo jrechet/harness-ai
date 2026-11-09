@@ -39,7 +39,7 @@ Depuis `references/agents-template.md`, dans cet ordre :
 
 ### 4. Installer la boucle de retour
 - La section « Maintenance » de AGENTS.md porte la convention : tout commentaire de review qui commence par `rule:` est une règle candidate, ajoutée dans la même PR avec le lien vers le commentaire, ou collectée plus tard par harness-harvest.
-- Chaque règle écrite aujourd'hui porte sa justification (pourquoi, ou incident) et, quand il existe, le garde-fou qui la vérifie. Une règle sans l'un ni l'autre est marquée `(non vérifiée)` pour que l'audit la retrouve.
+- Chaque règle écrite aujourd'hui porte sa justification (pourquoi, ou incident) et, quand il existe, le garde-fou qui la vérifie. Une règle sans l'un ni l'autre est marquée `(non vérifiée)` pour que l'audit la retrouve. Quand aucun incident n'est connu, écris-le (« Pourquoi : décision d'architecture, pas d'incident connu ») plutôt que d'inventer une raison plausible : une justification fabriquée a l'air d'un incident et fausse le prochain harvest.
 - Si harness-harvest n'est pas installé, dis-le : la collecte est manuelle jusque-là.
 
 ### 5. Gate — état mesuré puis harness-audit

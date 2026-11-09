@@ -77,6 +77,25 @@ class AllFixturesTests(unittest.TestCase):
                     self.assertNotIn("traps.md", fh.read(), name)
 
 
+class BareCopyTests(unittest.TestCase):
+    def test_bare_copy_strips_instrumentation_and_measures_level_0(self):
+        import tempfile
+        from datetime import date as _date
+        from harnesslib import facts, maturity
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = os.path.join(tmp, "bare")
+            removed = fixtures.bare_copy(os.path.join(fixtures.FIXTURES_ROOT, "node-front"), dest)
+            self.assertIn("AGENTS.md", removed)
+            self.assertIn(".claude/", removed)
+            self.assertFalse(os.path.exists(os.path.join(dest, "CLAUDE.md")))
+            self.assertTrue(os.path.exists(os.path.join(dest, "package.json")))
+            self.assertTrue(os.path.isdir(os.path.join(dest, ".git")))
+            with open(os.path.join(dest, "README.md"), encoding="utf-8") as fh:
+                self.assertNotIn("fixture", fh.read().lower())
+            state = maturity.evaluate(facts.collect(dest, today=_date(2026, 11, 9)))
+            self.assertEqual(state["level"]["reached"], 0)
+
+
 class AuditGraderTests(unittest.TestCase):
     def setUp(self):
         self.expected = load_expected("java-back")["audit"]
