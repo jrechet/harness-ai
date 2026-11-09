@@ -603,12 +603,16 @@ def parse_rules(agents_md: str) -> list[str]:
 
 
 def read_marker(agents_md: str | None) -> str | None:
+    """La date du dernier harvest. Un marqueur posé par harness-init (`ref=init`)
+    n'est pas un harvest : on l'ignore, la fenêtre par défaut (30 jours) s'applique."""
     if not agents_md:
         return None
     try:
         with open(agents_md, encoding="utf-8") as fh:
-            m = re.search(r"<!--\s*harvest:\s*last=(\d{4}-\d{2}-\d{2})", fh.read())
-        return m.group(1) if m else None
+            m = re.search(r"<!--\s*harvest:\s*last=(\d{4}-\d{2}-\d{2})(?:\s+ref=(\S+))?", fh.read())
+        if not m or (m.group(2) or "").rstrip("->").strip() == "init":
+            return None
+        return m.group(1)
     except OSError:
         return None
 
@@ -645,7 +649,7 @@ def main(argv: list[str] | None = None, fetch: Fetcher = gh_api,
         since = datetime.strptime(since_s, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     else:
         since = datetime.now(timezone.utc) - timedelta(days=30)
-        print("aucun --since ni marqueur harvest : fenêtre de 30 jours", file=sys.stderr)
+        print("aucun --since ni marqueur de harvest antérieur (un marqueur ref=init ne compte pas) : fenêtre de 30 jours", file=sys.stderr)
     markers = AgentMarkers(
         logins=args.agent_login or ["claude", "github-actions[bot]"],
         branch_prefixes=args.agent_branch_prefix or ["claude/"],

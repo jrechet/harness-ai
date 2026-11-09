@@ -159,7 +159,7 @@ Mode : **délégation**.
 
 ## Maintenance de ce fichier
 - bla
-<!-- harvest: last=2026-10-01 ref=init -->
+<!-- harvest: last=2026-10-01 ref=https://gh/pr/1 -->
 """
 
 
@@ -304,6 +304,12 @@ class HelpersTests(unittest.TestCase):
         finally:
             os.unlink(fh.name)
         self.assertIsNone(g.read_marker("/nonexistent/AGENTS.md"))
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as fh:
+            fh.write("# x\n<!-- harvest: last=2026-11-09 ref=init -->\n")
+        try:
+            self.assertIsNone(g.read_marker(fh.name))   # un marqueur d'init n'est pas un harvest
+        finally:
+            os.unlink(fh.name)
 
 
 class CliTests(unittest.TestCase):

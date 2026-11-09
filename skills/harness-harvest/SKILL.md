@@ -13,7 +13,7 @@ L'important n'est pas la source, c'est ce qu'on y cherche. Le catalogue des sign
 
 ### 1. Cadrer la fenêtre
 - Cherche le marqueur `<!-- harvest: last=<date> ref=<sha ou url> -->` dans la section « Maintenance » de AGENTS.md. La fenêtre va de cette date à maintenant.
-- Sans marqueur : fenêtre de 30 jours, et dis-le dans la PR ; le marqueur sera posé par cette PR.
+- Sans marqueur, ou avec le marqueur `ref=init` posé par harness-init (ce n'est pas un harvest) : fenêtre de 30 jours, et dis-le dans la PR ; le marqueur sera posé par cette PR.
 - Lis la ligne « Mode » de AGENTS.md. En délégation, une règle racontée sans garde-fou est un défaut à traiter ; en assistance, c'est un coût de contexte.
 - Identifie ce qui compte comme **PR d'agent** : auteur bot, trailer `Co-Authored-By` d'un agent, préfixe de branche, label. Demande si rien n'est évident ; ne devine pas.
 
