@@ -1,0 +1,179 @@
+{
+  "fixture": "node-front",
+  "status": {
+    "level_reached": 1,
+    "source_path": "AGENTS.md",
+    "failing_checks": [
+      "L2.marker_fresh",
+      "L2.signal",
+      "L3.guarded",
+      "L3.audit",
+      "L4.mode",
+      "L4.process",
+      "L4.clean_prs",
+      "L4.cut_the_agent"
+    ],
+    "passing_checks": [
+      "L1.source",
+      "L1.mode",
+      "L1.short",
+      "L1.single_source",
+      "L1.forbidden",
+      "L2.maintenance",
+      "L2.rule_convention",
+      "L3.ci",
+      "L3.justified",
+      "L4.contracts"
+    ],
+    "guardrail_tools": [
+      "eslint",
+      "husky",
+      "stylelint"
+    ],
+    "contracts": 1
+  },
+  "audit": {
+    "cut_the_agent_passed": false,
+    "max_health_score": 60,
+    "min_p1": 1,
+    "traps": [
+      {
+        "id": "T1",
+        "path": "AGENTS.md",
+        "verdicts": [
+          "SPLIT",
+          "PUSH_DOWN",
+          "KEEP",
+          "INLINE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "assistance"
+        ]
+      },
+      {
+        "id": "T2",
+        "path": ".github/workflows/agent-fix-i18n.yml",
+        "verdicts": [
+          "BLOCK",
+          "PUSH_DOWN",
+          "SPLIT"
+        ],
+        "priorities": [
+          "P1"
+        ]
+      },
+      {
+        "id": "T3",
+        "path": "AGENTS.md",
+        "verdicts": [
+          "SPLIT",
+          "PUSH_DOWN",
+          "KEEP",
+          "INLINE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "t()"
+        ],
+        "require_leak": true
+      },
+      {
+        "id": "T4",
+        "path": "scripts/i18n-report.mjs",
+        "verdicts": [
+          "MERGE",
+          "INLINE"
+        ],
+        "priorities": [
+          "P2",
+          "P3"
+        ]
+      },
+      {
+        "id": "T8",
+        "path": ".claude/skills/add-component/SKILL.md",
+        "verdicts": [
+          "PUSH_DOWN",
+          "SPLIT",
+          "KEEP"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "couverture"
+        ],
+        "require_leak": true
+      },
+      {
+        "id": "T9",
+        "path": "scripts/legacy-theme-migrate.js",
+        "verdicts": [
+          "BLOCK"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3"
+        ]
+      },
+      {
+        "id": "T6",
+        "path": ".github/copilot-instructions.md",
+        "verdicts": [
+          "PUSH_DOWN",
+          "SPLIT",
+          "MERGE",
+          "BLOCK",
+          "INLINE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3"
+        ]
+      }
+    ],
+    "sane": [
+      {
+        "id": "S1",
+        "path": "tools/eslint-plugin-design-tokens/index.js",
+        "verdicts": [
+          "KEEP"
+        ]
+      },
+      {
+        "id": "S2",
+        "path": ".github/workflows/deploy-preview.yml",
+        "verdicts": [
+          "KEEP"
+        ]
+      }
+    ],
+    "guarded_rules_paths": [
+      "eslint-plugin-design-tokens"
+    ],
+    "forbidden_guarded_paths": [
+      "check-i18n.mjs"
+    ],
+    "forbidden_leak_keywords": [
+      "pascalcase",
+      "préfère const",
+      "usexxx"
+    ]
+  }
+}

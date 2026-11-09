@@ -92,7 +92,8 @@
         "path": ".github/workflows/release.yml",
         "verdicts": [
           "BLOCK",
-          "PUSH_DOWN"
+          "PUSH_DOWN",
+          "SPLIT"
         ],
         "priorities": [
           "P1"
@@ -119,8 +120,9 @@
           "MERGE"
         ],
         "priorities": [
-          "P3",
-          "P2"
+          "P1",
+          "P2",
+          "P3"
         ]
       },
       {

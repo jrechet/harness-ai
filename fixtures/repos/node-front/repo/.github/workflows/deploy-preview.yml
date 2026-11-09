@@ -1,0 +1,16 @@
+name: deploy-preview
+on:
+  pull_request:
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    environment: preview
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm }
+      - run: npm ci && npm run build
+      - run: npx netlify deploy --dir=dist --alias=pr-${{ github.event.number }} --json > deploy.json
+        env: { NETLIFY_AUTH_TOKEN: "${{ secrets.NETLIFY_AUTH_TOKEN }}" }
+      - run: gh pr comment ${{ github.event.number }} --body "Preview : $(jq -r .deploy_url deploy.json)"
+        env: { GH_TOKEN: "${{ github.token }}" }

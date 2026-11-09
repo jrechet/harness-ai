@@ -26,7 +26,13 @@ Un audit qui trouve plus que les pièges n'est pas pénalisé, sauf s'il signale
 |---|---|---|---|
 | `java-back` | Spring Boot, Gradle, Checkstyle, ArchUnit, release par workflow_dispatch | 12 + 3 sains | CLAUDE.md monolithe, règles racontées vs vérifiées, pré-condition dans un skill, scripts dupliqués, workflow prod sans garde-fou, script mort, retour non structuré, jugement codé en dur |
 
-À venir : `node-front` (Vue, design tokens, eslint custom), `python-cli`, `monorepo`.
+| `node-front` | Vue 3, Vite, eslint custom, stylelint, size-limit, husky, agent planifié en CI | 11 + 4 sains | Harness qui a l'air sain, au palier 1 : mode déclaré contredit par un agent autonome, « Vérifiée par » mensonger, fichiers d'instructions multi-outils divergents, procédure dupliquée qui diverge du contrat, marqueur de harvest périmé, couverture racontée |
+
+À venir : `python-cli`, `monorepo`.
+
+## Écrire un expected.json
+
+Les verdicts et priorités sont du jugement : deux audits sérieux divergent sur SPLIT contre PUSH_DOWN, ou P1 contre P2. Les premières exécutions à l'aveugle l'ont montré. Être **généreux sur les verdicts et les priorités** (lister toutes les lectures défendables), **strict sur le reste** : le piège doit être trouvé avec une preuve au bon chemin, les règles racontées doivent être dans `process_leaks` (`require_leak`), les éléments sains doivent rester KEEP, les conventions de style ne doivent pas être des fuites (`forbidden_leak_keywords`), un garde-fou mensonger ne doit pas être cru (`forbidden_guarded_paths`).
 
 ## Lancer
 

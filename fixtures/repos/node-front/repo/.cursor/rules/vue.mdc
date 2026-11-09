@@ -1,0 +1,8 @@
+---
+description: Conventions Vue du projet
+alwaysApply: true
+---
+- Vue 3 ; l'Options API reste acceptée pour les composants de moins de 50 lignes.
+- Les couleurs viennent des tokens ; un hex ponctuel est toléré avec un commentaire `// TODO token`.
+- Chaque composant a un test unitaire. La story Storybook est facultative.
+- Ne pas modifier `src/payment/`.

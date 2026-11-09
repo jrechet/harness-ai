@@ -41,9 +41,14 @@ def check_status(fixture_dir: str, expected: dict, today: date | None = None) ->
 
 
 def _elements_for(audit: dict, path: str) -> list[dict]:
+    """Les éléments dont c'est le chemin ; à défaut, ceux qui le citent en preuve
+    (un rapport peut ranger un fichier sous un élément plus large)."""
     path = path.lower()
-    return [e for e in audit.get("elements") or [] if path in (e.get("path") or "").lower()
-            or any(path in (ev or "").lower() for ev in e.get("evidence") or [])]
+    elements = audit.get("elements") or []
+    own = [e for e in elements if path in (e.get("path") or "").lower()]
+    if own:
+        return own
+    return [e for e in elements if any(path in (ev or "").lower() for ev in e.get("evidence") or [])]
 
 
 def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
@@ -96,6 +101,9 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
     for path in expected.get("guarded_rules_paths", []):          # chemins, robustes
         if path.lower() not in " ".join((g.get("guarded_by") or "").lower() for g in audit.get("guarded_rules") or []):
             global_problems.append(f"guarded_rules ne cite pas le garde-fou {path}")
+    for path in expected.get("forbidden_guarded_paths", []):        # garde-fou déclaré mais mensonger
+        if path.lower() in " ".join((g.get("guarded_by") or "").lower() for g in audit.get("guarded_rules") or []):
+            sane_flagged.append(f"guarded_rules cite {path}, qui ne vérifie pas la règle qu'on lui attribue")
     # Biais « tout est une fuite » : des conventions de style dans process_leaks
     for k in expected.get("forbidden_leak_keywords", []):
         if k.lower() in leaks_text:

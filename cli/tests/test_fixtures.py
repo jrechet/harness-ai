@@ -43,17 +43,38 @@ def good_audit():
     }
 
 
-class JavaBackFixtureTests(unittest.TestCase):
+class AllFixturesTests(unittest.TestCase):
+    """Chaque fixture de fixtures/repos est conforme à son expected.json et son traps.md liste ses pièges."""
+
+    def fixture_names(self):
+        return sorted(d for d in os.listdir(fixtures.FIXTURES_ROOT)
+                      if os.path.isfile(os.path.join(fixtures.FIXTURES_ROOT, d, "expected.json")))
+
+    def test_at_least_two_fixtures(self):
+        self.assertGreaterEqual(len(self.fixture_names()), 2)
+
     def test_status_matches_expected(self):
-        problems = fixtures.check_status(JAVA_BACK, load_expected("java-back")["status"], date(2026, 11, 9))
-        self.assertEqual(problems, [])
+        for name in self.fixture_names():
+            with self.subTest(fixture=name):
+                problems = fixtures.check_status(os.path.join(fixtures.FIXTURES_ROOT, name),
+                                                 load_expected(name)["status"], date(2026, 11, 9))
+                self.assertEqual(problems, [])
 
     def test_traps_md_and_expected_agree_on_trap_ids(self):
-        with open(os.path.join(JAVA_BACK, "traps.md"), encoding="utf-8") as fh:
-            traps_md = fh.read()
-        exp = load_expected("java-back")["audit"]
-        for trap in exp["traps"] + exp["sane"]:
-            self.assertIn(f"| {trap['id']} |", traps_md, trap["id"])
+        for name in self.fixture_names():
+            with self.subTest(fixture=name):
+                with open(os.path.join(fixtures.FIXTURES_ROOT, name, "traps.md"), encoding="utf-8") as fh:
+                    traps_md = fh.read()
+                exp = load_expected(name)["audit"]
+                for trap in exp["traps"] + exp["sane"]:
+                    self.assertIn(f"| {trap['id']} |", traps_md, f"{name}:{trap['id']}")
+
+    def test_fixture_readme_does_not_point_to_the_answer_key(self):
+        for name in self.fixture_names():
+            readme = os.path.join(fixtures.FIXTURES_ROOT, name, "repo", "README.md")
+            if os.path.exists(readme):
+                with open(readme, encoding="utf-8") as fh:
+                    self.assertNotIn("traps.md", fh.read(), name)
 
 
 class AuditGraderTests(unittest.TestCase):
@@ -100,6 +121,13 @@ class AuditGraderTests(unittest.TestCase):
         audit["process_leaks"] = [l for l in audit["process_leaks"] if "VERSION" not in l["rule"]]
         r = fixtures.check_audit(audit, self.expected)
         self.assertTrue(any("T13" in m for m in r["missed"]), r)
+
+    def test_lying_guard_is_penalised(self):
+        exp = load_expected("node-front")["audit"]
+        audit = {"audit": {"cut_the_agent_test": {"passed": False}, "health_score": 10}, "elements": [],
+                 "process_leaks": [], "guarded_rules": [{"rule": "t()", "guarded_by": "scripts/check-i18n.mjs"}]}
+        r = fixtures.check_audit(audit, exp)
+        self.assertTrue(any("check-i18n" in x for x in r["sane_flagged"]), r)
 
     def test_global_expectations(self):
         audit = good_audit()
