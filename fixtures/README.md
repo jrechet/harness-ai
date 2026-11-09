@@ -44,7 +44,7 @@ harness-init n'a pas de pièges à trouver : il écrit. On l'évalue sur un dép
 python3 cli/harness.py fixture bare java-back /tmp/bare
 ```
 
-Un agent neuf reçoit le skill, le dépôt nu et les réponses d'entretien d'un propriétaire fictif. On note ensuite : `harness status` sur ce qu'il a produit (palier 1 attendu, 5/5), son audit de gate contre les pièges de la fixture d'origine encore présents (`fixture check --audit`), et une relecture des règles écrites : non-découvrables seulement, justifications réelles ou déclarées absentes, garde-fous nommés. Première exécution : `repos/java-back/runs/2026-11-09-init-blind/`.
+Un agent neuf reçoit le skill, le dépôt nu et les réponses d'entretien d'un propriétaire fictif. On note ensuite : `harness status` sur ce qu'il a produit (palier 1 attendu, 5/5), son audit de gate contre les pièges de la fixture d'origine encore présents (`fixture check --audit`), et une relecture des règles écrites : non-découvrables seulement, justifications réelles ou déclarées absentes, garde-fous nommés. Deux exécutions : `repos/java-back/runs/2026-11-09-init-blind/` (dépôt nu) et `repos/node-front/runs/2026-11-09-init-blind/` (repo déjà instrumenté, à fusionner : le cas le plus fréquent).
 
 ## Lancer
 
