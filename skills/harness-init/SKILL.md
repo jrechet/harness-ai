@@ -69,3 +69,4 @@ Toujours le même format : palier atteint selon `harness status` et vérificatio
 - Écraser un CLAUDE.md existant parce qu'il est mauvais : on fusionne et on dit ce qu'on a retiré.
 - Dépasser 60 lignes « parce que c'est important » : si c'est important et long, c'est un skill ou un fichier de référence chargé à la demande.
 - Oublier la ligne de mode : harness-audit s'en sert pour choisir son barème.
+- Poser un workflow planifié ou à lancement manuel sur une branche de travail : GitHub ne planifie un workflow, et n'accepte un `workflow_dispatch`, que depuis la branche par défaut. Un garde-fou fusionné sur `develop` seul est inerte ; il doit aussi arriver sur `main`, et le compte rendu doit le dire.
