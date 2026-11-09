@@ -49,23 +49,24 @@ def _elements_for(audit: dict, path: str) -> list[dict]:
 def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
     """Score d'un audit contre les pièges attendus : trouvés, manqués, faux, sains signalés."""
     found, missed, wrong = [], [], []
+    leaks_text = " ".join(json.dumps(l, ensure_ascii=False).lower() for l in audit.get("process_leaks") or [])
     for trap in expected.get("traps", []):
+        # Un piège est trouvé soit par un élément au bon verdict sur le bon chemin, soit, pour une règle
+        # racontée, par sa présence dans process_leaks (c'est là que le rapport range ces fuites).
+        in_leaks = bool(trap.get("leak_keywords")) and all(k.lower() in leaks_text for k in trap["leak_keywords"])
         hits = _elements_for(audit, trap["path"])
-        if not hits:
-            missed.append(f"{trap['id']} : aucun élément pour {trap['path']}")
-            continue
         ok = [e for e in hits if e.get("verdict") in trap["verdicts"]
               and (not trap.get("priorities") or e.get("priority") in trap["priorities"])]
-        if ok:
+        if ok or in_leaks:
             found.append(trap["id"])
+        elif not hits:
+            missed.append(f"{trap['id']} : aucun élément pour {trap['path']}"
+                          + (f" ni fuite contenant {trap['leak_keywords']}" if trap.get("leak_keywords") else ""))
         else:
             got = ", ".join(f"{e.get('verdict')}/{e.get('priority')}" for e in hits)
             wrong.append(f"{trap['id']} : {trap['path']} → {got}, attendu {'/'.join(trap['verdicts'])} "
-                         f"{'/'.join(trap.get('priorities') or ['*'])}")
-        if trap.get("leak_keywords"):
-            leaks = " ".join(json.dumps(l, ensure_ascii=False).lower() for l in audit.get("process_leaks") or [])
-            if not all(k.lower() in leaks for k in trap["leak_keywords"]):
-                wrong.append(f"{trap['id']} : absent de process_leaks (mots : {trap['leak_keywords']})")
+                         f"{'/'.join(trap.get('priorities') or ['*'])}"
+                         + (f" ou une fuite contenant {trap['leak_keywords']}" if trap.get("leak_keywords") else ""))
     sane_flagged = []
     for sane in expected.get("sane", []):
         for e in _elements_for(audit, sane["path"]):

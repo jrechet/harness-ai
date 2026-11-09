@@ -89,7 +89,8 @@ class AuditGraderTests(unittest.TestCase):
         r = fixtures.check_audit(audit, self.expected)
         self.assertTrue(any("coupe l'agent" in g for g in r["global"]))
         self.assertTrue(any("score 85" in g for g in r["global"]))
-        self.assertTrue(any("process_leaks" in w for w in r["wrong"]))
+        # sans fuite « injection » ni élément PUSH_DOWN sur CLAUDE.md, T2 est en mauvais verdict
+        self.assertTrue(any("T2" in w for w in r["wrong"]), r)
 
 
 if __name__ == "__main__":
