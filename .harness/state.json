@@ -1,0 +1,273 @@
+{
+  "schema": "harness-state/1",
+  "repo": "/home/user/harness-ai",
+  "date": "2026-11-09",
+  "level": {
+    "reached": 1,
+    "name": "Cadré",
+    "next": 2
+  },
+  "levels": [
+    {
+      "level": 0,
+      "name": "Rien",
+      "summary": "Aucun fichier d'instructions : l'agent part de zéro à chaque session.",
+      "achieved": true,
+      "checks": [],
+      "passed_checks": 0,
+      "total_checks": 0
+    },
+    {
+      "level": 1,
+      "name": "Cadré",
+      "summary": "Un AGENTS.md court, un mode explicite, des stubs : l'agent sait où il est.",
+      "achieved": true,
+      "checks": [
+        {
+          "id": "L1.source",
+          "label": "Un fichier d'instructions existe (AGENTS.md)",
+          "passed": true,
+          "value": "AGENTS.md",
+          "next_action": null
+        },
+        {
+          "id": "L1.mode",
+          "label": "La ligne « Mode : délégation | assistance » est présente",
+          "passed": true,
+          "value": "assistance",
+          "next_action": null
+        },
+        {
+          "id": "L1.short",
+          "label": "Le fichier chargé fait au plus 60 lignes",
+          "passed": true,
+          "value": 33,
+          "next_action": null
+        },
+        {
+          "id": "L1.single_source",
+          "label": "CLAUDE.md est un stub @AGENTS.md (ou absent)",
+          "passed": true,
+          "value": {
+            "exists": true,
+            "lines": 1,
+            "loaded_lines": 33,
+            "is_stub": true
+          },
+          "next_action": null
+        },
+        {
+          "id": "L1.forbidden",
+          "label": "Une section « Interdits » dit ce qu'un agent ne fait jamais",
+          "passed": true,
+          "value": true,
+          "next_action": null
+        }
+      ],
+      "passed_checks": 5,
+      "total_checks": 5
+    },
+    {
+      "level": 2,
+      "name": "Bouclé",
+      "summary": "La boucle de retour tourne : les incidents deviennent des règles.",
+      "achieved": false,
+      "checks": [
+        {
+          "id": "L2.maintenance",
+          "label": "Une section Maintenance dit comment le fichier évolue",
+          "passed": true,
+          "value": true,
+          "next_action": null
+        },
+        {
+          "id": "L2.rule_convention",
+          "label": "La convention `rule:` en review est documentée",
+          "passed": true,
+          "value": true,
+          "next_action": null
+        },
+        {
+          "id": "L2.marker_fresh",
+          "label": "Un harvest a tourné depuis moins de 45 jours",
+          "passed": true,
+          "value": 0,
+          "next_action": null
+        },
+        {
+          "id": "L2.signal",
+          "label": "Le dernier harvest a trouvé au moins un signal réel (S1–S4)",
+          "passed": false,
+          "value": null,
+          "next_action": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore."
+        }
+      ],
+      "passed_checks": 3,
+      "total_checks": 4
+    },
+    {
+      "level": 3,
+      "name": "Vérifié",
+      "summary": "Les règles obligatoires sont portées par des outils, pas par du texte.",
+      "achieved": false,
+      "checks": [
+        {
+          "id": "L3.ci",
+          "label": "Une CI existe (workflows ou .gitlab-ci.yml)",
+          "passed": false,
+          "value": [],
+          "next_action": "Sans CI, aucune règle ne peut être garantie : en poser une."
+        },
+        {
+          "id": "L3.guarded",
+          "label": "Au moins 50 % des règles sont « Vérifiée par » un outil",
+          "passed": false,
+          "value": 0.0,
+          "next_action": "Pousser les règles racontées en L3 : lint custom, test d'architecture, check de PR."
+        },
+        {
+          "id": "L3.justified",
+          "label": "Au moins 50 % des règles disent pourquoi",
+          "passed": true,
+          "value": 0.6,
+          "next_action": null
+        },
+        {
+          "id": "L3.audit",
+          "label": "Un harness-audit existe et n'a aucun P1 ouvert",
+          "passed": false,
+          "value": null,
+          "next_action": "Lancer harness-audit, écrire son JSON dans .harness/audit.json, traiter les P1."
+        }
+      ],
+      "passed_checks": 1,
+      "total_checks": 4
+    },
+    {
+      "level": 4,
+      "name": "Délégué",
+      "summary": "Des tâches entières sont confiées à l'agent et reviennent propres.",
+      "achieved": false,
+      "checks": [
+        {
+          "id": "L4.mode",
+          "label": "Le mode est délégation",
+          "passed": false,
+          "value": "assistance",
+          "next_action": "Passer en délégation avec harness-init quand les garde-fous sont là."
+        },
+        {
+          "id": "L4.process",
+          "label": "Une section « Processus de travail » cadre l'agent",
+          "passed": true,
+          "value": true,
+          "next_action": null
+        },
+        {
+          "id": "L4.contracts",
+          "label": "Au moins un contrat de tâche existe et est référencé",
+          "passed": false,
+          "value": 0,
+          "next_action": "Créer .claude/skills/<tâche>/SKILL.md pour la première tâche déléguée et le citer dans AGENTS.md."
+        },
+        {
+          "id": "L4.clean_prs",
+          "label": "Le dernier harvest voit des PRs d'agent sans correction après coup",
+          "passed": false,
+          "value": null,
+          "next_action": "Chaque correction après coup (S2) est une règle ou un garde-fou manquant : les traiter."
+        },
+        {
+          "id": "L4.cut_the_agent",
+          "label": "Le test « coupe l'agent » de l'audit passe",
+          "passed": false,
+          "value": null,
+          "next_action": "Pousser en L3/L4 les étapes qui n'existent que dans des prompts."
+        }
+      ],
+      "passed_checks": 1,
+      "total_checks": 5
+    }
+  ],
+  "layers": {
+    "source": "estimate",
+    "layers": {
+      "L1": {
+        "total": null,
+        "misplaced": null
+      },
+      "L2": {
+        "total": 1,
+        "misplaced": null
+      },
+      "L3": {
+        "total": 0,
+        "misplaced": null
+      },
+      "L4": {
+        "total": 0,
+        "misplaced": null
+      }
+    },
+    "hint": "Lancer harness-audit pour une vue par couche mesurée."
+  },
+  "next_actions": [
+    "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore."
+  ],
+  "facts": {
+    "repo": "/home/user/harness-ai",
+    "date": "2026-11-09",
+    "instructions": {
+      "files": {
+        "AGENTS.md": {
+          "exists": true,
+          "lines": 33,
+          "loaded_lines": 33,
+          "is_stub": false
+        },
+        "CLAUDE.md": {
+          "exists": true,
+          "lines": 1,
+          "loaded_lines": 33,
+          "is_stub": true
+        },
+        ".github/copilot-instructions.md": {
+          "exists": false
+        },
+        ".cursor/rules": {
+          "exists": false,
+          "files": []
+        }
+      },
+      "source": {
+        "path": "AGENTS.md",
+        "mode": "assistance",
+        "lines": 33,
+        "rules_total": 5,
+        "rules_guarded": 0,
+        "rules_unguarded_marked": 3,
+        "rules_justified": 3,
+        "has_maintenance_section": true,
+        "has_process_section": true,
+        "has_forbidden_section": true,
+        "mentions_rule_convention": true,
+        "harvest_marker": {
+          "date": "2026-11-09",
+          "ref": "init"
+        }
+      }
+    },
+    "contracts": {
+      "count": 0,
+      "items": []
+    },
+    "guardrails": {
+      "tools": {},
+      "workflows": [],
+      "has_ci": false
+    },
+    "audit": null,
+    "harvest": null,
+    "harvest_marker_age_days": 0
+  }
+}
