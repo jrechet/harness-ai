@@ -39,4 +39,10 @@ Le dossier `.harness/` se versionne : l'historique de `state.json` est l'histori
 python3 cli/harness.py status <chemin-du-repo>
 ```
 
+Pour la vue graphique et l'historique des `state.json` commités :
+
+```bash
+python3 cli/harness.py serve <chemin-du-repo>
+```
+
 Options : `--format json`, `--no-write`, `--audit`, `--harvest`, `--today` pour des sorties reproductibles.

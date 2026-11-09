@@ -32,6 +32,14 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 python3 cli/harness.py status <chemin-du-repo>
 ```
 
+### Voir la progression
+
+```bash
+python3 cli/harness.py serve <chemin-du-repo>
+```
+
+Ouvre http://127.0.0.1:8787 : une application Vue locale, sans build ni dépendance, qui lit l'état courant et l'historique des `state.json` commités. Paliers avec leurs vérifications, prochaines actions, faits mesurés, courbe de progression, couches L1 à L4 depuis le dernier audit. L'application n'affiche que ce que le CLI mesure.
+
 ## Parcours
 
 1. `harness-init` pose le squelette et la boucle de retour, et vise le palier 1.
@@ -74,10 +82,12 @@ harness-ai/
 ├── .claude-plugin/
 │   ├── plugin.json          # manifeste du plugin
 │   └── marketplace.json     # pour /plugin marketplace add
+├── app/                     # application de suivi (Vue 3 vendorisé, sans build), servie par `harness serve`
 ├── cli/
-│   ├── harness.py           # point d'entrée : status, harvest github
-│   ├── harnesslib/          # facts, maturity, status, github (stdlib uniquement)
+│   ├── harness.py           # point d'entrée : status, harvest github, fixture check, serve
+│   ├── harnesslib/          # facts, maturity, status, github, fixtures, serve (stdlib uniquement)
 │   └── tests/               # python3 -m unittest discover -s cli/tests
+├── fixtures/                # dépôts synthétiques avec pièges, pour évaluer les skills
 ├── docs/
 │   └── maturity.md          # le modèle de maturité et ses seuils
 ├── skills/
