@@ -86,6 +86,8 @@ Produis **toujours** les deux sorties, dans cet ordre : le Markdown (lecture hum
 
 Dans le rapport, chaque constat cite son chemin et, si possible, la ligne. Un constat sans preuve localisable n'y va pas.
 
+Écris aussi le bloc JSON seul dans `.harness/audit.json` du dépôt audité : c'est ce que lit `harness status` (CLI du dépôt harness-ai) pour la vue par couche et le palier 3. Si l'utilisateur ne veut pas de fichier dans son repo, dis-le et donne le JSON dans la réponse.
+
 ## Ce qui n'est pas un défaut
 
 - Un skill long parce qu'il décrit beaucoup de cas d'abandon : c'est de la procédure, c'est sa place.

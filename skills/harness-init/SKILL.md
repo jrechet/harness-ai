@@ -40,11 +40,11 @@ Depuis `references/agents-template.md`, dans cet ordre :
 - Chaque règle écrite aujourd'hui porte sa justification (pourquoi, ou incident) et, quand il existe, le garde-fou qui la vérifie. Une règle sans l'un ni l'autre est marquée `(non vérifiée)` pour que l'audit la retrouve.
 - Si harness-harvest n'est pas installé, dis-le : la collecte est manuelle jusque-là.
 
-### 5. Gate — harness-audit en mode post-init
-Lance harness-audit sur ce qui vient d'être écrit. Corrige les constats structurels (longueur, part de référence, clause de maintenance, cohérence des stubs, règle non vérifiée en mode délégation sans garde-fou nommé). Les constats de fond qui demandent de créer un linter ou un check CI ne se corrigent pas ici : ils vont dans le compte rendu comme prochaines étapes.
+### 5. Gate — état mesuré puis harness-audit
+Lance d'abord `python3 cli/harness.py status <repo>` (CLI du dépôt harness-ai) : il écrit `.harness/state.json` et affiche le palier atteint avec les vérifications qui manquent. L'objectif de l'init est le palier 1 « Cadré » complet ; si une vérification échoue, corrige avant d'aller plus loin. Puis lance harness-audit sur ce qui vient d'être écrit. Corrige les constats structurels (longueur, part de référence, clause de maintenance, cohérence des stubs, règle non vérifiée en mode délégation sans garde-fou nommé). Les constats de fond qui demandent de créer un linter ou un check CI ne se corrigent pas ici : ils vont dans le compte rendu comme prochaines étapes.
 
 ### 6. Compte rendu
-Toujours le même format : fichiers créés ou modifiés (chemin, lignes) ; mode retenu et pourquoi ; règles écrites avec leur statut (vérifiée par <garde-fou> / non vérifiée) ; commandes confirmées et non confirmées ; résultat du gate ; trois prochaines étapes, la première étant presque toujours « pousser la première règle non vérifiée en CI ».
+Toujours le même format : palier atteint selon `harness status` et vérifications restantes ; fichiers créés ou modifiés (chemin, lignes) ; mode retenu et pourquoi ; règles écrites avec leur statut (vérifiée par <garde-fou> / non vérifiée) ; commandes confirmées et non confirmées ; résultat du gate ; trois prochaines étapes, la première étant presque toujours « pousser la première règle non vérifiée en CI ».
 
 ## Délégation vs assistance — ce qui change concrètement
 

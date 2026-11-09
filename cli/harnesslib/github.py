@@ -10,7 +10,7 @@ sessions Claude Code). Les erreurs vont sur stderr ; le code de retour est
 2 si au moins une source n'a pas pu être lue, 0 sinon.
 
 Exemple :
-  python3 github.py --repo owner/repo --since 2026-10-08 \
+  python3 cli/harness.py harvest github --repo owner/repo --since 2026-10-08 \
       --agent-login claude --agent-branch-prefix claude/ --agents-md AGENTS.md
 """
 from __future__ import annotations
@@ -613,8 +613,8 @@ def read_marker(agents_md: str | None) -> str | None:
         return None
 
 
-def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
+    p = parser or argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--repo", required=True, help="owner/repo")
     p.add_argument("--since", help="AAAA-MM-JJ ; défaut : marqueur harvest de --agents-md, sinon 30 jours")
     p.add_argument("--agents-md", help="chemin du AGENTS.md (S5 et marqueur de fenêtre)")
@@ -636,8 +636,10 @@ def build_parser() -> argparse.ArgumentParser:
     return p
 
 
-def main(argv: list[str] | None = None, fetch: Fetcher = gh_api) -> int:
-    args = build_parser().parse_args(argv)
+def main(argv: list[str] | None = None, fetch: Fetcher = gh_api,
+         args: argparse.Namespace | None = None) -> int:
+    if args is None:
+        args = build_parser().parse_args(argv)
     since_s = args.since or read_marker(args.agents_md)
     if since_s:
         since = datetime.strptime(since_s, "%Y-%m-%d").replace(tzinfo=timezone.utc)

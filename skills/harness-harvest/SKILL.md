@@ -18,7 +18,7 @@ L'important n'est pas la source, c'est ce qu'on y cherche. Le catalogue des sign
 - Identifie ce qui compte comme **PR d'agent** : auteur bot, trailer `Co-Authored-By` d'un agent, préfixe de branche, label. Demande si rien n'est évident ; ne devine pas.
 
 ### 2. Collecter — scripts d'abord, lecture ensuite
-Chaque source a un script dans `scripts/` qui produit le JSON d'évidences du catalogue, sans LLM : `scripts/github.py --repo <owner/repo> --agents-md AGENTS.md` pour GitHub (options et marqueurs d'agent dans `references/signals.md`). Lance le script, ne reconstitue pas les évidences à la main depuis l'interface. Si le script manque ou échoue, dis-le et limite la PR à ce qui a pu être collecté ; une évidence non collectée n'est pas inventée.
+Chaque source a un adaptateur dans le CLI commun du dépôt harness-ai (`cli/harness.py harvest <source>`) qui produit le JSON d'évidences du catalogue, sans LLM : `python3 cli/harness.py harvest github --repo <owner/repo> --agents-md AGENTS.md > .harness/harvest.json` pour GitHub (options et marqueurs d'agent dans `references/signals.md`). Lance l'adaptateur, écris sa sortie dans `.harness/harvest.json` du repo cible (c'est ce que lit `harness status`), ne reconstitue pas les évidences à la main depuis l'interface. Si le script manque ou échoue, dis-le et limite la PR à ce qui a pu être collecté ; une évidence non collectée n'est pas inventée.
 
 Lis aussi l'état courant : AGENTS.md, ses règles une par une, les contrats dans `.claude/skills/`, les garde-fous CI existants. Sans ça, impossible de détecter une règle orpheline ou un doublon.
 

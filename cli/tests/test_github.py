@@ -1,5 +1,5 @@
 """Tests de l'adaptateur GitHub, sans réseau : un collecteur factice sert des
-réponses d'API préparées. Lancer : python3 -m unittest discover -s skills/harness-harvest/scripts
+réponses d'API préparées. Lancer : python3 -m unittest discover -s cli/tests
 """
 from __future__ import annotations
 
@@ -12,8 +12,8 @@ import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 
-sys.path.insert(0, os.path.dirname(__file__))
-import github as g  # noqa: E402
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from harnesslib import github as g  # noqa: E402
 
 REPO = "acme/app"
 SINCE = datetime(2026, 10, 1, tzinfo=timezone.utc)

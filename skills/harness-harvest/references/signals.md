@@ -38,22 +38,23 @@ Chaque adaptateur produit un tableau JSON de ce type, une entrée par évidence 
 
 Le script ne juge pas : il ne décide ni du verdict ni de la formulation. Il ne fait que repérer, dater, lier et proposer une clé de regroupement.
 
-## Adaptateur GitHub — `scripts/github.py`
+## Adaptateur GitHub — `cli/harness.py harvest github`
 
 Python 3 standard, sans dépendance ; transport `gh api` (déjà authentifié sur un poste de dev et dans les sessions Claude Code).
 
 ```
-python3 scripts/github.py --repo owner/repo --agents-md AGENTS.md \
+python3 cli/harness.py harvest github --repo owner/repo --agents-md AGENTS.md \
     --agent-login claude --agent-branch-prefix claude/ --agent-label agent \
-    --agent-trailer "Co-Authored-By: Claude" --summary > evidence.json
+    --agent-trailer "Co-Authored-By: Claude" --summary > .harness/harvest.json
 ```
 
 - Fenêtre : `--since AAAA-MM-JJ`, sinon le marqueur `<!-- harvest: last=… -->` de `--agents-md`, sinon 30 jours (annoncé sur stderr).
 - Marqueurs d'agent, tous répétables : `--agent-login`, `--agent-branch-prefix`, `--agent-label`, `--agent-trailer`. Un login en `[bot]` est toujours un agent.
+- Robots de dépendances (`--automation-branch-prefix`, défaut `renovate/` et `dependabot/`) : ni agent, ni tâche récurrente, et leurs merges ne sont pas des corrections. Un squash-merge d'une autre PR ne compte comme correction (S2) que si cette PR est un fix/revert ou cite la PR d'agent. Les commentaires de l'auteur sur sa propre PR ne comptent jamais en S3.
 - Seuils exposés : `--fix-window-hours 48`, `--min-recurrence 2` (S3, S4, S7), `--min-task-count 3` (S6), `--burst-commits 3`, `--burst-minutes 60`, `--max-prs 200`.
 - Sortie : sur stdout, un objet `{source, repo, since, default_branch, prs_scanned, agent_prs, counts, errors, evidence}` où `evidence` est le tableau du schéma ci-dessus. Erreurs sur stderr ; code de retour 2 si une source n'a pas pu être lue, les autres évidences sont quand même produites.
 - Récurrence (S3, S6, S7) : regroupement glouton par similarité de Jaccard sur les mots-clés, seuils 0,6 / 0,6 / 0,5 en constantes du script. `group_key` porte les mots communs du groupe.
-- Tests : `python3 -m unittest discover -s skills/harness-harvest/scripts`, sans réseau, sur un dépôt factice qui exerce les sept signaux.
+- Tests : `python3 -m unittest discover -s cli/tests`, sans réseau, sur un dépôt factice qui exerce les sept signaux.
 
 | Signal | Où le trouver | Règle de détection |
 |---|---|---|
@@ -61,7 +62,7 @@ python3 scripts/github.py --repo owner/repo --agents-md AGENTS.md \
 | S2 | Commits sur la branche par défaut, PRs | Commit non-agent touchant un fichier d'une PR d'agent fusionnée moins de 48 h avant ; commit dont le message commence par `Revert` d'une PR d'agent ; PR d'agent fermée sans merge ; au moins trois commits en moins d'une heure après une review sur une PR d'agent |
 | S3 | Commentaires de review | Même auteur et texte normalisé similaire (mêmes mots-clés après suppression du bruit) sur au moins deux PRs |
 | S4 | Checks des PRs d'agent | Même nom de check en échec sur au moins deux PRs d'agent distinctes |
-| S5 | AGENTS.md courant | Pour chaque ligne de « Règles », aucune évidence S1–S4 dont `related_rule` la pointe ; le lien se fait par mots-clés et par fichiers cités |
+| S5 | AGENTS.md courant | Pour chaque puce du fichier (hors sections Maintenance, Tâches, Commandes ; lignes de continuation jointes), aucune évidence S1–S4 dont `related_rule` la pointe ; le lien se fait par mots-clés et par fichiers cités |
 | S6 | Titres, labels et fichiers des PRs | Au moins trois PRs dont le titre normalisé ou le label est identique, ou dont les fichiers touchés se recouvrent fortement |
 | S7 | Descriptions de PRs d'agent | Phrases interrogatives ou d'hypothèse (« j'ai supposé », « je n'ai pas trouvé ») sur le même sujet dans au moins deux PRs |
 

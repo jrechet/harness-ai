@@ -24,9 +24,17 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 | [`harness-harvest`](skills/harness-harvest/SKILL.md) | Fait évoluer AGENTS.md et les contrats à partir de l'activité depuis le dernier harvest : `rule:`, corrections après coup sur PRs d'agent, checks ignorés, règles orphelines, tâches récurrentes. Un catalogue de signaux indépendant de la source, GitHub en premier adaptateur, une PR dédiée avec un commit par candidat. |
 | [`harness-audit`](skills/harness-audit/SKILL.md) | Audite un harness ou un AGENTS.md/CLAUDE.md, classe chaque élément dans la grille L1–L4, rend un verdict par élément (KEEP / INLINE / PUSH_DOWN / PROMOTE / MERGE / SPLIT / BLOCK) et un plan de remédiation. Rapport à format fixe (Markdown + JSON) défini dans `references/report-template.md`. |
 
+## Progression mesurée
+
+`harness status` calcule le palier de maturité du repo à partir de faits (fichiers, règles, dernier audit, dernier harvest), écrit `.harness/state.json` et dit quoi faire ensuite. Cinq paliers : Rien, Cadré, Bouclé, Vérifié, Délégué. Modèle et seuils dans [docs/maturity.md](docs/maturity.md).
+
+```bash
+python3 cli/harness.py status <chemin-du-repo>
+```
+
 ## Parcours
 
-1. `harness-init` pose le squelette et la boucle de retour.
+1. `harness-init` pose le squelette et la boucle de retour, et vise le palier 1.
 2. L'équipe marque les incidents en review avec `rule:` ; les règles entrent de préférence en CI, sinon dans AGENTS.md avec leur justification.
 3. `harness-audit` relit périodiquement : règles racontées sans garde-fou, coût de contexte, règles orphelines à retirer.
 4. `harness-harvest` collecte les signaux depuis le dernier harvest et ouvre une PR de proposition : push-down en CI, ajout, raccourcissement, retrait, nouveau contrat.
@@ -66,18 +74,23 @@ harness-ai/
 ├── .claude-plugin/
 │   ├── plugin.json          # manifeste du plugin
 │   └── marketplace.json     # pour /plugin marketplace add
+├── cli/
+│   ├── harness.py           # point d'entrée : status, harvest github
+│   ├── harnesslib/          # facts, maturity, status, github (stdlib uniquement)
+│   └── tests/               # python3 -m unittest discover -s cli/tests
+├── docs/
+│   └── maturity.md          # le modèle de maturité et ses seuils
 ├── skills/
 │   ├── harness-audit/
 │   ├── harness-init/
 │   ├── harness-harvest/
 │   └── <nom-du-skill>/
 │       ├── SKILL.md         # instructions chargées par l'agent
-│       ├── references/      # fichiers lus à la demande (templates, grilles)
-│       └── scripts/         # (optionnel) logique L3 déterministe
+│       └── references/      # fichiers lus à la demande (templates, grilles)
 └── README.md
 ```
 
 Conventions :
 - un `SKILL.md` reste court (procédure, vocabulaire, cas d'abandon) ; la référence longue va dans `references/` ;
-- tout ce qui doit être **garanti** va dans `scripts/` ou dans un CLI, pas dans le texte ;
+- tout ce qui doit être **garanti** va dans `cli/`, pas dans le texte des skills ; les skills appellent le CLI ;
 - chaque skill produit un format de sortie stable pour pouvoir comparer deux exécutions.
