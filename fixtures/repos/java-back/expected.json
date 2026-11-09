@@ -3,11 +3,32 @@
   "status": {
     "level_reached": 0,
     "source_path": "CLAUDE.md",
-    "failing_checks": ["L1.mode", "L1.short", "L1.forbidden", "L2.maintenance", "L2.rule_convention",
-                       "L2.marker_fresh", "L2.signal", "L3.guarded", "L3.justified", "L3.audit",
-                       "L4.mode", "L4.process", "L4.clean_prs", "L4.cut_the_agent"],
-    "passing_checks": ["L1.source", "L1.single_source", "L3.ci", "L4.contracts"],
-    "guardrail_tools": ["archunit", "checkstyle"],
+    "failing_checks": [
+      "L1.mode",
+      "L1.short",
+      "L1.forbidden",
+      "L2.maintenance",
+      "L2.rule_convention",
+      "L2.marker_fresh",
+      "L2.signal",
+      "L3.guarded",
+      "L3.justified",
+      "L3.audit",
+      "L4.mode",
+      "L4.process",
+      "L4.clean_prs",
+      "L4.cut_the_agent"
+    ],
+    "passing_checks": [
+      "L1.source",
+      "L1.single_source",
+      "L3.ci",
+      "L4.contracts"
+    ],
+    "guardrail_tools": [
+      "archunit",
+      "checkstyle"
+    ],
     "contracts": 1
   },
   "audit": {
@@ -15,17 +36,131 @@
     "max_health_score": 60,
     "min_p1": 2,
     "traps": [
-      {"id": "T1", "path": "CLAUDE.md", "verdicts": ["SPLIT", "PUSH_DOWN"], "priorities": ["P2", "P3"]},
-      {"id": "T2", "path": "CLAUDE.md", "verdicts": ["PUSH_DOWN"], "priorities": ["P1", "P2"], "leak_keywords": ["injection"]},
-      {"id": "T3", "path": ".claude/skills/release/SKILL.md", "verdicts": ["PUSH_DOWN", "SPLIT"], "priorities": ["P1"], "leak_keywords": ["develop", "vert"]},
-      {"id": "T4", "path": "scripts/hotfix.mjs", "verdicts": ["MERGE"], "priorities": ["P2"]},
-      {"id": "T5", "path": ".github/workflows/release.yml", "verdicts": ["BLOCK", "PUSH_DOWN"], "priorities": ["P1"]},
-      {"id": "T6", "path": "scripts/old-deploy.sh", "verdicts": ["BLOCK"], "priorities": ["P3", "P2"]},
-      {"id": "T11", "path": "scripts/release.mjs", "verdicts": ["PROMOTE", "SPLIT", "MERGE"], "priorities": ["P3", "P2"]}
+      {
+        "id": "T1",
+        "path": "CLAUDE.md",
+        "verdicts": [
+          "SPLIT",
+          "PUSH_DOWN"
+        ],
+        "priorities": [
+          "P2",
+          "P3"
+        ]
+      },
+      {
+        "id": "T2",
+        "path": "CLAUDE.md",
+        "verdicts": [
+          "PUSH_DOWN"
+        ],
+        "priorities": [
+          "P1",
+          "P2"
+        ],
+        "leak_keywords": [
+          "injection"
+        ]
+      },
+      {
+        "id": "T3",
+        "path": ".claude/skills/release/SKILL.md",
+        "verdicts": [
+          "PUSH_DOWN",
+          "SPLIT"
+        ],
+        "priorities": [
+          "P1"
+        ],
+        "leak_keywords": [
+          "develop",
+          "vert"
+        ]
+      },
+      {
+        "id": "T4",
+        "path": "scripts/hotfix.mjs",
+        "verdicts": [
+          "MERGE"
+        ],
+        "priorities": [
+          "P2"
+        ]
+      },
+      {
+        "id": "T5",
+        "path": ".github/workflows/release.yml",
+        "verdicts": [
+          "BLOCK",
+          "PUSH_DOWN"
+        ],
+        "priorities": [
+          "P1"
+        ]
+      },
+      {
+        "id": "T6",
+        "path": "scripts/old-deploy.sh",
+        "verdicts": [
+          "BLOCK"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3"
+        ]
+      },
+      {
+        "id": "T11",
+        "path": "scripts/release.mjs",
+        "verdicts": [
+          "PROMOTE",
+          "SPLIT",
+          "MERGE"
+        ],
+        "priorities": [
+          "P3",
+          "P2"
+        ]
+      },
+      {
+        "id": "T13",
+        "path": "scripts/release.mjs",
+        "verdicts": [
+          "SPLIT",
+          "PROMOTE",
+          "MERGE",
+          "PUSH_DOWN"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3"
+        ],
+        "leak_keywords": [
+          "version"
+        ],
+        "require_leak": true
+      }
     ],
     "sane": [
-      {"id": "S1", "path": "src/test/java/com/acme/billing/ArchitectureTest.java", "verdicts": ["KEEP"]}
+      {
+        "id": "S1",
+        "path": "src/test/java/com/acme/billing/ArchitectureTest.java",
+        "verdicts": [
+          "KEEP"
+        ]
+      }
     ],
-    "guarded_rule_keywords": ["controller"]
+    "guarded_rules_paths": [
+      "ArchitectureTest.java"
+    ],
+    "forbidden_leak_keywords": [
+      "pascalcase",
+      "camelcase",
+      "try-with-resources",
+      "4 espaces",
+      "upper_snake"
+    ]
   }
 }

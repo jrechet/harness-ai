@@ -57,6 +57,13 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
         hits = _elements_for(audit, trap["path"])
         ok = [e for e in hits if e.get("verdict") in trap["verdicts"]
               and (not trap.get("priorities") or e.get("priority") in trap["priorities"])]
+        if trap.get("require_leak"):
+            # le piège est une fuite : seul process_leaks compte, quel que soit le verdict de l'élément
+            if in_leaks:
+                found.append(trap["id"])
+            else:
+                missed.append(f"{trap['id']} : aucune fuite contenant {trap['leak_keywords']} dans process_leaks")
+            continue
         if ok or in_leaks:
             found.append(trap["id"])
         elif not hits:
@@ -82,11 +89,17 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
     p1 = sum(1 for e in audit.get("elements") or [] if e.get("priority") == "P1")
     if "min_p1" in expected and p1 < expected["min_p1"]:
         global_problems.append(f"{p1} P1 trouvés, au moins {expected['min_p1']} attendus")
-    if expected.get("guarded_rule_keywords"):
-        guarded = json.dumps(audit.get("guarded_rules") or [], ensure_ascii=False).lower()
-        for k in expected["guarded_rule_keywords"]:
-            if k.lower() not in guarded:
-                global_problems.append(f"guarded_rules ne mentionne pas « {k} »")
+    guarded = json.dumps(audit.get("guarded_rules") or [], ensure_ascii=False).lower()
+    for k in expected.get("guarded_rule_keywords", []):          # mots, fragiles à la langue
+        if k.lower() not in guarded:
+            global_problems.append(f"guarded_rules ne mentionne pas « {k} »")
+    for path in expected.get("guarded_rules_paths", []):          # chemins, robustes
+        if path.lower() not in " ".join((g.get("guarded_by") or "").lower() for g in audit.get("guarded_rules") or []):
+            global_problems.append(f"guarded_rules ne cite pas le garde-fou {path}")
+    # Biais « tout est une fuite » : des conventions de style dans process_leaks
+    for k in expected.get("forbidden_leak_keywords", []):
+        if k.lower() in leaks_text:
+            sane_flagged.append(f"process_leaks contient « {k} » : une convention de style n'est pas une fuite de processus")
     total = len(expected.get("traps", []))
     return {"found": found, "missed": missed, "wrong": wrong, "sane_flagged": sane_flagged,
             "global": global_problems, "score": f"{len(found)}/{total}",

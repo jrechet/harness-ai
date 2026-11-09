@@ -101,3 +101,4 @@ Dans le rapport, chaque constat cite son chemin et, si possible, la ligne. Un co
 - Recommander PUSH_DOWN partout : un CLI qui encode du jugement devient rigide et l'équipe le contournera.
 - Oublier les workflows eux-mêmes : un `workflow_dispatch` sans input `dry_run` ou sans `environment` protégé est une fuite L4, pas un problème d'agent.
 - Compter un retour « lisible » comme structuré : si l'agent doit chercher « SUCCESS » dans un log, ce n'est pas structuré.
+- Classer une convention de style ou de nommage parmi les fuites : une fuite est une règle dont la violation a une conséquence sur le produit, la prod ou la sécurité. Le style sans garde-fou est du bruit (INLINE) ou un pointeur vers le linter, et compte en P3 au plus.

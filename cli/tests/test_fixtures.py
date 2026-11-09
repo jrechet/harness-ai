@@ -37,6 +37,7 @@ def good_audit():
         "process_leaks": [
             {"rule": "constructor injection, never field injection", "told_in": "CLAUDE.md:52", "belongs_in": "L3", "guard_tool": "ArchUnit"},
             {"rule": "develop est vert avant la release", "told_in": ".claude/skills/release/SKILL.md:9", "belongs_in": "L3"},
+            {"rule": "VERSION n'est jamais mis à jour après la release", "told_in": "scripts/release.mjs:7", "belongs_in": "L3"},
         ],
         "guarded_rules": [{"rule": "no business logic in controllers", "guarded_by": "ArchitectureTest.java"}],
     }
@@ -62,7 +63,7 @@ class AuditGraderTests(unittest.TestCase):
     def test_good_audit_is_conformant(self):
         r = fixtures.check_audit(good_audit(), self.expected)
         self.assertTrue(r["ok"], r)
-        self.assertEqual(r["score"], "7/7")
+        self.assertEqual(r["score"], "8/8")
 
     def test_missed_trap_and_wrong_verdict_are_reported(self):
         audit = good_audit()
@@ -80,6 +81,25 @@ class AuditGraderTests(unittest.TestCase):
                 e["verdict"], e["priority"] = "PUSH_DOWN", "P2"
         r = fixtures.check_audit(audit, self.expected)
         self.assertEqual(len(r["sane_flagged"]), 1)
+
+    def test_style_convention_in_leaks_is_a_bias(self):
+        audit = good_audit()
+        audit["process_leaks"].append({"rule": "Classes PascalCase", "told_in": "CLAUDE.md:66", "belongs_in": "L3"})
+        r = fixtures.check_audit(audit, self.expected)
+        self.assertTrue(any("pascalcase" in x for x in r["sane_flagged"]), r)
+
+    def test_guarded_rule_matched_by_path_not_language(self):
+        audit = good_audit()
+        audit["guarded_rules"] = [{"rule": "pas de logique métier dans les contrôleurs", "guarded_by": "ArchitectureTest.java:14"}]
+        self.assertTrue(fixtures.check_audit(audit, self.expected)["ok"])
+        audit["guarded_rules"] = []
+        self.assertTrue(any("ArchitectureTest" in g for g in fixtures.check_audit(audit, self.expected)["global"]))
+
+    def test_require_leak_ignores_element_verdict(self):
+        audit = good_audit()
+        audit["process_leaks"] = [l for l in audit["process_leaks"] if "VERSION" not in l["rule"]]
+        r = fixtures.check_audit(audit, self.expected)
+        self.assertTrue(any("T13" in m for m in r["missed"]), r)
 
     def test_global_expectations(self):
         audit = good_audit()
