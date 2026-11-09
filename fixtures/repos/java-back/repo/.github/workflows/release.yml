@@ -1,0 +1,32 @@
+name: release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version à publier (x.y.z)
+        required: true
+      ref:
+        description: Branche ou commit
+        required: true
+      hotfix:
+        description: Hotfix
+        required: false
+        default: "false"
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: "${{ inputs.ref }}" }
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "21" }
+      - run: ./gradlew bootJar -Pversion=${{ inputs.version }}
+      - run: docker build -t registry.acme.io/billing-api:${{ inputs.version }} .
+      - run: echo "${{ secrets.REGISTRY_PASSWORD }}" | docker login registry.acme.io -u ci --password-stdin
+      - run: docker push registry.acme.io/billing-api:${{ inputs.version }}
+      - run: git tag v${{ inputs.version }} && git push origin v${{ inputs.version }}
+      - name: Deploy to production
+        run: |
+          echo "${{ secrets.PROD_SSH_KEY }}" > key && chmod 600 key
+          ssh -i key deploy@prod.acme.io "docker pull registry.acme.io/billing-api:${{ inputs.version }} && docker compose up -d"
+          echo "SUCCESS"

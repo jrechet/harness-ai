@@ -3,6 +3,7 @@
 
   harness status [repo]              état de maturité, écrit .harness/state.json
   harness harvest github --repo …    évidences GitHub pour harness-harvest
+  harness fixture check <nom>        compare une fixture à son expected.json
 
 Python 3.10+, bibliothèque standard uniquement."""
 from __future__ import annotations
@@ -13,7 +14,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harnesslib import github, status  # noqa: E402
+from harnesslib import fixtures, github, status  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -24,11 +25,14 @@ def main(argv: list[str] | None = None) -> int:
     harvest = sub.add_parser("harvest", help="collecte d'évidences pour harness-harvest")
     hsub = harvest.add_subparsers(dest="source", required=True)
     github.build_parser(hsub.add_parser("github", help="adaptateur GitHub"))
+    fixtures.build_parser(sub.add_parser("fixture", help="vérification des fixtures"))
     args = parser.parse_args(argv)
     if args.command == "status":
         return status.main(args=args)
     if args.command == "harvest" and args.source == "github":
         return github.main(args=args)
+    if args.command == "fixture":
+        return fixtures.main(args=args)
     parser.error("commande inconnue")
     return 2
 
