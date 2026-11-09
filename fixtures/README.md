@@ -28,7 +28,9 @@ Un audit qui trouve plus que les pièges n'est pas pénalisé, sauf s'il signale
 
 | `node-front` | Vue 3, Vite, eslint custom, stylelint, size-limit, husky, agent planifié en CI | 11 + 4 sains | Harness qui a l'air sain, au palier 1 : mode déclaré contredit par un agent autonome, « Vérifiée par » mensonger, fichiers d'instructions multi-outils divergents, procédure dupliquée qui diverge du contrat, marqueur de harvest périmé, couverture racontée |
 
-À venir : `python-cli`, `monorepo`.
+| `python-cli` | CLI Python 3.12, uv, ruff, mypy en pre-commit, pytest, publication PyPI sur tag | 10 + 4 sains | Harness au **palier 2** mesuré mais creux : jeton PyPI dans un skill, publication depuis le poste qui contourne la CI, garde-fou local pris pour un garde-fou pipeline, `addopts` qui désélectionne les tests lents, `rule:` collecté par harvest mais jamais poussé en garde-fou, AGENTS.md de sous-dossier qui contredit la racine |
+
+À venir : `monorepo`.
 
 ## Écrire un expected.json
 

@@ -1,0 +1,229 @@
+{
+  "fixture": "python-cli",
+  "status": {
+    "level_reached": 2,
+    "source_path": "AGENTS.md",
+    "failing_checks": [
+      "L3.guarded",
+      "L3.audit",
+      "L4.cut_the_agent"
+    ],
+    "passing_checks": [
+      "L1.source",
+      "L1.mode",
+      "L1.short",
+      "L1.single_source",
+      "L1.forbidden",
+      "L2.maintenance",
+      "L2.rule_convention",
+      "L2.marker_fresh",
+      "L2.signal",
+      "L3.ci",
+      "L3.justified",
+      "L4.mode",
+      "L4.process",
+      "L4.contracts",
+      "L4.clean_prs"
+    ],
+    "guardrail_tools": [
+      "pre-commit",
+      "ruff"
+    ],
+    "contracts": 1
+  },
+  "audit": {
+    "cut_the_agent_passed": false,
+    "max_health_score": 60,
+    "min_p1": 2,
+    "traps": [
+      {
+        "id": "T1",
+        "path": ".claude/skills/release/SKILL.md",
+        "verdicts": [
+          "BLOCK",
+          "SPLIT",
+          "PUSH_DOWN"
+        ],
+        "priorities": [
+          "P1"
+        ]
+      },
+      {
+        "id": "T2",
+        "path": ".claude/skills/release/scripts/publish.sh",
+        "verdicts": [
+          "BLOCK"
+        ],
+        "priorities": [
+          "P1"
+        ]
+      },
+      {
+        "id": "T3",
+        "path": ".claude/skills/release/scripts/bump_version.py",
+        "verdicts": [
+          "MERGE",
+          "INLINE",
+          "PUSH_DOWN",
+          "SPLIT"
+        ],
+        "priorities": [
+          "P2",
+          "P3"
+        ]
+      },
+      {
+        "id": "T4",
+        "path": ".github/workflows/release.yml",
+        "verdicts": [
+          "PUSH_DOWN",
+          "SPLIT",
+          "BLOCK"
+        ],
+        "priorities": [
+          "P1",
+          "P2"
+        ]
+      },
+      {
+        "id": "T5",
+        "path": "AGENTS.md",
+        "verdicts": [
+          "KEEP",
+          "SPLIT",
+          "PUSH_DOWN",
+          "INLINE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "mypy"
+        ],
+        "require_leak": true
+      },
+      {
+        "id": "T6",
+        "path": "pyproject.toml",
+        "verdicts": [
+          "KEEP",
+          "SPLIT",
+          "PUSH_DOWN",
+          "INLINE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "slow"
+        ],
+        "require_leak": true
+      },
+      {
+        "id": "T7",
+        "path": "AGENTS.md",
+        "verdicts": [
+          "KEEP",
+          "SPLIT",
+          "PUSH_DOWN",
+          "INLINE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "changelog"
+        ],
+        "require_leak": true
+      },
+      {
+        "id": "T8",
+        "path": "src/piloto/AGENTS.md",
+        "verdicts": [
+          "MERGE",
+          "BLOCK",
+          "INLINE",
+          "SPLIT",
+          "PUSH_DOWN"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3"
+        ]
+      },
+      {
+        "id": "T9",
+        "path": ".harness/harvest.json",
+        "verdicts": [
+          "KEEP",
+          "SPLIT",
+          "PUSH_DOWN",
+          "INLINE",
+          "BLOCK",
+          "MERGE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "timeout"
+        ],
+        "require_leak": true
+      }
+    ],
+    "sane": [
+      {
+        "id": "S1",
+        "path": "ruff.toml",
+        "verdicts": [
+          "KEEP"
+        ]
+      },
+      {
+        "id": "S2",
+        "path": "tests/test_version_single_source.py",
+        "verdicts": [
+          "KEEP"
+        ]
+      },
+      {
+        "id": "S4",
+        "path": "src/piloto/net.py",
+        "verdicts": [
+          "KEEP"
+        ]
+      }
+    ],
+    "guarded_rules_paths": [
+      "ruff",
+      "test_version_single_source"
+    ],
+    "forbidden_guarded_paths": [
+      {
+        "path": ".pre-commit-config.yaml",
+        "rule_keywords": [
+          "mypy",
+          "typ"
+        ]
+      }
+    ],
+    "forbidden_leak_keywords": [
+      "docstring",
+      "annotation",
+      "type hint"
+    ]
+  }
+}

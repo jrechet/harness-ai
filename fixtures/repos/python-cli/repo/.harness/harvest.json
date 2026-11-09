@@ -1,0 +1,31 @@
+{
+  "source": "github",
+  "repo": "acme/piloto",
+  "since": "2026-10-03",
+  "default_branch": "main",
+  "prs_scanned": 11,
+  "agent_prs": 4,
+  "counts": {"S1": 1, "S5": 6},
+  "errors": [],
+  "evidence": [
+    {
+      "id": "github-1",
+      "signal": "S1",
+      "source": "github",
+      "url": "https://github.com/acme/piloto/pull/39#discussion_r1000001",
+      "date": "2026-10-28",
+      "author": "marie",
+      "agent_authored": false,
+      "files": ["src/piloto/cli.py"],
+      "text": "les appels réseau ont un timeout explicite, jamais un subprocess ssh nu",
+      "related_rule": null,
+      "group_key": "rule:appels explicite jamais réseau subprocess timeout"
+    },
+    {"id": "github-2", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Le style suit ruff", "related_rule": "Le style suit ruff", "group_key": "orphan:style suit"},
+    {"id": "github-3", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Tout code est typé et passe mypy en strict", "related_rule": "Tout code est typé", "group_key": "orphan:mypy strict"},
+    {"id": "github-4", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "La version n'existe qu'à un endroit", "related_rule": "La version", "group_key": "orphan:version"},
+    {"id": "github-5", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Chaque PR met à jour CHANGELOG.md", "related_rule": "CHANGELOG", "group_key": "orphan:changelog"},
+    {"id": "github-6", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Une tâche est finie quand pytest passe", "related_rule": "pytest", "group_key": "orphan:pytest"},
+    {"id": "github-7", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Les fonctions publiques ont une docstring", "related_rule": "docstring", "group_key": "orphan:docstring"}
+  ]
+}
