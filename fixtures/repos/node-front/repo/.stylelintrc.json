@@ -1,1 +1,1 @@
-{ "extends": "stylelint-config-standard", "rules": { "color-no-hex": true, "function-disallowed-list": ["rgb", "rgba", "hsl", "hsla"] } }
+{ "extends": "stylelint-config-standard", "customSyntax": "postcss-html", "ignoreFiles": ["src/styles/tokens.css"], "rules": { "color-no-hex": true, "function-disallowed-list": ["rgb", "rgba", "hsl", "hsla"] } }

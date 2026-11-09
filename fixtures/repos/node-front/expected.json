@@ -168,7 +168,15 @@
       "eslint-plugin-design-tokens"
     ],
     "forbidden_guarded_paths": [
-      "check-i18n.mjs"
+      {
+        "path": "check-i18n.mjs",
+        "rule_keywords": [
+          "t()",
+          "chaîne",
+          "string",
+          "template"
+        ]
+      }
     ],
     "forbidden_leak_keywords": [
       "pascalcase",

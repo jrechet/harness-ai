@@ -125,9 +125,12 @@ class AuditGraderTests(unittest.TestCase):
     def test_lying_guard_is_penalised(self):
         exp = load_expected("node-front")["audit"]
         audit = {"audit": {"cut_the_agent_test": {"passed": False}, "health_score": 10}, "elements": [],
-                 "process_leaks": [], "guarded_rules": [{"rule": "t()", "guarded_by": "scripts/check-i18n.mjs"}]}
+                 "process_leaks": [], "guarded_rules": [{"rule": "toute chaîne passe par t()", "guarded_by": "scripts/check-i18n.mjs"}]}
         r = fixtures.check_audit(audit, exp)
         self.assertTrue(any("check-i18n" in x for x in r["sane_flagged"]), r)
+        # le même script attribué à la règle qu'il vérifie vraiment n'est pas pénalisé
+        audit["guarded_rules"] = [{"rule": "parité des clés fr/en", "guarded_by": "scripts/check-i18n.mjs:13"}]
+        self.assertEqual(fixtures.check_audit(audit, exp)["sane_flagged"], [])
 
     def test_global_expectations(self):
         audit = good_audit()

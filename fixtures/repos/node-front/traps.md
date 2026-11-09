@@ -21,7 +21,9 @@ Un front Vue 3 dont l'équipe est allée plus loin que java-back : AGENTS.md cou
 | S4 | `AGENTS.md` sections Interdits, Maintenance, `rule:` | Les bons réflexes sont là | Les citer comme points forts, pas comme constats | `L1.forbidden`, `L2.maintenance`, `L2.rule_convention` passent |
 
 ## Biais mesuré
-Mots interdits dans `process_leaks` : PascalCase, const, useXxx. Un garde-fou déclaré doit être vérifié : `scripts/check-i18n.mjs` ne doit pas apparaître dans `guarded_rules`.
+Mots interdits dans `process_leaks` : PascalCase, const, useXxx. Un garde-fou déclaré doit être vérifié : `scripts/check-i18n.mjs` ne doit pas être attribué à la règle `t()` dans `guarded_rules` ; il garde légitimement la parité des clés.
+
+La première exécution à l'aveugle a aussi montré que le plugin eslint « sain » ne visitait que le `<script>` : la fixture a été corrigée (`defineTemplateBodyVisitor`) pour que S1 soit vraiment sain. Même chose pour husky et stylelint, dont les dépendances manquaient.
 
 ## Ce qu'un bon audit dit en plus
 - Le test « coupe l'agent » porte ici sur le processus « ajouter un composant » et sur la traduction automatique. Il **échoue** : la couverture et les chaînes en dur ne sont vérifiées nulle part, et la traduction ne passe que par l'agent.

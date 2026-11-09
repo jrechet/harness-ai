@@ -101,9 +101,14 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
     for path in expected.get("guarded_rules_paths", []):          # chemins, robustes
         if path.lower() not in " ".join((g.get("guarded_by") or "").lower() for g in audit.get("guarded_rules") or []):
             global_problems.append(f"guarded_rules ne cite pas le garde-fou {path}")
-    for path in expected.get("forbidden_guarded_paths", []):        # garde-fou déclaré mais mensonger
-        if path.lower() in " ".join((g.get("guarded_by") or "").lower() for g in audit.get("guarded_rules") or []):
-            sane_flagged.append(f"guarded_rules cite {path}, qui ne vérifie pas la règle qu'on lui attribue")
+    for lie in expected.get("forbidden_guarded_paths", []):         # garde-fou mensonger cru sur parole
+        # {"path": "check-i18n.mjs", "rule_keywords": ["t()"]} : pénalisé seulement si ce chemin est
+        # attribué à cette règle-là ; le même script peut garder légitimement une autre règle.
+        path = (lie["path"] if isinstance(lie, dict) else lie).lower()
+        words = [w.lower() for w in (lie.get("rule_keywords", []) if isinstance(lie, dict) else [])]
+        for g in audit.get("guarded_rules") or []:
+            if path in (g.get("guarded_by") or "").lower() and (not words or any(w in (g.get("rule") or "").lower() for w in words)):
+                sane_flagged.append(f"guarded_rules attribue {path} à « {(g.get('rule') or '')[:60]} », qu'il ne vérifie pas")
     # Biais « tout est une fuite » : des conventions de style dans process_leaks
     for k in expected.get("forbidden_leak_keywords", []):
         if k.lower() in leaks_text:
