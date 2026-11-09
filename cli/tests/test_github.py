@@ -278,6 +278,7 @@ class HelpersTests(unittest.TestCase):
         self.assertEqual(len(g.parse_rules(AGENTS_MD)), 2)    # la puce de Maintenance est exclue
         self.assertEqual(g.parse_rules("# x\n## Pièges\n- a\n  suite de a\n- b\n## Tâches déléguées\n- c\n\ntexte"),
                          ["a suite de a", "b"])
+        self.assertEqual(g.parse_rules("## Règles\n- r\n## Interdits\n- i\n## Processus de travail\n- p\n"), ["r", "i"])
 
     def test_title_similarity(self):
         same = g.jaccard(g.title_words("chore(deps): bump lodash from 4.17.20 to 4.17.21"),

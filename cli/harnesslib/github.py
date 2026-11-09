@@ -563,12 +563,13 @@ class Harvester:
         }
 
 
-NON_RULE_HEADINGS = re.compile(r"^#{1,6}\s+(maintenance|t[âa]ches|tasks|ce que fait|what this|installation|commandes|commands)", re.I)
+NON_RULE_HEADINGS = re.compile(r"^#{1,6}\s+(maintenance|t[âa]ches|tasks|ce que fait|what this|installation|commandes|commands|processus|working process|workflow)", re.I)
 
 
 def parse_rules(agents_md: str) -> list[str]:
     """Les puces d'un AGENTS.md, lignes de continuation jointes, hors sections
-    de maintenance, de tâches ou de commandes. On ne présume pas d'un titre
+    de maintenance, de tâches, de commandes et de processus de travail (le
+    processus cadre l'agent, ce n'est pas une règle qu'un incident viole). On ne présume pas d'un titre
     « Règles » : les fichiers réels rangent leurs règles sous « Pièges », « Base
     de données », etc."""
     rules: list[str] = []
