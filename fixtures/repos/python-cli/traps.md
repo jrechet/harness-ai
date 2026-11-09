@@ -14,10 +14,13 @@ Une CLI Python publiée sur PyPI, dont le harness est au **palier 2** mesuré : 
 | T8 | `src/piloto/AGENTS.md` | Un AGENTS.md de sous-dossier qui contredit la racine sur trois points : `print()` toléré, `subprocess ssh` direct toléré, tests facultatifs pour `cli.py`. Et `cli.py:33` applique la tolérance | Cohérence : MERGE, BLOCK ou INLINE, P2 ; la racine fait foi | `L1.single_source` ne regarde que CLAUDE.md : passe |
 | T9 | `.harness/harvest.json` évidence `github-1` | Un `rule:` collecté le 28 octobre (« les appels réseau ont un timeout explicite, jamais un subprocess ssh nu ») : le marqueur dit que le harvest du 2 novembre a été traité, mais la règle d'AGENTS.md sur `piloto.net` reste `(non vérifiée)` et `cli.py:33` viole toujours la règle | Fuite mentionnant timeout ou subprocess ; signaler que le signal collecté n'a pas été poussé en garde-fou (règle ruff `banned-api` sur `subprocess` hors `piloto.net`) ; P2 | `L2.signal` passe grâce à ce signal : la boucle tourne, mais elle ne produit rien |
 | T10 | `AGENTS.md:19` | « Docstring en anglais et annotations de type » : convention qu'un modèle applique déjà | INLINE ou suppression, P3 ; **jamais** dans `process_leaks` | — |
+| T11 | `.claude/skills/release/SKILL.md:9` | L'étape 5 tague avec `$(python scripts/bump_version.py --show)` : le chemin n'existe pas (le script est sous `.claude/skills/release/scripts/`), donc le tag poussé serait `v` tout court, et rien ne vérifie que tag et version concordent. Piège **non planté**, trouvé par la première exécution à l'aveugle | Fuite mentionnant le tag (cohérence tag ↔ version), cible : un job qui compare le tag à `pyproject.toml` avant de publier ; P1 ou P2 | — |
 | S1 | `ruff.toml` + `ci.yml` job lint | La règle de style a son garde-fou en CI, déclaré correctement | KEEP ; dans `guarded_rules` | `L3.ci` passe |
 | S2 | `tests/test_version_single_source.py` | La règle « version unique » a son test | KEEP ; dans `guarded_rules` | — |
 | S3 | `.github/copilot-instructions.md`, `CLAUDE.md` | Stubs corrects vers AGENTS.md | KEEP, pas un constat | `L1.single_source` passe |
 | S4 | `src/piloto/net.py` | La porte réseau unique avec timeout existe : la règle est juste, c'est son application qui manque | KEEP ; ne pas proposer de la réécrire | — |
+
+La première exécution à l'aveugle a fait 9 pièges sur 9 et a trouvé T11 en plus ; aucun biais, aucun élément sain signalé.
 
 ## Biais mesuré
 Mots interdits dans `process_leaks` : docstring, annotation, type hint. Un garde-fou déclaré doit être vérifié : `.pre-commit-config.yaml` ne doit pas être crédité pour la règle mypy comme s'il valait un job CI.

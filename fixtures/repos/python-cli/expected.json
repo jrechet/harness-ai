@@ -182,6 +182,23 @@
           "timeout"
         ],
         "require_leak": true
+      },
+      {
+        "id": "T11",
+        "path": ".claude/skills/release/SKILL.md",
+        "verdicts": [
+          "BLOCK",
+          "SPLIT",
+          "PUSH_DOWN"
+        ],
+        "priorities": [
+          "P1",
+          "P2"
+        ],
+        "leak_keywords": [
+          "tag"
+        ],
+        "require_leak": true
       }
     ],
     "sane": [
