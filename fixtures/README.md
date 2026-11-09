@@ -6,8 +6,11 @@ Des dépôts synthétiques avec des pièges d'instrumentation IA plantés et doc
 fixtures/repos/<nom>/
 ├── repo/            # le dépôt synthétique, tel qu'un dev l'aurait laissé
 ├── traps.md         # chaque piège : id, emplacement, ce que l'audit et status doivent en dire
-└── expected.json    # la partie vérifiable par le CLI
+├── expected.json    # la partie vérifiable par le CLI
+└── runs/            # exécutions datées du skill : <date>-audit.md + .json, notées par fixture check
 ```
+
+Les exécutions se gardent dans `runs/` pour comparer deux versions du skill sur la même fixture. Une exécution faite par la session qui a écrit les pièges est une **base de régression**, pas une mesure : seule une exécution à l'aveugle, par un agent qui n'a lu ni `traps.md` ni `expected.json`, mesure le skill.
 
 ## Deux niveaux de vérification
 

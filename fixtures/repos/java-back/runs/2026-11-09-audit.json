@@ -1,0 +1,128 @@
+{
+  "audit": {
+    "process": "release de billing-api",
+    "scope": "fixtures/repos/java-back/repo",
+    "date": "2026-11-09",
+    "health_score": 30,
+    "cut_the_agent_test": { "passed": false, "leaked_steps": 2 }
+  },
+  "elements": [
+    {
+      "id": "release-yml", "path": ".github/workflows/release.yml",
+      "declared_layer": "L4", "actual_layer": "L4",
+      "called_by": ["release-mjs", "hotfix-mjs"], "calls": [],
+      "verdict": "BLOCK", "priority": "P1",
+      "finding": "Déploie en prod sans environment protégé, sans dry_run, sans point d'arrêt entre plan et exécution.",
+      "evidence": [".github/workflows/release.yml:3", ".github/workflows/release.yml:26", ".github/workflows/release.yml:27", ".github/workflows/release.yml:31"],
+      "target": "Jobs plan puis deploy sous environment: production avec reviewers ; input dry_run.",
+      "check": "dry_run=true ne touche ni registry ni prod ; un deploy exige une approbation."
+    },
+    {
+      "id": "skill-release", "path": ".claude/skills/release/SKILL.md",
+      "declared_layer": "L2", "actual_layer": "L2",
+      "called_by": ["claude-md"], "calls": ["release-mjs", "hotfix-mjs"],
+      "verdict": "PUSH_DOWN", "priority": "P1",
+      "finding": "Deux pré-conditions obligatoires et la lecture du résultat n'existent qu'en texte.",
+      "evidence": [".claude/skills/release/SKILL.md:9", ".claude/skills/release/SKILL.md:10", ".claude/skills/release/SKILL.md:15", ".claude/skills/release/SKILL.md:16"],
+      "target": "Sous-commande release check à exit 1 ; résultat lu par code de sortie ; le skill garde la séquence.",
+      "check": "Sans le skill, release check && release run fait la même chose ou refuse pour la même raison."
+    },
+    {
+      "id": "claude-md", "path": "CLAUDE.md",
+      "declared_layer": "L2", "actual_layer": "MIXED",
+      "called_by": [], "calls": ["skill-release"],
+      "verdict": "SPLIT", "priority": "P2",
+      "finding": "Monolithe de 111 lignes, majoritairement de la référence ; exemple de code qui contredit la règle d'injection ; pas de mode, pas de maintenance, pas d'interdits.",
+      "evidence": ["CLAUDE.md:5", "CLAUDE.md:51", "CLAUDE.md:74", "CLAUDE.md:95", "CLAUDE.md:103"],
+      "target": "AGENTS.md < 60 lignes avec mode, interdits, règles justifiées et Vérifiée par ; référence dans docs/ ; CLAUDE.md = @AGENTS.md.",
+      "check": "harness status passe le palier 1."
+    },
+    {
+      "id": "hotfix-mjs", "path": "scripts/hotfix.mjs",
+      "declared_layer": "L3", "actual_layer": "L3",
+      "called_by": ["skill-release"], "calls": ["release-yml"],
+      "verdict": "MERGE", "priority": "P2",
+      "finding": "Duplique release.mjs à une ligne près.",
+      "evidence": ["scripts/hotfix.mjs:16", "scripts/release.mjs:23"],
+      "target": "Une seule commande release run --type patch|minor|major.",
+      "check": "hotfix.mjs supprimé ; une seule commande citée dans le skill."
+    },
+    {
+      "id": "release-mjs", "path": "scripts/release.mjs",
+      "declared_layer": "L3", "actual_layer": "MIXED",
+      "called_by": ["skill-release"], "calls": ["release-yml"],
+      "verdict": "PROMOTE", "priority": "P3",
+      "finding": "Déduit le type de version du nom de la branche : du jugement codé en dur.",
+      "evidence": ["scripts/release.mjs:11", "scripts/release.mjs:15"],
+      "target": "Le script expose --type ; l'agent ou l'humain choisit.",
+      "check": "release run --type major depuis develop fonctionne."
+    },
+    {
+      "id": "old-deploy", "path": "scripts/old-deploy.sh",
+      "declared_layer": "L3", "actual_layer": "L4",
+      "called_by": [], "calls": [],
+      "verdict": "BLOCK", "priority": "P3",
+      "finding": "Aucun appelant ; déploie en prod par SSH en contournant le workflow.",
+      "evidence": ["scripts/old-deploy.sh:5", "scripts/old-deploy.sh:7"],
+      "target": "Supprimé.",
+      "check": "Fichier absent."
+    },
+    {
+      "id": "ci-yml", "path": ".github/workflows/ci.yml",
+      "declared_layer": "L4", "actual_layer": "L4",
+      "called_by": [], "calls": ["archunit", "checkstyle"],
+      "verdict": "KEEP", "priority": null,
+      "finding": "Checkstyle et tests à chaque push et PR.",
+      "evidence": [".github/workflows/ci.yml:13", ".github/workflows/ci.yml:14"],
+      "target": "Inchangé.", "check": "—"
+    },
+    {
+      "id": "archunit", "path": "src/test/java/com/acme/billing/ArchitectureTest.java",
+      "declared_layer": "L3", "actual_layer": "L3",
+      "called_by": ["ci-yml"], "calls": [],
+      "verdict": "KEEP", "priority": null,
+      "finding": "Porte la règle pas de logique métier dans les contrôleurs ; à étendre.",
+      "evidence": ["src/test/java/com/acme/billing/ArchitectureTest.java:14"],
+      "target": "Inchangé ; accueille les règles d'injection et d'autorisation.", "check": "—"
+    },
+    {
+      "id": "checkstyle", "path": "config/checkstyle/checkstyle.xml",
+      "declared_layer": "L3", "actual_layer": "L3",
+      "called_by": ["ci-yml"], "calls": [],
+      "verdict": "KEEP", "priority": null,
+      "finding": "Porte le style ; la section Code Style de CLAUDE.md peut devenir un pointeur.",
+      "evidence": ["config/checkstyle/checkstyle.xml:4"],
+      "target": "Inchangé.", "check": "—"
+    }
+  ],
+  "process_leaks": [
+    { "rule": "develop doit être vert avant la release", "told_in": ".claude/skills/release/SKILL.md:9", "if_skipped": "release d'un commit cassé", "belongs_in": "L3", "guard_tool": "sous-commande release check (gh run list) appelée par release.yml" },
+    { "rule": "aucune migration Flyway non appliquée en prod", "told_in": ".claude/skills/release/SKILL.md:10", "if_skipped": "démarrage prod en échec ou schéma divergent", "belongs_in": "L3", "guard_tool": "release check comparant db/migration à flyway_schema_history" },
+    { "rule": "constructor injection, never field injection", "told_in": "CLAUDE.md:51", "if_skipped": "dépendances cachées, déjà violée par InvoiceService.java:10", "belongs_in": "L3", "guard_tool": "ArchUnit noFields().should().beAnnotatedWith(Autowired)" },
+    { "rule": "every endpoint has an authorization test", "told_in": "CLAUDE.md:57", "if_skipped": "endpoint sans contrôle de rôle en prod", "belongs_in": "L3", "guard_tool": "test d'architecture exigeant un *AuthorizationTest par *Controller" },
+    { "rule": "lecture du résultat par SUCCESS dans la sortie", "told_in": ".claude/skills/release/SKILL.md:15", "if_skipped": "succès halluciné", "belongs_in": "L3", "guard_tool": "gh run watch --exit-status" }
+  ],
+  "guarded_rules": [
+    { "rule": "no business logic in controllers", "told_in": "CLAUDE.md:54", "guarded_by": "src/test/java/com/acme/billing/ArchitectureTest.java:14" },
+    { "rule": "line length 120, no wildcard imports, one class per file", "told_in": "CLAUDE.md:83", "guarded_by": "config/checkstyle/checkstyle.xml" },
+    { "rule": "never modify an applied Flyway migration", "told_in": "CLAUDE.md:63", "guarded_by": "Flyway checksum validation at startup (runtime, not CI)" }
+  ],
+  "instruction_files": [
+    { "path": "CLAUDE.md", "loaded_lines": 111, "instruction_pct": 20, "reference_pct": 65, "noise_pct": 15, "justified_rules": false, "maintenance_clause": false },
+    { "path": ".claude/skills/release/SKILL.md", "loaded_lines": 22, "instruction_pct": 90, "reference_pct": 10, "noise_pct": 0, "justified_rules": false, "maintenance_clause": false }
+  ],
+  "remediation": [
+    { "order": 1, "priority": "P1", "verdict": "BLOCK", "element": "release-yml", "action": "environment protégé, input dry_run, séparer plan et deploy", "depends_on": [], "check": "dry_run ne touche rien ; deploy exige approbation", "needs_human_approval": true },
+    { "order": 2, "priority": "P1", "verdict": "PUSH_DOWN", "element": "skill-release", "action": "créer release check (develop vert, migrations) à exit 1, appelé par release.yml", "depends_on": ["release-yml"], "check": "sans le skill, release check refuse pour la même raison", "needs_human_approval": false },
+    { "order": 3, "priority": "P2", "verdict": "MERGE", "element": "hotfix-mjs", "action": "une commande release run --type ; supprimer hotfix.mjs", "depends_on": ["skill-release"], "check": "une seule commande citée", "needs_human_approval": true },
+    { "order": 4, "priority": "P3", "verdict": "PROMOTE", "element": "release-mjs", "action": "retirer l'inférence depuis le nom de branche", "depends_on": ["hotfix-mjs"], "check": "--type major depuis develop fonctionne", "needs_human_approval": false },
+    { "order": 5, "priority": "P2", "verdict": "PUSH_DOWN", "element": "claude-md", "action": "règles ArchUnit : pas de champ @Autowired ; test d'autorisation par contrôleur", "depends_on": [], "check": "ArchitectureTest rouge sur InvoiceService actuel", "needs_human_approval": false },
+    { "order": 6, "priority": "P2", "verdict": "SPLIT", "element": "claude-md", "action": "AGENTS.md < 60 lignes ; référence dans docs/ ; CLAUDE.md = @AGENTS.md ; exemple corrigé", "depends_on": ["claude-md"], "check": "harness status palier 1", "needs_human_approval": false },
+    { "order": 7, "priority": "P3", "verdict": "BLOCK", "element": "old-deploy", "action": "supprimer", "depends_on": ["release-yml"], "check": "fichier absent", "needs_human_approval": true }
+  ],
+  "unverified": [
+    "Configuration GitHub des environnements et protections de branche (hors dépôt).",
+    "Accès lecture à flyway_schema_history depuis la CI.",
+    "Tests non exécutés (fixture sans toolchain) ; violation d'InvoiceService constatée à la lecture."
+  ]
+}
