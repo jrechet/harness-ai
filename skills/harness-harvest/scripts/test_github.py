@@ -93,12 +93,20 @@ def build_fixture():
         # S2 revert d'une PR d'agent ; S3 commentaire récurrent de carol sur 2 PRs
         pr(5, "Add export endpoint", "claude", merged="2026-10-15T10:00:00Z", merge_sha="m5"),
         pr(6, "Add import endpoint", "dave", labels=["agent"], merged="2026-10-16T10:00:00Z", merge_sha="m6"),
+        # Renovate : ni agent ni tâche récurrente ; son squash-merge touche package.json après la PR 3
+        pr(8, "chore(deps): update all non-major dependencies", "alice", branch="renovate/all-minor-patch",
+           labels=["dependencies"], created="2026-10-10T11:00:00Z", merged="2026-10-10T12:00:00Z", merge_sha="m8"),
+        pr(9, "chore(deps): update all non-major dependencies", "alice", branch="renovate/all-minor-patch",
+           labels=["dependencies"], created="2026-10-20T11:00:00Z", merged="2026-10-20T12:00:00Z", merge_sha="m9"),
+        pr(10, "chore(deps): update all non-major dependencies", "alice", branch="renovate/all-minor-patch",
+           labels=["dependencies"], created="2026-10-25T11:00:00Z", merged="2026-10-25T12:00:00Z", merge_sha="m10"),
         # hors fenêtre : doit arrêter la pagination
         pr(7, "Old stuff", "alice", created="2026-09-01T10:00:00Z"),
     ]
     data[f"{base}/pulls"] = prs
     files = {1: ["src/payments/webhook.ts"], 2: ["package.json"], 3: ["package.json", "src/http/client.ts"],
-             4: ["package.json"], 5: ["src/api/export.ts"], 6: ["src/api/import.ts"]}
+             4: ["package.json"], 5: ["src/api/export.ts"], 6: ["src/api/import.ts"],
+             8: ["package.json"], 9: ["package.json"], 10: ["package.json"]}
     for n, fs in files.items():
         data[f"{base}/pulls/{n}/files"] = [{"filename": f} for f in fs]
     # commits par PR (le trailer rend la PR 6 agent même sans login/branche)
@@ -115,6 +123,9 @@ def build_fixture():
                                                 "carol", path="src/api/export.ts")]
     data[f"{base}/pulls/6/comments"] = [comment(61, "Validate the request body with the shared zod schema before handling it",
                                                 "carol", path="src/api/import.ts")]
+    # notes de l'auteur sur ses propres PRs : jamais une correction de review (S3)
+    data[f"{base}/issues/5/comments"] = [comment(52, "Merge en cours par la session x (demande du propriétaire)", "claude")]
+    data[f"{base}/issues/6/comments"] = [comment(62, "Merge en cours par la session x (demande du propriétaire)", "dave")]
     # checks : même check en échec sur PR 3 et 4
     for n in (3, 4):
         data[f"{base}/commits/head{n}/check-runs"] = {"check_runs": [
@@ -127,7 +138,11 @@ def build_fixture():
         commit("m5", "Merge pull request #5", "claude", "2026-10-15T10:00:00Z"),
         commit("r1", "Revert \"Add export endpoint\" (#5)", "carol", "2026-10-15T18:00:00Z"),
         commit("f2", "docs: unrelated", "erin", "2026-10-10T16:00:00Z"),
+        # squash-merge Renovate 2 h après la PR 3, sur package.json : pas une correction
+        commit("m8", "chore(deps): update all non-major dependencies (#8)", "alice", "2026-10-10T12:00:00Z"),
     ]
+    data[f"{base}/commits/m8"] = commit("m8", "chore(deps): update all non-major dependencies (#8)", "alice",
+                                        "2026-10-10T12:00:00Z", files=["package.json"])
     data[f"{base}/commits/f1"] = commit("f1", "fix: restore axios timeout", "bob", "2026-10-10T15:00:00Z",
                                         files=["src/http/client.ts"])
     data[f"{base}/commits/f2"] = commit("f2", "docs: unrelated", "erin", "2026-10-10T16:00:00Z", files=["README.md"])
@@ -171,8 +186,8 @@ class HarvesterTests(unittest.TestCase):
         os.unlink(self.tmp.name)
 
     def test_window_stops_pagination_and_classifies_agents(self):
-        self.assertEqual(self.result["prs_scanned"], 6)       # la PR 7 est hors fenêtre
-        self.assertEqual(self.result["agent_prs"], 5)         # login, branche, label, trailer
+        self.assertEqual(self.result["prs_scanned"], 9)       # la PR 7 est hors fenêtre
+        self.assertEqual(self.result["agent_prs"], 5)         # login, branche, label, trailer ; pas Renovate
         self.assertEqual(self.result["errors"], [])
 
     def test_s1_explicit_rule(self):
@@ -193,6 +208,8 @@ class HarvesterTests(unittest.TestCase):
         self.assertIn("5 h après", fix[0]["text"])
         # le commit docs d'erin ne touche pas les fichiers de la PR : pas d'évidence
         self.assertFalse(any("unrelated" in t for t in texts))
+        # le squash-merge Renovate sur package.json n'est pas une correction
+        self.assertFalse(any("non-major" in t for t in texts), texts)
 
     def test_s3_recurring_review_comment(self):
         s3 = by_signal(self.result, "S3")
@@ -215,10 +232,11 @@ class HarvesterTests(unittest.TestCase):
 
     def test_s6_recurring_task(self):
         s6 = by_signal(self.result, "S6")
-        self.assertEqual(len(s6), 3)
+        self.assertEqual(len(s6), 3)                          # les 3 Renovate sont exclues
         keys = {e["group_key"] for e in s6}
         self.assertEqual(len(keys), 1)
         self.assertIn("bump", keys.pop())
+        self.assertFalse(any(e["group_key"].startswith("task:label") for e in s6))
 
     def test_s7_repeated_question(self):
         s7 = by_signal(self.result, "S7")
@@ -257,8 +275,9 @@ class RobustnessTests(unittest.TestCase):
 
 class HelpersTests(unittest.TestCase):
     def test_parse_rules(self):
-        self.assertEqual(len(g.parse_rules(AGENTS_MD)), 2)
-        self.assertEqual(g.parse_rules("# x\n## Rules\n- a\n- b\n## Other\n- c"), ["a", "b"])
+        self.assertEqual(len(g.parse_rules(AGENTS_MD)), 2)    # la puce de Maintenance est exclue
+        self.assertEqual(g.parse_rules("# x\n## Pièges\n- a\n  suite de a\n- b\n## Tâches déléguées\n- c\n\ntexte"),
+                         ["a suite de a", "b"])
 
     def test_title_similarity(self):
         same = g.jaccard(g.title_words("chore(deps): bump lodash from 4.17.20 to 4.17.21"),
@@ -298,7 +317,7 @@ class CliTests(unittest.TestCase):
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["repo"], REPO)
         self.assertIn("S1", payload["counts"])
-        self.assertIn("PRs : 6", err.getvalue())
+        self.assertIn("PRs : 9", err.getvalue())
 
     def test_main_exit_2_on_error(self):
         fake = FakeGitHub(build_fixture(), failing={f"repos/{REPO}/pulls/1/comments"})

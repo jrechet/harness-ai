@@ -163,7 +163,9 @@ def sentences(text: str) -> list[str]:
 
 class AgentMarkers:
     def __init__(self, logins: Iterable[str], branch_prefixes: Iterable[str],
-                 labels: Iterable[str], trailers: Iterable[str]):
+                 labels: Iterable[str], trailers: Iterable[str],
+                 automation_prefixes: Iterable[str] = ("renovate/", "dependabot/")):
+        self.automation_prefixes = [p.lower() for p in automation_prefixes]
         self.logins = {l.lower() for l in logins}
         self.branch_prefixes = [p.lower() for p in branch_prefixes]
         self.labels = {l.lower() for l in labels}
@@ -178,6 +180,11 @@ class AgentMarkers:
     def message_is_agent(self, message: str | None) -> bool:
         m = (message or "").lower()
         return any(t in m for t in self.trailers)
+
+    def pr_is_automation(self, pr: dict) -> bool:
+        """PR d'un robot de dépendances : ni agent, ni tâche humaine récurrente."""
+        ref = ((pr.get("head") or {}).get("ref") or "").lower()
+        return any(ref.startswith(p) for p in self.automation_prefixes)
 
     def pr_is_agent(self, pr: dict, commits: list[dict]) -> bool:
         if self.login_is_agent((pr.get("user") or {}).get("login")):
@@ -270,7 +277,8 @@ class Harvester:
             pr["_review_comments"] = self.get(f"{base}/pulls/{n}/comments", default=[], paginated=True) or []
             pr["_issue_comments"] = self.get(f"{base}/issues/{n}/comments", default=[], paginated=True) or []
             pr["_reviews"] = self.get(f"{base}/pulls/{n}/reviews", default=[], paginated=True) or []
-            pr["_agent"] = self.markers.pr_is_agent(pr, pr["_commits"])
+            pr["_automated"] = self.markers.pr_is_automation(pr)
+            pr["_agent"] = not pr["_automated"] and self.markers.pr_is_agent(pr, pr["_commits"])
             if pr["_agent"]:
                 sha = (pr.get("head") or {}).get("sha")
                 runs = self.get(f"{base}/commits/{sha}/check-runs", default={}) if sha else {}
@@ -343,6 +351,7 @@ class Harvester:
                            {"sha": self.default_branch, "since": self.since.strftime(ISO)},
                            default=[], paginated=True) or []
         merged_shas = {p.get("merge_commit_sha"): p for p in merged if p.get("merge_commit_sha")}
+        by_number = {p["number"]: p for p in self.prs}
         for c in commits:
             msg = (c.get("commit") or {}).get("message") or ""
             author = (c.get("author") or {}).get("login") or ((c.get("commit") or {}).get("author") or {}).get("name")
@@ -363,6 +372,18 @@ class Harvester:
                                 agent_authored=False, files=target["_files"],
                                 text=f"Revert d'une PR d'agent : {target['title']}", related_rule=None,
                                 group_key=f"zone:{self.zone(target['_files'])}")
+                    continue
+            # squash-merge d'une autre PR de la fenêtre : correction seulement si c'est un fix/revert
+            # ou si elle cite une PR d'agent ; une PR Renovate qui touche build.gradle n'en est pas une
+            ref_pr = None
+            m_ref = re.search(r"\(#(\d+)\)\s*$", msg.splitlines()[0])
+            if m_ref:
+                ref_pr = by_number.get(int(m_ref.group(1)))
+            if ref_pr is not None:
+                title = (ref_pr.get("title") or "").lower()
+                cites_agent = any(f"#{p['number']}" in (ref_pr.get("title") or "") + (ref_pr.get("body") or "")
+                                  for p in merged)
+                if ref_pr.get("_automated") or not (re.match(r"^(fix|hotfix|revert)\b", title) or cites_agent):
                     continue
             # fix dans la fenêtre après merge, sur les mêmes fichiers
             candidates = [p for p in merged
@@ -405,6 +426,8 @@ class Harvester:
             for c in self.all_comments(pr):
                 if RULE_PREFIX.match(c["body"]) or self.markers.login_is_agent(c["author"]):
                     continue
+                if c["author"] and c["author"] == (pr.get("user") or {}).get("login"):
+                    continue  # note de l'auteur sur sa propre PR, pas une correction
                 per_author[c["author"] or "?"].append((pr, c))
         for author, hits in per_author.items():
             sets = [comment_words(c["body"]) for _, c in hits]
@@ -473,13 +496,18 @@ class Harvester:
                         files=pr["_files"], text=pr.get("title") or "", related_rule=None,
                         group_key=f"task:{kind}:{key}")
 
-        sets = [title_words(pr.get("title") or "") for pr in self.prs]
+        candidates = [pr for pr in self.prs if not pr.get("_automated")]
+        sets = [title_words(pr.get("title") or "") for pr in candidates]
+        grouped: set[int] = set()
         for grp in cluster(sets, TITLE_THRESHOLD):
             if len(grp["idx"]) >= self.min_task_count and len(grp["common"]) >= 2:
                 for i in grp["idx"]:
-                    emit(self.prs[i], "title", label(grp["common"]))
+                    emit(candidates[i], "title", label(grp["common"]))
+                    grouped.add(candidates[i]["number"])
         by_label: dict[str, list[dict]] = defaultdict(list)
-        for pr in self.prs:
+        for pr in candidates:
+            if pr["number"] in grouped:
+                continue
             for lab in pr.get("labels") or []:
                 name = (lab.get("name") or "").lower()
                 if name:
@@ -535,16 +563,39 @@ class Harvester:
         }
 
 
+NON_RULE_HEADINGS = re.compile(r"^#{1,6}\s+(maintenance|t[âa]ches|tasks|ce que fait|what this|installation|commandes|commands)", re.I)
+
+
 def parse_rules(agents_md: str) -> list[str]:
-    """Les puces de la section « Règles » d'un AGENTS.md (jusqu'au titre suivant)."""
+    """Les puces d'un AGENTS.md, lignes de continuation jointes, hors sections
+    de maintenance, de tâches ou de commandes. On ne présume pas d'un titre
+    « Règles » : les fichiers réels rangent leurs règles sous « Pièges », « Base
+    de données », etc."""
     rules: list[str] = []
-    in_rules = False
+    skip = False
+    current: list[str] | None = None
+
+    def flush() -> None:
+        nonlocal current
+        if current:
+            rules.append(" ".join(part.strip() for part in current))
+        current = None
+
     for line in agents_md.splitlines():
         if re.match(r"^#{1,6}\s", line):
-            in_rules = bool(re.match(r"^#{1,6}\s+(r[èe]gles|rules)\b", line, re.I))
+            flush()
+            skip = bool(NON_RULE_HEADINGS.match(line))
             continue
-        if in_rules and re.match(r"^\s*[-*]\s+", line):
-            rules.append(re.sub(r"^\s*[-*]\s+", "", line).strip())
+        if skip:
+            continue
+        if re.match(r"^\s*[-*]\s+", line):
+            flush()
+            current = [re.sub(r"^\s*[-*]\s+", "", line)]
+        elif current is not None and line.startswith("  ") and line.strip():
+            current.append(line)
+        else:
+            flush()
+    flush()
     return rules
 
 
@@ -572,6 +623,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--agent-label", action="append", default=[], help="label marquant une PR d'agent (répétable)")
     p.add_argument("--agent-trailer", action="append", default=[],
                    help="fragment de message de commit marquant un agent, ex. 'Co-Authored-By: Claude' (répétable)")
+    p.add_argument("--automation-branch-prefix", action="append", default=[],
+                   help="préfixe de branche d'un robot de dépendances, exclu de S6 et des corrections S2 "
+                        "(défaut : renovate/, dependabot/)")
     p.add_argument("--fix-window-hours", type=int, default=48)
     p.add_argument("--min-recurrence", type=int, default=2, help="seuil S3, S4, S7")
     p.add_argument("--min-task-count", type=int, default=3, help="seuil S6")
@@ -595,6 +649,7 @@ def main(argv: list[str] | None = None, fetch: Fetcher = gh_api) -> int:
         branch_prefixes=args.agent_branch_prefix or ["claude/"],
         labels=args.agent_label,
         trailers=args.agent_trailer or ["co-authored-by: claude"],
+        automation_prefixes=args.automation_branch_prefix or ["renovate/", "dependabot/"],
     )
     h = Harvester(args.repo, since, markers, fetch,
                   fix_window_hours=args.fix_window_hours, min_recurrence=args.min_recurrence,
