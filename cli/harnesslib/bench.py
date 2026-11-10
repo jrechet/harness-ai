@@ -1,0 +1,373 @@
+"""Sous-commande `bench` : le banc qui mesure un avant et un après.
+
+Une **tâche** est un travail type confié à un agent sur un projet type (`fixtures/repos/<nom>/tasks/<id>/`).
+On la joue sur plusieurs **bras** du même dépôt : `bare` (aucune instruction), `asis` (le dépôt tel
+qu'on l'a trouvé), `harness` (après le pas de harness, par défaut celui de l'auteur de la fixture).
+L'écart entre les bras est la preuve que le harness sert, ou qu'une ligne ne sert plus.
+
+  bench plan                              les exécutions d'agent d'une campagne, et leur coût estimé
+  bench prepare <fixture> <dest> --arm …  le dépôt de travail d'un bras, avec un commit de départ
+  bench check <fixture> <tâche> <dir>     note le travail rendu : tests, tests cachés, tentations
+  bench selftest <fixture>                la tâche est-elle bien posée ? solution verte, tentation rouge
+  bench record … / bench report           le registre des résultats, par skill, bras et modèle
+
+Rien ici ne lance un agent : le banc prépare, note et tient le registre."""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from datetime import date
+from typing import Any
+
+from . import facts, fixtures
+
+ARMS = ("bare", "asis", "harness")
+# Coût estimé d'une exécution d'agent, en tokens. Mesuré sur les sept premières évaluations à l'aveugle.
+COST = {"audit": 130_000, "init": 130_000, "task": 90_000}
+RESULTS = os.path.join(os.path.dirname(fixtures.FIXTURES_ROOT), "results.jsonl")
+OVERLAY_SKIP = {"RUN.md", "README.md"}          # la note qui décrit une exécution n'est pas du harness
+GIT_ENV = {"GIT_AUTHOR_NAME": "owner", "GIT_AUTHOR_EMAIL": "owner@example.test",
+           "GIT_COMMITTER_NAME": "owner", "GIT_COMMITTER_EMAIL": "owner@example.test"}
+
+
+def _git(workdir: str, *args: str, env: dict | None = None, check: bool = True) -> str:
+    out = subprocess.run(["git", "-C", workdir, *args], capture_output=True, text=True,
+                         env={**os.environ, **GIT_ENV, **(env or {})})
+    if check and out.returncode != 0:
+        raise RuntimeError(f"git {' '.join(args)} : {out.stderr.strip()}")
+    return out.stdout
+
+
+def resolve(name: str) -> str:
+    return name if os.path.isdir(name) else os.path.join(fixtures.FIXTURES_ROOT, name)
+
+
+def list_tasks(fixture_dir: str) -> list[str]:
+    base = os.path.join(fixture_dir, "tasks")
+    return sorted(d for d in os.listdir(base) if os.path.isfile(os.path.join(base, d, "task.json"))) \
+        if os.path.isdir(base) else []
+
+
+def load_task(fixture_dir: str, task_id: str) -> dict[str, Any]:
+    task_dir = os.path.join(fixture_dir, "tasks", task_id)
+    with open(os.path.join(task_dir, "task.json"), encoding="utf-8") as fh:
+        task = json.load(fh)
+    task["dir"] = task_dir
+    return task
+
+
+def author_overlay(fixture_dir: str) -> str | None:
+    """Le harness posé par l'auteur de la fixture : le dernier `runs/*-author` qui porte un AGENTS.md."""
+    runs = os.path.join(fixture_dir, "runs")
+    found = sorted(d for d in os.listdir(runs) if d.endswith("-author")
+                   and os.path.isfile(os.path.join(runs, d, "AGENTS.md"))) if os.path.isdir(runs) else []
+    return os.path.join(runs, found[-1]) if found else None
+
+
+def available_arms(fixture_dir: str) -> list[str]:
+    arms = ["bare"]
+    if facts.instruction_corpus(os.path.join(fixture_dir, "repo")):
+        arms.append("asis")
+    if author_overlay(fixture_dir):
+        arms.append("harness")
+    return arms
+
+
+def prepare(fixture_dir: str, dest: str, arm: str, overlay: str | None = None) -> dict[str, Any]:
+    """Le dépôt de travail d'un bras : une copie de `repo/` devenue un dépôt git à un commit."""
+    if arm not in ARMS:
+        raise SystemExit(f"bras inconnu : {arm} (attendu : {', '.join(ARMS)})")
+    removed = fixtures.bare_copy(fixture_dir, dest, branch="main", keep_instrumentation=(arm == "asis"), commit=False)
+    copied: list[str] = []
+    if arm == "harness":
+        overlay = overlay or author_overlay(fixture_dir)
+        if not overlay:
+            raise SystemExit("bras harness : aucun runs/*-author, et pas de --overlay")
+        for root, dirs, files in os.walk(overlay):
+            dirs[:] = [d for d in dirs if d != ".git"]
+            for name in files:
+                rel = os.path.relpath(os.path.join(root, name), overlay)
+                if rel in OVERLAY_SKIP:
+                    continue
+                os.makedirs(os.path.dirname(os.path.join(dest, rel)) or dest, exist_ok=True)
+                shutil.copyfile(os.path.join(root, name), os.path.join(dest, rel))
+                copied.append(rel.replace(os.sep, "/"))
+    fixtures.commit_all(dest, "main")
+    return {"arm": arm, "dest": dest, "removed": removed, "overlay": sorted(copied)}
+
+
+def diff(workdir: str) -> dict[str, dict[str, Any]]:
+    """Ce que l'agent a changé depuis le commit de départ, fichiers non suivis compris :
+    par chemin, les lignes ajoutées et le nombre de lignes touchées."""
+    base = _git(workdir, "rev-list", "--max-parents=0", "HEAD").split()[0]
+    with tempfile.TemporaryDirectory() as tmp:
+        env = {"GIT_INDEX_FILE": os.path.join(tmp, "index")}
+        _git(workdir, "add", "-A", env=env)
+        raw = _git(workdir, "diff", "--cached", "--unified=0", "--no-color", "--no-renames", base, env=env)
+    changes: dict[str, dict[str, Any]] = {}
+    current: dict[str, Any] | None = None
+    for line in raw.splitlines():
+        if line.startswith("diff --git "):
+            path = line.split(" b/", 1)[1]
+            current = changes.setdefault(path, {"added": [], "changed": 0})
+        elif current is None or line.startswith(("+++", "---", "@@", "index ", "new file", "deleted file", "Binary")):
+            continue
+        elif line.startswith("+"):
+            current["added"].append(line[1:])
+            current["changed"] += 1
+        elif line.startswith("-"):
+            current["changed"] += 1
+    return changes
+
+
+def _diff_check(spec: dict, changes: dict[str, dict[str, Any]]) -> tuple[bool, str]:
+    if "forbid_changed" in spec:
+        hits = sorted(p for p in changes if re.search(spec["forbid_changed"], p))
+        return not hits, ("touché : " + ", ".join(hits)) if hits else ""
+    if "max_changed_lines" in spec:
+        rule = spec["max_changed_lines"]
+        total = sum(c["changed"] for p, c in changes.items() if re.search(rule["paths"], p))
+        return total <= rule["max"], f"{total} ligne(s) touchée(s), maximum {rule['max']}"
+    kind = "forbid_added" if "forbid_added" in spec else "require_added"
+    rule = spec[kind]
+    hits = [f"{p}: {l.strip()[:80]}" for p, c in changes.items() if re.search(rule["paths"], p)
+            for l in c["added"] if re.search(rule["pattern"], l)]
+    if kind == "forbid_added":
+        return not hits, "; ".join(hits[:3])
+    return bool(hits), "" if hits else f"aucune ligne ajoutée ne contient {rule['pattern']} sous {rule['paths']}"
+
+
+def _run(command: str, workdir: str, timeout: int) -> tuple[bool, str]:
+    try:
+        out = subprocess.run(command, shell=True, cwd=workdir, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return False, f"délai de {timeout} s dépassé"
+    tail = "\n".join((out.stdout + out.stderr).strip().splitlines()[-12:])
+    return out.returncode == 0, "" if out.returncode == 0 else tail
+
+
+def check(fixture_dir: str, task_id: str, workdir: str) -> dict[str, Any]:
+    """Note le travail rendu dans `workdir`. Ordre : le diff d'abord (avant toute installation), puis
+    les commandes du projet, puis les tests cachés, copiés au dernier moment pour que l'agent ne les
+    ait jamais vus et qu'ils ne comptent pas dans son diff."""
+    task = load_task(fixture_dir, task_id)
+    timeout = task.get("timeout", 600)
+    changes = diff(workdir)
+    results: dict[str, dict[str, Any]] = {}
+    setup_error = ""
+    for spec in task["checks"]:
+        if "run" not in spec:
+            passed, detail = _diff_check(spec, changes)
+            results[spec["id"]] = {"passed": passed, "detail": detail}
+    if task.get("setup"):
+        ok, detail = _run(task["setup"], workdir, timeout)
+        setup_error = "" if ok else f"préparation en échec : {detail}"
+    for acceptance in (False, True):
+        if acceptance:
+            for item in task.get("acceptance", []):
+                target = os.path.join(workdir, item["to"])
+                os.makedirs(os.path.dirname(target), exist_ok=True)
+                shutil.copyfile(os.path.join(task["dir"], item["from"]), target)
+        for spec in task["checks"]:
+            if "run" in spec and bool(spec.get("acceptance")) == acceptance:
+                passed, detail = (False, setup_error) if setup_error else _run(spec["run"], workdir, timeout)
+                results[spec["id"]] = {"passed": passed, "detail": detail}
+    for item in task.get("acceptance", []):                       # laisser le dépôt comme l'agent l'a rendu
+        target = os.path.join(workdir, item["to"])
+        if os.path.exists(target):
+            os.remove(target)
+    checks = [{"id": s["id"], "what": s["what"], **results[s["id"]]} for s in task["checks"]]
+    passed = sum(c["passed"] for c in checks)
+    return {"fixture": os.path.basename(os.path.normpath(fixture_dir)), "task": task_id, "checks": checks,
+            "files_changed": sorted(changes), "score": f"{passed}/{len(checks)}", "ok": passed == len(checks)}
+
+
+def selftest(fixture_dir: str) -> list[str]:
+    """Une tâche est bien posée quand le dépôt intact échoue, que la solution de référence passe tout,
+    et que chaque solution tentée échoue au moins aux contrôles qu'elle déclare. Retourne les écarts."""
+    problems: list[str] = []
+    for task_id in list_tasks(fixture_dir):
+        task = load_task(fixture_dir, task_id)
+
+        def graded(patch: str | None) -> dict[str, Any]:
+            with tempfile.TemporaryDirectory() as tmp:
+                work = os.path.join(tmp, "work")
+                prepare(fixture_dir, work, "asis" if "asis" in available_arms(fixture_dir) else "bare")
+                if patch:
+                    _git(work, "apply", "--whitespace=nowarn", os.path.join(task["dir"], patch))
+                return check(fixture_dir, task_id, work)
+
+        untouched = graded(None)
+        if untouched["ok"]:
+            problems.append(f"{task_id} : le dépôt intact passe tous les contrôles, la tâche ne mesure rien")
+        solution = graded("solution.patch")
+        for c in solution["checks"]:
+            if not c["passed"]:
+                problems.append(f"{task_id} : la solution de référence échoue à « {c['id']} » : {c['detail'][:200]}")
+        for tempted in task.get("tempted", []):
+            failed = {c["id"] for c in graded(tempted["patch"])["checks"] if not c["passed"]}
+            missing = sorted(set(tempted["fails"]) - failed)
+            if missing:
+                problems.append(f"{task_id} : {tempted['patch']} devrait échouer à {missing}, échoue à {sorted(failed)}")
+    return problems
+
+
+def plan(kinds: list[str], role: str, only: list[str] | None = None) -> list[dict[str, Any]]:
+    """Les exécutions d'agent d'une campagne. Un projet `holdout` est tenu à l'écart du réglage des
+    skills : il ne sert qu'à mesurer, sinon la note monte parce que le skill a appris le corrigé."""
+    cells: list[dict[str, Any]] = []
+    for name in sorted(os.listdir(fixtures.FIXTURES_ROOT)):
+        fixture_dir = os.path.join(fixtures.FIXTURES_ROOT, name)
+        expected_path = os.path.join(fixture_dir, "expected.json")
+        if not os.path.isfile(expected_path) or (only and name not in only):
+            continue
+        with open(expected_path, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        fixture_role = expected.get("role", "tuning")
+        if role != "all" and fixture_role != role:
+            continue
+        cell = lambda kind, **extra: {"fixture": name, "role": fixture_role, "kind": kind, "tokens": COST[kind], **extra}  # noqa: E731
+        if "audit" in kinds and facts.instruction_corpus(os.path.join(fixture_dir, "repo")):
+            cells.append(cell("audit"))
+        if "init" in kinds and expected.get("init"):
+            cells.append(cell("init"))
+        if "task" in kinds:
+            cells += [cell("task", task=t, arm=a) for t in list_tasks(fixture_dir) for a in available_arms(fixture_dir)]
+    return cells
+
+
+def record(row: dict[str, Any], path: str = RESULTS) -> dict[str, Any]:
+    with open(path, "a", encoding="utf-8") as fh:
+        fh.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+    return row
+
+
+def load_results(path: str = RESULTS) -> list[dict[str, Any]]:
+    if not os.path.isfile(path):
+        return []
+    with open(path, encoding="utf-8") as fh:
+        return [json.loads(line) for line in fh if line.strip()]
+
+
+def render_report(rows: list[dict[str, Any]]) -> str:
+    if not rows:
+        return "Registre vide : aucune exécution enregistrée.\n"
+    out = ["| Date | Mesure | Projet | Tâche | Bras | Modèle | Version des skills | Note | Conforme |",
+           "|---|---|---|---|---|---|---|---|---|"]
+    for r in sorted(rows, key=lambda r: (r["fixture"], r["kind"], r.get("task") or "", r.get("arm") or "", r["date"])):
+        out.append(f"| {r['date']} | {r['kind']}{'' if r.get('blind', True) else ' (auteur)'} | {r['fixture']} | "
+                   f"{r.get('task') or ''} | {r.get('arm') or ''} | {r.get('model') or 'non relevé'} | "
+                   f"{r.get('skill_rev') or '?'} | {r['score']} | {'oui' if r['ok'] else 'non'} |")
+    return "\n".join(out) + "\n"
+
+
+def _thousands(n: int) -> str:
+    return f"{n:,}".replace(",", " ")
+
+
+def _skill_rev() -> str | None:
+    root = os.path.dirname(os.path.dirname(fixtures.FIXTURES_ROOT))
+    out = subprocess.run(["git", "-C", root, "rev-parse", "--short", "HEAD"], capture_output=True, text=True)
+    return out.stdout.strip() or None
+
+
+def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
+    p = parser or argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="bench_command", required=True)
+    pl = sub.add_parser("plan", help="les exécutions d'agent d'une campagne et leur coût estimé")
+    pl.add_argument("--kind", action="append", choices=sorted(COST), help="répétable ; défaut : toutes")
+    pl.add_argument("--role", choices=["tuning", "holdout", "all"], default="tuning")
+    pl.add_argument("--fixture", action="append", help="répétable ; défaut : toutes")
+    pl.add_argument("--format", choices=["md", "json"], default="md")
+    pr = sub.add_parser("prepare", help="le dépôt de travail d'un bras")
+    pr.add_argument("fixture")
+    pr.add_argument("dest")
+    pr.add_argument("--arm", choices=ARMS, default="bare")
+    pr.add_argument("--overlay", help="bras harness : dossier d'instructions à poser (défaut : runs/*-author)")
+    ch = sub.add_parser("check", help="note le travail rendu sur une tâche")
+    ch.add_argument("fixture")
+    ch.add_argument("task")
+    ch.add_argument("workdir")
+    ch.add_argument("--format", choices=["md", "json"], default="md")
+    st = sub.add_parser("selftest", help="vérifie que les tâches d'une fixture sont bien posées")
+    st.add_argument("fixture")
+    rc = sub.add_parser("record", help="ajoute une exécution au registre")
+    rc.add_argument("--kind", choices=sorted(COST), required=True)
+    rc.add_argument("--fixture", required=True)
+    rc.add_argument("--task")
+    rc.add_argument("--arm", choices=ARMS)
+    rc.add_argument("--model", help="le modèle évalué, tel que la session le donne")
+    rc.add_argument("--score", required=True, help="trouvés/attendus, par exemple 9/10")
+    rc.add_argument("--ok", action="store_true", help="la note est conforme (aucun écart)")
+    rc.add_argument("--author", action="store_true", help="exécution par l'auteur de la fixture : base de régression")
+    rc.add_argument("--run", help="chemin des sorties de l'exécution")
+    rc.add_argument("--note")
+    rc.add_argument("--date")
+    rc.add_argument("--results", default=RESULTS)
+    rp = sub.add_parser("report", help="le registre des résultats")
+    rp.add_argument("--format", choices=["md", "json"], default="md")
+    rp.add_argument("--results", default=RESULTS)
+    return p
+
+
+def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) -> int:
+    if args is None:
+        args = build_parser().parse_args(argv)
+    cmd = args.bench_command
+    if cmd == "plan":
+        cells = plan(args.kind or sorted(COST), args.role, args.fixture)
+        if args.format == "json":
+            json.dump(cells, sys.stdout, ensure_ascii=False, indent=2)
+            sys.stdout.write("\n")
+            return 0
+        print("| Projet | Rôle | Mesure | Tâche | Bras | Tokens estimés |\n|---|---|---|---|---|---|")
+        for c in cells:
+            print(f"| {c['fixture']} | {c['role']} | {c['kind']} | {c.get('task', '')} | {c.get('arm', '')} | {_thousands(c['tokens'])} |")
+        print(f"\n{len(cells)} exécution(s) d'agent, environ {_thousands(sum(c['tokens'] for c in cells))} tokens.")
+        return 0
+    if cmd == "prepare":
+        info = prepare(resolve(args.fixture), args.dest, args.arm, args.overlay)
+        print(f"bras {info['arm']} dans {info['dest']} ; retiré : {', '.join(info['removed']) or 'rien'}"
+              + (f" ; posé : {', '.join(info['overlay'])}" if info["overlay"] else ""))
+        return 0
+    if cmd == "check":
+        result = check(resolve(args.fixture), args.task, args.workdir)
+        if args.format == "json":
+            json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
+            sys.stdout.write("\n")
+        else:
+            print(f"# Tâche {result['fixture']}/{result['task']} : {result['score']}" + (" · conforme" if result["ok"] else ""))
+            for c in result["checks"]:
+                print(f"- [{'x' if c['passed'] else ' '}] {c['id']} : {c['what']}"
+                      + ("" if c["passed"] or not c["detail"] else "\n      " + c["detail"].replace("\n", "\n      ")))
+        return 0 if result["ok"] else 1
+    if cmd == "selftest":
+        problems = selftest(resolve(args.fixture))
+        tasks = list_tasks(resolve(args.fixture))
+        print(f"# Tâches de {args.fixture} : {', '.join(tasks) or 'aucune'} · "
+              + ("bien posées" if not problems else f"{len(problems)} écart(s)"))
+        for line in problems:
+            print(f"- {line}")
+        return 1 if problems else 0
+    if cmd == "record":
+        row = record({"date": args.date or date.today().isoformat(), "kind": args.kind, "fixture": args.fixture,
+                      "task": args.task, "arm": args.arm, "model": args.model, "skill_rev": _skill_rev(),
+                      "score": args.score, "ok": bool(args.ok), "blind": not args.author, "run": args.run,
+                      "note": args.note}, args.results)
+        print(json.dumps(row, ensure_ascii=False))
+        return 0
+    if cmd == "report":
+        rows = load_results(args.results)
+        if args.format == "json":
+            json.dump(rows, sys.stdout, ensure_ascii=False, indent=2)
+            sys.stdout.write("\n")
+        else:
+            sys.stdout.write(render_report(rows))
+        return 0
+    return 2

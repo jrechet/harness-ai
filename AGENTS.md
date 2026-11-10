@@ -10,6 +10,7 @@ Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluati
 |---|---|---|
 | `cli/` | `python3 -m unittest discover -s cli/tests` | rien : pas de CI |
 | une fixture ou son `expected.json` | `python3 cli/harness.py fixture check <nom>` | rien |
+| une tâche de fixture (`tasks/`) | `python3 cli/harness.py bench selftest <nom>` | rien |
 | un SKILL.md | une exécution à l'aveugle sur une fixture, notée par `fixture check --audit` ou `--init` | rien |
 
 ## Règles

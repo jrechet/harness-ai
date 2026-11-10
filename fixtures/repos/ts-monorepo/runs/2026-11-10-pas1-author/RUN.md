@@ -1,9 +1,11 @@
-# Init par l'auteur de la fixture — 2026-11-10
+# Pas 1 par l'auteur de la fixture — 2026-11-10
 
-Ce que harness-init doit produire sur ce dépôt, écrit par la session qui a planté les pièges. C'est une **base de régression** pour le noteur (`fixture check ts-monorepo --init <ce dossier>`), pas une mesure du skill.
+Ce que le pas 1 de harness doit poser sur ce dépôt, écrit par la session qui a planté les pièges : le palier 1 et rien d'autre. C'est une **base de régression** pour le noteur (`fixture check ts-monorepo --init <ce dossier>`) et le bras `harness` par défaut du banc, pas une mesure du skill.
+
+Les dates des règles reprises de l'ancien fichier sont celles de l'incident ou de la décision d'origine, pas celle du pas : une règle ne rajeunit pas parce qu'on la recopie.
 
 ## Ce qui a été retiré du CLAUDE.md généré, et pourquoi
-104 lignes avant, 36 après, dont 2 venues telles quelles de l'ancien fichier.
+104 lignes avant, 22 après, dont 2 règles venues de l'ancien fichier.
 
 | Retiré | Raison |
 |---|---|

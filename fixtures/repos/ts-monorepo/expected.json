@@ -1,5 +1,6 @@
 {
   "fixture": "ts-monorepo",
+  "role": "tuning",
   "status": {
     "level_reached": 0,
     "source_path": "CLAUDE.md",
@@ -135,7 +136,8 @@
           "packages/shared"
         ]
       }
-    ]
+    ],
+    "only_level_material": true
   },
   "audit": {
     "traps": [

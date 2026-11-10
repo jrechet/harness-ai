@@ -6,9 +6,10 @@ Des dépôts synthétiques avec des pièges d'instrumentation IA plantés et doc
 fixtures/repos/<nom>/
 ├── repo/            # le dépôt synthétique, tel qu'un dev l'aurait laissé
 ├── traps.md         # chaque piège ou fait planté : id, emplacement, ce que le skill doit en dire
-├── expected.json    # la partie vérifiable par le CLI : blocs status, audit, init
-├── owner.md         # projets types seulement : les réponses du propriétaire fictif à l'entretien
-└── runs/            # exécutions datées du skill, notées par fixture check
+├── expected.json    # la partie vérifiable par le CLI : rôle, blocs status, audit, init
+├── owner.md         # projets types : les réponses du propriétaire fictif à l'entretien
+├── tasks/<id>/      # projets types : une tâche type, ses tests cachés, sa solution, une solution tentée
+└── runs/            # exécutions datées, notées par fixture check ; <date>-pas1-author = le pas 1 de l'auteur
 ```
 
 Deux familles. Les **fixtures d'audit** (`java-back`, `node-front`, `python-cli`) portent un harness abîmé et peu de code : elles mesurent ce que l'audit trouve. Les **projets types** (`go-hexa`, `ts-monorepo`) sont de vrais petits projets, un par style d'architecture, dont le code tourne et dont les tests passent : ils mesurent le parcours, du palier 0 vers le haut. `owner.md` se donne à l'agent évalué ; `traps.md`, `expected.json` et `runs/` jamais.
@@ -40,11 +41,60 @@ Styles d'architecture à venir, dans l'ordre proposé : monolithe MVC avec ORM e
 
 ## Écrire un projet type
 
+Modèles à lire avant d'écrire : `repos/go-hexa` (départ nu) et `repos/ts-monorepo` (départ généré jamais relu).
+
 - **Le code tourne.** Les commandes du README passent dans un conteneur nu, avec la chaîne d'outils du langage et au plus un `install`. `traps.md` donne la ligne exacte. Un projet dont on ne peut pas lancer les tests ne peut pas porter de tâche.
-- **Les faits sont dans le dépôt, pas dans la tête du propriétaire.** Un incident se plante dans un post-mortem daté et chiffré, une décision dans un ADR, un danger dans une note d'exploitation. `owner.md` ne répond qu'à l'entretien.
+- **Les faits sont dans le dépôt, pas dans la tête du propriétaire.** Un incident se plante dans un post-mortem daté et chiffré, une décision dans un ADR, un danger dans une note d'exploitation. `owner.md` ne répond qu'à l'entretien et ne révèle aucun fait planté.
 - **Chaque fait a son contraire.** À côté de l'incident réel, une règle générique sans incident ; à côté du garde-fou qui bloque, un garde-fou déclaré qui ne bloque pas ; à côté de la commande qui marche, une commande périmée. C'est l'écart entre les deux qu'on mesure.
-- **Des tentations.** `traps.md` liste les raccourcis qu'un agent sans harness prend sur la tâche type de l'équipe : c'est la matière d'une mesure avant et après.
-- **Un init d'auteur** dans `runs/<date>-init-author/` : ce que le skill doit produire, écrit par qui a planté les faits. Base de régression du noteur, pas mesure du skill.
+- **Le README du dépôt** contient une ligne avec le mot « fixture » : elle est retirée des copies de travail. Il ne cite jamais `traps.md`.
+- **Un pas 1 d'auteur** dans `runs/<date>-pas1-author/` : `AGENTS.md`, le stub `CLAUDE.md`, les notes de sous-dossier gardées, et `RUN.md` qui dit ce qui a été retiré et pourquoi. Le palier 1 et rien d'autre : ni Maintenance, ni marqueur, ni Processus de travail, ni contrat. Chaque règle porte sa date `[AAAA-MM]`, celle de l'incident ou de la décision. C'est la base de régression du noteur et le bras `harness` du banc.
+
+### expected.json
+
+```json
+{
+  "fixture": "<nom>",
+  "role": "tuning",            // ou "holdout" : tenu à l'écart du réglage des skills, sert seulement à mesurer
+  "status": { "level_reached": 0, "source_path": "CLAUDE.md", "failing_checks": [], "passing_checks": [], "guardrail_tools": [], "contracts": 0 },
+  "init": {
+    "min_level": 1,
+    "only_level_material": true,
+    "must_surface":   [{ "id": "I1", "what": "…", "any_of": ["identifiant-du-dépôt"] }],
+    "must_not_write": [{ "id": "N1", "what": "…", "any_of": ["texte du bruit"] }],
+    "guards_cited": ["chemin-du-vrai-garde-fou"],
+    "forbidden_guards": [{ "path": "garde-fou-qui-ne-bloque-pas", "rule_keywords": ["…"] }]
+  },
+  "audit": {
+    "traps": [], "sane": [], "guarded_rules_paths": [], "forbidden_guarded_paths": [], "forbidden_leak_keywords": [],
+    "removals":  [{ "id": "N3", "any_of": ["texte de la ligne"], "reasons": ["useless", "harmful", "outdated"], "ask_owner": false }],
+    "must_keep": [{ "id": "I1", "any_of": ["identifiant de la ligne à garder"] }]
+  }
+}
+```
+
+Chaque `id` des blocs `init` et `audit` a sa ligne `| id |` dans un tableau de `traps.md` : un test le vérifie. Les mots cherchés sont des identifiants du dépôt (`reset-db`, `archcheck`, `packages/shared`), pas des tournures : la note ne dépend pas de la langue du rapport.
+
+Un retrait a un motif : `useless` (découvrable, ou ce qu'un modèle fait sans qu'on le dise), `harmful` (dégrade le travail d'un agent actuel, ou contredit un garde-fou), `outdated` (vrai hier, plus aujourd'hui). `ask_owner` vaut vrai quand seul le propriétaire sait que la ligne est périmée : l'audit doit alors poser la question, pas trancher.
+
+### Une tâche
+
+`tasks/<id>/` porte la tâche type de l'équipe, celle qu'un agent sans harness rate d'une façon prévisible :
+
+```
+task.md                 l'énoncé donné à l'agent ; il ne dit rien des règles plantées
+task.json               les contrôles, voir ci-dessous
+acceptance/             les tests cachés, copiés dans le dépôt au moment de noter
+solution.patch          la solution de référence : passe tous les contrôles
+tempted/<nom>.patch     la solution qu'on écrit naturellement : marche, et échoue aux contrôles déclarés
+```
+
+Contrôles de `task.json` : `run` (une commande, verte si elle sort à 0 ; `"acceptance": true` pour celles qui ont besoin des tests cachés), `forbid_added` et `require_added` (un motif dans les lignes ajoutées sous des chemins), `forbid_changed` (des chemins qu'on ne touche pas : un garde-fou, la CI, une migration appliquée), `max_changed_lines`. `setup` lance une installation avant les commandes. Les tests cachés n'utilisent que la surface publique du projet, pour compiler quelle que soit la solution.
+
+```bash
+python3 cli/harness.py bench selftest <nom>     # dépôt intact rouge, solution verte, tentation rouge où elle le déclare
+```
+
+Un patch se fabrique dans une copie de travail : `bench prepare <nom> <dir> --arm asis` (ou `bare` si le dépôt n'a aucune instruction), le changement, puis `git add -A && git diff --cached HEAD > solution.patch`.
 
 ## Écrire un expected.json
 
@@ -68,9 +118,24 @@ Il vérifie le palier atteint, les faits non découvrables remontés (`must_surf
 
 Sur une fixture d'audit, sans bloc `init` : un agent neuf reçoit le skill, le dépôt nu et les réponses d'entretien d'un propriétaire fictif. On note ensuite : `harness status` sur ce qu'il a produit (palier 1 attendu, 5/5), son audit de gate contre les pièges de la fixture d'origine encore présents (`fixture check --audit`), et une relecture des règles écrites : non-découvrables seulement, justifications réelles ou déclarées absentes, garde-fous nommés. Deux exécutions : `repos/java-back/runs/2026-11-09-init-blind/` (dépôt nu) et `repos/node-front/runs/2026-11-09-init-blind/` (repo déjà instrumenté, à fusionner : le cas le plus fréquent).
 
+## Le banc avant et après
+
+Une tâche se joue sur plusieurs bras du même dépôt : `bare` (aucune instruction), `asis` (le dépôt tel qu'on l'a trouvé), `harness` (après le pas 1, par défaut celui de l'auteur). L'écart entre les bras dit si le harness sert. Rejoué sans une ligne ou sur un nouveau modèle, il dit si elle sert encore.
+
+```bash
+python3 cli/harness.py bench plan                          # les exécutions d'agent d'une campagne et leur coût
+python3 cli/harness.py bench prepare go-hexa /tmp/w --arm harness
+python3 cli/harness.py bench check go-hexa deposit /tmp/w  # après le travail de l'agent
+python3 cli/harness.py bench record --kind task --fixture go-hexa --task deposit --arm harness --score 6/6 --ok
+python3 cli/harness.py bench report                        # le registre fixtures/results.jsonl
+```
+
+Le banc ne lance aucun agent : il prépare, note et tient le registre. Lancer une campagne est le travail du skill `harness-stress`, à la demande.
+
 ## Lancer
 
 ```bash
 python3 cli/harness.py fixture check java-back
 python3 cli/harness.py fixture check java-back --audit fixtures/repos/java-back/repo/.harness/audit.json
+python3 cli/harness.py fixture check go-hexa --init fixtures/repos/go-hexa/runs/2026-11-10-pas1-author
 ```

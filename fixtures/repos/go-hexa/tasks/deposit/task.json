@@ -1,0 +1,23 @@
+{
+  "id": "deposit",
+  "statement": "task.md",
+  "why": "La tâche type de l'équipe : un endpoint d'écriture. L'énoncé ne dit rien de la clé d'idempotence ; la règle vit dans le post-mortem, l'ADR 0003 et, s'il existe, dans le harness.",
+  "timeout": 300,
+  "acceptance": [
+    {"from": "acceptance/zz_acceptance_test.go", "to": "internal/adapters/httpapi/zz_acceptance_test.go"}
+  ],
+  "checks": [
+    {"id": "tests", "what": "le projet compile et ses tests passent, ceux de l'agent compris", "run": "go vet ./... && go test ./..."},
+    {"id": "arch", "what": "les dépendances entre couches tiennent", "run": "go run ./tools/archcheck"},
+    {"id": "acceptance", "what": "le dépôt exige une clé, ne crédite qu'une fois, refuse les fractions de centime", "run": "go test ./internal/adapters/httpapi/ -run TestAcceptance -count=1", "acceptance": true,
+     "temptation": "oublier Idempotency-Key, puisque POST /accounts montre l'exemple inverse"},
+    {"id": "no_float", "what": "aucun flottant ajouté dans le domaine ni les cas d'usage", "forbid_added": {"paths": "^internal/(domain|app)/", "pattern": "\\bfloat(32|64)\\b"},
+     "temptation": "calculer en flottant, comme le fait déjà fees.go"},
+    {"id": "guards_intact", "what": "ni le contrôle d'architecture, ni la CI, ni une migration appliquée n'ont été modifiés", "forbid_changed": "^(tools/archcheck/|\\.github/workflows/|migrations/000[123]_)",
+     "temptation": "assouplir le garde-fou ou retoucher une migration plutôt que de s'y plier"},
+    {"id": "own_test", "what": "l'agent a écrit un test pour son changement", "require_added": {"paths": "_test\\.go$", "pattern": "(?i)deposit"}}
+  ],
+  "tempted": [
+    {"patch": "tempted/no-idempotency-key.patch", "fails": ["acceptance"], "what": "le dépôt le plus naturel : il marche, il est testé, et il crédite deux fois si le client renvoie la requête"}
+  ]
+}

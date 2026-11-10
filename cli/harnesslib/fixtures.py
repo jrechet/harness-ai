@@ -8,6 +8,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
+import subprocess
 import sys
 from datetime import date
 from typing import Any
@@ -140,10 +142,12 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
             "ok": not (missed or wrong or sane_flagged or global_problems)}
 
 
-def check_init(result_dir: str, expected: dict, today: date | None = None) -> dict[str, Any]:
+def check_init(result_dir: str, expected: dict, today: date | None = None, base: str | None = None) -> dict[str, Any]:
     """Note ce qu'un harness-init a écrit dans `result_dir` contre le bloc `init` d'expected.json :
     palier atteint, faits non découvrables remontés (`must_surface`), bruit recopié (`must_not_write`),
-    garde-fous réels cités (`guards_cited`), garde-fous mensongers crus (`forbidden_guards`)."""
+    garde-fous réels cités (`guards_cited`), garde-fous mensongers crus (`forbidden_guards`), références
+    sans cible, et matériel des paliers suivants posé trop tôt (`only_level_material`). `base` est le
+    dépôt de la fixture quand `result_dir` ne contient que les fichiers d'instructions."""
     state = maturity.evaluate(facts.collect(result_dir, today=today))
     corpus = facts.instruction_corpus(result_dir)
     text = "\n".join(corpus.values()).lower()
@@ -173,6 +177,18 @@ def check_init(result_dir: str, expected: dict, today: date | None = None) -> di
             after = facts.GUARDED_RE.split(r, maxsplit=1)[-1]      # ce qui suit « Vérifiée par : »
             if lie["path"].lower() in after and any(w.lower() in r for w in lie["rule_keywords"]):
                 problems.append(f"garde-fou mensonger cru : « {r[:90]} » s'appuie sur {lie['path']}")
+    for ref in state["dangling"]:                                 # un pas ne promet pas le pas suivant
+        if ref["kind"] == "guard" and base and facts.cited_path_exists(base, ref["ref"]):
+            continue        # `result_dir` ne porte que les instructions : le garde-fou vit dans le dépôt de la fixture
+        problems.append(f"référence sans cible : `{ref['ref']}` ligne {ref['line']} "
+                        + ("(contrat cité, pas de SKILL.md)" if ref["kind"] == "contract" else "(garde-fou cité, chemin introuvable)"))
+    if expected.get("only_level_material"):
+        src = state["facts"]["instructions"]["source"]
+        extra = [name for name, present in (("section Maintenance", src.get("has_maintenance_section")),
+                                            ("marqueur de harvest", src.get("harvest_marker")),
+                                            ("section Processus de travail", src.get("has_process_section"))) if present]
+        if extra and level <= expected.get("min_level", 1):
+            problems.append("matériel des paliers suivants posé au pas 1 : " + ", ".join(extra))
     total = len(expected.get("must_surface", []))
     return {"level": level, "surfaced": surfaced, "problems": problems,
             "score": f"{len(surfaced)}/{total}", "files": sorted(corpus), "ok": not problems}
@@ -181,18 +197,28 @@ def check_init(result_dir: str, expected: dict, today: date | None = None) -> di
 INSTRUMENTATION = ["AGENTS.md", "CLAUDE.md", ".claude", ".cursor", ".agents", ".github/copilot-instructions.md", ".harness"]
 
 
-def bare_copy(fixture_dir: str, dest: str, branch: str = "develop") -> list[str]:
+COPY_IGNORE = shutil.ignore_patterns("node_modules", "__pycache__", ".venv", "*.pyc", ".pytest_cache")
+
+
+def commit_all(dest: str, branch: str) -> None:
+    """Fait de `dest` un dépôt git à un commit : le point de départ d'une exécution."""
+    env = {**os.environ, "GIT_AUTHOR_NAME": "owner", "GIT_AUTHOR_EMAIL": "owner@example.test",
+           "GIT_COMMITTER_NAME": "owner", "GIT_COMMITTER_EMAIL": "owner@example.test"}
+    for args in (["init", "-q", "-b", branch], ["add", "-A"], ["commit", "-q", "-m", "import"]):
+        subprocess.run(["git", "-C", dest, *args], check=True, env=env, capture_output=True)
+
+
+def bare_copy(fixture_dir: str, dest: str, branch: str = "develop", keep_instrumentation: bool = False,
+              commit: bool = True) -> list[str]:
     """Copie `repo/` d'une fixture dans `dest` sans son instrumentation IA, et en fait un dépôt git
-    avec un commit : le dépôt « nu » sur lequel on évalue harness-init à l'aveugle.
-    Retourne la liste de ce qui a été retiré."""
-    import shutil
-    import subprocess
+    avec un commit : le dépôt « nu » sur lequel on évalue harness-init à l'aveugle. Ce qui n'est pas
+    versionné (node_modules, caches) n'est pas copié. Retourne la liste de ce qui a été retiré."""
     src = os.path.join(fixture_dir, "repo")
     if os.path.exists(dest) and os.listdir(dest):
         raise SystemExit(f"{dest} existe et n'est pas vide")
-    shutil.copytree(src, dest, dirs_exist_ok=True)
+    shutil.copytree(src, dest, dirs_exist_ok=True, ignore=COPY_IGNORE)
     removed = []
-    for rel in INSTRUMENTATION:
+    for rel in [] if keep_instrumentation else INSTRUMENTATION:
         path = os.path.join(dest, rel)
         if os.path.isdir(path):
             shutil.rmtree(path)
@@ -200,16 +226,21 @@ def bare_copy(fixture_dir: str, dest: str, branch: str = "develop") -> list[str]
         elif os.path.exists(path):
             os.remove(path)
             removed.append(rel)
+    if not keep_instrumentation:                 # les notes de sous-dossier sont de l'instrumentation aussi
+        for root, _dirs, files in os.walk(dest):
+            for name in files:
+                rel = os.path.relpath(os.path.join(root, name), dest).replace(os.sep, "/")
+                if name in ("AGENTS.md", "CLAUDE.md") and "/" in rel:
+                    os.remove(os.path.join(root, name))
+                    removed.append(rel)
     readme = os.path.join(dest, "README.md")
     if os.path.exists(readme):
         with open(readme, encoding="utf-8") as fh:
             lines = [l for l in fh.read().splitlines() if "fixture" not in l.lower() and "pièges" not in l.lower()]
         with open(readme, "w", encoding="utf-8") as fh:
             fh.write("\n".join(lines).rstrip() + "\n")
-    env = {**os.environ, "GIT_AUTHOR_NAME": "owner", "GIT_AUTHOR_EMAIL": "owner@example.test",
-           "GIT_COMMITTER_NAME": "owner", "GIT_COMMITTER_EMAIL": "owner@example.test"}
-    for args in (["init", "-q", "-b", branch], ["add", "-A"], ["commit", "-q", "-m", "import"]):
-        subprocess.run(["git", "-C", dest, *args], check=True, env=env, capture_output=True)
+    if commit:
+        commit_all(dest, branch)
     return removed
 
 
@@ -258,7 +289,7 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
                     print(f"- {line}")
         ok = ok and result["ok"]
     if args.init:
-        result = check_init(args.init, expected.get("init", {}), today)
+        result = check_init(args.init, expected.get("init", {}), today, base=os.path.join(fixture_dir, "repo"))
         print(f"## init : palier {result['level']} · {result['score']} faits remontés"
               + (" · conforme" if result["ok"] else f" · {len(result['problems'])} écart(s)"))
         for line in result["problems"]:

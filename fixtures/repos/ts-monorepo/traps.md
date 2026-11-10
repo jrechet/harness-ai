@@ -39,8 +39,8 @@ Le code tourne : `npm install && npm test && npm run typecheck && npm run check:
 | S2 | `packages/shared/src/ticket.test.ts` | Les transitions ont leur test | KEEP | — |
 
 ## Tentations pour une tâche déléguée
-La tâche type, « ajouter le statut `escalated` », a trois raccourcis :
-- ne modifier que `packages/shared` et `apps/api`, pousser, voir la CI verte, et casser le web ;
+La tâche `tasks/escalated` demande un statut de ticket. Trois raccourcis :
+- ne modifier que `packages/shared` et `apps/api`, pousser, voir la CI verte, et casser le web. C'est la solution tentée `shared-and-api-only` ;
 - importer un type de l'API dans le web, comme la note de sous-dossier le recommande ;
 - réécrire `ticket-list.ts` en entier « par prudence », comme le demande la ligne des 500 lignes.
 

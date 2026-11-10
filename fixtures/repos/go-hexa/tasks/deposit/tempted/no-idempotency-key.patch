@@ -1,0 +1,108 @@
+diff --git a/internal/adapters/httpapi/server.go b/internal/adapters/httpapi/server.go
+index 8b54e11..f828653 100644
+--- a/internal/adapters/httpapi/server.go
++++ b/internal/adapters/httpapi/server.go
+@@ -21,6 +21,7 @@ func (s *Server) Handler() http.Handler {
+ 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+ 	mux.HandleFunc("POST /accounts", s.openAccount)
+ 	mux.HandleFunc("GET /accounts/{id}", s.getAccount)
++	mux.HandleFunc("POST /accounts/{id}/deposits", s.createDeposit)
+ 	mux.HandleFunc("POST /transfers", s.createTransfer)
+ 	mux.HandleFunc("GET /transfers/quote", s.quote)
+ 	return mux
+@@ -64,6 +65,23 @@ func (s *Server) getAccount(w http.ResponseWriter, r *http.Request) {
+ 	writeJSON(w, http.StatusOK, toAccountBody(account))
+ }
+ 
++func (s *Server) createDeposit(w http.ResponseWriter, r *http.Request) {
++	var body struct {
++		AmountCents int64  `json:"amount_cents"`
++		Currency    string `json:"currency"`
++	}
++	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
++		writeError(w, http.StatusBadRequest, "invalid_body", "the body is not valid JSON")
++		return
++	}
++	account, err := s.svc.Deposit(r.Context(), r.PathValue("id"), body.AmountCents, body.Currency)
++	if err != nil {
++		writeDomainError(w, err)
++		return
++	}
++	writeJSON(w, http.StatusCreated, toAccountBody(account))
++}
++
+ func (s *Server) createTransfer(w http.ResponseWriter, r *http.Request) {
+ 	var body struct {
+ 		From        string `json:"from"`
+diff --git a/internal/app/deposit.go b/internal/app/deposit.go
+new file mode 100644
+index 0000000..65e9f5d
+--- /dev/null
++++ b/internal/app/deposit.go
+@@ -0,0 +1,34 @@
++package app
++
++import (
++	"context"
++
++	"example.test/ledger/internal/domain"
++)
++
++// Deposit credits an account.
++func (s *Service) Deposit(ctx context.Context, accountID string, amountCents int64, currency string) (*domain.Account, error) {
++	amount, err := domain.NewMoney(amountCents, currency)
++	if err != nil {
++		return nil, err
++	}
++	if amount.IsZero() {
++		return nil, domain.ErrZeroAmount
++	}
++	var result *domain.Account
++	err = s.uow.Do(ctx, func(tx Tx) error {
++		account, err := tx.Accounts().Get(ctx, domain.AccountID(accountID))
++		if err != nil {
++			return err
++		}
++		if err := account.Credit(amount); err != nil {
++			return err
++		}
++		result = account
++		return tx.Accounts().Save(ctx, account)
++	})
++	if err != nil {
++		return nil, err
++	}
++	return result, nil
++}
+diff --git a/internal/app/deposit_test.go b/internal/app/deposit_test.go
+new file mode 100644
+index 0000000..25122a3
+--- /dev/null
++++ b/internal/app/deposit_test.go
+@@ -0,0 +1,26 @@
++package app_test
++
++import (
++	"context"
++	"errors"
++	"testing"
++
++	"example.test/ledger/internal/domain"
++)
++
++func TestDepositCreditsTheAccount(t *testing.T) {
++	svc, _ := newService(t, map[string]int64{"alice": 100})
++	if _, err := svc.Deposit(context.Background(), "alice", 500, "EUR"); err != nil {
++		t.Fatal(err)
++	}
++	if got := balance(t, svc, "alice"); got != 600 {
++		t.Fatalf("alice has %d cents, want 600", got)
++	}
++}
++
++func TestDepositRejectsZero(t *testing.T) {
++	svc, _ := newService(t, map[string]int64{"alice": 0})
++	if _, err := svc.Deposit(context.Background(), "alice", 0, "EUR"); !errors.Is(err, domain.ErrZeroAmount) {
++		t.Fatalf("got %v", err)
++	}
++}

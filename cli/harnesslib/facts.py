@@ -214,9 +214,17 @@ def dangling_facts(repo: str, source_text: str | None) -> list[dict[str, Any]]:
                 continue
             if files is None:
                 files = _repo_files(repo)
-            if not any(f == token or f.endswith("/" + token) or f.startswith(token.rstrip("/") + "/") for f in files):
+            if not cited_path_exists(repo, token, files):
                 dangling.append({"kind": "guard", "ref": token, "line": number})
     return dangling
+
+
+def cited_path_exists(repo: str, token: str, files: list[str] | None = None) -> bool:
+    """Un chemin cité existe s'il est là tel quel, ou si un fichier du dépôt porte ce nom ou ce suffixe."""
+    if _exists(repo, token):
+        return True
+    files = _repo_files(repo) if files is None else files
+    return any(f == token or f.endswith("/" + token) or f.startswith(token.rstrip("/") + "/") for f in files)
 
 
 def contract_facts(repo: str, source_text: str | None) -> dict[str, Any]:

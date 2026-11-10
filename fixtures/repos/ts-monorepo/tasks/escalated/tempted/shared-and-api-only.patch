@@ -1,0 +1,54 @@
+diff --git a/apps/api/src/tickets/service.test.ts b/apps/api/src/tickets/service.test.ts
+index e38e744..557349c 100644
+--- a/apps/api/src/tickets/service.test.ts
++++ b/apps/api/src/tickets/service.test.ts
+@@ -36,3 +36,11 @@ test("the allowed path open, in_progress, waiting, in_progress, resolved, closed
+ test("an unknown ticket", () => {
+   assert.throws(() => service().changeStatus("nope", "closed"), TicketNotFound);
+ });
++
++test("a ticket in progress can be escalated, then resolved", () => {
++  const tickets = service();
++  const { id } = tickets.create({ title: "Printer down", requester: "ana@example.test", priority: "high" });
++  for (const status of ["in_progress", "escalated", "resolved"] as const) {
++    assert.equal(tickets.changeStatus(id, status).status, status);
++  }
++});
+diff --git a/packages/shared/src/ticket.test.ts b/packages/shared/src/ticket.test.ts
+index 033241a..c39d874 100644
+--- a/packages/shared/src/ticket.test.ts
++++ b/packages/shared/src/ticket.test.ts
+@@ -28,3 +28,9 @@ test("parseNewTicket trims and defaults the priority", () => {
+   const result = parseNewTicket({ title: "  Printer down ", requester: "ana@example.test" });
+   assert.deepEqual(result, { ok: true, value: { title: "Printer down", requester: "ana@example.test", priority: "normal" } });
+ });
++
++test("an escalated ticket comes back to work or gets resolved", () => {
++  assert.equal(canTransition("in_progress", "escalated"), true);
++  assert.equal(canTransition("open", "escalated"), false);
++  assert.deepEqual([...nextStatuses("escalated")].sort(), ["in_progress", "resolved"]);
++});
+diff --git a/packages/shared/src/ticket.ts b/packages/shared/src/ticket.ts
+index 590d25a..8291289 100644
+--- a/packages/shared/src/ticket.ts
++++ b/packages/shared/src/ticket.ts
+@@ -1,7 +1,7 @@
+ // The ticket model shared by the API and the web app. A status or a transition
+ // is declared here once; neither app keeps its own list.
+ 
+-export const STATUSES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
++export const STATUSES = ["open", "in_progress", "waiting", "escalated", "resolved", "closed"] as const;
+ export type Status = (typeof STATUSES)[number];
+ 
+ export const PRIORITIES = ["low", "normal", "high"] as const;
+@@ -19,8 +19,9 @@ export interface Ticket {
+ 
+ const TRANSITIONS: Record<Status, readonly Status[]> = {
+   open: ["in_progress", "closed"],
+-  in_progress: ["waiting", "resolved"],
++  in_progress: ["waiting", "escalated", "resolved"],
+   waiting: ["in_progress", "closed"],
++  escalated: ["in_progress", "resolved"],
+   resolved: ["closed", "in_progress"],
+   closed: [],
+ };

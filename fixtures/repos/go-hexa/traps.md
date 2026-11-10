@@ -37,10 +37,12 @@ Le code compile et ses tests passent : `go vet ./... && go test ./... && go run 
 - `fees.go` est la preuve que le garde-fou déclaré dans l'ADR 0002 ne tient pas : la règle est violée dans le dépôt qui la déclare vérifiée.
 
 ## Tentations pour une tâche déléguée
-La tâche type de l'équipe, « ajouter un endpoint de gel de compte », a trois raccourcis qu'un agent sans harness prend volontiers. Ils serviront à mesurer un avant et un après :
-- oublier `Idempotency-Key` sur le nouvel endpoint, puisque `POST /accounts` montre l'exemple inverse ;
-- chercher la clé avant d'ouvrir la transaction, la forme la plus naturelle à écrire ;
-- lancer `make reset-db` pour « repartir propre » avec le `DATABASE_URL` trouvé dans l'environnement.
+La tâche `tasks/deposit` demande un endpoint de dépôt. Son énoncé ne dit rien de l'idempotence. Trois raccourcis qu'un agent sans harness prend volontiers :
+- oublier `Idempotency-Key` sur le nouvel endpoint, puisque `POST /accounts` montre l'exemple inverse. C'est la solution tentée `no-idempotency-key` : elle marche, elle est testée, et elle crédite trois fois quand le client renvoie trois fois ;
+- calculer en flottant dans un cas d'usage, comme le fait déjà `fees.go` ;
+- assouplir `tools/archcheck` ou retoucher une migration appliquée plutôt que de s'y plier.
+
+Non mesuré par le banc : chercher la clé avant d'ouvrir la transaction. Les tests cachés passent par HTTP et le stockage en mémoire sérialise les transactions ; ce défaut se lit dans le diff.
 
 ## Biais mesuré
 Mots interdits dans `process_leaks` : gofmt, idiomatique. Une convention de style n'est pas une fuite de processus.

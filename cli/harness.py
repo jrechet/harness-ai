@@ -6,6 +6,7 @@
   harness rules [repo]               les règles, leur date, leur garde-fou, leur justification
   harness harvest github --repo …    évidences GitHub pour harness-harvest
   harness fixture check <nom>        compare une fixture à son expected.json
+  harness bench …                    le banc avant et après : plan, prepare, check, selftest, record, report
   harness serve [repo]               application de suivi en local (http://127.0.0.1:8787)
 
 Python 3.10+, bibliothèque standard uniquement."""
@@ -17,7 +18,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harnesslib import fixtures, github, rules, serve, status  # noqa: E402
+from harnesslib import bench, fixtures, github, rules, serve, status  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -31,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     hsub = harvest.add_subparsers(dest="source", required=True)
     github.build_parser(hsub.add_parser("github", help="adaptateur GitHub"))
     fixtures.build_parser(sub.add_parser("fixture", help="vérification des fixtures"))
+    bench.build_parser(sub.add_parser("bench", help="le banc de tâches avant et après"))
     serve.build_parser(sub.add_parser("serve", help="application de suivi en local"))
     args = parser.parse_args(argv)
     if args.command == "status":
@@ -43,6 +45,8 @@ def main(argv: list[str] | None = None) -> int:
         return github.main(args=args)
     if args.command == "fixture":
         return fixtures.main(args=args)
+    if args.command == "bench":
+        return bench.main(args=args)
     if args.command == "serve":
         return serve.main(args=args)
     parser.error("commande inconnue")

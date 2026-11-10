@@ -90,9 +90,10 @@ class AllFixturesTests(unittest.TestCase):
             runs = os.path.join(fixtures.FIXTURES_ROOT, name, "runs")
             init = load_expected(name).get("init")
             for run in sorted(os.listdir(runs)) if init and os.path.isdir(runs) else []:
-                if run.endswith("-init-author"):
+                if run.endswith("-author"):
                     with self.subTest(fixture=name, run=run):
-                        result = fixtures.check_init(os.path.join(runs, run), init, date(2026, 11, 10))
+                        result = fixtures.check_init(os.path.join(runs, run), init, date(2026, 11, 10),
+                                                     base=os.path.join(fixtures.FIXTURES_ROOT, name, "repo"))
                         self.assertEqual(result["problems"], [])
                         seen += 1
         self.assertGreaterEqual(seen, 2)
@@ -250,6 +251,17 @@ Mode : **délégation**.
     def test_real_guard_must_be_cited(self):
         result = self.grade(self.GOOD.replace("Vérifiée par : `tools/archcheck`, job `arch`.", "Voir `tools/archcheck`. (non vérifiée)"))
         self.assertTrue(any("archcheck cité par aucune règle" in p for p in result["problems"]), result["problems"])
+
+    def test_citing_a_contract_that_does_not_exist_is_reported(self):
+        result = self.grade(self.GOOD + "\n## Tâches déléguées\n- `add-endpoint` : ajouter un endpoint.\n")
+        self.assertTrue(any("référence sans cible : `add-endpoint`" in p for p in result["problems"]), result["problems"])
+
+    def test_first_step_must_not_lay_material_of_later_levels(self):
+        init = {**self.init, "only_level_material": True}
+        with open(os.path.join(self.tmp.name, "AGENTS.md"), "w", encoding="utf-8") as fh:
+            fh.write(self.GOOD + "\n## Maintenance de ce fichier\n- `rule:` en review.\n\n<!-- harvest: last=2026-11-10 ref=init -->\n")
+        result = fixtures.check_init(self.tmp.name, init, date(2026, 11, 10))
+        self.assertTrue(any("paliers suivants" in p for p in result["problems"]), result["problems"])
 
     def test_level_below_target_is_reported(self):
         result = self.grade(self.GOOD.replace("Mode : **délégation**.", ""))
