@@ -137,7 +137,16 @@
         ]
       }
     ],
-    "only_level_material": true
+    "only_level_material": true,
+    "never_guarded": [
+      {
+        "what": "le job web ne tourne pas quand packages/shared change",
+        "rule_all_of": [
+          "packages/shared",
+          "web"
+        ]
+      }
+    ]
   },
   "audit": {
     "traps": [
@@ -294,6 +303,15 @@
         "id": "I4",
         "any_of": [
           "deskly-infra"
+        ]
+      }
+    ],
+    "never_guarded": [
+      {
+        "what": "le job web ne tourne pas quand packages/shared change",
+        "rule_all_of": [
+          "packages/shared",
+          "web"
         ]
       }
     ]

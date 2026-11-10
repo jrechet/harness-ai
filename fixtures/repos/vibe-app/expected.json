@@ -137,27 +137,32 @@
       }
     ],
     "guards_cited": [],
-    "forbidden_guards": [
+    "forbidden_guards": [],
+    "only_level_material": true,
+    "no_guard_exists": true,
+    "must_not_remain": [
       {
-        "path": "test",
-        "rule_keywords": [
-          "test"
-        ]
-      },
+        "path": "PLAN.md",
+        "what": "plan abandonné, relu à chaque session",
+        "max_lines": 8
+      }
+    ],
+    "report_must_mention": [
       {
-        "path": "eslint",
-        "rule_keywords": [
-          "eslint"
-        ]
-      },
-      {
-        "path": ".js",
-        "rule_keywords": [
-          ".js"
+        "what": "la clé en clair et où elle est",
+        "any_of": [
+          "default.json"
         ]
       }
     ],
-    "only_level_material": true
+    "report_must_not_mention": [
+      {
+        "what": "la valeur d'un secret",
+        "any_of": [
+          "FIXTURE_NOT_A_REAL"
+        ]
+      }
+    ]
   },
   "audit": {
     "traps": [

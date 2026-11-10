@@ -50,7 +50,7 @@ Modèles à lire avant d'écrire : `repos/go-hexa` (départ nu) et `repos/ts-mon
 - **Les faits sont dans le dépôt, pas dans la tête du propriétaire.** Un incident se plante dans un post-mortem daté et chiffré, une décision dans un ADR, un danger dans une note d'exploitation. `owner.md` ne répond qu'à l'entretien et ne révèle aucun fait planté.
 - **Chaque fait a son contraire.** À côté de l'incident réel, une règle générique sans incident ; à côté du garde-fou qui bloque, un garde-fou déclaré qui ne bloque pas ; à côté de la commande qui marche, une commande périmée. C'est l'écart entre les deux qu'on mesure.
 - **Le README du dépôt** avoue le banc sur une seule ligne, « Dépôt **synthétique** : une fixture du projet harness-ai » : elle est retirée des copies de travail. Il ne cite jamais `traps.md`.
-- **Un pas 1 d'auteur** dans `runs/<date>-pas1-author/` : `AGENTS.md`, le stub `CLAUDE.md`, les notes de sous-dossier gardées, et `RUN.md` qui dit ce qui a été retiré et pourquoi. Le palier 1 et rien d'autre : ni Maintenance, ni marqueur, ni Processus de travail, ni contrat. Chaque règle porte sa date `[AAAA-MM]`, celle de l'incident ou de la décision. C'est la base de régression du noteur et le bras `harness` du banc.
+- **Un pas 1 d'auteur** dans `runs/<date>-pas1-author/` : `AGENTS.md`, le stub `CLAUDE.md`, les notes de sous-dossier gardées, `REMOVE.txt` s'il supprime des fichiers du dépôt (un chemin par ligne), et `RUN.md` qui dit ce qui a été retiré et pourquoi. Le palier 1 et rien d'autre : ni Maintenance, ni marqueur, ni Processus de travail, ni contrat. Chaque règle porte sa date `[AAAA-MM]`, celle de l'incident ou de la décision. C'est la base de régression du noteur et le bras `harness` du banc.
 
 ### expected.json
 
@@ -66,10 +66,17 @@ Modèles à lire avant d'écrire : `repos/go-hexa` (départ nu) et `repos/ts-mon
     "must_not_write": [{ "id": "N1", "what": "…", "any_of": ["texte du bruit"] }],
     "guards_cited": ["chemin-du-vrai-garde-fou"],
     "forbidden_guards": [{ "path": "garde-fou-qui-ne-bloque-pas", "rule_keywords": ["…"] }],
+    "never_guarded": [{ "what": "…", "rule_keywords": ["l'un"], "rule_all_of": ["tous"] }],   // rien ne la vérifie : « vérifiée par : la revue » est faux aussi
+    "no_guard_exists": false,                                     // vrai : dépôt sans CI, toute règle « vérifiée » est fausse
+    "must_not_remain": [{ "path": "PLAN.md", "what": "…", "max_lines": 8, "any_of": ["…"] }],  // notes annexes : parties ou réduites
+    "report_must_mention": [{ "what": "…", "any_of": ["…"] }],    // le compte rendu, noté avec --report <fichier>
+    "report_must_not_mention": [{ "what": "la valeur d'un secret", "any_of": ["…"] }],
     "min_similarity": [{ "path": "AGENTS.md", "ratio": 0.8 }]     // harness déjà sain : le réécrire est du zèle
   },
   "audit": {
-    "traps": [], "sane": [], "guarded_rules_paths": [], "forbidden_guarded_paths": [], "forbidden_leak_keywords": [],
+    "traps": [{ "id": "T1", "path": "…", "verdicts": [], "priorities": [], "leak_keywords": ["tous, dans une même fuite"], "leak_any_of": ["ou l'un de ceux-ci"], "require_leak": true }],
+    "sane": [], "guarded_rules_paths": [], "forbidden_guarded_paths": [], "forbidden_leak_keywords": [],
+    "never_guarded": [], "no_guard_exists": false,
     "removals":  [{ "id": "N3", "any_of": ["texte de la ligne"], "reasons": ["useless", "harmful", "outdated"], "ask_owner": false }],
     "must_keep": [{ "id": "I1", "any_of": ["identifiant de la ligne à garder"] }]
   }

@@ -95,6 +95,14 @@ class ArmTests(BenchCase):
         self.assertTrue(os.path.exists(os.path.join(work, "AGENTS.md")))
         self.assertFalse(os.path.exists(os.path.join(work, "RUN.md")))
 
+    def test_harness_arm_removes_what_the_step_removed(self):
+        write(self.fx, "repo/PLAN.md", "plan abandonné\n")
+        write(self.fx, "runs/2026-01-01-pas1-author/REMOVE.txt", "# supprimé par le pas\nPLAN.md\n../hors-du-depot\n")
+        work = self.work("harness")
+        self.assertFalse(os.path.exists(os.path.join(work, "PLAN.md")))
+        self.assertFalse(os.path.exists(os.path.join(work, "REMOVE.txt")))
+        self.assertTrue(os.path.exists(os.path.join(self.work("asis"), "PLAN.md")))
+
     def test_no_arm_copies_unversioned_dependencies_or_reveals_the_fixture(self):
         work = self.work("asis")
         self.assertFalse(os.path.exists(os.path.join(work, "node_modules")))

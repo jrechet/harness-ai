@@ -31,7 +31,8 @@ ARMS = ("bare", "asis", "harness")
 # Coût estimé d'une exécution d'agent, en tokens. Mesuré sur les sept premières évaluations à l'aveugle.
 COST = {"audit": 130_000, "init": 130_000, "task": 90_000}
 RESULTS = os.path.join(os.path.dirname(fixtures.FIXTURES_ROOT), "results.jsonl")
-OVERLAY_SKIP = {"RUN.md", "README.md"}          # la note qui décrit une exécution n'est pas du harness
+OVERLAY_SKIP = {"RUN.md", "README.md", "REMOVE.txt"}   # ce qui décrit une exécution n'est pas du harness
+OVERLAY_REMOVE = "REMOVE.txt"                    # un chemin par ligne : ce que le pas a supprimé du dépôt
 GIT_ENV = {"GIT_AUTHOR_NAME": "owner", "GIT_AUTHOR_EMAIL": "owner@example.test",
            "GIT_COMMITTER_NAME": "owner", "GIT_COMMITTER_EMAIL": "owner@example.test"}
 
@@ -98,6 +99,12 @@ def prepare(fixture_dir: str, dest: str, arm: str, overlay: str | None = None) -
                 os.makedirs(os.path.dirname(os.path.join(dest, rel)) or dest, exist_ok=True)
                 shutil.copyfile(os.path.join(root, name), os.path.join(dest, rel))
                 copied.append(rel.replace(os.sep, "/"))
+        for rel in (facts._read(os.path.join(overlay, OVERLAY_REMOVE)) or "").splitlines():
+            rel = rel.split("#", 1)[0].strip()
+            target = os.path.normpath(os.path.join(dest, rel))
+            if rel and target.startswith(os.path.abspath(dest) + os.sep) and os.path.isfile(target):
+                os.remove(target)
+                removed.append(rel)
     fixtures.commit_all(dest, "main")
     return {"arm": arm, "dest": dest, "removed": removed, "overlay": sorted(copied)}
 

@@ -46,25 +46,49 @@ def check_status(fixture_dir: str, expected: dict, today: date | None = None) ->
     return problems
 
 
-def _elements_for(audit: dict, path: str) -> list[dict]:
+def _elements_for(audit: dict, path: str, own_only: bool = False) -> list[dict]:
     """Les éléments dont c'est le chemin ; à défaut, ceux qui le citent en preuve
-    (un rapport peut ranger un fichier sous un élément plus large)."""
+    (un rapport peut ranger un fichier sous un élément plus large). `own_only` pour un élément sain :
+    un fichier cité en contraste dans la preuve d'un autre ne lui emprunte pas son verdict."""
     path = path.lower()
     elements = audit.get("elements") or []
     own = [e for e in elements if path in (e.get("path") or "").lower()]
-    if own:
+    if own or own_only:
         return own
     return [e for e in elements if any(path in (ev or "").lower() for ev in e.get("evidence") or [])]
+
+
+def _matches(rule: str, spec: dict) -> bool:
+    """Une règle correspond à `rule_keywords` (l'un d'eux) et à `rule_all_of` (tous), s'ils sont donnés."""
+    rule = rule.lower()
+    any_of = [k.lower() for k in spec.get("rule_keywords") or []]
+    all_of = [k.lower() for k in spec.get("rule_all_of") or []]
+    return (not any_of or any(k in rule for k in any_of)) and all(k in rule for k in all_of) and bool(any_of or all_of)
 
 
 def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
     """Score d'un audit contre les pièges attendus : trouvés, manqués, faux, sains signalés."""
     found, missed, wrong = [], [], []
-    leaks_text = " ".join(json.dumps(l, ensure_ascii=False).lower() for l in audit.get("process_leaks") or [])
+    leaks = [json.dumps(l, ensure_ascii=False).lower() for l in audit.get("process_leaks") or []]
+    leaks_text = " ".join(leaks)
+
+    def leaked(trap: dict) -> bool:
+        """Une fuite est trouvée quand **une même** entrée de process_leaks porte tous les `leak_keywords`
+        et, s'il y en a, l'un des `leak_any_of`. Chercher dans toutes les fuites à la fois créditait un
+        piège avec les mots de deux fuites sans rapport."""
+        all_of = [k.lower() for k in trap.get("leak_keywords") or []]
+        any_of = [k.lower() for k in trap.get("leak_any_of") or []]
+        return bool(all_of or any_of) and any(
+            all(k in leak for k in all_of) and (not any_of or any(k in leak for k in any_of)) for leak in leaks)
+
+    def wanted(trap: dict) -> str:
+        return f"{trap.get('leak_keywords') or []}" + (f" et l'un de {trap['leak_any_of']}" if trap.get("leak_any_of") else "")
+
     for trap in expected.get("traps", []):
         # Un piège est trouvé soit par un élément au bon verdict sur le bon chemin, soit, pour une règle
         # racontée, par sa présence dans process_leaks (c'est là que le rapport range ces fuites).
-        in_leaks = bool(trap.get("leak_keywords")) and all(k.lower() in leaks_text for k in trap["leak_keywords"])
+        has_leak_spec = bool(trap.get("leak_keywords") or trap.get("leak_any_of"))
+        in_leaks = leaked(trap)
         hits = _elements_for(audit, trap["path"])
         ok = [e for e in hits if e.get("verdict") in trap["verdicts"]
               and (not trap.get("priorities") or e.get("priority") in trap["priorities"])]
@@ -73,21 +97,21 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
             if in_leaks:
                 found.append(trap["id"])
             else:
-                missed.append(f"{trap['id']} : aucune fuite contenant {trap['leak_keywords']} dans process_leaks")
+                missed.append(f"{trap['id']} : aucune fuite de process_leaks ne contient {wanted(trap)}")
             continue
         if ok or in_leaks:
             found.append(trap["id"])
         elif not hits:
             missed.append(f"{trap['id']} : aucun élément pour {trap['path']}"
-                          + (f" ni fuite contenant {trap['leak_keywords']}" if trap.get("leak_keywords") else ""))
+                          + (f" ni fuite contenant {wanted(trap)}" if has_leak_spec else ""))
         else:
             got = ", ".join(f"{e.get('verdict')}/{e.get('priority')}" for e in hits)
             wrong.append(f"{trap['id']} : {trap['path']} → {got}, attendu {'/'.join(trap['verdicts'])} "
                          f"{'/'.join(trap.get('priorities') or ['*'])}"
-                         + (f" ou une fuite contenant {trap['leak_keywords']}" if trap.get("leak_keywords") else ""))
+                         + (f" ou une fuite contenant {wanted(trap)}" if has_leak_spec else ""))
     sane_flagged = []
     for sane in expected.get("sane", []):
-        for e in _elements_for(audit, sane["path"]):
+        for e in _elements_for(audit, sane["path"], own_only=True):
             if e.get("verdict") not in sane["verdicts"]:
                 sane_flagged.append(f"{sane['id']} : {sane['path']} signalé {e.get('verdict')}, attendu {'/'.join(sane['verdicts'])}")
     meta = audit.get("audit") or {}
@@ -115,6 +139,15 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
         for g in audit.get("guarded_rules") or []:
             if path in (g.get("guarded_by") or "").lower() and (not words or any(w in (g.get("rule") or "").lower() for w in words)):
                 sane_flagged.append(f"guarded_rules attribue {path} à « {(g.get('rule') or '')[:60]} », qu'il ne vérifie pas")
+    # Une règle que rien ne vérifie : la dire gardée est faux quel que soit le garde-fou invoqué
+    # (« vérifiée par : la revue » ne cite aucun chemin et passait).
+    for g in audit.get("guarded_rules") or []:
+        rule = g.get("rule") or ""
+        if expected.get("no_guard_exists"):
+            sane_flagged.append(f"guarded_rules déclare gardée « {rule[:60]} » : ce dépôt n'a aucun garde-fou qui bloque")
+        for never in expected.get("never_guarded", []):
+            if _matches(rule, never):
+                sane_flagged.append(f"guarded_rules déclare gardée « {rule[:60]} » par {g.get('guarded_by')} : rien ne la vérifie ({never['what']})")
     # Biais « tout est une fuite » : des conventions de style dans process_leaks
     for k in expected.get("forbidden_leak_keywords", []):
         if k.lower() in leaks_text:
@@ -144,7 +177,8 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
             "ok": not (missed or wrong or sane_flagged or global_problems)}
 
 
-def check_init(result_dir: str, expected: dict, today: date | None = None, base: str | None = None) -> dict[str, Any]:
+def check_init(result_dir: str, expected: dict, today: date | None = None, base: str | None = None,
+               report: str | None = None) -> dict[str, Any]:
     """Note ce qu'un harness-init a écrit dans `result_dir` contre le bloc `init` d'expected.json :
     palier atteint, faits non découvrables remontés (`must_surface`), bruit recopié (`must_not_write`),
     garde-fous réels cités (`guards_cited`), garde-fous mensongers crus (`forbidden_guards`), références
@@ -180,6 +214,30 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
             after = facts.GUARDED_RE.split(r, maxsplit=1)[-1]      # ce qui suit « Vérifiée par : »
             if lie["path"].lower() in after and any(w.lower() in r for w in lie["rule_keywords"]):
                 problems.append(f"garde-fou mensonger cru : « {r[:90]} » s'appuie sur {lie['path']}")
+    for r in guarded:                                             # vérifiée par quoi que ce soit : faux
+        if expected.get("no_guard_exists"):
+            problems.append(f"règle dite vérifiée dans un dépôt sans garde-fou qui bloque : « {r[:90]} »")
+        for never in expected.get("never_guarded", []):
+            if _matches(r, never):
+                problems.append(f"règle dite vérifiée alors que rien ne la vérifie ({never['what']}) : « {r[:90]} »")
+    for rest in expected.get("must_not_remain", []):              # les notes annexes : parties, ou réduites
+        text_ = facts._read(os.path.join(result_dir, rest["path"]))
+        if text_ is None:
+            continue
+        lines = len(text_.splitlines())
+        hits = [k for k in rest.get("any_of", []) if k.lower() in text_.lower()]
+        if hits or ("max_lines" in rest and lines > rest["max_lines"]):
+            problems.append(f"{rest['path']} laissé en l'état : {rest['what']}"
+                            + (f" ({', '.join(hits)})" if hits else f" ({lines} lignes, {rest['max_lines']} au plus)"))
+    if report is not None:                                        # le compte rendu rendu au propriétaire
+        low = report.lower()
+        for want in expected.get("report_must_mention", []):
+            if not any(k.lower() in low for k in want["any_of"]):
+                problems.append(f"compte rendu : ne dit rien de {want['what']} (aucun de {want['any_of']})")
+        for never in expected.get("report_must_not_mention", []):
+            hits = [k for k in never["any_of"] if k.lower() in low]
+            if hits:
+                problems.append(f"compte rendu : contient {never['what']}")
     for ref in state["dangling"]:                                 # un pas ne promet pas le pas suivant
         if ref["kind"] == "guard" and base and facts.cited_path_exists(base, ref["ref"]):
             continue        # `result_dir` ne porte que les instructions : le garde-fou vit dans le dépôt de la fixture
@@ -269,6 +327,7 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     c.add_argument("name", help="nom de la fixture (dossier de fixtures/repos) ou chemin")
     c.add_argument("--audit", help="JSON d'audit à noter contre les pièges")
     c.add_argument("--init", help="dépôt produit par un harness-init, à noter contre le bloc init")
+    c.add_argument("--report", help="avec --init : le compte rendu rendu par l'agent, noté lui aussi")
     c.add_argument("--today", help="AAAA-MM-JJ pour une mesure reproductible")
     b = sub.add_parser("bare", help="copie d'une fixture sans instrumentation IA, pour évaluer harness-init")
     b.add_argument("name", help="nom de la fixture ou chemin")
@@ -307,7 +366,12 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
                     print(f"- {line}")
         ok = ok and result["ok"]
     if args.init:
-        result = check_init(args.init, expected.get("init", {}), today, base=os.path.join(fixture_dir, "repo"))
+        report = facts._read(args.report) if args.report else None
+        if args.report and report is None:
+            raise SystemExit(f"compte rendu introuvable : {args.report}")
+        result = check_init(args.init, expected.get("init", {}), today, base=os.path.join(fixture_dir, "repo"), report=report)
+        if report is None and any(k.startswith("report_") for k in expected.get("init", {})):
+            print("(compte rendu non noté : passer --report <fichier>)")
         print(f"## init : palier {result['level']} · {result['score']} faits remontés"
               + (" · conforme" if result["ok"] else f" · {len(result['problems'])} écart(s)"))
         for line in result["problems"]:

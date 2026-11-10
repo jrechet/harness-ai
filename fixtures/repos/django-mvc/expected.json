@@ -124,7 +124,28 @@
         ]
       }
     ],
-    "only_level_material": true
+    "only_level_material": true,
+    "never_guarded": [
+      {
+        "what": "e-mails en masse : seule la revue",
+        "rule_keywords": [
+          "post_save"
+        ]
+      },
+      {
+        "what": "verrou d'inscription : invérifiable sous SQLite",
+        "rule_keywords": [
+          "select_for_update"
+        ]
+      },
+      {
+        "what": "migration appliquée immuable : le job a disparu",
+        "rule_all_of": [
+          "migration",
+          "appli"
+        ]
+      }
+    ]
   },
   "audit": {
     "traps": [
@@ -324,6 +345,27 @@
         "id": "I2",
         "any_of": [
           "select_for_update"
+        ]
+      }
+    ],
+    "never_guarded": [
+      {
+        "what": "e-mails en masse : seule la revue",
+        "rule_keywords": [
+          "post_save"
+        ]
+      },
+      {
+        "what": "verrou d'inscription : invérifiable sous SQLite",
+        "rule_keywords": [
+          "select_for_update"
+        ]
+      },
+      {
+        "what": "migration appliquée immuable : le job a disparu",
+        "rule_all_of": [
+          "migration",
+          "appli"
         ]
       }
     ]

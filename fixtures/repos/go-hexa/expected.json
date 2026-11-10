@@ -111,7 +111,24 @@
         ]
       }
     ],
-    "only_level_material": true
+    "only_level_material": true,
+    "never_guarded": [
+      {
+        "what": "clé d'idempotence : seule la revue la contrôle",
+        "rule_keywords": [
+          "idempot"
+        ]
+      },
+      {
+        "what": "montants entiers : le job lint ne bloque pas",
+        "rule_keywords": [
+          "float",
+          "flottant",
+          "centime",
+          "cents"
+        ]
+      }
+    ]
   },
   "audit": {
     "traps": [
@@ -217,6 +234,23 @@
     "forbidden_leak_keywords": [
       "gofmt",
       "idiomati"
+    ],
+    "never_guarded": [
+      {
+        "what": "clé d'idempotence : seule la revue la contrôle",
+        "rule_keywords": [
+          "idempot"
+        ]
+      },
+      {
+        "what": "montants entiers : le job lint ne bloque pas",
+        "rule_keywords": [
+          "float",
+          "flottant",
+          "centime",
+          "cents"
+        ]
+      }
     ]
   }
 }

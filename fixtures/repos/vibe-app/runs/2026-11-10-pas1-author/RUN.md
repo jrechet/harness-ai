@@ -51,7 +51,7 @@ Interdits : toucher à `data/db.json` (session 6), recopier une valeur de `confi
 | `NOTES.md` | **Réduit** à sa section PayFlux, 15 lignes, citée par AGENTS.md | Forme des événements, signature, calendrier des relivraisons : ce n'est pas dans le code et ça sert au premier changement de webhook. Retiré : debug du total, essais curl sur des routes disparues, formatage, installation sur le PC de la boutique |
 | `TODO.md` | **Gardé tel quel**, non chargé | C'est la liste du propriétaire, pas une instruction. AGENTS.md ne la cite pas |
 
-L'overlay du banc pose des fichiers et n'en retire pas : `PLAN.md` y est remplacé par trois lignes de renvoi. Dans un vrai dépôt, c'est un `git rm`.
+`REMOVE.txt` liste ce que le pas a supprimé : le bras `harness` du banc retire `PLAN.md` de la copie de travail, comme un `git rm` dans un vrai dépôt.
 
 ## Secret trouvé
 `config/default.json` porte en clair la clé d'API PayFlux de test et le secret de signature du webhook, versionnés depuis le 2026-02-08 ; `test/webhook.test.js` recopie le secret. Aucune des deux valeurs n'est recopiée ici. À faire par le propriétaire : les régénérer dans le tableau de bord PayFlux, puis les passer par `PAYFLUX_API_KEY` et `PAYFLUX_WEBHOOK_SECRET`, que `src/config.js` lit déjà. Elles restent dans l'historique git.

@@ -151,6 +151,14 @@
         "path": "AGENTS.md",
         "ratio": 0.75
       }
+    ],
+    "never_guarded": [
+      {
+        "what": "contrat additif : gardé côté fournisseur seulement",
+        "rule_keywords": [
+          "additi"
+        ]
+      }
     ]
   },
   "audit": {
@@ -306,6 +314,14 @@
         "id": "I7",
         "any_of": [
           "deliveries"
+        ]
+      }
+    ],
+    "never_guarded": [
+      {
+        "what": "contrat additif : gardé côté fournisseur seulement",
+        "rule_keywords": [
+          "additi"
         ]
       }
     ]
