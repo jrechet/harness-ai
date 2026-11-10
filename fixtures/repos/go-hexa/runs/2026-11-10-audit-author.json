@@ -1,0 +1,161 @@
+{
+  "audit": {
+    "process": "ledger",
+    "scope": "dépôt après le pas 1",
+    "date": "2026-11-10",
+    "health_score": 59,
+    "cut_the_agent_test": {
+      "passed": false,
+      "leaked_steps": 2
+    }
+  },
+  "elements": [
+    {
+      "id": "Makefile",
+      "path": "Makefile",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": [],
+      "calls": [],
+      "verdict": "PUSH_DOWN",
+      "priority": "P1",
+      "finding": "reset-db détruit le schéma de la base désignée par DATABASE_URL sans regarder laquelle",
+      "evidence": [
+        "Makefile:25",
+        "docs/exploitation.md:12"
+      ],
+      "target": "",
+      "check": ""
+    },
+    {
+      "id": ".golangci.yml",
+      "path": ".golangci.yml",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": [],
+      "calls": [],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "le contrôle des flottants existe mais le job lint ne bloque pas",
+      "evidence": [
+        ".golangci.yml:14",
+        ".github/workflows/ci.yml:27",
+        "internal/app/fees.go:19"
+      ],
+      "target": "",
+      "check": ""
+    },
+    {
+      "id": "docs/adr/0003-cle-d-idempotence.md",
+      "path": "docs/adr/0003-cle-d-idempotence.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": [],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "la clé d'idempotence d'un nouvel endpoint n'est contrôlée que par la revue",
+      "evidence": [
+        "docs/adr/0003-cle-d-idempotence.md:15"
+      ],
+      "target": "",
+      "check": ""
+    },
+    {
+      "id": "tools/archcheck/main.go",
+      "path": "tools/archcheck/main.go",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": [],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "garde-fou testé, sortie structurée, bloquant en CI",
+      "evidence": [
+        "tools/archcheck/main.go:1",
+        ".github/workflows/ci.yml:19"
+      ],
+      "target": "",
+      "check": ""
+    },
+    {
+      "id": ".github/workflows/deploy.yml",
+      "path": ".github/workflows/deploy.yml",
+      "declared_layer": "L4",
+      "actual_layer": "L4",
+      "called_by": [],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "dry_run par défaut, environnement protégé, tests avant",
+      "evidence": [
+        ".github/workflows/deploy.yml:11"
+      ],
+      "target": "",
+      "check": ""
+    },
+    {
+      "id": "AGENTS.md",
+      "path": "AGENTS.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "court, daté, honnête sur ce qui n'est pas vérifié",
+      "evidence": [
+        "AGENTS.md:1"
+      ],
+      "target": "",
+      "check": ""
+    }
+  ],
+  "process_leaks": [
+    {
+      "rule": "tout endpoint qui modifie un solde exige une clé d'idempotence cherchée dans la transaction",
+      "told_in": "AGENTS.md:18",
+      "if_skipped": "double débit",
+      "belongs_in": "L3",
+      "guard_tool": "test qui parcourt les routes d'écriture"
+    },
+    {
+      "rule": "aucun flottant pour un montant",
+      "told_in": "docs/adr/0002-montants-en-centimes.md:9",
+      "if_skipped": "solde faux d'un centime",
+      "belongs_in": "L3",
+      "guard_tool": "job lint rendu bloquant, ou contrôle dans archcheck"
+    },
+    {
+      "rule": "reset-db seulement sur une base locale",
+      "told_in": "AGENTS.md:23",
+      "if_skipped": "données QA détruites",
+      "belongs_in": "L3",
+      "guard_tool": "refus de toute URL non locale dans la cible make"
+    }
+  ],
+  "guarded_rules": [
+    {
+      "rule": "dépendances entre couches",
+      "told_in": "AGENTS.md:17",
+      "guarded_by": "tools/archcheck/main.go"
+    }
+  ],
+  "removals": [],
+  "owner_questions": [],
+  "instruction_files": [
+    {
+      "path": "AGENTS.md",
+      "loaded_lines": 24,
+      "instruction_pct": 90,
+      "reference_pct": 10,
+      "noise_pct": 0,
+      "justified_rules": true,
+      "maintenance_clause": false
+    }
+  ],
+  "remediation": [],
+  "unverified": [
+    "golangci-lint n'est pas installé : la règle forbidigo n'a pas été exécutée"
+  ]
+}

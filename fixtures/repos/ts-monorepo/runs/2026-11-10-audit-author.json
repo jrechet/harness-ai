@@ -1,0 +1,203 @@
+{
+  "audit": {
+    "process": "deskly",
+    "scope": "dépôt tel que trouvé",
+    "date": "2026-11-10",
+    "health_score": 57,
+    "cut_the_agent_test": {
+      "passed": false,
+      "leaked_steps": 1
+    }
+  },
+  "elements": [
+    {
+      "id": ".github/workflows/ci.yml",
+      "path": ".github/workflows/ci.yml",
+      "declared_layer": "L4",
+      "actual_layer": "L4",
+      "called_by": [],
+      "calls": [],
+      "verdict": "PUSH_DOWN",
+      "priority": "P1",
+      "finding": "le filtre du job web ignore packages/shared",
+      "evidence": [
+        ".github/workflows/ci.yml:26",
+        "docs/postmortems/2026-06-statut-inconnu.md:9"
+      ],
+      "target": "",
+      "check": ""
+    },
+    {
+      "id": "CLAUDE.md",
+      "path": "CLAUDE.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": [],
+      "verdict": "SPLIT",
+      "priority": "P2",
+      "finding": "104 lignes générées : référence, bruit, commandes fausses, et deux lignes à garder",
+      "evidence": [
+        "CLAUDE.md:1"
+      ],
+      "target": "",
+      "check": ""
+    },
+    {
+      "id": "apps/web/CLAUDE.md",
+      "path": "apps/web/CLAUDE.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": [],
+      "verdict": "MERGE",
+      "priority": "P2",
+      "finding": "une consigne contredit le garde-fou des frontières, une autre est périmée",
+      "evidence": [
+        "apps/web/CLAUDE.md:5",
+        "tools/check-boundaries.mjs:1"
+      ],
+      "target": "",
+      "check": ""
+    },
+    {
+      "id": "tools/check-boundaries.mjs",
+      "path": "tools/check-boundaries.mjs",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": [],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "garde-fou à sortie structurée, bloquant à chaque PR",
+      "evidence": [
+        "tools/check-boundaries.mjs:1",
+        ".github/workflows/ci.yml:29"
+      ],
+      "target": "",
+      "check": ""
+    },
+    {
+      "id": "packages/shared/src/ticket.test.ts",
+      "path": "packages/shared/src/ticket.test.ts",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": [],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "les transitions ont leur test",
+      "evidence": [
+        "packages/shared/src/ticket.test.ts:5"
+      ],
+      "target": "",
+      "check": ""
+    }
+  ],
+  "process_leaks": [
+    {
+      "rule": "un changement dans packages/shared se valide avec les tests et les types du web",
+      "told_in": "CLAUDE.md:103",
+      "if_skipped": "le web casse en production, CI verte",
+      "belongs_in": "L4",
+      "guard_tool": "ajouter packages/shared/** au filtre du job web"
+    }
+  ],
+  "guarded_rules": [
+    {
+      "rule": "une app n'importe jamais une autre app",
+      "told_in": "CLAUDE.md:59",
+      "guarded_by": "tools/check-boundaries.mjs"
+    }
+  ],
+  "removals": [
+    {
+      "path": "CLAUDE.md",
+      "line": 84,
+      "text": "Never apply partial edits to a file larger than 500 lines; rewrite the whole file instead.",
+      "reason": "harmful",
+      "evidence": "contournement d'une limite d'outil disparue : fait réécrire des fichiers entiers",
+      "ask_owner": false
+    },
+    {
+      "path": "apps/web/CLAUDE.md",
+      "line": 5,
+      "text": "importe-le directement depuis ../../api/src/tickets/service.ts",
+      "reason": "harmful",
+      "evidence": "tools/check-boundaries.mjs refuse cet import en CI",
+      "ask_owner": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "line": 85,
+      "text": "Always ask for confirmation before running any command.",
+      "reason": "harmful",
+      "evidence": "contredit le mode délégation demandé",
+      "ask_owner": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "line": 50,
+      "text": "npm run lint ; npm run build",
+      "reason": "harmful",
+      "evidence": "ces scripts n'existent pas dans package.json",
+      "ask_owner": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "line": 69,
+      "text": "Code Style Guidelines : prefer `const`, meaningful variable names, clean, readable and maintainable code, functions small",
+      "reason": "useless",
+      "evidence": "ce qu'un modèle fait sans qu'on le dise ; tsconfig porte déjà strict",
+      "ask_owner": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "line": 80,
+      "text": "You are an expert senior TypeScript engineer. Think step by step. Do not hallucinate APIs. Always read a file fully before editing it.",
+      "reason": "useless",
+      "evidence": "consignes écrites pour d'anciens modèles",
+      "ask_owner": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "line": 5,
+      "text": "Project Overview, Tech Stack, Repository Structure, Architecture",
+      "reason": "useless",
+      "evidence": "découvrable dans README.md, package.json et l'arborescence",
+      "ask_owner": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "line": 91,
+      "text": "Aim for at least 80% code coverage.",
+      "reason": "useless",
+      "evidence": "aucun outil ne mesure la couverture",
+      "ask_owner": false
+    },
+    {
+      "path": "apps/web/CLAUDE.md",
+      "line": 6,
+      "text": "Pas d'optional chaining ni de champs privés # : IE11",
+      "reason": "outdated",
+      "evidence": "le code utilise ?. et # partout",
+      "ask_owner": true
+    }
+  ],
+  "owner_questions": [
+    "1. Le support est-il encore sous IE11 ? Défaut : non, je retire la ligne, le code l'ignore déjà partout."
+  ],
+  "instruction_files": [
+    {
+      "path": "CLAUDE.md",
+      "loaded_lines": 104,
+      "instruction_pct": 4,
+      "reference_pct": 55,
+      "noise_pct": 41,
+      "justified_rules": false,
+      "maintenance_clause": false
+    }
+  ],
+  "remediation": [],
+  "unverified": []
+}

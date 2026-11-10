@@ -98,6 +98,20 @@ class AllFixturesTests(unittest.TestCase):
                         seen += 1
         self.assertGreaterEqual(seen, 2)
 
+    def test_author_audits_satisfy_the_audit_block(self):
+        """Un bloc audit doit être satisfiable : l'audit écrit par l'auteur de la fixture est conforme."""
+        seen = 0
+        for name in self.fixture_names():
+            runs = os.path.join(fixtures.FIXTURES_ROOT, name, "runs")
+            for run in sorted(os.listdir(runs)) if os.path.isdir(runs) else []:
+                if run.endswith("-audit-author.json"):
+                    with self.subTest(fixture=name, run=run):
+                        with open(os.path.join(runs, run), encoding="utf-8") as fh:
+                            result = fixtures.check_audit(json.load(fh), load_expected(name)["audit"])
+                        self.assertTrue(result["ok"], {k: result[k] for k in ("missed", "wrong", "sane_flagged", "global")})
+                        seen += 1
+        self.assertGreaterEqual(seen, 2)
+
     def test_fixture_readme_does_not_point_to_the_answer_key(self):
         for name in self.fixture_names():
             readme = os.path.join(fixtures.FIXTURES_ROOT, name, "repo", "README.md")
