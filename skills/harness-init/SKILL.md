@@ -1,73 +1,90 @@
 ---
 name: harness-init
-description: Met en place l'instrumentation IA d'un dépôt à partir de zéro — AGENTS.md comme source unique, stubs CLAUDE.md / Copilot / Cursor, convention de retour `rule:` et premier contrat de tâche — après un court entretien (mode délégation ou assistance, équipe, CI, outils) et une reconnaissance du repo. N'écrit que ce que l'agent ne peut pas découvrir seul, installe le mécanisme d'amélioration plutôt que du contenu, et termine par un harness-audit en mode gate. Utiliser dès que l'utilisateur veut « commencer avec Claude Code / Copilot / Cursor sur ce projet », créer ou refaire un AGENTS.md ou CLAUDE.md, « instrumenter le repo pour l'IA », ne sait pas par où commencer, ou veut déléguer des tâches à un agent — même sans employer le mot init. Ne pas utiliser pour auditer un harness existant sans le modifier (c'est harness-audit).
+description: Pose le premier palier de l'instrumentation IA d'un dépôt — un AGENTS.md court comme source unique, avec mode, règles justifiées et datées, Interdits, et les stubs CLAUDE.md / Copilot / Cursor — après trois questions et une reconnaissance du repo. N'écrit que ce que l'agent ne peut pas découvrir seul, retire d'un fichier existant ce qui ne sert plus, puis s'arrête : les paliers suivants sont d'autres pas, menés par harness-step. Utiliser dès que l'utilisateur veut « commencer avec Claude Code / Copilot / Cursor sur ce projet », créer ou refaire un AGENTS.md ou CLAUDE.md, « instrumenter le repo pour l'IA », ou ne sait pas par où commencer — même sans employer le mot init. Ne pas utiliser pour auditer sans modifier (harness-audit) ni pour avancer un dépôt déjà cadré (harness-step).
 ---
 
-# Harness init
+# Harness init — le pas 1
 
-Un AGENTS.md généré par scan du repo (arborescence, commandes de build, conventions de nommage) est du bruit : l'agent découvre tout ça seul en lisant le code. Les règles utiles naissent d'incidents, pas d'un scan. Ce skill installe donc **un mécanisme, pas du contenu** : un fichier court qui ne dit que le non-découvrable, un mode explicite qui fixe la sévérité des audits à venir, et la convention de retour qui fera grandir le fichier à partir de cas réels.
+Un AGENTS.md généré par scan du repo (arborescence, commandes de build, conventions de nommage) est du bruit : l'agent découvre tout ça seul en lisant le code. Les règles utiles naissent d'incidents, pas d'un scan. Ce skill pose donc **peu** : un fichier court qui ne dit que le non-découvrable, et un mode explicite.
 
-Mode par défaut : **délégation** (l'agent reçoit une tâche entière et revient avec une PR, personne ne relit en cours de route). L'assistance (l'humain pilote et relit chaque diff) se choisit explicitement à l'entretien. La différence est détaillée dans `references/agents-template.md`.
+Il pose le palier 1, « Cadré », et rien d'autre. Un palier est un endroit où l'on peut rester : ce qui est écrit ici doit tenir debout sans le pas suivant. Pas de section Maintenance, pas de marqueur de harvest, pas de Processus de travail, pas de contrat de tâche : ce sont les pas 2 et 4, que harness-step propose quand l'utilisateur veut aller plus loin. Un fichier qui cite un contrat qui n'existe pas encore promet ce qu'il ne tient pas.
+
+Mode par défaut : **délégation** (l'agent reçoit une tâche entière et revient avec une PR). L'assistance (l'humain pilote et relit chaque diff) se choisit explicitement à l'entretien.
 
 ## Déroulé
 
-### 1. Entretien — une seule salve de questions
-Pose toutes les questions en une fois, avec le défaut proposé pour chacune. Ne commence rien avant les réponses.
+### 1. Entretien — trois questions, en une fois
+Pose-les ensemble, avec le défaut proposé. Ne commence rien avant les réponses.
 
 1. **Mode** : délégation (défaut) ou assistance ? Si l'équipe relit chaque diff en direct et qu'aucun agent ne tourne hors session, propose assistance.
-2. **Équipe** : combien de personnes touchent le repo ? Un dev seul a moins besoin du fichier (sa mémoire d'agent apprend déjà) ; dis-le et allège.
-3. **CI et garde-fous** : quelle CI, quels checks bloquants aujourd'hui ? Ce sont les seules règles qu'on pourra citer comme vérifiées.
-4. **Outils** : Claude Code seul, ou aussi Copilot, Cursor, Codex ? Ça décide des stubs.
-5. **Première tâche à déléguer** : quelle tâche répétitive l'équipe aimerait confier en premier (bump de dépendance, clé i18n, composant, migration…) ? Elle devient le premier contrat.
-6. **Interdits** : qu'est-ce qu'un agent ne doit jamais toucher ou faire (dossiers, secrets, migrations prod, force push…) ?
+2. **Interdits** : qu'est-ce qu'un agent ne doit jamais toucher ou faire (dossiers, secrets, base partagée, migrations prod, force push) ?
+3. **Outils et CI** : quels agents (Claude Code seul, ou aussi Copilot, Cursor, Codex) ? Quelle CI, et quels checks **bloquent** la fusion aujourd'hui ?
+
+Si le propriétaire ne sait pas (« je ne l'ai jamais relu »), ne comble pas à sa place : écris moins. L'équipe, la première tâche à déléguer et le processus de travail ne se demandent pas ici.
 
 ### 2. Reconnaissance — ne rien écrire avant d'avoir vérifié
-- **Fichiers d'instructions existants** (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `copilot-instructions.md`) : ne jamais écraser. Lis-les, classe chaque ligne en instruction / référence / bruit, et propose ce qu'on garde, déplace ou supprime. Si le fichier est long, lance harness-audit dessus avant d'écrire.
-- **La bonne branche et les fichiers de dossier.** Lis les fichiers d'instructions sur la branche que la PR visera (souvent `develop`, pas la branche par défaut du clone) : ils diffèrent parfois d'une branche à l'autre. Cherche aussi les `CLAUDE.md` et `AGENTS.md` de sous-dossiers (`find . -name CLAUDE.md -o -name AGENTS.md`) : ils sont déjà chargés à la demande, donc c'est là que va la référence qui les concerne, pas dans un nouveau dossier qui les doublerait.
-- **Secrets.** Tu relis ces fichiers ligne à ligne : c'est le moment de chercher clés d'API, mots de passe, tokens, URLs avec identifiants (`grep -nE "apiKey=|api_key|token|password|secret|Bearer "` sur les fichiers d'instructions et ce qu'ils incluent). Un secret trouvé ne se recopie jamais, même « en lecture seule » : remplace-le par une variable d'environnement, dis dans le compte rendu qu'il reste dans l'historique git et doit être régénéré, et ajoute l'Interdit correspondant à AGENTS.md.
-- **Commandes réelles** : repère build, test, lint, et **exécute-les** pour confirmer qu'elles marchent. Une commande qui échoue ne va pas dans le fichier ; elle va dans la section « non vérifié » du compte rendu.
-- **Garde-fous L3 existants** : linters custom, tests d'architecture, scripts de check, PR gates, hooks. Note chemin et ce qu'ils vérifient.
-- **Non-découvrable** : ce qu'on ne peut pas déduire du code — pourquoi tel choix d'archi, quel service est fragile, quel dossier est généré, quelle commande a des effets de bord. Interroge l'utilisateur si tu l'observes sans l'expliquer.
+- **Où sont les faits.** ADR, post-mortems, notes d'exploitation, CONTRIBUTING, notes de session laissées par un agent : c'est là que vivent les incidents datés. Lis-les avant le code. Un incident chiffré vaut dix conventions.
+- **Fichiers d'instructions existants** (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `copilot-instructions.md`) : ne jamais écraser. Classe chaque ligne : à garder, à raccourcir parce qu'un garde-fou la porte, à retirer. Un retrait a un motif, voir « Retirer ».
+- **La bonne branche et les fichiers de dossier.** Lis les fichiers d'instructions sur la branche que la PR visera. Cherche les `CLAUDE.md` et `AGENTS.md` de sous-dossiers (`find . -name CLAUDE.md -o -name AGENTS.md`) : ils sont chargés à la demande, c'est là que va ce qui ne concerne qu'eux. Ils se nettoient comme la racine.
+- **Secrets.** Cherche clés d'API, mots de passe, tokens (`grep -rnE "apiKey=|api_key|token|password|secret|Bearer |sk_"` sur les fichiers d'instructions, la config et ce qu'ils incluent). Un secret trouvé ne se recopie jamais : dis dans le compte rendu où il est, qu'il reste dans l'historique git et doit être régénéré, et ajoute l'Interdit correspondant.
+- **Commandes réelles** : repère build, test, lint, et **exécute-les**. Une commande qui échoue ou n'existe pas ne va pas dans le fichier ; elle va dans « non confirmé » du compte rendu.
+- **Garde-fous, et s'ils bloquent.** Pour chaque linter, test d'architecture, script de check : note son chemin, ce qu'il vérifie, et lis la CI pour voir s'il **bloque**. Un job en `continue-on-error`, un filtre de chemins qui ne le déclenche pas, un hook local, un job cité par un document mais absent du workflow : ce garde-fou ne garantit rien. Des tests qui n'affirment rien non plus.
 
 Test pour chaque phrase candidate : *si je l'enlève, l'agent fait-il quelque chose de différent ?* Si non, elle ne va pas dans le fichier.
 
 ### 3. Écriture
-Depuis `references/agents-template.md`, dans cet ordre :
-- `AGENTS.md` à la racine, **sous 60 lignes**, ligne de mode en tête, sections du template dans l'ordre, sections vides supprimées plutôt que remplies de générique.
-- Stubs : `CLAUDE.md` contenant uniquement `@AGENTS.md` ; `.github/copilot-instructions.md` et `.cursor/rules/agents.mdc` selon les outils déclarés, texte du template.
-- Premier contrat : `.claude/skills/<tâche>/SKILL.md` pour la tâche choisie en 5, avec étapes, vérifications et critère de fini. Court ; il grandira avec les incidents. AGENTS.md le référence par nom sans recopier.
+Depuis `references/agents-template.md`, bloc « Pas 1 » :
+- `AGENTS.md` à la racine, **sous 60 lignes**, ligne de mode en tête. Sections vides supprimées plutôt que remplies de générique.
+- Chaque règle porte trois choses : **pourquoi** (l'incident, ou « pas d'incident connu » plutôt qu'une raison inventée), **par quoi elle est vérifiée** (`Vérifiée par : <chemin>` seulement pour un garde-fou que tu as vu bloquer, sinon `(non vérifiée)`), et **depuis quand** (`[AAAA-MM]`, la date de l'incident ou de la décision ; à défaut, aujourd'hui). Une règle reprise d'un ancien fichier garde sa date d'origine : elle ne rajeunit pas parce qu'on la recopie.
+- Une règle que le dépôt viole déjà le dit, avec le fichier : l'agent ne doit pas prendre le contre-exemple pour modèle.
+- Stubs : `CLAUDE.md` contenant uniquement `@AGENTS.md` ; `.github/copilot-instructions.md` et `.cursor/rules/agents.mdc` selon les outils déclarés.
+- Un marqueur de harvest déjà présent est gardé tel quel. On n'en pose pas.
 
-### 4. Installer la boucle de retour
-- La section « Maintenance » de AGENTS.md porte la convention : tout commentaire de review qui commence par `rule:` est une règle candidate, ajoutée dans la même PR avec le lien vers le commentaire, ou collectée plus tard par harness-harvest.
-- Chaque règle écrite aujourd'hui porte sa justification (pourquoi, ou incident) et, quand il existe, le garde-fou qui la vérifie. Une règle sans l'un ni l'autre est marquée `(non vérifiée)` pour que l'audit la retrouve. Quand aucun incident n'est connu, écris-le (« Pourquoi : décision d'architecture, pas d'incident connu ») plutôt que d'inventer une raison plausible : une justification fabriquée a l'air d'un incident et fausse le prochain harvest.
-- Si harness-harvest n'est pas installé, dis-le : la collecte est manuelle jusque-là.
-- Un marqueur de harvest déjà présent dans le fichier existant est **gardé tel quel**, même périmé : le remettre à aujourd'hui simulerait un harvest qui n'a pas eu lieu. Le marqueur `ref=init` ne se pose que sur un fichier qui n'en avait pas.
+### 4. Gate — l'état mesuré
+`python3 cli/harness.py status <repo>` (CLI du dépôt harness-ai) écrit `.harness/state.json`. Attendu : palier 1, cinq vérifications sur cinq, aucune « référence sans cible ». Corrige avant de rendre la main. L'audit complet n'est pas le gate du pas 1 : c'est un pas du palier 3.
 
-### 5. Gate — état mesuré puis harness-audit
-Lance d'abord `python3 cli/harness.py status <repo>` (CLI du dépôt harness-ai) : il écrit `.harness/state.json` et affiche le palier atteint avec les vérifications qui manquent. L'objectif de l'init est le palier 1 « Cadré » complet ; si une vérification échoue, corrige avant d'aller plus loin. Puis lance harness-audit sur ce qui vient d'être écrit. Corrige les constats structurels (longueur, part de référence, clause de maintenance, cohérence des stubs, règle non vérifiée en mode délégation sans garde-fou nommé). Les constats de fond qui demandent de créer un linter ou un check CI ne se corrigent pas ici : ils vont dans le compte rendu comme prochaines étapes.
+### 5. Compte rendu, puis on s'arrête
+Toujours le même format :
+- **Avant et après** : palier, lignes chargées par session, nombre de règles.
+- **Fichiers** créés ou modifiés (chemin, lignes).
+- **Retiré**, par motif, une ligne chacun avec la raison.
+- **Secrets** trouvés et ce qu'il reste à faire.
+- **Règles écrites**, avec leur statut (vérifiée par quoi, ou non vérifiée) et leur date.
+- **Commandes** confirmées et non confirmées.
+- **Questions** au propriétaire, numérotées, avec le défaut proposé : les lignes périmées à confirmer, ce que tu as observé sans pouvoir l'expliquer.
+- **Le pas suivant possible**, en une ligne, sans le faire. C'est à l'utilisateur de dire s'il veut aller plus loin (`harness target`), et à harness-step de le mener.
 
-### 6. Compte rendu
-Toujours le même format : palier atteint selon `harness status` et vérifications restantes ; fichiers créés ou modifiés (chemin, lignes) ; secrets trouvés et ce qu'il reste à faire (régénérer, purger) ; mode retenu et pourquoi ; règles écrites avec leur statut (vérifiée par <garde-fou> / non vérifiée) ; commandes confirmées et non confirmées ; résultat du gate ; trois prochaines étapes, la première étant presque toujours « pousser la première règle non vérifiée en CI ».
+## Retirer
 
-## Délégation vs assistance — ce qui change concrètement
+Sur un dépôt qui a déjà des instructions, le plus gros du travail est de retirer. La question pour chaque ligne n'est pas « est-elle vraie » mais « change-t-elle encore ce que fait l'agent ». Trois motifs, à ne pas confondre :
+
+| Motif | C'est | Exemples | Ce qu'on fait |
+|---|---|---|---|
+| **Inutile** | Découvrable dans le dépôt, ou ce qu'un modèle fait sans qu'on le dise | Arborescence, stack, « écris du code propre », « réfléchis étape par étape », journal de session | On retire, sans demander |
+| **Nuisible** | Écrite pour une limite disparue, ou contraire à un garde-fou : elle dégrade le travail d'un agent d'aujourd'hui | « Réécris le fichier entier au-delà de 500 lignes », « demande confirmation avant chaque commande » en délégation, une consigne que la CI refuse | On retire, et on le signale à part |
+| **Périmée** | Vraie hier, plus aujourd'hui | Compatibilité avec un navigateur ou une version abandonnés | **On demande** : seul le propriétaire le sait. Une ligne périmée se retire après sa réponse, jamais avant |
+
+Ne retire jamais une ligne née d'un incident parce qu'elle a l'air évidente : c'est précisément celle que le dépôt ne dit pas. Dans un fichier généré de cent lignes, il y en a souvent deux, tout en bas.
+
+## Délégation vs assistance — ce qui change au pas 1
 
 | | Délégation (défaut) | Assistance |
 |---|---|---|
 | Qui vérifie | La CI et les garde-fous ; personne ne relit en route | L'humain, à chaque diff |
-| Règle racontée sans garde-fou | Défaut P1 pour l'audit : elle sera sautée un jour sur dix | Coût de contexte seulement |
-| Section « Processus de travail » | Obligatoire : quand s'arrêter et demander, critère de fini, CI rouge, taille de PR | Absente |
-| Contrats par tâche | Un par tâche déléguée, dès la première | Optionnels |
-| Signal de retour | PRs d'agent rejetées ou corrigées, commentaires `rule:` | Commentaires `rule:` seulement |
+| Règle `(non vérifiée)` | Une dette : elle sera sautée un jour sur dix | Un coût de contexte seulement |
+| Suite naturelle | Garde-fous (palier 3), puis processus et contrats (palier 4) | Souvent rien : le palier 1 suffit |
 
 ## Ce qu'on n'écrit pas
 - Arborescence, liste des modules, stack technique : découvrable.
-- Conventions que le modèle applique déjà sans qu'on le lui dise (nommage standard, gestion de ressources idiomatique).
-- Commandes non testées, règles « au cas où », principes génériques (« écris du code propre »).
-- Du contenu de skill recopié dans AGENTS.md : on pointe, on ne duplique pas.
+- Conventions que le modèle applique déjà (nommage standard, gestion de ressources idiomatique).
+- Commandes non testées, règles « au cas où », principes génériques.
+- « Vérifiée par » pour un garde-fou qu'on n'a pas vu bloquer.
+- Le matériel des paliers suivants.
 
 ## Pièges fréquents
 - Répondre soi-même aux questions de l'entretien pour aller plus vite : le mode et les interdits viennent de l'utilisateur, pas du scan.
-- Écraser un CLAUDE.md existant parce qu'il est mauvais : on fusionne et on dit ce qu'on a retiré.
-- Dépasser 60 lignes « parce que c'est important » : si c'est important et long, c'est un skill ou un fichier de référence chargé à la demande.
+- Écraser un CLAUDE.md existant parce qu'il est mauvais : on trie ligne à ligne et on dit ce qu'on a retiré.
+- Dépasser 60 lignes « parce que c'est important » : si c'est important et long, c'est un fichier de référence chargé à la demande.
 - Oublier la ligne de mode : harness-audit s'en sert pour choisir son barème.
-- Poser un workflow planifié ou à lancement manuel sur une branche de travail : GitHub ne planifie un workflow, et n'accepte un `workflow_dispatch`, que depuis la branche par défaut. Un garde-fou fusionné sur `develop` seul est inerte ; il doit aussi arriver sur `main`, et le compte rendu doit le dire.
+- Croire un document qui dit « vérifié par le lint » sans ouvrir le workflow.
+- Enchaîner sur le pas suivant parce qu'on y est : l'utilisateur n'a rien demandé de plus.

@@ -20,7 +20,7 @@ L'important n'est pas la source, c'est ce qu'on y cherche. Le catalogue des sign
 ### 2. Collecter — scripts d'abord, lecture ensuite
 Chaque source a un adaptateur dans le CLI commun du dépôt harness-ai (`cli/harness.py harvest <source>`) qui produit le JSON d'évidences du catalogue, sans LLM : `python3 cli/harness.py harvest github --repo <owner/repo> --agents-md AGENTS.md > .harness/harvest.json` pour GitHub (options et marqueurs d'agent dans `references/signals.md`). Lance l'adaptateur, écris sa sortie dans `.harness/harvest.json` du repo cible (c'est ce que lit `harness status`), ne reconstitue pas les évidences à la main depuis l'interface. Si le script manque ou échoue, dis-le et limite la PR à ce qui a pu être collecté ; une évidence non collectée n'est pas inventée.
 
-Lis aussi l'état courant : AGENTS.md, ses règles une par une, les contrats dans `.claude/skills/`, les garde-fous CI existants. Sans ça, impossible de détecter une règle orpheline ou un doublon.
+Lis aussi l'état courant : `python3 cli/harness.py rules <repo>` donne les règles une par une avec leur date, leur âge et leur garde-fou déclaré ; puis les contrats dans `.claude/skills/` et les garde-fous CI existants. Sans ça, impossible de détecter une règle orpheline ou un doublon.
 
 ### 3. Regrouper en candidats
 Une évidence seule n'est pas un candidat, sauf un `rule:` explicite. Regroupe par règle existante touchée, par fichiers ou zone, par reviewer et motif. Pour chaque groupe, pose dans l'ordre :
@@ -36,9 +36,9 @@ Un verdict par candidat :
 | Verdict | Quand | Ce que contient le commit |
 |---|---|---|
 | **PUSH_DOWN** | Un outil peut vérifier la règle | Le garde-fou (ou son squelette) + la ligne « Vérifiée par » dans AGENTS.md |
-| **ADD** | Règle neuve, justifiée, non vérifiable aujourd'hui | La ligne dans « Règles » avec pourquoi, lien, et `(non vérifiée)` |
+| **ADD** | Règle neuve, justifiée, non vérifiable aujourd'hui | La ligne dans « Règles » avec pourquoi, lien, `(non vérifiée)` et sa date `[AAAA-MM]` |
 | **SHORTEN** | Règle existante désormais couverte par un garde-fou | La règle réduite à une ligne de pointeur |
-| **REMOVE** | Règle sans évidence depuis deux harvests ou contredite par la pratique | La suppression, avec la raison dans le message de commit |
+| **REMOVE** | Règle sans évidence depuis deux harvests ou six mois, ou contredite par la pratique | La suppression, avec la raison dans le message de commit. Si seul le propriétaire sait qu'elle est périmée : ASK, pas REMOVE |
 | **CONTRACT** | Tâche récurrente sans contrat | Un squelette de `.claude/skills/<tâche>/SKILL.md` |
 | **ASK** | Signal réel mais règle non formulable | Une question dans la description de la PR, pas de changement de fichier |
 
@@ -52,4 +52,5 @@ Une PR, format fixe dans `references/proposal-template.md` : un commit par candi
 - Reproposer un candidat refusé au harvest précédent : relis les PRs de harvest fermées dans la fenêtre et marque ces candidats comme déjà refusés.
 - Traiter une PR humaine corrigée comme un signal d'agent : seules les PRs d'agent et les `rule:` explicites parlent de l'instrumentation.
 - Oublier les retraits : un harvest qui n'a que des ADD fait grossir le fichier jusqu'au monolithe.
+- Rajeunir une règle en la réécrivant : sa date est celle de l'incident, pas celle du dernier harvest.
 - Collecter à la main depuis l'interface : c'est lent, non reproductible et ça finit par inventer.

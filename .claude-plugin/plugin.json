@@ -1,8 +1,10 @@
 {
   "name": "harness-ai",
-  "version": "0.1.0",
-  "description": "Skills Claude Code pour concevoir, auditer et fiabiliser des harness agentiques (agents, skills, CLI, workflows).",
-  "author": { "name": "jrechet" },
+  "version": "0.2.0",
+  "description": "Skills Claude Code pour poser, auditer et faire évoluer l'instrumentation IA d'un dépôt, un pas à la fois.",
+  "author": {
+    "name": "jrechet"
+  },
   "repository": "https://github.com/jrechet/harness-ai",
   "license": "MIT"
 }

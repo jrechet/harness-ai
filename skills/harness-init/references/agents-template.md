@@ -1,12 +1,12 @@
-# Templates écrits par harness-init
+# Gabarits, pas par pas
 
-Trois blocs : le AGENTS.md jour 1, les stubs, et la convention `rule:`. Les crochets `<…>` sont à remplir ; une section dont on n'a rien de non-découvrable à dire est **supprimée**, pas remplie.
+Chaque pas ajoute son bloc, et seulement le sien. Les crochets `<…>` sont à remplir ; une section dont on n'a rien de non-découvrable à dire est **supprimée**, pas remplie.
 
-Budget : AGENTS.md sous 60 lignes. Si une section déborde, son contenu devient un skill dans `.claude/skills/` ou un fichier dans `docs/agents/` et AGENTS.md garde une ligne de pointeur.
+Budget : AGENTS.md sous 60 lignes, tous pas confondus. Si une section déborde, son contenu devient un skill dans `.claude/skills/` ou un fichier dans `docs/agents/`, et AGENTS.md garde une ligne de pointeur.
 
 ---
 
-## 1. AGENTS.md — mode délégation (défaut)
+## Pas 1 — Cadré (harness-init)
 
 ```markdown
 # <nom du repo> — instructions pour les agents
@@ -14,51 +14,23 @@ Budget : AGENTS.md sous 60 lignes. Si une section déborde, son contenu devient 
 Mode : **délégation**. Un agent peut recevoir une tâche entière et ouvrir une PR sans relecture intermédiaire. Ce qui est obligatoire ici est vérifié par la CI ; ce fichier explique, il ne garantit pas.
 
 ## Ce que fait ce repo
-<Deux lignes max : quoi, pour qui. Pas la stack, pas l'arborescence.>
+<Deux lignes max : quoi, pour qui, où sont les décisions et les incidents. Pas la stack, pas l'arborescence.>
 
 ## Ce qui change → ce qu'on lance
 | Si tu touches… | Lance… | Vérifié en CI par |
 |---|---|---|
-| <zone> | `<commande confirmée>` | <job / check, ou « rien » > |
+| <zone> | `<commande confirmée>` | <job qui bloque, ou « rien »> |
 
 ## Règles
-Chaque règle dit pourquoi et par quoi elle est vérifiée. Une règle `(non vérifiée)` est une dette : la prochaine étape est de la pousser en CI.
-- <Règle en une phrase.> Pourquoi : <incident ou raison>. Vérifiée par : <chemin du linter / test / check> | (non vérifiée)
+- <Règle en une phrase.> Pourquoi : <incident ou raison, ou « pas d'incident connu »>. Vérifiée par : <chemin du garde-fou qui bloque> | (non vérifiée) [<AAAA-MM>]
 
 ## Interdits
-<Ce qu'un agent ne fait jamais, même si la tâche semble le demander : dossiers, secrets, migrations prod, force push, suppression de tests…>
-
-## Processus de travail
-- Arrête-toi et pose la question quand : <ex. la tâche implique un choix d'architecture, touche à un interdit, ou la CI échoue pour une raison étrangère à la tâche>.
-- Une tâche est finie quand : <ex. CI verte, PR sous N fichiers, description qui explique le pourquoi, pas de TODO laissé>.
-- CI rouge : <ex. corrige si la cause est dans ton diff ; sinon signale-le dans la PR et n'y touche pas>.
-- Test flaky : <ex. relance une fois ; s'il reste instable, ouvre une issue, ne le désactive pas>.
-
-## Tâches déléguées
-Chaque tâche récurrente a son contrat dans `.claude/skills/` :
-- `<nom-du-skill>` — <une ligne>.
-
-## Maintenance de ce fichier
-- Un commentaire de review qui commence par `rule:` est une règle candidate. Elle est ajoutée ici dans la même PR, avec le lien vers le commentaire, ou collectée par harness-harvest.
-- Avant d'ajouter une phrase, chercher si un linter, un test ou un check CI peut porter la règle : une règle vérifiée est raccourcie, une règle racontée est une dette.
-- Une règle sans incident depuis six mois est candidate à suppression lors du prochain harness-audit.
-- Ce fichier est relu par `harness-audit` ; la ligne « Mode » fixe la sévérité.
-- `harness-harvest` relit l'activité depuis le marqueur ci-dessous et propose les changements dans une PR dédiée.
-
-<!-- harvest: last=<AAAA-MM-JJ de l'init> ref=init -->
+- <Ce qu'un agent ne fait jamais, même si la tâche semble le demander.> Pourquoi : <…>
 ```
 
-## 1b. Variante assistance
+Variante assistance, ligne de mode : `Mode : **assistance**. L'humain pilote et relit chaque diff ; ce fichier évite les allers-retours, il n'est pas un garde-fou.`
 
-Même squelette, avec ces différences :
-- Ligne de mode : `Mode : **assistance**. L'humain pilote et relit chaque diff ; ce fichier évite les allers-retours, il n'est pas un garde-fou.`
-- Section « Processus de travail » supprimée.
-- Section « Tâches déléguées » supprimée, sauf si une tâche précise est déjà déléguée.
-- La mention `(non vérifiée)` reste, mais elle n'est pas une dette prioritaire.
-
----
-
-## 2. Stubs
+### Stubs
 
 `CLAUDE.md` (une seule ligne) :
 ```
@@ -81,7 +53,22 @@ Les instructions de ce dépôt vivent dans `AGENTS.md` à la racine. Lis-le et a
 
 ---
 
-## 3. Convention `rule:`
+## Pas 2 — Bouclé (harness-step)
+
+À la fin d'AGENTS.md :
+
+```markdown
+## Maintenance de ce fichier
+- Un commentaire de review qui commence par `rule:` est une règle candidate. Elle est ajoutée ici dans la même PR, datée, avec le lien vers le commentaire, ou collectée par harness-harvest.
+- Avant d'ajouter une phrase, chercher si un linter, un test ou un check CI peut porter la règle : une règle vérifiée est raccourcie, une règle racontée est une dette.
+- Une règle sans incident depuis six mois, ou écrite pour une génération de modèles passée, est candidate au retrait à la prochaine revue de pertinence.
+
+<!-- harvest: last=<AAAA-MM-JJ du pas> ref=init -->
+```
+
+Le marqueur `ref=init` ne se pose que sur un fichier qui n'en avait pas : remettre à aujourd'hui un marqueur périmé simulerait un harvest qui n'a pas eu lieu.
+
+### La convention `rule:`
 
 Dans un commentaire de review, sur une ligne ou sur la PR :
 
@@ -94,6 +81,27 @@ Exemples :
 - `rule: une migration ne supprime jamais une colonne dans la même release que le code qui cesse de la lire`
 
 Ce qu'on en fait, dans l'ordre :
-1. Chercher un garde-fou : règle eslint, test d'architecture, script de check en PR gate. Si possible, la règle entre en CI et AGENTS.md ne garde qu'une ligne « Vérifiée par ».
-2. Sinon, l'ajouter dans « Règles » avec le lien du commentaire comme justification et la mention `(non vérifiée)`.
+1. Chercher un garde-fou : règle de lint, test d'architecture, script de check en PR. Si possible, la règle entre en CI et AGENTS.md ne garde qu'une ligne « Vérifiée par ».
+2. Sinon, l'ajouter dans « Règles » avec le lien du commentaire comme justification, la mention `(non vérifiée)` et la date.
 3. Jamais sans justification : un `rule:` sans contexte est renvoyé à son auteur.
+
+---
+
+## Pas 4 — Délégué (harness-step)
+
+Avant « Maintenance de ce fichier » :
+
+```markdown
+## Processus de travail
+- Arrête-toi et pose la question quand : <ex. la tâche implique un choix d'architecture, touche à un interdit, ou la CI échoue pour une raison étrangère à la tâche>.
+- Une tâche est finie quand : <ex. CI verte, un test couvre le changement, la PR explique le pourquoi, pas de TODO laissé>.
+- CI rouge : <ex. corrige si la cause est dans ton diff ; sinon signale-le dans la PR et n'y touche pas>.
+- Test flaky : <ex. relance une fois ; s'il reste instable, ouvre une issue, ne le désactive pas>.
+
+## Tâches déléguées
+- `<nom-du-skill>` (`.claude/skills/<nom-du-skill>`) — <une ligne>.
+```
+
+Une ligne de « Tâches déléguées » ne s'écrit que dans le pas qui crée le contrat : `harness status` signale un contrat cité sans `SKILL.md`.
+
+En assistance, ces deux sections n'existent pas, sauf si une tâche précise est déjà déléguée.

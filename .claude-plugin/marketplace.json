@@ -2,13 +2,13 @@
   "name": "harness-ai",
   "owner": { "name": "jrechet" },
   "metadata": {
-    "description": "Skills pour concevoir, auditer et fiabiliser des harness agentiques."
+    "description": "Skills pour poser, auditer et faire évoluer l'instrumentation IA d'un dépôt."
   },
   "plugins": [
     {
       "name": "harness-ai",
       "source": "./",
-      "description": "Skills Claude Code pour concevoir, auditer et fiabiliser des harness agentiques (agents, skills, CLI, workflows)."
+      "description": "Skills Claude Code pour poser, auditer et faire évoluer l'instrumentation IA d'un dépôt, un pas à la fois."
     }
   ]
 }

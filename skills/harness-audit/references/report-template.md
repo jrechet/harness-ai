@@ -18,7 +18,7 @@ Reproduis ces sections dans cet ordre, avec ces titres. Une section sans contenu
   2. …
   3. …
 
-Le score se calcule ainsi : 100, moins 25 par P1, moins 8 par P2, moins 2 par P3, borné à 0. Le test « coupe l'agent » en échec plafonne le score à 60.
+Le score se calcule ainsi : 100, moins 25 par P1, moins 8 par P2, moins 2 par P3, borné à 0. Le test « coupe l'agent » en échec plafonne le score à 60. Les lignes à retirer n'entrent pas une à une dans le score : c'est le verdict du fichier qui les porte qui compte.
 
 ## 2. Carte du harness
 
@@ -44,6 +44,15 @@ Mentionne aussi, en une ligne chacune, les règles qui **ont** leur garde-fou : 
 |---|---|---|---|
 
 Suivi d'une phrase sur la justification des règles (pourquoi + incidents cités ?) et sur la présence d'une clause de maintenance.
+
+## 3c. Lignes à retirer (si des fichiers d'instructions sont dans le périmètre)
+
+Résultat de la revue de pertinence. Les lignes nuisibles d'abord, puis les inutiles, regroupées par bloc homogène, puis les périmées, qui sont des questions.
+
+| Fichier:ligne | Texte | Motif | Preuve | Question au propriétaire ? |
+|---|---|---|---|---|
+
+Puis **Questions au propriétaire**, numérotées, une par ligne, avec le défaut proposé. Puis une phrase sur ce qui reste : combien de lignes avant, combien après, lesquelles sont à garder absolument.
 
 ## 4. Constats par élément
 
@@ -87,7 +96,7 @@ Fichiers manquants, workflows non lisibles, tests non exécutables, hypothèses 
       "actual_layer": "L1|L2|L3|L4|MIXED",
       "called_by": ["<id>"],
       "calls": ["<id>"],
-      "verdict": "KEEP|INLINE|PUSH_DOWN|PROMOTE|MERGE|SPLIT|BLOCK",
+      "verdict": "KEEP|INLINE|PUSH_DOWN|PROMOTE|MERGE|SPLIT|BLOCK|REMOVE",
       "priority": "P1|P2|P3|null",
       "finding": "<une phrase>",
       "evidence": ["<chemin:ligne>"],
@@ -101,6 +110,10 @@ Fichiers manquants, workflows non lisibles, tests non exécutables, hypothèses 
   "guarded_rules": [
     { "rule": "<règle>", "told_in": "<chemin:ligne>", "guarded_by": "<chemin du linter/test/gate>" }
   ],
+  "removals": [
+    { "path": "<fichier>", "line": 0, "text": "<la ligne citée, abrégée si longue>", "reason": "useless|harmful|outdated", "evidence": "<où c'est découvrable, ce qui la contredit, ce qui la date>", "ask_owner": false }
+  ],
+  "owner_questions": ["<question, avec le défaut proposé>"],
   "instruction_files": [
     { "path": "<chemin>", "loaded_lines": 0, "instruction_pct": 0, "reference_pct": 0, "noise_pct": 0, "justified_rules": true, "maintenance_clause": true }
   ],

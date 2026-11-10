@@ -1,6 +1,6 @@
 ---
 name: harness-audit
-description: Audite l'instrumentation IA d'un dépôt ou d'un processus — agents, skills, AGENTS.md / CLAUDE.md / règles Cursor, scripts adossés, CLI, linters et tests d'architecture, GitHub Actions ou autre exécuteur distant — et vérifie que chaque responsabilité est au bon étage (jugement / procédure / logique locale / exécution distante). Produit un rapport à format fixe (Markdown + JSON) avec un verdict par élément et un plan de remédiation priorisé. Utiliser dès que l'utilisateur veut auditer, revoir, critiquer, fiabiliser, nettoyer ou « remettre à plat » des agents, skills, scripts, workflows ou un AGENTS.md (le sien ou celui d'un repo tiers), se demande si un skill fait trop de choses, si une règle devrait devenir un linter ou une commande CLI, ou si « on peut couper l'agent et que ça marche encore » — même sans employer le mot audit.
+description: Audite l'instrumentation IA d'un dépôt ou d'un processus — agents, skills, AGENTS.md / CLAUDE.md / règles Cursor, scripts adossés, CLI, linters et tests d'architecture, GitHub Actions ou autre exécuteur distant — et vérifie que chaque responsabilité est au bon étage (jugement / procédure / logique locale / exécution distante). Produit un rapport à format fixe (Markdown + JSON) avec un verdict par élément et un plan de remédiation priorisé. Utiliser dès que l'utilisateur veut auditer, revoir, critiquer, fiabiliser, nettoyer ou « remettre à plat » des agents, skills, scripts, workflows ou un AGENTS.md (le sien ou celui d'un repo tiers), se demande si un skill fait trop de choses, si une règle devrait devenir un linter ou une commande CLI, si « on peut couper l'agent et que ça marche encore », ou si un fichier ou une ligne d'instructions sert encore depuis que les modèles ont changé — même sans employer le mot audit.
 ---
 
 # Harness audit
@@ -60,8 +60,11 @@ Attribue exactement un verdict par élément :
 | **MERGE** | Fusionner avec un autre élément (doublon) | Trois `.mjs` qui appellent `gh workflow run` avec des variations → une seule sous-commande |
 | **SPLIT** | Mélange plusieurs couches, à séparer | Skill qui contient de la procédure *et* du code de calcul de version |
 | **BLOCK** | Dangereux ou mort : à retirer ou neutraliser avant tout | Agent qui peut déclencher le deploy prod sans dry-run ni validation ; script jamais appelé |
+| **REMOVE** | Instruction qui ne change plus ce que fait l'agent, ou qui le dégrade : à retirer, avec son motif | Un CLAUDE.md généré qui paraphrase l'arborescence ; une consigne écrite pour contourner une limite d'outil disparue |
 
 Attribue une priorité : **P1** = risque de release/deploy incorrect ou non maîtrisé, **P2** = fragilité ou duplication qui finira par casser, **P3** = hygiène.
+
+BLOCK vise un élément qui agit (script, agent, workflow). REMOVE vise du texte d'instructions, un fichier entier ou une ligne : voir « Revue de pertinence ».
 
 ### 5. Plan de remédiation
 Ordonne par priorité puis par dépendance (on crée la sous-commande CLI *avant* de supprimer les scripts qui la dupliquent). Chaque item : verdict, élément, action concrète (fichier à créer/modifier/supprimer), critère de vérification (comment on saura que c'est fait), et un point d'approbation humaine explicite pour tout BLOCK ou toute suppression. Ne modifie rien toi-même pendant l'audit : le rapport est l'entrée d'une étape de remédiation séparée, item par item.
@@ -70,15 +73,38 @@ Ordonne par priorité puis par dépendance (on crée la sous-commande CLI *avant
 
 Un fichier d'instructions de repo est un élément L2 pur. Les mêmes questions s'appliquent, avec quelques spécificités :
 
-- **Règle racontée vs règle vérifiée.** Pour chaque règle obligatoire (« jamais d'injection par champ », « pas de couleur hors tokens », « toute route a un test d'autorisation »), cherche le garde-fou L3 correspondant : règle eslint/stylelint custom, Checkstyle, ArchUnit, script de check en PR gate, hook, ou job planifié pour une règle de processus (dérive entre branches, PR d'agent en suspens). Une règle avec garde-fou est saine et peut même être raccourcie dans le fichier ; une règle sans garde-fou est une fuite à reporter dans la section « Règles racontées sans vérification » — verdict PUSH_DOWN avec l'outil cible nommé.
+- **Règle racontée vs règle vérifiée.** Pour chaque règle obligatoire (« jamais d'injection par champ », « pas de couleur hors tokens », « toute route a un test d'autorisation »), cherche le garde-fou L3 correspondant : règle eslint/stylelint custom, Checkstyle, ArchUnit, script de check en PR gate, hook, ou job planifié pour une règle de processus (dérive entre branches, PR d'agent en suspens). Un garde-fou ne compte que s'il **bloque** : ouvre le workflow. Un job en `continue-on-error`, un filtre de chemins qui ne le déclenche pas, un hook local, un job que le fichier cite mais qui n'existe plus ne garantissent rien, et la règle redevient une fuite. Une règle avec garde-fou est saine et peut même être raccourcie dans le fichier ; une règle sans garde-fou est une fuite à reporter dans la section « Règles racontées sans vérification » — verdict PUSH_DOWN avec l'outil cible nommé.
 - **Coût de contexte.** Compte les lignes réellement chargées par session (fichier + `@includes`). Sépare instruction (ce qui change le comportement) et référence (commandes, structure des modules, troubleshooting). La référence doit être déportée dans des fichiers chargés à la demande ou des skills ; signale en P3 un fichier dont plus de la moitié est de la référence, en P2 s'il dépasse largement ce qu'un modèle lit avec attention (ordre de grandeur : plusieurs centaines de lignes).
-- **Bruit.** Une règle qu'un modèle récent applique déjà sans qu'on le lui dise (conventions de nommage standard, try-with-resources) coûte du contexte pour rien ; recommande INLINE ou suppression, sauf si un incident montre qu'elle a été violée.
+- **Pertinence.** Chaque ligne est passée à la revue de pertinence ci-dessous : ce qui ne change plus ce que fait l'agent se retire.
 - **Justification.** Note si les règles expliquent *pourquoi* (idéalement avec l'incident ou l'issue à l'origine) ou sont de simples MUST. C'est un point fort à mentionner explicitement, car c'est ce qui fait tenir la règle dans les cas non prévus.
 - **Maintenance.** Le fichier dit-il comment il évolue (ajout dans la même PR qu'un commentaire de review, suppression des règles obsolètes) ? Sans cette clause, il dérive.
 - **Cohérence interne.** Relis les exemples de code et les commandes : une erreur dans un exemple sera copiée fidèlement par l'agent. Vérifie que deux sections ne se contredisent pas.
 - **Ce qui manque souvent** : le processus de travail (quand s'arrêter et demander, critère de « fini », quoi faire face à un test flaky, comment découper une tâche) et des procédures par type de tâche (contrats) plutôt qu'un seul monolithe. L'absence n'est pas un défaut si le repo vise l'assistance humaine ; c'en est un si l'objectif est de déléguer des tâches entières.
 
 Dans ce mode, le test « coupe l'agent » devient : *si on supprime le fichier, qu'est-ce que la CI laisse passer qu'elle ne laissait pas passer avant ?* Chaque réponse est une règle à pousser en L3.
+
+## Revue de pertinence — ce qui ne sert plus
+
+Les modèles progressent, les dépôts changent : une ligne utile il y a deux ans peut être devenue un poids, ou une gêne. La question posée à chaque fichier et à chaque ligne d'instructions n'est pas « est-ce vrai » mais **« est-ce que ça change encore ce que fait l'agent »**. Cette revue se mène à chaque audit d'un fichier d'instructions, et seule quand l'utilisateur la demande (changement de modèle, fichier qui a grossi, six mois écoulés).
+
+Commence par `python3 cli/harness.py rules <repo>` (CLI du dépôt harness-ai) : une ligne par règle, avec sa date (celle qu'elle porte, `[AAAA-MM]`, sinon celle de git), son âge, son garde-fou déclaré, sa justification. Une règle sans date, sans pourquoi et sans garde-fou est la première à examiner.
+
+Trois motifs de retrait, à ne pas confondre :
+
+| Motif | `reason` | C'est | Preuve à citer | Qui tranche |
+|---|---|---|---|---|
+| **Inutile** | `useless` | Découvrable dans le dépôt, ou ce qu'un modèle fait sans qu'on le dise : arborescence, stack, « code propre », « réfléchis étape par étape », journal de session | Où c'est découvrable, ou pourquoi c'est un comportement par défaut | L'audit |
+| **Nuisible** | `harmful` | Dégrade le travail d'un agent d'aujourd'hui : contournement d'une limite d'outil disparue, consigne qui contredit un garde-fou ou le mode déclaré, commande qui n'existe pas | Le garde-fou, le workflow ou le fichier qui la contredit | L'audit, et il la signale à part : c'est plus qu'un coût de contexte |
+| **Périmée** | `outdated` | Vraie hier, plus aujourd'hui : une version, un navigateur, un outil, une contrainte d'équipe | Ce qui la date dans le dépôt, si quelque chose la date | **Le propriétaire.** L'audit pose la question (`ask_owner`), il ne tranche pas |
+
+Ce qui ne se retire pas :
+- Une ligne née d'un incident, même si elle a l'air évidente. C'est justement celle que le dépôt ne dit pas. Dans un fichier généré de cent lignes il y en a souvent deux, tout en bas.
+- Une règle dont le garde-fou est partiel : elle se garde, et la fuite se signale.
+- Une règle saine et vérifiée : elle se **raccourcit** à sa ligne « Vérifiée par », ce n'est pas un retrait.
+
+Le doute profite à la question, pas au retrait : une ligne dont tu ne sais pas si elle sert encore va dans `owner_questions`. Et le zèle est un défaut mesuré : proposer de retirer une ligne qui vaut de l'or coûte plus cher que d'en laisser dix inutiles.
+
+Dans le rapport, les retraits vont dans la section « Lignes à retirer » et la liste `removals` du JSON, une entrée par ligne ou par bloc homogène, avec le texte cité. Un fichier à retirer en entier est un élément au verdict REMOVE. Les questions au propriétaire sont numérotées, avec le défaut proposé.
 
 ## Rapport
 
@@ -102,4 +128,6 @@ Dans le rapport, chaque constat cite son chemin et, si possible, la ligne. Un co
 - Oublier les workflows eux-mêmes : un `workflow_dispatch` sans input `dry_run` ou sans `environment` protégé est une fuite L4, pas un problème d'agent.
 - Ignorer la dérive entre branches : quand un repo a une branche de travail et une branche de prod, « un correctif sur l'une est porté sur l'autre » est une règle racontée tant qu'aucun job ne compare les deux (`git rev-list A..B` non vide → échec). C'est un garde-fou L4 à proposer explicitement, et il doit vivre sur la branche par défaut pour être planifié.
 - Compter un retour « lisible » comme structuré : si l'agent doit chercher « SUCCESS » dans un log, ce n'est pas structuré.
+- Signaler un élément sain pour avoir quelque chose à dire. Un harness en bon état donne un audit court : presque tout KEEP, et les deux ou trois vrais défauts.
+- Retirer ce qu'on ne comprend pas. Une règle bizarre et datée a souvent un incident derrière : cherche-le dans les ADR et les post-mortems, sinon pose la question.
 - Classer une convention de style ou de nommage parmi les fuites : une fuite est une règle dont la violation a une conséquence sur le produit, la prod ou la sécurité. Le style sans garde-fou est du bruit (INLINE) ou un pointeur vers le linter, et compte en P3 au plus.
