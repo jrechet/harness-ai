@@ -130,4 +130,4 @@ Dans le rapport, chaque constat cite son chemin et, si possible, la ligne. Un co
 - Compter un retour « lisible » comme structuré : si l'agent doit chercher « SUCCESS » dans un log, ce n'est pas structuré.
 - Signaler un élément sain pour avoir quelque chose à dire. Un harness en bon état donne un audit court : presque tout KEEP, et les deux ou trois vrais défauts.
 - Retirer ce qu'on ne comprend pas. Une règle bizarre et datée a souvent un incident derrière : cherche-le dans les ADR et les post-mortems, sinon pose la question.
-- Classer une convention de style ou de nommage parmi les fuites : une fuite est une règle dont la violation a une conséquence sur le produit, la prod ou la sécurité. Le style sans garde-fou est du bruit (INLINE) ou un pointeur vers le linter, et compte en P3 au plus.
+- Classer une convention de style ou de nommage parmi les fuites : une fuite est une règle dont la violation a une conséquence sur le produit, la prod ou la sécurité. Le style sans garde-fou est une ligne inutile, à retirer, ou un pointeur vers le linter : jamais une fuite, et P3 au plus.
