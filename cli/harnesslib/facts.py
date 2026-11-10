@@ -54,7 +54,9 @@ PROCESS_HEADING_RE = re.compile(r"processus de travail|working process|working a
 # six mois » ne se calcule pas et rien ne dit pour quelle génération de modèles la règle fut écrite.
 RULE_DATE_RE = re.compile(r"\[(\d{4}-\d{2}(?:-\d{2})?)\]")
 DELEGATED_HEADING_RE = re.compile(r"t[âa]ches d[ée]l[ée]gu[ée]es|delegated tasks", re.I)
-SKIP_DIRS = {".git", "node_modules", "vendor", "dist", "build", ".harness", "runs", "__pycache__", ".venv"}
+# Les données de test portent parfois des fichiers d'instructions factices : ce ne sont pas ceux du dépôt.
+SKIP_DIRS = {".git", "node_modules", "vendor", "dist", "build", ".harness", "runs", "__pycache__", ".venv",
+             "fixtures", "testdata"}
 INSTRUCTION_NAMES = {"AGENTS.md", "CLAUDE.md", "SKILL.md", "copilot-instructions.md"}
 RULE_CONVENTION_RE = re.compile(r"`rule:`|\brule:\s", re.I)
 

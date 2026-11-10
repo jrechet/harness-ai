@@ -263,6 +263,22 @@ Mode : **délégation**.
         result = fixtures.check_init(self.tmp.name, init, date(2026, 11, 10))
         self.assertTrue(any("paliers suivants" in p for p in result["problems"]), result["problems"])
 
+    def test_rewriting_a_healthy_file_is_zeal(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as base:
+            with open(os.path.join(base, "AGENTS.md"), "w", encoding="utf-8") as fh:
+                fh.write(self.GOOD)
+            init = {**self.init, "min_similarity": [{"path": "AGENTS.md", "ratio": 0.8}]}
+            with open(os.path.join(self.tmp.name, "AGENTS.md"), "w", encoding="utf-8") as fh:
+                fh.write(self.GOOD.replace("(non vérifiée)\n\n## Interdits", "(non vérifiée) [2026-11]\n\n## Interdits"))
+            touched = fixtures.check_init(self.tmp.name, init, date(2026, 11, 10), base=base)
+            self.assertEqual(touched["problems"], [])
+            rewritten = "\n".join(reversed(self.GOOD.replace("Pourquoi", "Raison").splitlines())) + "\n"
+            with open(os.path.join(self.tmp.name, "AGENTS.md"), "w", encoding="utf-8") as fh:
+                fh.write("# x\n\nMode : **délégation**.\n\n## Interdits\n- `make reset-db`.\n\n## Règles\n" + rewritten)
+            zealous = fixtures.check_init(self.tmp.name, init, date(2026, 11, 10), base=base)
+            self.assertTrue(any("réécrit" in p for p in zealous["problems"]), zealous["problems"])
+
     def test_level_below_target_is_reported(self):
         result = self.grade(self.GOOD.replace("Mode : **délégation**.", ""))
         self.assertTrue(any("L1.mode" in p for p in result["problems"]), result["problems"])

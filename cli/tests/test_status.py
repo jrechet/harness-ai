@@ -147,6 +147,15 @@ class TargetLevelTests(TempRepo):
         self.assertIn("Vérifié", out.getvalue())
 
 
+class AuditRemovalFactsTests(TempRepo):
+    def test_removals_of_the_last_audit_are_counted_by_reason(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        audit = json.loads(audit_json())
+        audit["removals"] = [{"reason": "useless"}, {"reason": "useless"}, {"reason": "harmful"}, {"reason": "outdated", "ask_owner": True}]
+        write(self.repo, ".harness/audit.json", json.dumps(audit))
+        self.assertEqual(self.state()["facts"]["audit"]["removals"], {"useless": 2, "harmful": 1, "outdated": 1})
+
+
 class DanglingReferenceTests(TempRepo):
     """Ce qui est posé reste cohérent : un contrat ou un garde-fou cité doit exister."""
 
@@ -202,6 +211,11 @@ class RuleDateTests(TempRepo):
         self.assertTrue(rows)
         self.assertTrue(all(r["since"] == "2025-01-15" and r["since_source"] == "git" for r in rows))
         self.assertIn("(git)", rules.render_markdown(rows))
+
+    def test_instruction_files_inside_test_data_are_not_the_repository_s_rules(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        write(self.repo, "fixtures/repos/demo/repo/CLAUDE.md", "# x\n- Think step by step.\n")
+        self.assertEqual({r["file"] for r in rules.collect(self.repo, TODAY, blame=False)}, {"AGENTS.md"})
 
     def test_rules_of_subdirectory_files_are_listed_with_their_path(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL1)

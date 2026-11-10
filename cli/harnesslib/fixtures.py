@@ -6,6 +6,7 @@ de retour 0 si tout concorde, 1 sinon."""
 from __future__ import annotations
 
 import argparse
+import difflib
 import json
 import os
 import shutil
@@ -146,7 +147,8 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
     """Note ce qu'un harness-init a écrit dans `result_dir` contre le bloc `init` d'expected.json :
     palier atteint, faits non découvrables remontés (`must_surface`), bruit recopié (`must_not_write`),
     garde-fous réels cités (`guards_cited`), garde-fous mensongers crus (`forbidden_guards`), références
-    sans cible, et matériel des paliers suivants posé trop tôt (`only_level_material`). `base` est le
+    sans cible, matériel des paliers suivants posé trop tôt (`only_level_material`), et fichier sain
+    réécrit sans raison (`min_similarity`). `base` est le
     dépôt de la fixture quand `result_dir` ne contient que les fichiers d'instructions."""
     state = maturity.evaluate(facts.collect(result_dir, today=today))
     corpus = facts.instruction_corpus(result_dir)
@@ -189,6 +191,16 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
                                             ("section Processus de travail", src.get("has_process_section"))) if present]
         if extra and level <= expected.get("min_level", 1):
             problems.append("matériel des paliers suivants posé au pas 1 : " + ", ".join(extra))
+    for keep in expected.get("min_similarity", []):               # le zèle : réécrire ce qui était sain
+        original = facts._read(os.path.join(base or result_dir, keep["path"]))
+        written = facts._read(os.path.join(result_dir, keep["path"]))
+        if original is None or written is None:
+            problems.append(f"{keep['path']} : fichier de départ ou fichier rendu introuvable")
+            continue
+        ratio = difflib.SequenceMatcher(None, original.splitlines(), written.splitlines()).ratio()
+        if ratio < keep["ratio"]:
+            problems.append(f"{keep['path']} réécrit : {ratio:.2f} de ressemblance avec le fichier de départ, "
+                            f"au moins {keep['ratio']} attendu d'un harness déjà sain")
     total = len(expected.get("must_surface", []))
     return {"level": level, "surfaced": surfaced, "problems": problems,
             "score": f"{len(surfaced)}/{total}", "files": sorted(corpus), "ok": not problems}

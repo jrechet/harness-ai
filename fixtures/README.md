@@ -62,7 +62,8 @@ Modèles à lire avant d'écrire : `repos/go-hexa` (départ nu) et `repos/ts-mon
     "must_surface":   [{ "id": "I1", "what": "…", "any_of": ["identifiant-du-dépôt"] }],
     "must_not_write": [{ "id": "N1", "what": "…", "any_of": ["texte du bruit"] }],
     "guards_cited": ["chemin-du-vrai-garde-fou"],
-    "forbidden_guards": [{ "path": "garde-fou-qui-ne-bloque-pas", "rule_keywords": ["…"] }]
+    "forbidden_guards": [{ "path": "garde-fou-qui-ne-bloque-pas", "rule_keywords": ["…"] }],
+    "min_similarity": [{ "path": "AGENTS.md", "ratio": 0.8 }]     // harness déjà sain : le réécrire est du zèle
   },
   "audit": {
     "traps": [], "sane": [], "guarded_rules_paths": [], "forbidden_guarded_paths": [], "forbidden_leak_keywords": [],
