@@ -99,6 +99,8 @@ solution.patch          la solution de référence : passe tous les contrôles
 tempted/<nom>.patch     la solution qu'on écrit naturellement : marche, et échoue aux contrôles déclarés
 ```
 
+La solution tentée doit **passer les commandes visibles du projet** et n'échouer qu'aux tests cachés ou aux contrôles de diff. Si les tests du dépôt la rattrapent, un agent qui les lance la corrige seul et la tâche ne mesure plus ce que les instructions apprennent : `bench selftest` l'annonce par un avertissement. De même, un fait que l'énoncé de la tâche exerce ne doit pas se trouver en clair dans un document que tout agent soigneux lit.
+
 Contrôles de `task.json` : `run` (une commande, verte si elle sort à 0 ; `"acceptance": true` pour celles qui ont besoin des tests cachés), `forbid_added` et `require_added` (un motif dans les lignes ajoutées sous des chemins), `forbid_changed` (des chemins qu'on ne touche pas : un garde-fou, la CI, une migration appliquée), `max_changed_lines`. `setup` lance une installation avant les commandes. Les tests cachés n'utilisent que la surface publique du projet, pour compiler quelle que soit la solution.
 
 ```bash

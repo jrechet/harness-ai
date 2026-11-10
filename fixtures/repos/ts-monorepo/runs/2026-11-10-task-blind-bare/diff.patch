@@ -1,0 +1,126 @@
+diff --git a/apps/api/src/http.test.ts b/apps/api/src/http.test.ts
+index 00ab2e9..de161ff 100644
+--- a/apps/api/src/http.test.ts
++++ b/apps/api/src/http.test.ts
+@@ -42,3 +42,13 @@ test("a refused transition answers 409 and an unknown status 422", async () => {
+   assert.equal((await fetch(`${base}/tickets/${id}`, json("PATCH", { status: "resolved" }))).status, 409);
+   assert.equal((await fetch(`${base}/tickets/${id}`, json("PATCH", { status: "archived" }))).status, 422);
+ });
++
++test("escalating answers 409 on an open ticket and 200 once it is in progress", async () => {
++  const created = await fetch(`${base}/tickets`, json("POST", { title: "VPN", requester: "cy@example.test" }));
++  const { id } = (await created.json()) as { id: string };
++  assert.equal((await fetch(`${base}/tickets/${id}`, json("PATCH", { status: "escalated" }))).status, 409);
++  await fetch(`${base}/tickets/${id}`, json("PATCH", { status: "in_progress" }));
++  const escalated = await fetch(`${base}/tickets/${id}`, json("PATCH", { status: "escalated" }));
++  assert.equal(escalated.status, 200);
++  assert.equal(((await escalated.json()) as { status: string }).status, "escalated");
++});
+diff --git a/apps/api/src/tickets/service.test.ts b/apps/api/src/tickets/service.test.ts
+index e38e744..31f6c3d 100644
+--- a/apps/api/src/tickets/service.test.ts
++++ b/apps/api/src/tickets/service.test.ts
+@@ -33,6 +33,23 @@ test("the allowed path open, in_progress, waiting, in_progress, resolved, closed
+   }
+ });
+ 
++test("the escalation path in_progress, escalated, in_progress, escalated, resolved", () => {
++  const tickets = service();
++  const { id } = tickets.create({ title: "Printer down", requester: "ana@example.test", priority: "high" });
++  for (const status of ["in_progress", "escalated", "in_progress", "escalated", "resolved"] as const) {
++    assert.equal(tickets.changeStatus(id, status).status, status);
++  }
++});
++
++test("an escalated ticket cannot be closed without being resolved", () => {
++  const tickets = service();
++  const { id } = tickets.create({ title: "Printer down", requester: "ana@example.test", priority: "high" });
++  tickets.changeStatus(id, "in_progress");
++  tickets.changeStatus(id, "escalated");
++  assert.throws(() => tickets.changeStatus(id, "closed"), TransitionRefused);
++  assert.equal(tickets.list()[0]?.status, "escalated");
++});
++
+ test("an unknown ticket", () => {
+   assert.throws(() => service().changeStatus("nope", "closed"), TicketNotFound);
+ });
+diff --git a/apps/web/src/status-label.ts b/apps/web/src/status-label.ts
+index 8c9822b..eb500bd 100644
+--- a/apps/web/src/status-label.ts
++++ b/apps/web/src/status-label.ts
+@@ -6,6 +6,7 @@ const LABELS: Record<Status, string> = {
+   open: "Ouvert",
+   in_progress: "En cours",
+   waiting: "En attente du client",
++  escalated: "Escaladé",
+   resolved: "Résolu",
+   closed: "Fermé",
+ };
+diff --git a/apps/web/src/ticket-list.test.ts b/apps/web/src/ticket-list.test.ts
+index 29fa40f..cdfd839 100644
+--- a/apps/web/src/ticket-list.test.ts
++++ b/apps/web/src/ticket-list.test.ts
+@@ -31,6 +31,18 @@ test("a ticket offers exactly the transitions the shared model allows", () => {
+   assert.deepEqual([...html.matchAll(/data-status="(\w+)"/g)].map((m) => m[1]).sort(), ["closed", "in_progress"]);
+ });
+ 
++test("a ticket in progress can be escalated, and an escalated one goes back to work or resolves", () => {
++  const offered = (status: Ticket["status"]) =>
++    [...renderTicketList([ticket({ status })]).matchAll(/data-status="(\w+)"/g)].map((m) => m[1]).sort();
++  assert.deepEqual(offered("in_progress"), ["escalated", "resolved", "waiting"]);
++  assert.deepEqual(offered("escalated"), ["in_progress", "resolved"]);
++});
++
++test("escalated reads Escaladé, on the ticket and on the button that escalates", () => {
++  assert.match(renderTicketList([ticket({ status: "escalated" })]), /<span class="status">Escaladé<\/span>/);
++  assert.match(renderTicketList([ticket({ status: "in_progress" })]), /<button data-ticket="t1" data-status="escalated">Escaladé<\/button>/);
++});
++
+ test("an empty list says so", () => {
+   assert.match(renderTicketList([]), /Aucun ticket/);
+ });
+diff --git a/packages/shared/src/ticket.test.ts b/packages/shared/src/ticket.test.ts
+index 033241a..9eee7d7 100644
+--- a/packages/shared/src/ticket.test.ts
++++ b/packages/shared/src/ticket.test.ts
+@@ -18,6 +18,16 @@ test("a waiting ticket goes back to work or closes", () => {
+   assert.deepEqual([...nextStatuses("waiting")].sort(), ["closed", "in_progress"]);
+ });
+ 
++test("only a ticket in progress can be escalated", () => {
++  for (const status of STATUSES) {
++    assert.equal(canTransition(status, "escalated"), status === "in_progress", status);
++  }
++});
++
++test("an escalated ticket goes back to work or resolves", () => {
++  assert.deepEqual([...nextStatuses("escalated")].sort(), ["in_progress", "resolved"]);
++});
++
+ test("parseNewTicket collects every error at once", () => {
+   const result = parseNewTicket({ title: " ", requester: "nobody", priority: "urgent" });
+   assert.equal(result.ok, false);
+diff --git a/packages/shared/src/ticket.ts b/packages/shared/src/ticket.ts
+index 590d25a..8291289 100644
+--- a/packages/shared/src/ticket.ts
++++ b/packages/shared/src/ticket.ts
+@@ -1,7 +1,7 @@
+ // The ticket model shared by the API and the web app. A status or a transition
+ // is declared here once; neither app keeps its own list.
+ 
+-export const STATUSES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
++export const STATUSES = ["open", "in_progress", "waiting", "escalated", "resolved", "closed"] as const;
+ export type Status = (typeof STATUSES)[number];
+ 
+ export const PRIORITIES = ["low", "normal", "high"] as const;
+@@ -19,8 +19,9 @@ export interface Ticket {
+ 
+ const TRANSITIONS: Record<Status, readonly Status[]> = {
+   open: ["in_progress", "closed"],
+-  in_progress: ["waiting", "resolved"],
++  in_progress: ["waiting", "escalated", "resolved"],
+   waiting: ["in_progress", "closed"],
++  escalated: ["in_progress", "resolved"],
+   resolved: ["closed", "in_progress"],
+   closed: [],
+ };

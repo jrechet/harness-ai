@@ -168,6 +168,16 @@ class SelftestTests(BenchCase):
         problems = bench.selftest(self.fx)
         self.assertTrue(any("devrait échouer à ['guard']" in p for p in problems), problems)
 
+    def test_temptation_caught_by_the_project_s_own_commands_is_a_warning(self):
+        self.assertEqual(bench.selftest_full(self.fx)["warnings"], [])           # eval() passe les tests visibles
+        broken = {"calc.py": CALC + "\n\ndef sub(a, b):\n    return a - b\n",
+                  "test_calc.py": TEST_CALC + "\n    def test_sub(self):\n        self.assertEqual(calc.sub(5, 2), 99)\n"}
+        self.patch("tempted/eval.patch", broken)
+        write(self.fx, "tasks/sub/task.json", json.dumps({**TASK, "tempted": [{"patch": "tempted/eval.patch", "fails": ["tests"]}]}))
+        result = bench.selftest_full(self.fx)
+        self.assertEqual(result["problems"], [])
+        self.assertTrue(any("ne départage pas les bras" in w for w in result["warnings"]), result)
+
     def test_broken_reference_solution_is_reported(self):
         self.patch("solution.patch", {"calc.py": CALC + "\n\ndef sub(a, b):\n    return a + b\n"})
         self.assertTrue(any("solution de référence échoue" in p for p in bench.selftest(self.fx)))
@@ -182,7 +192,7 @@ class PlanAndRegistryTests(BenchCase):
         cells = self.plan()
         self.assertEqual([(c["kind"], c.get("arm")) for c in cells],
                          [("audit", None), ("init", None), ("task", "bare"), ("task", "asis"), ("task", "harness")])
-        self.assertEqual(sum(c["tokens"] for c in cells), 2 * 130_000 + 3 * 90_000)
+        self.assertEqual(sum(c["tokens"] for c in cells), bench.COST["audit"] + bench.COST["init"] + 3 * bench.COST["task"])
 
     def test_holdout_fixture_is_kept_out_of_a_tuning_campaign(self):
         write(self.fx, "expected.json", json.dumps({"fixture": "demo", "role": "holdout", "status": {}, "init": {}}))

@@ -28,8 +28,9 @@ from typing import Any
 from . import facts, fixtures
 
 ARMS = ("bare", "asis", "harness")
-# Coût estimé d'une exécution d'agent, en tokens. Mesuré sur les sept premières évaluations à l'aveugle.
-COST = {"audit": 130_000, "init": 130_000, "task": 90_000}
+# Coût estimé d'une exécution d'agent, en tokens. Audit et init : les sept premières évaluations à
+# l'aveugle. Tâche : moyenne des trois exécutions de la campagne du 2026-11-10 (113 000 à 126 000).
+COST = {"audit": 130_000, "init": 130_000, "task": 120_000}
 RESULTS = os.path.join(os.path.dirname(fixtures.FIXTURES_ROOT), "results.jsonl")
 OVERLAY_SKIP = {"RUN.md", "README.md", "REMOVE.txt"}   # ce qui décrit une exécution n'est pas du harness
 OVERLAY_REMOVE = "REMOVE.txt"                    # un chemin par ligne : ce que le pas a supprimé du dépôt
@@ -198,7 +199,14 @@ def check(fixture_dir: str, task_id: str, workdir: str) -> dict[str, Any]:
 def selftest(fixture_dir: str) -> list[str]:
     """Une tâche est bien posée quand le dépôt intact échoue, que la solution de référence passe tout,
     et que chaque solution tentée échoue au moins aux contrôles qu'elle déclare. Retourne les écarts."""
+    return selftest_full(fixture_dir)["problems"]
+
+
+def selftest_full(fixture_dir: str) -> dict[str, list[str]]:
+    """Les écarts, plus les avertissements : une solution tentée que les commandes visibles du projet
+    rattrapent ne mesure que « l'agent lance-t-il les tests », pas ce que les instructions lui apprennent."""
     problems: list[str] = []
+    warnings: list[str] = []
     for task_id in list_tasks(fixture_dir):
         task = load_task(fixture_dir, task_id)
 
@@ -217,12 +225,17 @@ def selftest(fixture_dir: str) -> list[str]:
         for c in solution["checks"]:
             if not c["passed"]:
                 problems.append(f"{task_id} : la solution de référence échoue à « {c['id']} » : {c['detail'][:200]}")
+        visible = {s["id"] for s in task["checks"] if "run" in s and not s.get("acceptance")}
         for tempted in task.get("tempted", []):
             failed = {c["id"] for c in graded(tempted["patch"])["checks"] if not c["passed"]}
             missing = sorted(set(tempted["fails"]) - failed)
             if missing:
                 problems.append(f"{task_id} : {tempted['patch']} devrait échouer à {missing}, échoue à {sorted(failed)}")
-    return problems
+            caught = sorted(failed & visible)
+            if caught:
+                warnings.append(f"{task_id} : {tempted['patch']} est rattrapée par les commandes du projet ({', '.join(caught)}) : "
+                                "un agent qui lance les tests la corrige seul, la tâche ne départage pas les bras")
+    return {"problems": problems, "warnings": warnings}
 
 
 def plan(kinds: list[str], role: str, only: list[str] | None = None) -> list[dict[str, Any]]:
@@ -356,12 +369,15 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
                       + ("" if c["passed"] or not c["detail"] else "\n      " + c["detail"].replace("\n", "\n      ")))
         return 0 if result["ok"] else 1
     if cmd == "selftest":
-        problems = selftest(resolve(args.fixture))
+        result = selftest_full(resolve(args.fixture))
+        problems = result["problems"]
         tasks = list_tasks(resolve(args.fixture))
         print(f"# Tâches de {args.fixture} : {', '.join(tasks) or 'aucune'} · "
               + ("bien posées" if not problems else f"{len(problems)} écart(s)"))
         for line in problems:
             print(f"- {line}")
+        for line in result["warnings"]:
+            print(f"- avertissement : {line}")
         return 1 if problems else 0
     if cmd == "record":
         row = record({"date": args.date or date.today().isoformat(), "kind": args.kind, "fixture": args.fixture,

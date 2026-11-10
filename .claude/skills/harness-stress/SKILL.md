@@ -17,7 +17,7 @@ Le risque de l'exercice est connu : un agent qui peut modifier à la fois la cop
 ## Déroulé
 
 ### 1. Le plan, et son prix, avant tout
-`python3 cli/harness.py bench plan` liste les exécutions d'agent et leur coût estimé. Restreins avec `--kind audit|init|task`, `--fixture <nom>`, `--role tuning|holdout|all`.
+`python3 cli/harness.py bench plan` liste les exécutions d'agent et leur coût estimé. Pour une tâche, lance d'abord `bench selftest <projet>` : s'il avertit que la solution tentée est rattrapée par les commandes du projet, la tâche ne départagera pas les bras, choisis-en une autre. Restreins avec `--kind audit|init|task`, `--fixture <nom>`, `--role tuning|holdout|all`.
 
 Annonce au propriétaire : ce que la campagne mesure, combien d'exécutions, combien de tokens, et ce qu'elle ne mesure pas. Si sa demande nommait déjà le périmètre (« stresse l'audit sur ts-monorepo »), lance. Si elle était ouverte (« stresse le harness »), propose deux ou trois périmètres avec leur prix et attends son choix. Ne dépasse jamais le budget annoncé sans redemander.
 
@@ -34,6 +34,8 @@ L'agent évalué ne doit rien pouvoir lire du corrigé. Tout se passe dans un do
 Un **agent neuf par exécution**, sans mémoire de cette session. Son message contient, et rien d'autre :
 - pour un skill : le chemin du kit, le chemin du dépôt, le skill à suivre, et pour un init le contenu de `owner.md` présenté comme les réponses du propriétaire. Il rend ses fichiers dans le dépôt de travail et son compte rendu ;
 - pour une tâche : le chemin du dépôt, le contenu de `task.md`, et trois phrases, **mot pour mot les mêmes sur tous les bras** : ne travaille que dans ce dossier ; lis d'abord les fichiers d'instructions du dépôt s'il y en a, à la racine puis dans les dossiers où tu travailles ; personne ne répondra à une question pendant la tâche. La deuxième remplace le chargement qu'une vraie session fait d'elle-même : sans elle, un agent lancé d'ailleurs ne lit pas les instructions du dépôt et les bras ne diffèrent plus. Pas de kit, pas de skill : on mesure ce que les instructions du dépôt lui font faire.
+
+Un agent lancé depuis ta session en hérite les consignes et les outils : le bras sans instructions n'est alors pas nu, et les bras se ressemblent plus qu'ils ne devraient. Dis-le dans le rapport, ou lance chaque exécution dans un processus neutre qui ne charge que les instructions du dépôt de travail.
 
 Ne lui donne ni indice, ni critère de notation, ni le nom du projet type. Ne lance pas la même exécution deux fois en espérant mieux : la variance se traite à l'étape 5.
 
@@ -99,4 +101,5 @@ Une tâche réussie sur un seul bras ne prouve rien dans un sens ni dans l'autre
 - Lire `traps.md` pour comprendre un écart sur un projet `holdout`.
 - Corriger le skill pour qu'il dise le mot que le noteur cherche.
 - Conclure sur une seule exécution.
+- Lire une égalité entre les bras comme « le harness ne sert à rien » avant d'avoir vérifié que la tâche pouvait les départager.
 - Empiler les leçons : dix corrections locales font un skill que plus personne ne lit en entier, modèle compris.
