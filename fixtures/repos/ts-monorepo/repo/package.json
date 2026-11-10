@@ -1,0 +1,20 @@
+{
+  "name": "deskly",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "test": "node --test \"packages/**/*.test.ts\" \"apps/**/*.test.ts\"",
+    "test:shared": "node --test \"packages/shared/**/*.test.ts\"",
+    "test:api": "node --test \"apps/api/**/*.test.ts\"",
+    "test:web": "node --test \"apps/web/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check:boundaries": "node tools/check-boundaries.mjs",
+    "dev:api": "node --watch apps/api/src/main.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.8.0"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "fixture": "go-hexa",
+  "status": {
+    "level_reached": 0,
+    "failing_checks": ["L1.source", "L1.mode", "L1.short", "L1.single_source", "L1.forbidden", "L2.maintenance", "L3.guarded", "L4.contracts"],
+    "passing_checks": ["L3.ci"],
+    "guardrail_tools": ["golangci-lint"],
+    "contracts": 0
+  },
+  "init": {
+    "min_level": 1,
+    "must_surface": [
+      {"id": "I1", "what": "clé d'idempotence sur les écritures, avec l'incident du double débit", "any_of": ["idempot"]},
+      {"id": "I2", "what": "make reset-db interdit hors base locale", "any_of": ["reset-db"]},
+      {"id": "I3", "what": "dépendances entre couches et leur garde-fou", "any_of": ["archcheck"]},
+      {"id": "I4", "what": "montants en centimes entiers, jamais de flottant", "any_of": ["float", "flottant", "centime", "cents"]},
+      {"id": "I5", "what": "migrations appliquées immuables, appliquées par deploy.yml", "any_of": ["migration"]}
+    ],
+    "must_not_write": [
+      {"id": "N1", "what": "commande périmée du README", "any_of": ["make e2e"]},
+      {"id": "N2", "what": "principes génériques du CONTRIBUTING", "any_of": ["idiomati", "gofmt", "tests en table", "table-driven", "fonctions courtes", "nommer clairement"]}
+    ],
+    "guards_cited": ["archcheck"],
+    "forbidden_guards": [
+      {"path": "lint", "rule_keywords": ["float", "flottant", "centime", "cents", "montant", "money"]},
+      {"path": "forbidigo", "rule_keywords": ["float", "flottant", "centime", "cents", "montant", "money"]}
+    ]
+  },
+  "audit": {
+    "traps": [
+      {"id": "T1", "path": ".golangci.yml", "verdicts": ["PUSH_DOWN", "SPLIT", "BLOCK", "KEEP"], "priorities": ["P1", "P2", "P3", null], "leak_keywords": ["lint"], "require_leak": true},
+      {"id": "T2", "path": "docs/adr/0003-cle-d-idempotence.md", "verdicts": ["PUSH_DOWN", "SPLIT", "KEEP"], "priorities": ["P1", "P2", "P3", null], "leak_keywords": ["idempot"], "require_leak": true},
+      {"id": "T3", "path": "Makefile", "verdicts": ["PUSH_DOWN", "SPLIT", "BLOCK"], "priorities": ["P1", "P2"], "leak_keywords": ["reset-db"]}
+    ],
+    "sane": [
+      {"id": "S1", "path": "tools/archcheck/main.go", "verdicts": ["KEEP"]},
+      {"id": "S2", "path": ".github/workflows/deploy.yml", "verdicts": ["KEEP"]}
+    ],
+    "guarded_rules_paths": ["archcheck"],
+    "forbidden_guarded_paths": [
+      {"path": "golangci", "rule_keywords": ["float", "flottant", "centime", "cents", "montant", "money"]},
+      {"path": "forbidigo", "rule_keywords": ["float", "flottant", "centime", "cents", "montant", "money"]}
+    ],
+    "forbidden_leak_keywords": ["gofmt", "idiomati"]
+  }
+}

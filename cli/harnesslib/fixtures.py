@@ -1,7 +1,8 @@
 """Sous-commande `fixture check` : compare ce que `status` mesure sur une fixture
 à `expected.json`, et, si un JSON d'audit est fourni, compare les verdicts aux
-pièges attendus. Sortie : un rapport lisible et un code de retour 0 si tout
-concorde, 1 sinon."""
+pièges attendus ; si le résultat d'un harness-init est fourni (`--init`), note
+ce qu'il a écrit contre le bloc `init`. Sortie : un rapport lisible et un code
+de retour 0 si tout concorde, 1 sinon."""
 from __future__ import annotations
 
 import argparse
@@ -12,6 +13,7 @@ from datetime import date
 from typing import Any
 
 from . import facts, maturity
+from .github import parse_rules
 
 FIXTURES_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                              "fixtures", "repos")
@@ -119,6 +121,69 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
             "ok": not (missed or wrong or sane_flagged or global_problems)}
 
 
+SKIP_DIRS = {".git", "node_modules", "vendor", "dist", "build", ".harness", "runs"}
+INSTRUCTION_NAMES = {"AGENTS.md", "CLAUDE.md", "SKILL.md", "copilot-instructions.md"}
+
+
+def instruction_corpus(repo: str) -> dict[str, str]:
+    """Tout le texte d'instructions d'un dépôt, par chemin relatif : AGENTS.md et CLAUDE.md à tout
+    niveau, contrats (SKILL.md), stub Copilot, règles Cursor, avec leurs `@inclusions` résolues."""
+    corpus: dict[str, str] = {}
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        rel_root = os.path.relpath(root, repo)
+        for name in files:
+            in_cursor = rel_root.replace(os.sep, "/").startswith(".cursor/rules")
+            if name in INSTRUCTION_NAMES or in_cursor:
+                path = os.path.join(root, name)
+                try:
+                    with open(path, encoding="utf-8") as fh:
+                        text = fh.read()
+                except (OSError, UnicodeDecodeError):
+                    continue
+                corpus[os.path.normpath(os.path.join(rel_root, name)).replace(os.sep, "/")] = \
+                    facts.resolve_includes(root, text)
+    return corpus
+
+
+def check_init(result_dir: str, expected: dict, today: date | None = None) -> dict[str, Any]:
+    """Note ce qu'un harness-init a écrit dans `result_dir` contre le bloc `init` d'expected.json :
+    palier atteint, faits non découvrables remontés (`must_surface`), bruit recopié (`must_not_write`),
+    garde-fous réels cités (`guards_cited`), garde-fous mensongers crus (`forbidden_guards`)."""
+    state = maturity.evaluate(facts.collect(result_dir, today=today))
+    corpus = instruction_corpus(result_dir)
+    text = "\n".join(corpus.values()).lower()
+    rules = [r for t in corpus.values() for r in parse_rules(t)]
+    guarded = [r.lower() for r in rules if facts.GUARDED_RE.search(r) and not facts.UNGUARDED_RE.search(r)]
+    problems, surfaced = [], []
+    level = state["level"]["reached"]
+    if level < expected.get("min_level", 1):
+        failing = [c["id"] for l in state["levels"] if l["level"] <= expected.get("min_level", 1)
+                   for c in l["checks"] if not c["passed"]]
+        problems.append(f"palier {level} < attendu {expected.get('min_level', 1)} ; échecs : {', '.join(failing)}")
+    for fact in expected.get("must_surface", []):
+        if any(k.lower() in text for k in fact["any_of"]):
+            surfaced.append(fact["id"])
+        else:
+            problems.append(f"{fact['id']} non remonté : {fact['what']} (aucun de {fact['any_of']})")
+    for noise in expected.get("must_not_write", []):
+        hits = [k for k in noise["any_of"] if k.lower() in text]
+        if hits:
+            where = sorted(p for p, t in corpus.items() if any(k.lower() in t.lower() for k in hits))
+            problems.append(f"{noise['id']} écrit à tort : {noise['what']} ({', '.join(hits)} dans {', '.join(where)})")
+    for path in expected.get("guards_cited", []):
+        if not any(path.lower() in r for r in guarded):
+            problems.append(f"garde-fou {path} cité par aucune règle « Vérifiée par »")
+    for lie in expected.get("forbidden_guards", []):
+        for r in guarded:
+            after = facts.GUARDED_RE.split(r, maxsplit=1)[-1]      # ce qui suit « Vérifiée par : »
+            if lie["path"].lower() in after and any(w.lower() in r for w in lie["rule_keywords"]):
+                problems.append(f"garde-fou mensonger cru : « {r[:90]} » s'appuie sur {lie['path']}")
+    total = len(expected.get("must_surface", []))
+    return {"level": level, "surfaced": surfaced, "problems": problems,
+            "score": f"{len(surfaced)}/{total}", "files": sorted(corpus), "ok": not problems}
+
+
 INSTRUMENTATION = ["AGENTS.md", "CLAUDE.md", ".claude", ".cursor", ".agents", ".github/copilot-instructions.md", ".harness"]
 
 
@@ -160,6 +225,7 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     c = sub.add_parser("check", help="compare une fixture à expected.json")
     c.add_argument("name", help="nom de la fixture (dossier de fixtures/repos) ou chemin")
     c.add_argument("--audit", help="JSON d'audit à noter contre les pièges")
+    c.add_argument("--init", help="dépôt produit par un harness-init, à noter contre le bloc init")
     c.add_argument("--today", help="AAAA-MM-JJ pour une mesure reproductible")
     b = sub.add_parser("bare", help="copie d'une fixture sans instrumentation IA, pour évaluer harness-init")
     b.add_argument("name", help="nom de la fixture ou chemin")
@@ -196,5 +262,12 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
                 print(f"### {title}")
                 for line in result[key]:
                     print(f"- {line}")
+        ok = ok and result["ok"]
+    if args.init:
+        result = check_init(args.init, expected.get("init", {}), today)
+        print(f"## init : palier {result['level']} · {result['score']} faits remontés"
+              + (" · conforme" if result["ok"] else f" · {len(result['problems'])} écart(s)"))
+        for line in result["problems"]:
+            print(f"- {line}")
         ok = ok and result["ok"]
     return 0 if ok else 1

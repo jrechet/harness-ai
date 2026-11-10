@@ -102,6 +102,21 @@ class Level0Tests(TempRepo):
         self.assertFalse(self.check(s, "L1.short")["passed"])
 
 
+class HeadingAndToolDetectionTests(TempRepo):
+    def test_git_workflow_heading_is_not_a_working_process(self):
+        write(self.repo, "CLAUDE.md", "# Guide\n\n## Git Workflow\n- Use conventional commits.\n")
+        self.assertFalse(self.state()["facts"]["instructions"]["source"]["has_process_section"])
+
+    def test_working_process_headings_are_recognised(self):
+        for heading in ("Processus de travail", "Working process", "Workflow"):
+            write(self.repo, "AGENTS.md", f"# x\n\n## {heading}\n- Arrête-toi quand la CI est rouge.\n")
+            self.assertTrue(self.state()["facts"]["instructions"]["source"]["has_process_section"], heading)
+
+    def test_golangci_config_is_a_guardrail_marker(self):
+        write(self.repo, ".golangci.yml", "linters: {}\n")
+        self.assertIn("golangci-lint", self.state()["facts"]["guardrails"]["tools"])
+
+
 class Level1Tests(TempRepo):
     def setUp(self):
         super().setUp()

@@ -1,0 +1,47 @@
+{
+  "fixture": "ts-monorepo",
+  "status": {
+    "level_reached": 0,
+    "source_path": "CLAUDE.md",
+    "failing_checks": ["L1.mode", "L1.short", "L1.forbidden", "L2.maintenance", "L2.rule_convention", "L3.guarded", "L4.process", "L4.contracts"],
+    "passing_checks": ["L1.source", "L3.ci"],
+    "guardrail_tools": [],
+    "contracts": 0
+  },
+  "init": {
+    "min_level": 1,
+    "must_surface": [
+      {"id": "I1", "what": "un changement dans packages/shared ne déclenche pas le job web", "any_of": ["packages/shared"]},
+      {"id": "I2", "what": "frontières entre workspaces et leur garde-fou", "any_of": ["boundaries"]},
+      {"id": "I3", "what": "escapeHtml sur toute valeur utilisateur, test d'intrusion", "any_of": ["escapehtml"]},
+      {"id": "I4", "what": "pas de pilote de base ici, le stockage vit dans deskly-infra", "any_of": ["deskly-infra"]}
+    ],
+    "must_not_write": [
+      {"id": "N1", "what": "commandes qui n'existent pas", "any_of": ["npm run lint", "npm run build"]},
+      {"id": "N2", "what": "style générique", "any_of": ["meaningful variable", "clean, readable", "prefer `const`", "prefer const", "functions small", "code propre", "noms de variables"]},
+      {"id": "N3", "what": "consignes écrites pour d'anciens modèles", "any_of": ["step by step", "étape par étape", "hallucin", "expert senior", "500 lines", "500 lignes"]},
+      {"id": "N4", "what": "contrainte périmée", "any_of": ["ie11", "optional chaining"]},
+      {"id": "N5", "what": "consigne qui contredit le garde-fou des frontières", "any_of": ["api/src/tickets"]},
+      {"id": "N6", "what": "confirmation avant chaque commande, en mode délégation", "any_of": ["confirmation before running", "confirmation avant chaque commande", "confirmation avant de lancer"]},
+      {"id": "N7", "what": "objectif de couverture sans outil", "any_of": ["80%", "80 %"]}
+    ],
+    "guards_cited": ["boundaries"],
+    "forbidden_guards": [
+      {"path": "ci.yml", "rule_keywords": ["packages/shared"]},
+      {"path": "job `web`", "rule_keywords": ["packages/shared"]}
+    ]
+  },
+  "audit": {
+    "traps": [
+      {"id": "T1", "path": "CLAUDE.md", "verdicts": ["SPLIT", "INLINE", "MERGE", "BLOCK", "PUSH_DOWN"], "priorities": ["P1", "P2", "P3"]},
+      {"id": "T2", "path": ".github/workflows/ci.yml", "verdicts": ["PUSH_DOWN", "SPLIT", "BLOCK", "KEEP"], "priorities": ["P1", "P2", "P3", null], "leak_keywords": ["shared"], "require_leak": true},
+      {"id": "T3", "path": "apps/web/CLAUDE.md", "verdicts": ["MERGE", "BLOCK", "INLINE", "SPLIT", "PUSH_DOWN"], "priorities": ["P1", "P2", "P3"]}
+    ],
+    "sane": [
+      {"id": "S1", "path": "tools/check-boundaries.mjs", "verdicts": ["KEEP"]},
+      {"id": "S2", "path": "packages/shared/src/ticket.test.ts", "verdicts": ["KEEP"]}
+    ],
+    "guarded_rules_paths": ["boundaries"],
+    "forbidden_leak_keywords": ["meaningful", "prefer const", "noms de variables"]
+  }
+}

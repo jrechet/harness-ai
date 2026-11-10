@@ -26,6 +26,7 @@ GUARDRAIL_MARKERS = {
     "stylelint": [".stylelintrc", ".stylelintrc.json", "stylelint.config.js"],
     "prettier": [".prettierrc", "prettier.config.js"],
     "ruff": ["ruff.toml", ".ruff.toml"],
+    "golangci-lint": [".golangci.yml", ".golangci.yaml", ".golangci.toml"],
     "checkstyle": ["config/checkstyle/checkstyle.xml", "checkstyle.xml"],
     "spotless": [],
     "pre-commit": [".pre-commit-config.yaml"],
@@ -47,6 +48,8 @@ MARKER_RE = re.compile(r"<!--\s*harvest:\s*last=(\d{4}-\d{2}-\d{2})(?:\s+ref=(\S
 GUARDED_RE = re.compile(r"v[ée]rifi[ée]e?\s+par\s*:|guarded\s+by\s*:|enforced\s+by\s*:", re.I)
 UNGUARDED_RE = re.compile(r"\(non\s+v[ée]rifi[ée]e?\)|\(unverified\)", re.I)
 WHY_RE = re.compile(r"pourquoi\s*:|why\s*:|incident|issue\s*#?\d+|#\d+|https?://", re.I)
+# « Git Workflow » d'un fichier généré n'est pas un processus de travail : « workflow » seul, ou qualifié.
+PROCESS_HEADING_RE = re.compile(r"processus de travail|working process|working agreements?|^(?:agent |working )?workflow$", re.I)
 RULE_CONVENTION_RE = re.compile(r"`rule:`|\brule:\s", re.I)
 
 
@@ -122,7 +125,7 @@ def instruction_facts(repo: str) -> dict[str, Any]:
             "rules_unguarded_marked": sum(1 for r in rules if UNGUARDED_RE.search(r)),
             "rules_justified": sum(1 for r in rules if WHY_RE.search(r)),
             "has_maintenance_section": any(re.search(r"maintenance", h, re.I) for h in headings),
-            "has_process_section": any(re.search(r"processus de travail|working process|workflow", h, re.I) for h in headings),
+            "has_process_section": any(PROCESS_HEADING_RE.search(h) for h in headings),
             "has_forbidden_section": any(re.search(r"interdits?|never do|forbidden", h, re.I) for h in headings),
             "mentions_rule_convention": bool(RULE_CONVENTION_RE.search(text)),
             "harvest_marker": {"date": marker.group(1), "ref": marker.group(2)} if marker else None,

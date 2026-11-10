@@ -1,5 +1,6 @@
-"""Tests du vérificateur de fixtures : la fixture java-back est conforme à son
-expected.json, et le notateur d'audit distingue un bon audit d'un mauvais."""
+"""Tests du vérificateur de fixtures : chaque fixture est conforme à son
+expected.json, le notateur d'audit distingue un bon audit d'un mauvais, et le
+notateur d'init distingue un fichier écrit avec soin d'un fichier généré."""
 from __future__ import annotations
 
 import json
@@ -68,6 +69,33 @@ class AllFixturesTests(unittest.TestCase):
                 exp = load_expected(name)["audit"]
                 for trap in exp["traps"] + exp["sane"]:
                     self.assertIn(f"| {trap['id']} |", traps_md, f"{name}:{trap['id']}")
+
+    def test_traps_md_lists_every_init_expectation(self):
+        for name in self.fixture_names():
+            init = load_expected(name).get("init")
+            if not init:
+                continue
+            with self.subTest(fixture=name):
+                with open(os.path.join(fixtures.FIXTURES_ROOT, name, "traps.md"), encoding="utf-8") as fh:
+                    traps_md = fh.read()
+                for item in init["must_surface"] + init["must_not_write"]:
+                    self.assertIn(f"| {item['id']} |", traps_md, f"{name}:{item['id']}")
+                self.assertTrue(os.path.isfile(os.path.join(fixtures.FIXTURES_ROOT, name, "owner.md")),
+                                f"{name} : un bloc init demande un owner.md")
+
+    def test_author_init_runs_are_conformant(self):
+        """La base de régression : l'init écrit par l'auteur de la fixture satisfait le bloc init."""
+        seen = 0
+        for name in self.fixture_names():
+            runs = os.path.join(fixtures.FIXTURES_ROOT, name, "runs")
+            init = load_expected(name).get("init")
+            for run in sorted(os.listdir(runs)) if init and os.path.isdir(runs) else []:
+                if run.endswith("-init-author"):
+                    with self.subTest(fixture=name, run=run):
+                        result = fixtures.check_init(os.path.join(runs, run), init, date(2026, 11, 10))
+                        self.assertEqual(result["problems"], [])
+                        seen += 1
+        self.assertGreaterEqual(seen, 2)
 
     def test_fixture_readme_does_not_point_to_the_answer_key(self):
         for name in self.fixture_names():
@@ -165,3 +193,72 @@ class AuditGraderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class InitGraderTests(unittest.TestCase):
+    """Le notateur d'init : faits remontés, bruit recopié, garde-fous cités ou crus à tort."""
+
+    GOOD = """# x
+
+Mode : **délégation**.
+
+## Règles
+- Le domaine ne dépend de rien. Pourquoi : ADR 0001. Vérifiée par : `tools/archcheck`, job `arch`.
+- Toute écriture exige une clé d'idempotence. Pourquoi : incident du double débit. (non vérifiée)
+- Un montant est un entier en centimes, jamais un flottant. Pourquoi : ADR 0002. (non vérifiée)
+- Une migration appliquée ne se modifie plus. (non vérifiée)
+
+## Interdits
+- `make reset-db` hors base locale.
+"""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.init = load_expected("go-hexa")["init"]
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def grade(self, agents_md):
+        with open(os.path.join(self.tmp.name, "AGENTS.md"), "w", encoding="utf-8") as fh:
+            fh.write(agents_md)
+        return fixtures.check_init(self.tmp.name, self.init, date(2026, 11, 10))
+
+    def test_good_init_is_conformant(self):
+        result = self.grade(self.GOOD)
+        self.assertEqual(result["problems"], [])
+        self.assertEqual(result["score"], "5/5")
+
+    def test_missing_fact_is_reported(self):
+        result = self.grade(self.GOOD.replace("- `make reset-db` hors base locale.", "- Rien à signaler."))
+        self.assertTrue(any(p.startswith("I2 non remonté") for p in result["problems"]), result["problems"])
+
+    def test_copied_noise_is_reported_with_its_file(self):
+        result = self.grade(self.GOOD + "- Écrire du Go idiomatique ; `gofmt` avant de commiter.\n- `make e2e` avant de pousser.\n")
+        text = " ".join(result["problems"])
+        self.assertIn("N1 écrit à tort", text)
+        self.assertIn("N2 écrit à tort", text)
+        self.assertIn("AGENTS.md", text)
+
+    def test_lying_guard_is_not_believed(self):
+        lie = self.GOOD.replace("jamais un flottant. Pourquoi : ADR 0002. (non vérifiée)",
+                                "jamais un flottant. Pourquoi : ADR 0002. Vérifiée par : golangci-lint, job `lint`.")
+        result = self.grade(lie)
+        self.assertTrue(any("garde-fou mensonger" in p for p in result["problems"]), result["problems"])
+
+    def test_real_guard_must_be_cited(self):
+        result = self.grade(self.GOOD.replace("Vérifiée par : `tools/archcheck`, job `arch`.", "Voir `tools/archcheck`. (non vérifiée)"))
+        self.assertTrue(any("archcheck cité par aucune règle" in p for p in result["problems"]), result["problems"])
+
+    def test_level_below_target_is_reported(self):
+        result = self.grade(self.GOOD.replace("Mode : **délégation**.", ""))
+        self.assertTrue(any("L1.mode" in p for p in result["problems"]), result["problems"])
+
+    def test_generated_file_never_reviewed_fails_on_every_noise_family(self):
+        repo = os.path.join(fixtures.FIXTURES_ROOT, "ts-monorepo", "repo")
+        result = fixtures.check_init(repo, load_expected("ts-monorepo")["init"], date(2026, 11, 10))
+        text = " ".join(result["problems"])
+        for noise in ("N1", "N2", "N3", "N4", "N5", "N6", "N7"):
+            self.assertIn(f"{noise} écrit à tort", text)
+        self.assertEqual(result["score"], "4/4")      # les faits y sont, noyés : le défaut est le bruit
