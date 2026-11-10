@@ -22,7 +22,7 @@ Le risque de l'exercice est connu : un agent qui peut modifier à la fois la cop
 Annonce au propriétaire : ce que la campagne mesure, combien d'exécutions, combien de tokens, et ce qu'elle ne mesure pas. Si sa demande nommait déjà le périmètre (« stresse l'audit sur ts-monorepo »), lance. Si elle était ouverte (« stresse le harness »), propose deux ou trois périmètres avec leur prix et attends son choix. Ne dépasse jamais le budget annoncé sans redemander.
 
 ### 2. Préparer chaque exécution, hors du dépôt
-L'agent évalué ne doit rien pouvoir lire du corrigé. Tout se passe dans un dossier de travail temporaire, jamais sous `fixtures/`.
+L'agent évalué ne doit rien pouvoir lire du corrigé. Tout se passe dans un dossier de travail temporaire, jamais sous `fixtures/`. Un dossier parent par exécution, au nom neutre, et le dépôt sous le nom de son projet : ni le bras ni le banc ne se lisent dans le chemin. Vide d'abord ce dossier temporaire des copies de travail qui portent une solution.
 
 - **Le kit** : une copie de `skills/` et de `cli/` dans le dossier temporaire. C'est tout ce que l'agent connaît de harness-ai.
 - **Le dépôt** :
@@ -33,7 +33,7 @@ L'agent évalué ne doit rien pouvoir lire du corrigé. Tout se passe dans un do
 ### 3. Jouer, à l'aveugle
 Un **agent neuf par exécution**, sans mémoire de cette session. Son message contient, et rien d'autre :
 - pour un skill : le chemin du kit, le chemin du dépôt, le skill à suivre, et pour un init le contenu de `owner.md` présenté comme les réponses du propriétaire. Il rend ses fichiers dans le dépôt de travail et son compte rendu ;
-- pour une tâche : le chemin du dépôt et le contenu de `task.md`. Pas de kit, pas de skill : on mesure ce que les instructions du dépôt lui font faire.
+- pour une tâche : le chemin du dépôt, le contenu de `task.md`, et trois phrases, **mot pour mot les mêmes sur tous les bras** : ne travaille que dans ce dossier ; lis d'abord les fichiers d'instructions du dépôt s'il y en a, à la racine puis dans les dossiers où tu travailles ; personne ne répondra à une question pendant la tâche. La deuxième remplace le chargement qu'une vraie session fait d'elle-même : sans elle, un agent lancé d'ailleurs ne lit pas les instructions du dépôt et les bras ne diffèrent plus. Pas de kit, pas de skill : on mesure ce que les instructions du dépôt lui font faire.
 
 Ne lui donne ni indice, ni critère de notation, ni le nom du projet type. Ne lance pas la même exécution deux fois en espérant mieux : la variance se traite à l'étape 5.
 
@@ -43,9 +43,11 @@ python3 cli/harness.py fixture check <projet> --audit <dir>/.harness/audit.json
 python3 cli/harness.py fixture check <projet> --init <dir>
 python3 cli/harness.py bench check <projet> <tâche> <dir>
 python3 cli/harness.py bench record --kind <audit|init|task> --fixture <projet> [--task <tâche> --arm <bras>] \
-    --model <le modèle évalué, tel que la session le donne> --score <note> [--ok] --run <chemin des sorties>
+    --model <étiquette de génération> --score <note> [--ok] --run <chemin des sorties>
 ```
-Range les sorties dans `fixtures/repos/<projet>/runs/<date>-<mesure>-blind[-<bras>]/` : ce que l'agent a écrit, son compte rendu, la sortie du noteur. Enregistre **toutes** les exécutions, les mauvaises comprises.
+Range les sorties dans `fixtures/repos/<projet>/runs/<date>-<mesure>-blind[-<bras>]/` : ce que l'agent a écrit (pour une tâche, son diff), son compte rendu, la sortie du noteur. Enregistre **toutes** les exécutions, les mauvaises comprises.
+
+L'étiquette de génération est celle que le propriétaire donne à la période, une date par exemple. Elle sert à comparer deux campagnes quand le modèle a changé ; elle n'a pas besoin d'être l'identifiant du modèle.
 
 ### 5. Ranger chaque écart dans une cause, et une seule
 
