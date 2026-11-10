@@ -1,0 +1,29 @@
+{
+  "$id": "comptoir/events/invoice.issued",
+  "title": "invoice.issued",
+  "description": "Published by billing when an invoice is written. Read by notifications and by consumers outside this repository.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "occurred_at", "payload"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The same when the event is delivered again."
+    },
+    "type": {"const": "invoice.issued"},
+    "occurred_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."},
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invoice_number", "order_id", "customer_email", "total_cents", "issued_at"],
+      "properties": {
+        "invoice_number": {"type": "string", "pattern": "^F-[0-9]{4}-[0-9]{6}$"},
+        "order_id": {"type": "string", "minLength": 1},
+        "customer_email": {"type": "string", "pattern": "@"},
+        "total_cents": {"type": "integer", "minimum": 0, "description": "Tax included."},
+        "issued_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."}
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "$id": "comptoir/api/order",
+  "title": "Order",
+  "description": "What orders answers to POST /orders and GET /orders/{id}.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "customer_email", "sku", "quantity", "total_cents", "created_at"],
+  "properties": {
+    "id": {"type": "string", "minLength": 1},
+    "customer_email": {"type": "string", "pattern": "@"},
+    "sku": {"type": "string", "minLength": 1},
+    "quantity": {"type": "integer", "minimum": 1},
+    "total_cents": {"type": "integer", "minimum": 0, "description": "Tax included."},
+    "created_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."}
+  }
+}

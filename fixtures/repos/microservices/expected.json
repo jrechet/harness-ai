@@ -1,0 +1,313 @@
+{
+  "fixture": "microservices",
+  "role": "holdout",
+  "status": {
+    "level_reached": 1,
+    "source_path": "AGENTS.md",
+    "failing_checks": [
+      "L2.maintenance",
+      "L2.rule_convention",
+      "L2.marker_fresh",
+      "L2.signal",
+      "L3.guarded",
+      "L3.audit",
+      "L4.process",
+      "L4.contracts",
+      "L4.clean_prs",
+      "L4.cut_the_agent"
+    ],
+    "passing_checks": [
+      "L1.source",
+      "L1.mode",
+      "L1.short",
+      "L1.single_source",
+      "L1.forbidden",
+      "L3.ci",
+      "L3.justified",
+      "L4.mode"
+    ],
+    "guardrail_tools": [
+      "codeowners"
+    ],
+    "contracts": 0
+  },
+  "init": {
+    "min_level": 1,
+    "only_level_material": true,
+    "must_surface": [
+      {
+        "id": "I1",
+        "what": "consommateurs idempotents, livraison au moins une fois, incident des 212 factures",
+        "any_of": [
+          "idempot"
+        ]
+      },
+      {
+        "id": "I2",
+        "what": "un contrat n'évolue que par ajout, incident du champ renommé",
+        "any_of": [
+          "additi",
+          "champ-renomme"
+        ]
+      },
+      {
+        "id": "I3",
+        "what": "ce qui sort d'un service est déclaré dans contracts/, schémas stricts",
+        "any_of": [
+          "contracts/"
+        ]
+      },
+      {
+        "id": "I4",
+        "what": "un service n'importe pas un autre service, et son garde-fou",
+        "any_of": [
+          "check_imports"
+        ]
+      },
+      {
+        "id": "I5",
+        "what": "jamais BROKER_URL vers la préproduction ou la production depuis un poste",
+        "any_of": [
+          "broker_url"
+        ]
+      },
+      {
+        "id": "I6",
+        "what": "numéros de facture sans trou, dans la note du service billing",
+        "any_of": [
+          "test_ledger",
+          "sans trou",
+          "gapless"
+        ]
+      },
+      {
+        "id": "I7",
+        "what": "ne pas affaiblir un garde-fou, dont deliveries=1 dans le test d'un service",
+        "any_of": [
+          "deliveries"
+        ]
+      }
+    ],
+    "must_not_write": [
+      {
+        "id": "N1",
+        "what": "commande du README qui n'existe plus",
+        "any_of": [
+          "replay.py"
+        ]
+      },
+      {
+        "id": "N2",
+        "what": "limite de 64 Ko de l'ancien broker, périmée, confirmée par le propriétaire",
+        "any_of": [
+          "64 ko",
+          "64 ko",
+          "64ko",
+          "64 kb",
+          "64kb",
+          "64 kilo"
+        ]
+      },
+      {
+        "id": "N3",
+        "what": "relecture manuelle des imports, redondante avec tools/check_imports.py",
+        "any_of": [
+          "grep -rn"
+        ]
+      },
+      {
+        "id": "N4",
+        "what": "principes génériques du CONTRIBUTING",
+        "any_of": [
+          "pep 8",
+          "pep8",
+          "docstring",
+          "conventional commits",
+          "fonctions courtes"
+        ]
+      }
+    ],
+    "guards_cited": [
+      "check_imports",
+      "bus.py",
+      "test_contract",
+      "test_ledger"
+    ],
+    "forbidden_guards": [
+      {
+        "path": "test_contract",
+        "rule_keywords": [
+          "additi",
+          "renomm",
+          "rename",
+          "retir",
+          "remov",
+          "compatib"
+        ]
+      }
+    ],
+    "min_similarity": [
+      {
+        "path": "AGENTS.md",
+        "ratio": 0.75
+      }
+    ]
+  },
+  "audit": {
+    "traps": [
+      {
+        "id": "T1",
+        "path": "AGENTS.md",
+        "verdicts": [
+          "PUSH_DOWN",
+          "SPLIT",
+          "KEEP",
+          "INLINE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "additi"
+        ],
+        "require_leak": true
+      }
+    ],
+    "sane": [
+      {
+        "id": "S1",
+        "path": "tools/schema.py",
+        "verdicts": [
+          "KEEP"
+        ]
+      },
+      {
+        "id": "S2",
+        "path": "tools/check_imports.py",
+        "verdicts": [
+          "KEEP"
+        ]
+      },
+      {
+        "id": "S3",
+        "path": "shared/bus.py",
+        "verdicts": [
+          "KEEP"
+        ]
+      },
+      {
+        "id": "S4",
+        "path": "services/billing/AGENTS.md",
+        "verdicts": [
+          "KEEP"
+        ]
+      },
+      {
+        "id": "S5",
+        "path": "CLAUDE.md",
+        "verdicts": [
+          "KEEP"
+        ]
+      },
+      {
+        "id": "S6",
+        "path": "services/billing/test_ledger.py",
+        "verdicts": [
+          "KEEP"
+        ]
+      }
+    ],
+    "guarded_rules_paths": [
+      "check_imports",
+      "bus"
+    ],
+    "forbidden_guarded_paths": [
+      {
+        "path": "test_contract",
+        "rule_keywords": [
+          "additi",
+          "renomm",
+          "rename",
+          "retir",
+          "remov",
+          "compatib"
+        ]
+      }
+    ],
+    "forbidden_leak_keywords": [
+      "idempot",
+      "pep 8",
+      "pep8",
+      "docstring"
+    ],
+    "removals": [
+      {
+        "id": "N2",
+        "any_of": [
+          "64 ko",
+          "64 ko",
+          "64ko",
+          "64 kb",
+          "64kb",
+          "64 kilo"
+        ],
+        "reasons": [
+          "outdated"
+        ],
+        "ask_owner": true
+      },
+      {
+        "id": "N3",
+        "any_of": [
+          "grep -rn"
+        ],
+        "reasons": [
+          "useless",
+          "outdated"
+        ]
+      }
+    ],
+    "must_keep": [
+      {
+        "id": "I1",
+        "any_of": [
+          "idempot"
+        ]
+      },
+      {
+        "id": "I2",
+        "any_of": [
+          "additi"
+        ]
+      },
+      {
+        "id": "I3",
+        "any_of": [
+          "contracts/"
+        ]
+      },
+      {
+        "id": "I5",
+        "any_of": [
+          "broker_url"
+        ]
+      },
+      {
+        "id": "I6",
+        "any_of": [
+          "test_ledger",
+          "sans trou"
+        ]
+      },
+      {
+        "id": "I7",
+        "any_of": [
+          "deliveries"
+        ]
+      }
+    ]
+  }
+}

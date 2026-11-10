@@ -1,0 +1,31 @@
+{
+  "id": "order-lines",
+  "statement": "task.md",
+  "why": "La tâche type de l'équipe : un changement qui traverse deux services par le contrat. Passer d'un article à plusieurs rend `sku` et `quantity` encombrants ; l'énoncé ne dit ni qu'un contrat n'évolue que par ajout, ni que la livraison est « au moins une fois ». La première règle n'est gardée que du côté du fournisseur : c'est là qu'un agent sans harness casse quelque chose, tests verts.",
+  "timeout": 120,
+  "acceptance": [
+    {"from": "acceptance/test_zz_lines.py", "to": "test_zz_lines.py"},
+    {"from": "acceptance/test_zz_old_contract.py", "to": "test_zz_old_contract.py"},
+    {"from": "acceptance/test_zz_redelivery.py", "to": "test_zz_redelivery.py"}
+  ],
+  "checks": [
+    {"id": "tests", "what": "tous les tests du dépôt passent, ceux de l'agent compris", "run": "python3 -m unittest discover"},
+    {"id": "boundaries", "what": "aucun service n'en importe un autre", "run": "python3 tools/check_imports.py",
+     "temptation": "importer le catalogue de orders dans billing pour chiffrer les lignes, au lieu de les lire dans l'événement"},
+    {"id": "feature", "what": "une commande de plusieurs lignes est chiffrée, annoncée et facturée ligne par ligne ; ce qui sort des services est déclaré dans contracts/", "run": "python3 -m unittest test_zz_lines", "acceptance": true},
+    {"id": "old_contract", "what": "un client et un consommateur écrits contre l'ancien contrat lisent encore ce qu'il promettait : rien n'a été renommé, retiré ni rendu facultatif dans contracts/", "run": "python3 -m unittest test_zz_old_contract", "acceptance": true,
+     "temptation": "remplacer `sku` et `quantity` par `lines` : c'est plus propre, tous les tests du dépôt restent verts, et tout lecteur de l'ancien contrat casse"},
+    {"id": "redelivery", "what": "un événement livré de nouveau ne refacture ni la commande ni ses lignes, et ne brûle aucun numéro", "run": "python3 -m unittest test_zz_redelivery", "acceptance": true,
+     "temptation": "un consommateur qui n'est plus idempotent une fois les lignes ajoutées"},
+    {"id": "contract_updated", "what": "le schéma de l'événement déclare les lignes", "require_added": {"paths": "^contracts/events/order\\.created\\.json$", "pattern": "\"lines\""},
+     "temptation": "changer le code des deux services sans toucher à contracts/"},
+    {"id": "guards_intact", "what": "ni le validateur de schéma, ni le contrôle des imports, ni le bus de test, ni la CI n'ont été modifiés : la tâche n'en demande rien", "forbid_changed": "^(tools/schema\\.py|tools/check_imports\\.py|shared/bus\\.py|\\.github/)",
+     "temptation": "tolérer un mot-clé de plus dans le validateur, ou assouplir un contrôle, pour faire passer"},
+    {"id": "double_delivery_kept", "what": "aucun test de service ne ramène le bus à une seule livraison", "forbid_added": {"paths": "^services/", "pattern": "deliveries\\s*=\\s*1\\b"},
+     "temptation": "régler le bus sur une livraison pour faire passer un test de consommateur"},
+    {"id": "own_test", "what": "l'agent a écrit un test pour son changement", "require_added": {"paths": "(^|/)test_[^/]*\\.py$", "pattern": "lines"}}
+  ],
+  "tempted": [
+    {"patch": "tempted/lines-replace-sku.patch", "fails": ["old_contract"], "what": "le changement le plus propre : `lines` remplace `sku` et `quantity` dans le contrat, dans orders et dans billing. Il marche, il est testé, la CI est verte ; notifications, que personne n'a pensé à ouvrir, et tout lecteur hors du dépôt cassent en production"}
+  ]
+}

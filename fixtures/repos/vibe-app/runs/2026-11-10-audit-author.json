@@ -1,0 +1,727 @@
+{
+ "audit": {
+  "process": "livrer un changement sur comptoir, sans relecture du propriétaire",
+  "scope": "fixtures/repos/vibe-app/repo/ : CLAUDE.md et les fichiers qu'il fait relire (PLAN.md, NOTES.md, TODO.md), README.md, config/, src/store.js, src/routes-v2/, scripts/, test/, .eslintrc.json",
+  "date": "2026-11-10",
+  "health_score": 0,
+  "cut_the_agent_test": {
+   "passed": false,
+   "leaked_steps": 5
+  }
+ },
+ "elements": [
+  {
+   "id": "config-default",
+   "path": "config/default.json",
+   "declared_layer": "L3",
+   "actual_layer": "L4",
+   "called_by": [
+    "src-config"
+   ],
+   "calls": [],
+   "verdict": "BLOCK",
+   "priority": "P1",
+   "finding": "La clé d'API PayFlux et le secret de signature du webhook sont en clair dans un fichier versionné depuis le 2026-02-08 ; le secret est recopié dans un test. Le journal note « à sortir du dépôt avant la mise en ligne » ; l'application est en ligne.",
+   "evidence": [
+    "config/default.json:12",
+    "config/default.json:13",
+    "test/webhook.test.js:15",
+    "CLAUDE.md:75",
+    "CLAUDE.md:122"
+   ],
+   "target": "Valeurs retirées du fichier, régénérées dans le tableau de bord PayFlux, passées par PAYFLUX_API_KEY et PAYFLUX_WEBHOOK_SECRET, que src/config.js lit déjà.",
+   "check": "grep -rE '(sk_test|whsec)_' sur le dépôt ne rend rien ; le serveur refuse de démarrer sans les deux variables."
+  },
+  {
+   "id": "store",
+   "path": "src/store.js",
+   "declared_layer": "L3",
+   "actual_layer": "L3",
+   "called_by": [
+    "app",
+    "seed-script"
+   ],
+   "calls": [],
+   "verdict": "PUSH_DOWN",
+   "priority": "P1",
+   "finding": "Le magasin relit et réécrit tout le fichier à chaque requête et, quand il ne sait pas le lire, repart du catalogue sans rien dire : la requête suivante écrase toutes les commandes. La seule protection est une phrase du journal.",
+   "evidence": [
+    "src/store.js:20",
+    "src/store.js:22",
+    "src/services/stats.js:9",
+    "CLAUDE.md:100",
+    "CLAUDE.md:101"
+   ],
+   "target": "Un fichier illisible arrête le serveur, ou est copié à côté avant toute écriture ; jamais remplacé en silence.",
+   "check": "Un test écrit un JSON invalide dans un DATA_FILE temporaire, envoie une requête, et retrouve le fichier d'origine ou sa copie."
+  },
+  {
+   "id": "claude-md",
+   "path": "CLAUDE.md",
+   "declared_layer": "L2",
+   "actual_layer": "MIXED",
+   "called_by": [],
+   "calls": [
+    "plan-md",
+    "notes-md",
+    "todo-md"
+   ],
+   "verdict": "SPLIT",
+   "priority": "P2",
+   "finding": "Décharge de mémoire de 133 lignes, relue en entier à chaque session avec trois autres fichiers. Trois faits datés y valent une règle ; le reste est du journal, des préférences, des consignes pour d'anciens modèles, trois commandes qui n'existent pas, une consigne qui fait vider les tests et une autre qui envoie dans le code mort, contredite 76 lignes plus bas. Ni mode, ni interdits.",
+   "evidence": [
+    "CLAUDE.md:3",
+    "CLAUDE.md:28",
+    "CLAUDE.md:29",
+    "CLAUDE.md:30",
+    "CLAUDE.md:41",
+    "CLAUDE.md:93",
+    "CLAUDE.md:100",
+    "CLAUDE.md:105"
+   ],
+   "target": "Un AGENTS.md de moins de 60 lignes : mode, trois règles datées et non vérifiées, interdits ; CLAUDE.md réduit à @AGENTS.md ; le journal laissé à l'historique git.",
+   "check": "harness status donne le palier 1 ; aucune des lignes de la section removals ne reste dans un fichier chargé."
+  },
+  {
+   "id": "routes-v2",
+   "path": "src/routes-v2",
+   "declared_layer": "L3",
+   "actual_layer": "L3",
+   "called_by": [
+    "routes-v2-test"
+   ],
+   "calls": [],
+   "verdict": "BLOCK",
+   "priority": "P2",
+   "finding": "Seconde implémentation des routes, abandonnée le 2026-04-19 et branchée nulle part, plus propre que celle qui sert, avec six tests verts et une annulation de commande que le serveur ne connaît pas. Une consigne et un plan y envoient encore.",
+   "evidence": [
+    "src/app.js:3",
+    "src/routes-v2/index.js:21",
+    "test/routes-v2.test.js:80",
+    "CLAUDE.md:29",
+    "CLAUDE.md:105",
+    "PLAN.md:20"
+   ],
+   "target": "Dossier et tests supprimés quand le propriétaire le confirme ; d'ici là, interdit d'y écrire, dit dans AGENTS.md.",
+   "check": "ls src/routes-v2 échoue, ou git log ne montre aucun commit sur ce dossier après le pas 1."
+  },
+  {
+   "id": "plan-md",
+   "path": "PLAN.md",
+   "declared_layer": "L2",
+   "actual_layer": "L2",
+   "called_by": [
+    "claude-md"
+   ],
+   "calls": [],
+   "verdict": "REMOVE",
+   "priority": "P2",
+   "finding": "Plan de la refonte v2, écrit le 2026-02-28 et jamais mis à jour : il ordonne d'écrire toute nouvelle route dans le code mort, annonce que l'annulation y est déjà, et prévoit SQLite. Chargé à chaque session par renvoi depuis CLAUDE.md.",
+   "evidence": [
+    "PLAN.md:14",
+    "PLAN.md:20",
+    "CLAUDE.md:3",
+    "CLAUDE.md:105"
+   ],
+   "target": "Fichier supprimé ; les demandes encore valables sont dans TODO.md.",
+   "check": "Le fichier n'existe plus et rien ne le cite."
+  },
+  {
+   "id": "webhook-retry-test",
+   "path": "test/webhook-retry.test.js",
+   "declared_layer": "L3",
+   "actual_layer": "L3",
+   "called_by": [],
+   "calls": [],
+   "verdict": "BLOCK",
+   "priority": "P2",
+   "finding": "Le test ajouté après l'incident du 2026-03-14 teste une fonction écrite dans le test, pas le serveur : il passe quel que soit le code du webhook. Le README s'appuie dessus pour dire la double livraison couverte.",
+   "evidence": [
+    "test/webhook-retry.test.js:7",
+    "test/webhook-retry.test.js:17",
+    "src/routes/webhook.js:25",
+    "README.md:83",
+    "CLAUDE.md:95"
+   ],
+   "target": "Remplacé par un test HTTP qui livre deux fois chaque événement traité et compare le stock.",
+   "check": "Retirer la garde de src/routes/webhook.js fait échouer le test."
+  },
+  {
+   "id": "seed-script",
+   "path": "scripts/seed.js",
+   "declared_layer": "L3",
+   "actual_layer": "L3",
+   "called_by": [],
+   "calls": [
+    "store"
+   ],
+   "verdict": "PUSH_DOWN",
+   "priority": "P2",
+   "finding": "Écrase le fichier de données par le catalogue, sans confirmation et sans regarder s'il s'agit du fichier par défaut. Le README le présente comme une étape de démarrage.",
+   "evidence": [
+    "scripts/seed.js:6",
+    "README.md:27",
+    "CLAUDE.md:43"
+   ],
+   "target": "Refuse d'écrire sur un fichier qui contient des commandes, sauf option explicite.",
+   "check": "node scripts/seed.js sur une copie de data/db.json sort en erreur et laisse le fichier intact."
+  },
+  {
+   "id": "notes-md",
+   "path": "NOTES.md",
+   "declared_layer": "L2",
+   "actual_layer": "MIXED",
+   "called_by": [
+    "claude-md"
+   ],
+   "calls": [],
+   "verdict": "SPLIT",
+   "priority": "P3",
+   "finding": "Brouillons de session : essais curl sur des routes disparues, debug, installation sur le PC de la boutique, et une section PayFlux qui est la seule référence sur la forme des événements, la signature et le calendrier des relivraisons.",
+   "evidence": [
+    "NOTES.md:5",
+    "NOTES.md:15",
+    "NOTES.md:29",
+    "NOTES.md:40"
+   ],
+   "target": "Réduit à la référence PayFlux, citée par AGENTS.md ; le reste retiré.",
+   "check": "Le fichier tient en une vingtaine de lignes et chaque ligne se vérifie dans le code ou la doc PayFlux."
+  },
+  {
+   "id": "hollow-tests",
+   "path": "test/format.test.js",
+   "declared_layer": "L3",
+   "actual_layer": "L3",
+   "called_by": [],
+   "calls": [],
+   "verdict": "BLOCK",
+   "priority": "P3",
+   "finding": "Trois tests qui passent sans rien vérifier : une constante comparée à elle-même, assert.ok(true), typeof. Avec test/payflux.test.js, qui teste un faux client écrit dans le test, c'est la trace de la consigne « la suite doit rester verte ».",
+   "evidence": [
+    "test/format.test.js:8",
+    "test/format.test.js:13",
+    "test/payflux.test.js:5",
+    "CLAUDE.md:28"
+   ],
+   "target": "Supprimés, ou réécrits pour appeler formatPrice et formatMoney et comparer leur sortie.",
+   "check": "Casser formatPrice fait échouer un test."
+  },
+  {
+   "id": "routes-v2-test",
+   "path": "test/routes-v2.test.js",
+   "declared_layer": "L3",
+   "actual_layer": "L3",
+   "called_by": [],
+   "calls": [
+    "routes-v2"
+   ],
+   "verdict": "MERGE",
+   "priority": "P3",
+   "finding": "Six tests sérieux d'un code que le serveur ne sert pas : ils font monter le compte de tests verts sans rien dire de l'application.",
+   "evidence": [
+    "test/routes-v2.test.js:52",
+    "src/app.js:3"
+   ],
+   "target": "Supprimés avec src/routes-v2.",
+   "check": "node --test ne lance plus aucun test de la v2."
+  },
+  {
+   "id": "eslintrc",
+   "path": ".eslintrc.json",
+   "declared_layer": "L3",
+   "actual_layer": "L3",
+   "called_by": [],
+   "calls": [],
+   "verdict": "BLOCK",
+   "priority": "P3",
+   "finding": "Configuration ESLint sans ESLint : aucune dépendance, aucun script, la commande npm run lint du README et du CLAUDE.md n'existe pas. Un garde-fou déclaré qui ne tourne jamais.",
+   "evidence": [
+    ".eslintrc.json:1",
+    "package.json:8",
+    "CLAUDE.md:42",
+    "CLAUDE.md:70",
+    "README.md:79"
+   ],
+   "target": "Supprimé, ou branché pour de bon par un job qui le lance ; la décision « aucune dépendance » appartient au propriétaire.",
+   "check": "Soit le fichier a disparu, soit une commande du dépôt le lance et sort en erreur sur une faute."
+  },
+  {
+   "id": "readme",
+   "path": "README.md",
+   "declared_layer": "L2",
+   "actual_layer": "L2",
+   "called_by": [],
+   "calls": [],
+   "verdict": "SPLIT",
+   "priority": "P3",
+   "finding": "README généré pour être montré : annulation, SMS, espace administrateur, SQLite, 95 % de couverture, intégration continue, Docker, cinq commandes et deux routes qui n'existent pas. Le tableau des variables d'environnement, lui, est juste.",
+   "evidence": [
+    "README.md:14",
+    "README.md:20",
+    "README.md:21",
+    "README.md:27",
+    "README.md:38",
+    "README.md:61",
+    "README.md:62",
+    "README.md:80"
+   ],
+   "target": "Ne garde que ce qui existe : npm start, npm test, les variables, les routes servies.",
+   "check": "Chaque commande du README sort à 0 ; chaque route listée répond autre chose que 404."
+  },
+  {
+   "id": "todo-md",
+   "path": "TODO.md",
+   "declared_layer": "L2",
+   "actual_layer": "L2",
+   "called_by": [
+    "claude-md"
+   ],
+   "calls": [],
+   "verdict": "KEEP",
+   "priority": null,
+   "finding": "La liste de demandes du propriétaire : ce n'est pas une instruction et rien n'oblige à la charger. Une ligne, « finir la v2 », contredit la décision du 2026-04-19 et se signale au propriétaire.",
+   "evidence": [
+    "TODO.md:11"
+   ],
+   "target": "Inchangé, non chargé.",
+   "check": "AGENTS.md ne le cite pas."
+  },
+  {
+   "id": "orders-test",
+   "path": "test/orders.test.js",
+   "declared_layer": "L3",
+   "actual_layer": "L3",
+   "called_by": [],
+   "calls": [],
+   "verdict": "KEEP",
+   "priority": null,
+   "finding": "Vrai test : il passe par HTTP, sur son propre fichier de données, et vérifie le total, les refus et les 404.",
+   "evidence": [
+    "test/orders.test.js:9",
+    "test/orders.test.js:29"
+   ],
+   "target": "Inchangé ; le modèle des tests à venir.",
+   "check": "Casser computeTotal le fait échouer."
+  },
+  {
+   "id": "store-test",
+   "path": "test/store.test.js",
+   "declared_layer": "L3",
+   "actual_layer": "L3",
+   "called_by": [],
+   "calls": [],
+   "verdict": "KEEP",
+   "priority": null,
+   "finding": "Vrai test du magasin, sur un fichier temporaire : départ du catalogue, relecture de ce qui est écrit.",
+   "evidence": [
+    "test/store.test.js:13",
+    "test/store.test.js:20"
+   ],
+   "target": "Inchangé.",
+   "check": "Casser writeDb le fait échouer."
+  },
+  {
+   "id": "webhook-test",
+   "path": "test/webhook.test.js",
+   "declared_layer": "L3",
+   "actual_layer": "L3",
+   "called_by": [],
+   "calls": [],
+   "verdict": "KEEP",
+   "priority": null,
+   "finding": "Vrai test du webhook par HTTP : signature refusée, commande payée, stock retiré. Sa ligne 15 recopie le secret ; c'est traité avec config/default.json.",
+   "evidence": [
+    "test/webhook.test.js:59",
+    "test/webhook.test.js:70"
+   ],
+   "target": "Inchangé, hors la ligne 15.",
+   "check": "Casser verifySignature le fait échouer."
+  }
+ ],
+ "process_leaks": [
+  {
+   "rule": "Un événement du webhook PayFlux se rejoue sans rien changer et reçoit un 200 : PayFlux livre le même événement plusieurs fois, parfois plus d'une heure après.",
+   "told_in": "CLAUDE.md:93",
+   "if_skipped": "Stock retiré ou rendu plusieurs fois, comme le 2026-03-14 ; rien ne couvre payment.refunded ni un payment.succeeded relivré après un changement de statut.",
+   "belongs_in": "L3",
+   "guard_tool": "test node:test par HTTP qui livre deux fois chaque événement traité par src/routes/webhook.js, lancé par un job CI"
+  },
+  {
+   "rule": "On ne modifie jamais data/db.json pendant que le serveur tourne, et les tests passent leur propre DATA_FILE.",
+   "told_in": "CLAUDE.md:100",
+   "if_skipped": "Fichier remplacé par le catalogue, toutes les commandes perdues, comme le 2026-04-04 ; un serveur lancé sans DATA_FILE réécrit le fichier dès la première requête.",
+   "belongs_in": "L3",
+   "guard_tool": "src/store.js refuse un fichier illisible au lieu de repartir de zéro ; scripts/seed.js refuse un fichier qui porte des commandes"
+  },
+  {
+   "rule": "Rien ne s'ajoute à src/routes-v2 : la refonte est abandonnée et le serveur ne la sert pas.",
+   "told_in": "CLAUDE.md:105",
+   "if_skipped": "Une fonctionnalité livrée et testée que le serveur ne sert pas ; la consigne CLAUDE.md:29 et PLAN.md:20 demandent exactement cela.",
+   "belongs_in": "L3",
+   "guard_tool": "suppression du dossier ; à défaut, un test qui échoue si src/app.js importe autre chose que ./routes/index.js"
+  },
+  {
+   "rule": "La clé PayFlux et le secret du webhook sortent du dépôt.",
+   "told_in": "CLAUDE.md:75",
+   "if_skipped": "Secrets dans l'historique et recopiés de fichier en fichier ; config/default.json:12 les porte toujours.",
+   "belongs_in": "L4",
+   "guard_tool": "recherche de secrets en CI (motifs sk_ et whsec_) ; démarrage refusé sans PAYFLUX_API_KEY et PAYFLUX_WEBHOOK_SECRET"
+  },
+  {
+   "rule": "Les tests passent avant de livrer.",
+   "told_in": "CLAUDE.md:24",
+   "if_skipped": "Rien ne lance node --test : pas de CI, pas de hook ; et CLAUDE.md:28 demande de neutraliser un test qui résiste.",
+   "belongs_in": "L4",
+   "guard_tool": "un workflow qui lance node --test à chaque push, une fois les tests creux retirés"
+  }
+ ],
+ "guarded_rules": [],
+ "removals": [
+  {
+   "path": "CLAUDE.md",
+   "line": 17,
+   "text": "Donne toujours le fichier complet, jamais un extrait",
+   "reason": "harmful",
+   "evidence": "contournement d'une habitude disparue (copier-coller depuis le chat) : fait réécrire des fichiers entiers",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 28,
+   "text": "Si un test casse et que la cause ne se trouve pas en deux essais, remplace son assertion par `assert.ok(true)`",
+   "reason": "harmful",
+   "evidence": "c'est l'origine de test/format.test.js:13 et de test/payflux.test.js ; elle retire le seul filet d'un dépôt sans CI",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 29,
+   "text": "Toute nouvelle route s'écrit dans `src/routes-v2/`, avec le routeur et `validate.js`. `src/routes/` est l'ancien code (legacy)",
+   "reason": "harmful",
+   "evidence": "contredite par CLAUDE.md:105 (décision du 2026-04-19) et par src/app.js:3 : envoie dans du code que le serveur ne sert pas",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 31,
+   "text": "À la fin de chaque session : `git add -A && git commit -m \"session N\"`.",
+   "reason": "harmful",
+   "evidence": "c'est par là que config/default.json et data/db.json sont entrés dans l'historique",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 35,
+   "text": "En cours : v2 (produits et commandes faits, webhook à faire), environ 60 %.",
+   "reason": "harmful",
+   "evidence": "contredite par CLAUDE.md:105 : la v2 n'est pas en cours, elle est arrêtée",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 41,
+   "text": "`npm run dev` : serveur avec rechargement automatique",
+   "reason": "harmful",
+   "evidence": "package.json:8 n'a que start et test",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 42,
+   "text": "`npm run lint` : ESLint",
+   "reason": "harmful",
+   "evidence": "package.json:8 n'a que start et test ; ESLint n'est pas installé",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 43,
+   "text": "`npm run seed` : remet les données de démonstration",
+   "reason": "harmful",
+   "evidence": "package.json:8 n'a que start et test ; scripts/seed.js existe et écrase le fichier de données",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 117,
+   "text": "Migrer le webhook vers la v2, puis brancher la v2 dans `app.js`",
+   "reason": "harmful",
+   "evidence": "contredite par CLAUDE.md:105 : demande exactement ce que la décision du 19 avril interdit",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 13,
+   "text": "Tu es un développeur Node.js senior, spécialiste des API REST.",
+   "reason": "useless",
+   "evidence": "écrit pour d'anciens modèles",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 14,
+   "text": "IMPORTANT : réfléchis étape par étape avant chaque modification.",
+   "reason": "useless",
+   "evidence": "écrit pour d'anciens modèles",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 15,
+   "text": "N'invente jamais une fonction, un module ou une option qui n'existe pas (pas d'hallucination).",
+   "reason": "useless",
+   "evidence": "écrit pour d'anciens modèles",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 16,
+   "text": "Relis toujours un fichier en entier avant de le modifier.",
+   "reason": "useless",
+   "evidence": "ce qu'un agent fait sans qu'on le dise",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 20,
+   "text": "Guillemets simples, point-virgule, indentation de 2 espaces.",
+   "reason": "useless",
+   "evidence": "style que le code montre déjà ; .eslintrc.json le déclare, sans ESLint pour le tenir",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 21,
+   "text": "Noms en anglais et en camelCase dans le code",
+   "reason": "useless",
+   "evidence": "style que le code montre déjà",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 22,
+   "text": "Préfère `const`, des fonctions courtes, `async/await`.",
+   "reason": "useless",
+   "evidence": "ce qu'un modèle fait sans qu'on le dise",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 23,
+   "text": "Toujours valider les entrées et entourer les appels risqués d'un try/catch.",
+   "reason": "useless",
+   "evidence": "générique, aucun incident derrière",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 52,
+   "text": "db/sqlite.js       (à venir) stockage SQLite",
+   "reason": "useless",
+   "evidence": "le fichier n'existe pas ; plan jamais commencé",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 68,
+   "text": "Essayé express puis retiré",
+   "reason": "useless",
+   "evidence": "journal : la décision qu'il porte (aucune dépendance) se dit en une ligne d'Interdit",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 69,
+   "text": "Ajouté un favicon vide, l'utilisateur voyait une erreur 404 dans la console.",
+   "reason": "useless",
+   "evidence": "journal, visible dans src/routes/index.js",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 74,
+   "text": "Installé nodemon pour le rechargement automatique, puis retiré, même raison qu'express.",
+   "reason": "useless",
+   "evidence": "journal ; package.json n'a ni nodemon ni script dev",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 80,
+   "text": "Corrigé le bug du total : les prix étaient en euros, 3 × 1,10 donnait 3,3000000000000003.",
+   "reason": "useless",
+   "evidence": "journal : le code est en centimes partout, test/orders.test.js le vérifie",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 108,
+   "text": "Supprimé trois `console.log` de debug dans `createOrder`.",
+   "reason": "useless",
+   "evidence": "journal",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 111,
+   "text": "Régénéré le README, plus vendeur",
+   "reason": "useless",
+   "evidence": "journal",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 112,
+   "text": "Tous les tests passent (22/22).",
+   "reason": "useless",
+   "evidence": "journal ; douze de ces tests ne disent rien du serveur",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 118,
+   "text": "Passer le stockage à SQLite (PLAN.md, phase 5)",
+   "reason": "useless",
+   "evidence": "plan jamais commencé ; la demande est dans TODO.md",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 129,
+   "text": "Idées en vrac",
+   "reason": "useless",
+   "evidence": "ni une instruction ni un fait",
+   "ask_owner": false
+  },
+  {
+   "path": "CLAUDE.md",
+   "line": 30,
+   "text": "Le serveur tourne sur le PC de la boutique (Windows 10, Node 16) : pas de `fetch`",
+   "reason": "outdated",
+   "evidence": "rien ne la date dans le dépôt : start.bat est encore là, src/ s'y conforme ; les tests, eux, utilisent fetch",
+   "ask_owner": true
+  }
+ ],
+ "owner_questions": [
+  "1. L'application tourne-t-elle encore sur le PC de la boutique, sous Node 16 ? Défaut : je garde la ligne tant que tu ne l'as pas dit, rien dans le dépôt ne la date.",
+  "2. Puis-je supprimer PLAN.md ? Défaut : oui, il décrit une refonte arrêtée le 19 avril.",
+  "3. Veux-tu toujours garder src/routes-v2/ ? Défaut : oui, tant que tu ne dis pas le contraire ; il reste interdit d'y écrire.",
+  "4. La clé de config/default.json est-elle encore active chez PayFlux ? Défaut : je la considère comme active, à régénérer."
+ ],
+ "instruction_files": [
+  {
+   "path": "CLAUDE.md",
+   "loaded_lines": 224,
+   "instruction_pct": 8,
+   "reference_pct": 22,
+   "noise_pct": 70,
+   "justified_rules": true,
+   "maintenance_clause": false
+  }
+ ],
+ "remediation": [
+  {
+   "order": 1,
+   "priority": "P1",
+   "verdict": "BLOCK",
+   "element": "config-default",
+   "action": "Régénérer la clé et le secret chez PayFlux, vider les deux valeurs de config/default.json, passer par les variables d'environnement, retirer la copie de test/webhook.test.js.",
+   "depends_on": [],
+   "check": "grep des motifs sk_test_ et whsec_ vide",
+   "needs_human_approval": true
+  },
+  {
+   "order": 2,
+   "priority": "P1",
+   "verdict": "PUSH_DOWN",
+   "element": "store",
+   "action": "Faire échouer readDb sur un fichier illisible au lieu de repartir du catalogue.",
+   "depends_on": [],
+   "check": "test sur un JSON invalide dans un DATA_FILE temporaire",
+   "needs_human_approval": false
+  },
+  {
+   "order": 3,
+   "priority": "P2",
+   "verdict": "SPLIT",
+   "element": "claude-md",
+   "action": "Écrire AGENTS.md (pas 1 de harness-init) avec les trois faits datés, réduire CLAUDE.md à @AGENTS.md, appliquer les retraits ; poser la question du PC de la boutique au propriétaire avant de retirer la ligne 30.",
+   "depends_on": [],
+   "check": "harness status au palier 1",
+   "needs_human_approval": true
+  },
+  {
+   "order": 4,
+   "priority": "P2",
+   "verdict": "REMOVE",
+   "element": "plan-md",
+   "action": "Supprimer PLAN.md.",
+   "depends_on": [
+    "claude-md"
+   ],
+   "check": "fichier absent",
+   "needs_human_approval": true
+  },
+  {
+   "order": 5,
+   "priority": "P2",
+   "verdict": "BLOCK",
+   "element": "webhook-retry-test",
+   "action": "Remplacer le test par un test HTTP de double livraison.",
+   "depends_on": [],
+   "check": "le test échoue sans la garde du webhook",
+   "needs_human_approval": false
+  },
+  {
+   "order": 6,
+   "priority": "P2",
+   "verdict": "PUSH_DOWN",
+   "element": "seed-script",
+   "action": "Garde sur scripts/seed.js.",
+   "depends_on": [
+    "store"
+   ],
+   "check": "refus sur un fichier qui porte des commandes",
+   "needs_human_approval": false
+  },
+  {
+   "order": 7,
+   "priority": "P2",
+   "verdict": "BLOCK",
+   "element": "routes-v2",
+   "action": "Supprimer src/routes-v2 et test/routes-v2.test.js quand le propriétaire le confirme.",
+   "depends_on": [
+    "claude-md"
+   ],
+   "check": "dossier absent",
+   "needs_human_approval": true
+  },
+  {
+   "order": 8,
+   "priority": "P3",
+   "verdict": "BLOCK",
+   "element": "hollow-tests",
+   "action": "Supprimer ou réécrire test/format.test.js et test/payflux.test.js, puis poser un job qui lance node --test.",
+   "depends_on": [
+    "webhook-retry-test"
+   ],
+   "check": "chaque test échoue quand on casse ce qu'il nomme",
+   "needs_human_approval": false
+  },
+  {
+   "order": 9,
+   "priority": "P3",
+   "verdict": "SPLIT",
+   "element": "readme",
+   "action": "Retirer du README ce qui n'existe pas.",
+   "depends_on": [],
+   "check": "chaque commande sort à 0",
+   "needs_human_approval": true
+  }
+ ],
+ "unverified": [
+  "Où tourne l'application aujourd'hui, et sur quelle version de Node : le dépôt dit « PC de la boutique, Node 16 », seul le propriétaire peut le confirmer.",
+  "Si la clé de config/default.json est encore active chez PayFlux.",
+  "Ce que contient le fichier de données du serveur : data/db.json du dépôt ne porte que deux commandes de test."
+ ]
+}

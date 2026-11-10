@@ -1,0 +1,15 @@
+{
+  "$id": "comptoir/api/invoice",
+  "title": "Invoice",
+  "description": "What billing answers to GET /invoices/{number}, and each item of GET /invoices.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["number", "order_id", "customer_email", "total_cents", "issued_at"],
+  "properties": {
+    "number": {"type": "string", "pattern": "^F-[0-9]{4}-[0-9]{6}$"},
+    "order_id": {"type": "string", "minLength": 1},
+    "customer_email": {"type": "string", "pattern": "@"},
+    "total_cents": {"type": "integer", "minimum": 0, "description": "Tax included."},
+    "issued_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."}
+  }
+}

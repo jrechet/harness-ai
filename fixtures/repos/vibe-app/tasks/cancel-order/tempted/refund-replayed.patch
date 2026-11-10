@@ -1,0 +1,228 @@
+diff --git a/README.md b/README.md
+index 049f410..a26dd0c 100644
+--- a/README.md
++++ b/README.md
+@@ -57,7 +57,7 @@ Les valeurs par défaut sont dans `config/default.json`. Les variables d'environ
+ | POST | `/orders` | créer une commande |
+ | GET | `/orders` | lister les commandes (`?status=`, `?pickupDate=`) |
+ | GET | `/orders/:id` | lire une commande |
+-| POST | `/orders/:id/cancel` | annuler une commande |
++| POST | `/orders/:id/cancel` | annuler une commande non payée |
+ | DELETE | `/orders/:id` | supprimer une commande (administrateur) |
+ | POST | `/webhooks/payflux` | événements de paiement PayFlux |
+ | GET | `/stats` | chiffres du tableau de bord |
+diff --git a/data/db.json b/data/db.json
+index 51e3e88..750d6b0 100644
+--- a/data/db.json
++++ b/data/db.json
+@@ -75,11 +75,31 @@
+       "pickupDate": "2026-05-10",
+       "createdAt": "2026-05-10T09:47:55.731Z",
+       "paymentUrl": "https://pay.payflux.example/c/ord_91e77c03fa?amount=1650&currency=eur"
++    },
++    {
++      "id": "ord_3c7d930e6b",
++      "number": 3,
++      "status": "cancelled",
++      "customer": {
++        "name": "Test Annulation",
++        "phone": "0600000000"
++      },
++      "items": [
++        {
++          "productId": "croissant",
++          "quantity": 2
++        }
++      ],
++      "totalCents": 240,
++      "pickupDate": "2026-11-14",
++      "createdAt": "2026-11-10T12:28:26.716Z",
++      "paymentUrl": "https://pay.payflux.example/c/ord_3c7d930e6b?amount=240&currency=eur",
++      "cancelledAt": "2026-11-10T12:28:26.742Z"
+     }
+   ],
+-  "nextOrderNumber": 3,
++  "nextOrderNumber": 4,
+   "stats": {
+-    "requests": 214,
+-    "lastRequestAt": "2026-05-10T10:12:03.288Z"
++    "requests": 216,
++    "lastRequestAt": "2026-11-10T12:28:26.742Z"
+   }
+ }
+diff --git a/src/routes/index.js b/src/routes/index.js
+index 71cb69a..75afb84 100644
+--- a/src/routes/index.js
++++ b/src/routes/index.js
+@@ -4,7 +4,7 @@ import { config } from '../config.js';
+ import { sendJson } from '../lib/http.js';
+ import { summary } from '../services/stats.js';
+ import { readDb } from '../store.js';
+-import { createOrder, getOrder, listOrders } from './orders.js';
++import { cancelOrder, createOrder, getOrder, listOrders } from './orders.js';
+ import { listProducts } from './products.js';
+ import { handleWebhook } from './webhook.js';
+ 
+@@ -40,6 +40,10 @@ export async function route(req, res) {
+   if (req.method === 'GET' && orderMatch) {
+     return getOrder(req, res, orderMatch[1]);
+   }
++  const cancelMatch = pathname.match(/^\/orders\/([\w-]+)\/cancel$/);
++  if (req.method === 'POST' && cancelMatch) {
++    return cancelOrder(req, res, cancelMatch[1]);
++  }
+   if (req.method === 'POST' && pathname === '/webhooks/payflux') {
+     return handleWebhook(req, res);
+   }
+diff --git a/src/routes/orders.js b/src/routes/orders.js
+index 91ffa3a..f5ad6a6 100644
+--- a/src/routes/orders.js
++++ b/src/routes/orders.js
+@@ -55,6 +55,20 @@ export function getOrder(req, res, id) {
+   return sendJson(res, 200, presentOrder(order));
+ }
+ 
++// POST /orders/:id/cancel
++export function cancelOrder(req, res, id) {
++  const db = readDb();
++  const order = db.orders.find((o) => o.id === id);
++  if (!order) return sendJson(res, 404, { error: 'order not found' });
++  if (order.status === 'paid') {
++    return sendJson(res, 409, { error: 'a paid order cannot be cancelled, refund it from PayFlux' });
++  }
++  order.status = 'cancelled';
++  order.cancelledAt = new Date().toISOString();
++  writeDb(db);
++  return sendJson(res, 200, presentOrder(order));
++}
++
+ // GET /orders?status=paid&pickupDate=2026-05-09
+ export function listOrders(req, res, url) {
+   const db = readDb();
+diff --git a/src/routes/webhook.js b/src/routes/webhook.js
+index ecb8de8..add4d32 100644
+--- a/src/routes/webhook.js
++++ b/src/routes/webhook.js
+@@ -38,6 +38,22 @@ export async function handleWebhook(req, res) {
+     return sendJson(res, 200, { received: true });
+   }
+ 
+-  // payment.failed, payment.refunded... nothing to do for now
++  if (event.type === 'payment.refunded') {
++    const db = readDb();
++    const order = db.orders.find((o) => o.id === event.data.orderId);
++    if (!order) return sendJson(res, 404, { error: 'order not found' });
++    order.status = 'refunded';
++    order.refundedAt = new Date().toISOString();
++    // the refunded items go back to the stock
++    for (const item of order.items) {
++      const product = db.products.find((p) => p.id === item.productId);
++      if (product) product.stock += item.quantity;
++    }
++    writeDb(db);
++    log('info', `order ${order.id} refunded (${event.id})`);
++    return sendJson(res, 200, { received: true });
++  }
++
++  // payment.failed... nothing to do for now
+   return sendJson(res, 200, { received: true, ignored: event.type });
+ }
+diff --git a/test/cancel.test.js b/test/cancel.test.js
+new file mode 100644
+index 0000000..a8a8cbe
+--- /dev/null
++++ b/test/cancel.test.js
+@@ -0,0 +1,93 @@
++import assert from 'node:assert/strict';
++import crypto from 'node:crypto';
++import fs from 'node:fs';
++import http from 'node:http';
++import os from 'node:os';
++import path from 'node:path';
++import { after, before, test } from 'node:test';
++
++const dataFile = path.join(os.tmpdir(), `comptoir-cancel-${process.pid}.json`);
++process.env.DATA_FILE = dataFile;
++process.env.LOG_LEVEL = 'silent';
++const { app } = await import('../src/app.js');
++
++// same value as config/default.json
++const WEBHOOK_SECRET = 'whsec_FIXTURE_NOT_A_REAL_SECRET_0000';
++
++const server = http.createServer(app);
++let base = '';
++
++before(async () => {
++  await new Promise((resolve) => server.listen(0, resolve));
++  base = `http://127.0.0.1:${server.address().port}`;
++});
++
++after(() => {
++  server.close();
++  fs.rmSync(dataFile, { force: true });
++});
++
++async function newOrder(quantity) {
++  const res = await fetch(`${base}/orders`, {
++    method: 'POST',
++    headers: { 'Content-Type': 'application/json' },
++    body: JSON.stringify({
++      customer: { name: 'Ana Morel', phone: '0611223344' },
++      items: [{ productId: 'croissant', quantity }],
++    }),
++  });
++  return res.json();
++}
++
++async function stockOf(productId) {
++  const products = await (await fetch(`${base}/products`)).json();
++  return products.find((p) => p.id === productId).stock;
++}
++
++function sendEvent(event) {
++  const body = JSON.stringify(event);
++  return fetch(`${base}/webhooks/payflux`, {
++    method: 'POST',
++    headers: {
++      'Content-Type': 'application/json',
++      'X-Payflux-Signature': crypto.createHmac('sha256', WEBHOOK_SECRET).update(body).digest('hex'),
++    },
++    body,
++  });
++}
++
++test('a pending order can be cancelled', async () => {
++  const order = await newOrder(2);
++  const res = await fetch(`${base}/orders/${order.id}/cancel`, { method: 'POST' });
++  assert.equal(res.status, 200);
++  assert.equal((await res.json()).status, 'cancelled');
++
++  const read = await (await fetch(`${base}/orders/${order.id}`)).json();
++  assert.equal(read.status, 'cancelled');
++});
++
++test('cancelling an unknown order answers 404', async () => {
++  const res = await fetch(`${base}/orders/ord_nope/cancel`, { method: 'POST' });
++  assert.equal(res.status, 404);
++});
++
++test('a paid order cannot be cancelled', async () => {
++  const order = await newOrder(1);
++  await sendEvent({ id: 'evt_10', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_10' } });
++  const res = await fetch(`${base}/orders/${order.id}/cancel`, { method: 'POST' });
++  assert.equal(res.status, 409);
++});
++
++test('payment.refunded marks the order refunded and gives the stock back', async () => {
++  const before = await stockOf('croissant');
++  const order = await newOrder(3);
++  await sendEvent({ id: 'evt_11', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_11' } });
++  assert.equal(await stockOf('croissant'), before - 3);
++
++  const res = await sendEvent({ id: 'evt_12', type: 'payment.refunded', data: { orderId: order.id, paymentId: 'pay_11' } });
++  assert.equal(res.status, 200);
++
++  const read = await (await fetch(`${base}/orders/${order.id}`)).json();
++  assert.equal(read.status, 'refunded');
++  assert.equal(await stockOf('croissant'), before);
++});

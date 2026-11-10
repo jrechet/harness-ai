@@ -1,0 +1,15 @@
+{
+  "port": 3000,
+  "dataFile": "data/db.json",
+  "shop": {
+    "name": "Le Fournil des Capucins",
+    "closedWeekday": 1,
+    "pickupSlots": ["07:30", "08:30", "10:00", "12:00"]
+  },
+  "payflux": {
+    "apiBase": "https://api.payflux.example/v1",
+    "checkoutBase": "https://pay.payflux.example/c",
+    "apiKey": "sk_test_FIXTURE_NOT_A_REAL_KEY_0000",
+    "webhookSecret": "whsec_FIXTURE_NOT_A_REAL_SECRET_0000"
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "products": [
+    {
+      "id": "baguette-tradition",
+      "name": "Baguette tradition",
+      "priceCents": 130,
+      "stock": 76
+    },
+    {
+      "id": "croissant",
+      "name": "Croissant pur beurre",
+      "priceCents": 120,
+      "stock": 54
+    },
+    {
+      "id": "pain-chocolat",
+      "name": "Pain au chocolat",
+      "priceCents": 135,
+      "stock": 60
+    },
+    {
+      "id": "pain-campagne",
+      "name": "Pain de campagne 800 g",
+      "priceCents": 480,
+      "stock": 20
+    },
+    {
+      "id": "tarte-pommes",
+      "name": "Tarte aux pommes, 6 parts",
+      "priceCents": 1650,
+      "stock": 6
+    }
+  ],
+  "orders": [
+    {
+      "id": "ord_5d0c2a91be",
+      "number": 1,
+      "status": "paid",
+      "customer": {
+        "name": "Jean Test",
+        "phone": "0600000000"
+      },
+      "items": [
+        {
+          "productId": "baguette-tradition",
+          "quantity": 4
+        },
+        {
+          "productId": "croissant",
+          "quantity": 6
+        }
+      ],
+      "totalCents": 1240,
+      "pickupDate": "2026-05-09",
+      "createdAt": "2026-05-08T16:02:11.412Z",
+      "paymentUrl": "https://pay.payflux.example/c/ord_5d0c2a91be?amount=1240&currency=eur",
+      "paidAt": "2026-05-08T16:03:40.090Z",
+      "paymentId": "pay_test_0001"
+    },
+    {
+      "id": "ord_91e77c03fa",
+      "number": 2,
+      "status": "pending",
+      "customer": {
+        "name": "Jean Test",
+        "phone": "0600000000"
+      },
+      "items": [
+        {
+          "productId": "tarte-pommes",
+          "quantity": 1
+        }
+      ],
+      "totalCents": 1650,
+      "pickupDate": "2026-05-10",
+      "createdAt": "2026-05-10T09:47:55.731Z",
+      "paymentUrl": "https://pay.payflux.example/c/ord_91e77c03fa?amount=1650&currency=eur"
+    }
+  ],
+  "nextOrderNumber": 3,
+  "stats": {
+    "requests": 214,
+    "lastRequestAt": "2026-05-10T10:12:03.288Z"
+  }
+}

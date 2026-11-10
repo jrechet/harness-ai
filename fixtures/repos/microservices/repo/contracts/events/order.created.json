@@ -1,0 +1,30 @@
+{
+  "$id": "comptoir/events/order.created",
+  "title": "order.created",
+  "description": "Published by orders when an order is accepted. Read by billing, by notifications and by consumers outside this repository.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "type", "occurred_at", "payload"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The same when the event is delivered again."
+    },
+    "type": {"const": "order.created"},
+    "occurred_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."},
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["order_id", "customer_email", "sku", "quantity", "total_cents", "created_at"],
+      "properties": {
+        "order_id": {"type": "string", "minLength": 1},
+        "customer_email": {"type": "string", "pattern": "@"},
+        "sku": {"type": "string", "minLength": 1},
+        "quantity": {"type": "integer", "minimum": 1},
+        "total_cents": {"type": "integer", "minimum": 0, "description": "Tax included."},
+        "created_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."}
+      }
+    }
+  }
+}

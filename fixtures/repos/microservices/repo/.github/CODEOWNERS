@@ -1,0 +1,5 @@
+# Les garde-fous et les contrats se relisent à deux.
+/tools/      @comptoir/plateforme
+/shared/     @comptoir/plateforme
+/.github/    @comptoir/plateforme
+/contracts/  @comptoir/referents-contrats

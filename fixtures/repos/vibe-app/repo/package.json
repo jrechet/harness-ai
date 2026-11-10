@@ -1,0 +1,12 @@
+{
+  "name": "comptoir",
+  "version": "0.3.0",
+  "description": "Commandes à emporter pour la boulangerie : catalogue, commande, paiement PayFlux",
+  "private": true,
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  }
+}

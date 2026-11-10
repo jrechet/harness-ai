@@ -1,0 +1,251 @@
+{
+  "audit": {
+    "process": "Livrer un changement dans comptoir : trois services, un contrat (instrumentation IA du dépôt : AGENTS.md)",
+    "scope": "fixtures/repos/microservices/repo/ — AGENTS.md, CLAUDE.md, services/billing/AGENTS.md, tools/, shared/bus.py, les test_contract.py, .github/",
+    "date": "2026-11-10",
+    "author": "auteur de la fixture : base de régression du noteur, pas une mesure du skill",
+    "health_score": 60,
+    "cut_the_agent_test": {
+      "passed": false,
+      "leaked_steps": 1
+    }
+  },
+  "elements": [
+    {
+      "id": "agents-md",
+      "path": "AGENTS.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": ["claude-md"],
+      "calls": ["billing-agents-md"],
+      "verdict": "PUSH_DOWN",
+      "priority": "P1",
+      "finding": "Fichier court, justifié, daté, presque entièrement gardé par des outils. Une règle y est déclarée vérifiée par un test qui n'en couvre qu'un côté : « un changement de contrat est additif ». Deux lignes sont à retirer, le reste se garde tel quel.",
+      "evidence": [
+        "AGENTS.md:17",
+        "services/orders/test_contract.py:19-22",
+        "docs/postmortems/2026-05-champ-renomme.md:21-26"
+      ],
+      "target": "La règle additive est marquée (non vérifiée) tant qu'aucun test ne rejoue un consommateur ; la cible est un garde-fou, pas une phrase de plus.",
+      "check": "Une PR qui renomme un champ de contracts/events/order.created.json dans le schéma et dans orders fait échouer la CI."
+    },
+    {
+      "id": "claude-md",
+      "path": "CLAUDE.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": ["agents-md"],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Stub d'une ligne vers AGENTS.md : source unique.",
+      "evidence": ["CLAUDE.md:1"],
+      "target": "Rien.",
+      "check": "Rien."
+    },
+    {
+      "id": "billing-agents-md",
+      "path": "services/billing/AGENTS.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": ["agents-md"],
+      "calls": ["billing-test-ledger"],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Six lignes, deux règles propres au service, justifiées, datées, gardées par test_ledger.py, cohérentes avec la racine. Chargée à la demande : c'est sa place.",
+      "evidence": ["services/billing/AGENTS.md:5-6", "services/billing/test_ledger.py:22-32"],
+      "target": "Rien.",
+      "check": "Rien."
+    },
+    {
+      "id": "schema-validator",
+      "path": "tools/schema.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["orders-test-contract", "billing-test-contract"],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Validateur testé ; un mot-clé inconnu lève une erreur au lieu de passer en silence, y compris là où aucune instance ne va.",
+      "evidence": ["tools/schema.py:36-51", "tools/test_schema.py:55-71"],
+      "target": "Rien.",
+      "check": "Rien."
+    },
+    {
+      "id": "check-imports",
+      "path": "tools/check_imports.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["ci"],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Contrôle des imports entre services, testé, sortie structurée par --json, code de retour, bloquant à chaque PR. Il porte une règle qu'AGENTS.md déclare encore non vérifiée.",
+      "evidence": ["tools/check_imports.py:39-61", ".github/workflows/ci.yml:21-27", "docs/adr/0001-trois-services-un-contrat.md:22-23"],
+      "target": "Rien dans l'outil ; c'est AGENTS.md qui doit le citer.",
+      "check": "Rien."
+    },
+    {
+      "id": "test-bus",
+      "path": "shared/bus.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["billing-test-app", "notifications-test-app"],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Le bus de test livre chaque événement deux fois par défaut : tout test de consommateur est un test de redélivrance. C'est le garde-fou réel de la règle d'idempotence.",
+      "evidence": ["shared/bus.py:33-51", "shared/test_bus.py:11-15", "docs/adr/0002-livraison-au-moins-une-fois.md:13-14"],
+      "target": "Rien.",
+      "check": "Rien."
+    },
+    {
+      "id": "orders-test-contract",
+      "path": "services/orders/test_contract.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["ci"],
+      "calls": ["schema-validator"],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Fait bien ce qu'il dit : ce que orders publie et répond est conforme au schéma strict. Il ne garde pas la règle additive, et ce n'est pas à lui de le faire.",
+      "evidence": ["services/orders/test_contract.py:19-35"],
+      "target": "Rien dans ce fichier.",
+      "check": "Rien."
+    },
+    {
+      "id": "billing-test-ledger",
+      "path": "services/billing/test_ledger.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["ci"],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Garde la numérotation sans trou et la facture figée.",
+      "evidence": ["services/billing/test_ledger.py:22-32"],
+      "target": "Rien.",
+      "check": "Rien."
+    },
+    {
+      "id": "ci",
+      "path": ".github/workflows/ci.yml",
+      "declared_layer": "L4",
+      "actual_layer": "L4",
+      "called_by": [],
+      "calls": ["check-imports", "orders-test-contract", "billing-test-ledger"],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Deux jobs, tous deux bloquants, sans filtre de chemins ni continue-on-error : tout tourne à chaque PR.",
+      "evidence": [".github/workflows/ci.yml:8-27"],
+      "target": "Rien à retirer ; c'est ici qu'arrivera le garde-fou de la règle additive.",
+      "check": "Rien."
+    }
+  ],
+  "process_leaks": [
+    {
+      "rule": "Un changement de contrat est additif : on ne renomme, ne retire ni ne retype rien",
+      "told_in": "AGENTS.md:17",
+      "if_skipped": "Un champ renommé dans le schéma et dans le fournisseur passe tous les tests et la CI ; les lecteurs de l'ancien nom cassent en production. Déjà arrivé le 12 mai 2026.",
+      "belongs_in": "L3",
+      "guard_tool": "Un test qui rejoue un consommateur contre ce que le fournisseur publie vraiment ; à défaut, les événements de test de billing et de notifications validés contre le schéma, et un contrôle qui compare chaque schéma à celui de main."
+    }
+  ],
+  "guarded_rules": [
+    {
+      "rule": "Ce qu'un service publie ou répond est déclaré dans le contrat, schémas stricts",
+      "told_in": "AGENTS.md:16",
+      "guarded_by": "services/orders/test_contract.py, services/billing/test_contract.py, tools/schema.py"
+    },
+    {
+      "rule": "Un consommateur d'événements est idempotent",
+      "told_in": "AGENTS.md:18",
+      "guarded_by": "shared/bus.py (InMemoryBus livre deux fois), services/billing/test_app.py, services/notifications/test_app.py"
+    },
+    {
+      "rule": "Un service n'importe jamais le code d'un autre service",
+      "told_in": "AGENTS.md:19",
+      "guarded_by": "tools/check_imports.py, job boundaries de .github/workflows/ci.yml"
+    },
+    {
+      "rule": "Les numéros de facture se suivent sans trou ; une facture émise est figée",
+      "told_in": "services/billing/AGENTS.md:5-6",
+      "guarded_by": "services/billing/test_ledger.py"
+    }
+  ],
+  "removals": [
+    {
+      "path": "AGENTS.md",
+      "line": 21,
+      "text": "Un événement pèse moins de 64 Ko, enveloppe comprise : ni fichier ni export dans un événement, on publie son adresse.",
+      "reason": "outdated",
+      "ask_owner": true,
+      "question": "La règle date d'octobre 2024 et s'appuie sur le plan mutualisé du broker ; docs/exploitation.md dit que le broker est un cluster dédié depuis mars 2025. La limite de 64 Ko existe-t-elle encore ?"
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 20,
+      "text": "Avant d'ouvrir une PR, lance `grep -rnE \"^(from|import) services\\.\" services/ shared/ tools/` et relis chaque ligne à la main.",
+      "reason": "useless",
+      "ask_owner": false,
+      "question": null
+    }
+  ],
+  "instruction_files": [
+    {
+      "path": "AGENTS.md",
+      "loaded_lines": 25,
+      "instruction_pct": 88,
+      "reference_pct": 4,
+      "noise_pct": 8,
+      "justified_rules": true,
+      "maintenance_clause": false
+    },
+    {
+      "path": "services/billing/AGENTS.md",
+      "loaded_lines": 6,
+      "instruction_pct": 100,
+      "reference_pct": 0,
+      "noise_pct": 0,
+      "justified_rules": true,
+      "maintenance_clause": false
+    }
+  ],
+  "remediation": [
+    {
+      "order": 1,
+      "priority": "P1",
+      "verdict": "PUSH_DOWN",
+      "element": "agents-md",
+      "action": "Marquer la règle additive (non vérifiée) dans AGENTS.md:17, puis écrire le garde-fou : un test qui rejoue un consommateur, ou la comparaison des schémas à ceux de main.",
+      "depends_on": [],
+      "check": "Renommer un champ dans le schéma et dans orders fait échouer la CI.",
+      "needs_human_approval": false
+    },
+    {
+      "order": 2,
+      "priority": "P3",
+      "verdict": "INLINE",
+      "element": "agents-md",
+      "action": "Remplacer (non vérifiée) par « Vérifiée par : tools/check_imports.py » sur AGENTS.md:19 et retirer la relecture par grep de la ligne 20.",
+      "depends_on": [],
+      "check": "harness rules compte la règle des imports parmi les règles gardées.",
+      "needs_human_approval": true
+    },
+    {
+      "order": 3,
+      "priority": "P3",
+      "verdict": "INLINE",
+      "element": "agents-md",
+      "action": "Poser la question de la limite de 64 Ko au propriétaire ; retirer AGENTS.md:21 s'il confirme qu'elle a disparu avec l'ancien broker.",
+      "depends_on": [],
+      "check": "Réponse du propriétaire consignée dans la PR.",
+      "needs_human_approval": true
+    }
+  ],
+  "unverified": [
+    "La CI et docker-compose.yml n'ont pas été exécutés.",
+    "Les consommateurs hors du dépôt (comptoir-export, entrepôt de données) ne sont pas lisibles d'ici.",
+    "Le README cite tools/replay.py, qui n'existe pas : hors du périmètre des instructions, signalé au propriétaire."
+  ]
+}

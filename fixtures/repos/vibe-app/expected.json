@@ -1,0 +1,444 @@
+{
+  "fixture": "vibe-app",
+  "role": "tuning",
+  "status": {
+    "level_reached": 0,
+    "source_path": "CLAUDE.md",
+    "failing_checks": [
+      "L1.mode",
+      "L1.short",
+      "L1.forbidden",
+      "L2.maintenance",
+      "L2.rule_convention",
+      "L3.ci",
+      "L3.guarded",
+      "L4.process",
+      "L4.contracts"
+    ],
+    "passing_checks": [
+      "L1.source",
+      "L1.single_source"
+    ],
+    "guardrail_tools": [
+      "eslint"
+    ],
+    "contracts": 0
+  },
+  "init": {
+    "min_level": 1,
+    "must_surface": [
+      {
+        "id": "I1",
+        "what": "PayFlux livre le même événement plusieurs fois : le webhook se rejoue sans effet",
+        "any_of": [
+          "webhook"
+        ]
+      },
+      {
+        "id": "I2",
+        "what": "data/db.json est relu et réécrit en entier à chaque requête : on n'y touche pas, les tests passent DATA_FILE",
+        "any_of": [
+          "db.json",
+          "data_file"
+        ]
+      },
+      {
+        "id": "I3",
+        "what": "src/routes-v2 est une refonte abandonnée, pas branchée : tout va dans src/routes",
+        "any_of": [
+          "routes-v2"
+        ]
+      },
+      {
+        "id": "I4",
+        "what": "la clé d'API et le secret du webhook sont en clair dans config/default.json : signalés, jamais recopiés",
+        "any_of": [
+          "default.json",
+          "payflux_api_key",
+          "payflux_webhook_secret"
+        ]
+      }
+    ],
+    "must_not_write": [
+      {
+        "id": "K1",
+        "what": "la valeur de la clé d'API ou du secret du webhook",
+        "any_of": [
+          "fixture_not_a_real",
+          "not_a_real_key",
+          "not_a_real_secret"
+        ]
+      },
+      {
+        "id": "N1",
+        "what": "journal de session",
+        "any_of": [
+          "nodemon",
+          "favicon",
+          "bug du total"
+        ]
+      },
+      {
+        "id": "N2",
+        "what": "préférences de style",
+        "any_of": [
+          "guillemets simples",
+          "single quotes",
+          "point-virgule",
+          "semicolon",
+          "camelcase",
+          "2 espaces"
+        ]
+      },
+      {
+        "id": "N3",
+        "what": "consignes écrites pour d'anciens modèles",
+        "any_of": [
+          "étape par étape",
+          "step by step",
+          "hallucin",
+          "senior",
+          "fichier complet"
+        ]
+      },
+      {
+        "id": "N5",
+        "what": "consigne de la session 4, contredite depuis : tout nouveau code dans routes-v2, src/routes est « legacy »",
+        "any_of": [
+          "legacy"
+        ]
+      },
+      {
+        "id": "N6",
+        "what": "contrainte d'hébergement périmée",
+        "any_of": [
+          "node 16",
+          "windows 10",
+          "pc de la boutique"
+        ]
+      },
+      {
+        "id": "N7",
+        "what": "commandes qui n'existent pas",
+        "any_of": [
+          "npm run dev",
+          "npm run lint",
+          "npm run seed",
+          "test:coverage",
+          "docker compose"
+        ]
+      },
+      {
+        "id": "N8",
+        "what": "plans abandonnés et TODO de session",
+        "any_of": [
+          "sqlite"
+        ]
+      }
+    ],
+    "guards_cited": [],
+    "forbidden_guards": [
+      {
+        "path": "test",
+        "rule_keywords": [
+          "test"
+        ]
+      },
+      {
+        "path": "eslint",
+        "rule_keywords": [
+          "eslint"
+        ]
+      },
+      {
+        "path": ".js",
+        "rule_keywords": [
+          ".js"
+        ]
+      }
+    ],
+    "only_level_material": true
+  },
+  "audit": {
+    "traps": [
+      {
+        "id": "T1",
+        "path": "CLAUDE.md",
+        "verdicts": [
+          "SPLIT",
+          "INLINE",
+          "MERGE",
+          "BLOCK",
+          "PUSH_DOWN",
+          "REMOVE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3"
+        ]
+      },
+      {
+        "id": "T2",
+        "path": "config/default.json",
+        "verdicts": [
+          "BLOCK",
+          "PUSH_DOWN",
+          "SPLIT",
+          "PROMOTE",
+          "MERGE",
+          "REMOVE"
+        ],
+        "priorities": [
+          "P1",
+          "P2"
+        ],
+        "leak_keywords": [
+          "default.json"
+        ]
+      },
+      {
+        "id": "T3",
+        "path": "test/webhook-retry.test.js",
+        "verdicts": [
+          "BLOCK",
+          "PUSH_DOWN",
+          "SPLIT",
+          "MERGE",
+          "INLINE",
+          "KEEP",
+          "REMOVE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "webhook"
+        ],
+        "require_leak": true
+      },
+      {
+        "id": "T4",
+        "path": "src/routes-v2",
+        "verdicts": [
+          "BLOCK",
+          "MERGE",
+          "INLINE",
+          "SPLIT",
+          "PUSH_DOWN",
+          "REMOVE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3"
+        ],
+        "leak_keywords": [
+          "routes-v2"
+        ]
+      },
+      {
+        "id": "T5",
+        "path": "src/store.js",
+        "verdicts": [
+          "PUSH_DOWN",
+          "SPLIT",
+          "BLOCK",
+          "KEEP"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "db.json"
+        ],
+        "require_leak": true
+      },
+      {
+        "id": "T6",
+        "path": "PLAN.md",
+        "verdicts": [
+          "BLOCK",
+          "MERGE",
+          "INLINE",
+          "SPLIT",
+          "PUSH_DOWN",
+          "REMOVE"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3"
+        ]
+      }
+    ],
+    "sane": [
+      {
+        "id": "S1",
+        "path": "test/orders.test.js",
+        "verdicts": [
+          "KEEP"
+        ]
+      },
+      {
+        "id": "S2",
+        "path": "test/store.test.js",
+        "verdicts": [
+          "KEEP"
+        ]
+      }
+    ],
+    "guarded_rules_paths": [],
+    "forbidden_guarded_paths": [
+      {
+        "path": "webhook-retry",
+        "rule_keywords": []
+      },
+      {
+        "path": "routes-v2.test",
+        "rule_keywords": []
+      },
+      {
+        "path": "eslint",
+        "rule_keywords": []
+      }
+    ],
+    "forbidden_leak_keywords": [
+      "guillemets",
+      "camelcase",
+      "point-virgule"
+    ],
+    "removals": [
+      {
+        "id": "N1",
+        "any_of": [
+          "nodemon",
+          "favicon",
+          "bug du total",
+          "express puis retiré",
+          "régénéré le readme",
+          "22/22",
+          "console.log"
+        ],
+        "reasons": [
+          "useless",
+          "outdated"
+        ]
+      },
+      {
+        "id": "N2",
+        "any_of": [
+          "guillemets simples",
+          "camelcase",
+          "2 espaces",
+          "préfère `const`",
+          "try/catch"
+        ],
+        "reasons": [
+          "useless"
+        ]
+      },
+      {
+        "id": "N3",
+        "any_of": [
+          "étape par étape",
+          "hallucination",
+          "senior",
+          "fichier en entier",
+          "fichier complet"
+        ],
+        "reasons": [
+          "useless",
+          "outdated",
+          "harmful"
+        ]
+      },
+      {
+        "id": "N4",
+        "any_of": [
+          "assert.ok(true)"
+        ],
+        "reasons": [
+          "harmful"
+        ]
+      },
+      {
+        "id": "N5",
+        "any_of": [
+          "legacy",
+          "validate.js"
+        ],
+        "reasons": [
+          "harmful",
+          "outdated"
+        ]
+      },
+      {
+        "id": "N6",
+        "any_of": [
+          "node 16",
+          "windows 10",
+          "pc de la boutique"
+        ],
+        "reasons": [
+          "outdated"
+        ],
+        "ask_owner": true
+      },
+      {
+        "id": "N7",
+        "any_of": [
+          "npm run dev",
+          "npm run lint",
+          "npm run seed"
+        ],
+        "reasons": [
+          "useless",
+          "outdated",
+          "harmful"
+        ]
+      },
+      {
+        "id": "N8",
+        "any_of": [
+          "sqlite",
+          "migrer le webhook"
+        ],
+        "reasons": [
+          "useless",
+          "outdated",
+          "harmful"
+        ]
+      }
+    ],
+    "must_keep": [
+      {
+        "id": "I1",
+        "any_of": [
+          "2026-03-14",
+          "relivre"
+        ]
+      },
+      {
+        "id": "I2",
+        "any_of": [
+          "2026-04-04",
+          "virgule en trop"
+        ]
+      },
+      {
+        "id": "I3",
+        "any_of": [
+          "branché nulle part",
+          "la v2 est abandonnée"
+        ]
+      }
+    ]
+  }
+}

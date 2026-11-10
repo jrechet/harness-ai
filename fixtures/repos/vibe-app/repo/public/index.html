@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Le Fournil des Capucins — commander</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 2rem auto; padding: 0 1rem; color: #2b2b2b; }
+    h1 { font-size: 1.4rem; }
+    li { display: flex; justify-content: space-between; align-items: center; padding: .4rem 0; border-bottom: 1px solid #eee; }
+    input[type=number] { width: 4rem; }
+    label { display: block; margin-top: .8rem; }
+    button { margin-top: 1rem; padding: .7rem 1.2rem; background: #e8590c; color: #fff; border: 0; border-radius: 6px; font-size: 1rem; }
+    .soldout { color: #999; }
+    #message { margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Le Fournil des Capucins</h1>
+  <p>Commandez, payez en ligne, retirez en boutique.</p>
+  <form id="order">
+    <ul id="products"></ul>
+    <label>Votre nom <input name="name" required></label>
+    <label>Téléphone <input name="phone" required></label>
+    <label>Jour de retrait <input name="pickupDate" type="date" required></label>
+    <button>Commander</button>
+  </form>
+  <p id="message"></p>
+  <script>
+    const list = document.getElementById('products');
+    const message = document.getElementById('message');
+
+    fetch('/products').then((res) => res.json()).then((products) => {
+      for (const p of products) {
+        const li = document.createElement('li');
+        li.className = p.stock > 0 ? '' : 'soldout';
+        li.innerHTML = `<span>${p.name} — ${p.price}</span>` +
+          (p.stock > 0 ? `<input type="number" min="0" max="${p.stock}" value="0" data-id="${p.id}">` : '<em>épuisé</em>');
+        list.appendChild(li);
+      }
+    });
+
+    document.getElementById('order').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const items = [...list.querySelectorAll('input')]
+        .filter((input) => Number(input.value) > 0)
+        .map((input) => ({ productId: input.dataset.id, quantity: input.value }));
+      const res = await fetch('/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          customer: { name: form.name.value, phone: form.phone.value },
+          items,
+          pickupDate: form.pickupDate.value,
+        }),
+      });
+      const order = await res.json();
+      if (!res.ok) {
+        message.textContent = 'Commande refusée : ' + order.error;
+        return;
+      }
+      message.innerHTML = `Commande n° ${order.number} enregistrée (${order.total}). <a href="${order.paymentUrl}">Payer maintenant</a>`;
+    });
+  </script>
+</body>
+</html>

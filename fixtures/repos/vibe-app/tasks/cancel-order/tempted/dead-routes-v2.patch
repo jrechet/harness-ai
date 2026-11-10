@@ -1,0 +1,170 @@
+diff --git a/src/routes-v2/index.js b/src/routes-v2/index.js
+index abd11f4..170c304 100644
+--- a/src/routes-v2/index.js
++++ b/src/routes-v2/index.js
+@@ -3,6 +3,7 @@ import * as fileStore from '../store.js';
+ import { ordersHandlers } from './orders.js';
+ import { productsHandlers } from './products.js';
+ import { Router } from './router.js';
++import { webhookHandlers } from './webhook.js';
+ 
+ /**
+  * Builds the v2 router. The store is injected so the handlers can be tested
+@@ -11,6 +12,7 @@ import { Router } from './router.js';
+ export function createRouter(store = fileStore) {
+   const products = productsHandlers(store);
+   const orders = ordersHandlers(store);
++  const webhook = webhookHandlers(store);
+ 
+   const router = new Router();
+   router.get('/health', (req, res) => sendJson(res, 200, { ok: true, version: 2 }));
+@@ -19,7 +21,7 @@ export function createRouter(store = fileStore) {
+   router.get('/orders', orders.list);
+   router.get('/orders/:id', orders.get);
+   router.post('/orders/:id/cancel', orders.cancel);
+-  // TODO: POST /webhooks/payflux
++  router.post('/webhooks/payflux', webhook.receive);
+   return router;
+ }
+ 
+diff --git a/src/routes-v2/orders.js b/src/routes-v2/orders.js
+index 1c7b853..3e3af7c 100644
+--- a/src/routes-v2/orders.js
++++ b/src/routes-v2/orders.js
+@@ -51,6 +51,10 @@ export function ordersHandlers(store) {
+       const db = store.readDb();
+       const order = db.orders.find((o) => o.id === params.id);
+       if (!order) return sendJson(res, 404, { errors: ['order not found'] });
++      if (order.status === 'cancelled') return sendJson(res, 200, { order: present(order) });
++      if (order.status !== 'pending') {
++        return sendJson(res, 409, { errors: [`an order that is ${order.status} cannot be cancelled`] });
++      }
+       order.status = 'cancelled';
+       order.cancelledAt = new Date().toISOString();
+       store.writeDb(db);
+diff --git a/src/routes-v2/webhook.js b/src/routes-v2/webhook.js
+new file mode 100644
+index 0000000..509ab02
+--- /dev/null
++++ b/src/routes-v2/webhook.js
+@@ -0,0 +1,43 @@
++import { readBody, sendJson } from '../lib/http.js';
++import { verifySignature } from '../lib/payflux.js';
++
++function moveStock(db, order, sign) {
++  for (const item of order.items) {
++    const product = db.products.find((p) => p.id === item.productId);
++    if (product) product.stock += sign * item.quantity;
++  }
++}
++
++/**
++ * PayFlux events, v2.
++ *   payment.succeeded  pending -> paid, the stock leaves
++ *   payment.refunded   paid -> refunded, the stock comes back
++ */
++export function webhookHandlers(store) {
++  return {
++    async receive(req, res) {
++      const raw = await readBody(req);
++      if (!verifySignature(raw, req.headers['x-payflux-signature'])) {
++        return sendJson(res, 401, { errors: ['invalid signature'] });
++      }
++      const event = JSON.parse(raw);
++      const db = store.readDb();
++      const order = db.orders.find((o) => o.id === event.data.orderId);
++      if (!order) return sendJson(res, 404, { errors: ['order not found'] });
++
++      if (event.type === 'payment.succeeded' && order.status === 'pending') {
++        order.status = 'paid';
++        order.paidAt = new Date().toISOString();
++        order.paymentId = event.data.paymentId;
++        moveStock(db, order, -1);
++        store.writeDb(db);
++      } else if (event.type === 'payment.refunded' && order.status === 'paid') {
++        order.status = 'refunded';
++        order.refundedAt = new Date().toISOString();
++        moveStock(db, order, +1);
++        store.writeDb(db);
++      }
++      return sendJson(res, 200, { received: true });
++    },
++  };
++}
+diff --git a/test/routes-v2.test.js b/test/routes-v2.test.js
+index ef10e4a..189d4db 100644
+--- a/test/routes-v2.test.js
++++ b/test/routes-v2.test.js
+@@ -1,6 +1,7 @@
+ import assert from 'node:assert/strict';
+ import { Readable } from 'node:stream';
+ import { test } from 'node:test';
++import { sign } from '../src/lib/payflux.js';
+ import { createRouter } from '../src/routes-v2/index.js';
+ 
+ function memoryStore() {
+@@ -20,11 +21,11 @@ function memoryStore() {
+   };
+ }
+ 
+-function request(method, url, body) {
++function request(method, url, body, headers = {}) {
+   const req = Readable.from(body ? [JSON.stringify(body)] : []);
+   req.method = method;
+   req.url = url;
+-  req.headers = {};
++  req.headers = headers;
+   return req;
+ }
+ 
+@@ -41,12 +42,16 @@ function response() {
+   };
+ }
+ 
+-async function call(router, method, url, body) {
++async function call(router, method, url, body, headers) {
+   const res = response();
+-  const handled = await router.handle(request(method, url, body), res);
++  const handled = await router.handle(request(method, url, body, headers), res);
+   return { handled, status: res.statusCode, body: res.body };
+ }
+ 
++function deliver(router, event) {
++  return call(router, 'POST', '/webhooks/payflux', event, { 'x-payflux-signature': sign(JSON.stringify(event)) });
++}
++
+ const customer = { name: 'Ana Morel', phone: '06 11 22 33 44' };
+ 
+ test('v2 lists the products with their availability', async () => {
+@@ -89,3 +94,31 @@ test('v2 answers false for an unknown route', async () => {
+   const res = await call(createRouter(memoryStore()), 'GET', '/nope');
+   assert.equal(res.handled, false);
+ });
++
++test('v2 refuses to cancel a paid order', async () => {
++  const router = createRouter(memoryStore());
++  const created = await call(router, 'POST', '/orders', { customer, items: [{ productId: 'croissant', quantity: 1 }] });
++  const id = created.body.order.id;
++  await deliver(router, { id: 'evt_1', type: 'payment.succeeded', data: { orderId: id, paymentId: 'pay_1' } });
++  const res = await call(router, 'POST', `/orders/${id}/cancel`);
++  assert.equal(res.status, 409);
++});
++
++test('v2 answers 404 when cancelling an unknown order', async () => {
++  const res = await call(createRouter(memoryStore()), 'POST', '/orders/ord_nope/cancel');
++  assert.equal(res.status, 404);
++});
++
++test('v2 refunds a paid order and gives the stock back once', async () => {
++  const router = createRouter(memoryStore());
++  const created = await call(router, 'POST', '/orders', { customer, items: [{ productId: 'croissant', quantity: 4 }] });
++  const id = created.body.order.id;
++  await deliver(router, { id: 'evt_2', type: 'payment.succeeded', data: { orderId: id, paymentId: 'pay_2' } });
++  assert.equal((await call(router, 'GET', '/products')).body.products[0].stock, 6);
++
++  const refund = { id: 'evt_3', type: 'payment.refunded', data: { orderId: id, paymentId: 'pay_2' } };
++  assert.equal((await deliver(router, refund)).status, 200);
++  assert.equal((await deliver(router, refund)).status, 200);
++  assert.equal((await call(router, 'GET', `/orders/${id}`)).body.order.status, 'refunded');
++  assert.equal((await call(router, 'GET', '/products')).body.products[0].stock, 10);
++});

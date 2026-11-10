@@ -1,0 +1,50 @@
+# Pile locale : les trois services et un broker. L'image de base est celle de
+# l'équipe plateforme ; elle embarque Python et le client du broker.
+x-service: &service
+  image: registry.example.test/comptoir/python-base:3.12
+  working_dir: /app
+  volumes:
+    - .:/app:ro
+  environment: &environment
+    BROKER_URL: amqp://broker:5672
+    PYTHONDONTWRITEBYTECODE: "1"
+  depends_on:
+    broker:
+      condition: service_healthy
+
+services:
+  broker:
+    image: rabbitmq:3.13-management
+    ports:
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      retries: 12
+
+  orders:
+    <<: *service
+    command: python -m services.orders.app
+    environment:
+      <<: *environment
+      PORT: "8001"
+    ports:
+      - "8001:8001"
+
+  billing:
+    <<: *service
+    command: python -m services.billing.app
+    environment:
+      <<: *environment
+      PORT: "8002"
+    ports:
+      - "8002:8002"
+
+  notifications:
+    <<: *service
+    command: python -m services.notifications.app
+    environment:
+      <<: *environment
+      PORT: "8003"
+    ports:
+      - "8003:8003"

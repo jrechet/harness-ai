@@ -1,0 +1,9 @@
+{
+  "products": [
+    { "id": "baguette-tradition", "name": "Baguette tradition", "priceCents": 130, "stock": 80 },
+    { "id": "croissant", "name": "Croissant pur beurre", "priceCents": 120, "stock": 60 },
+    { "id": "pain-chocolat", "name": "Pain au chocolat", "priceCents": 135, "stock": 60 },
+    { "id": "pain-campagne", "name": "Pain de campagne 800 g", "priceCents": 480, "stock": 20 },
+    { "id": "tarte-pommes", "name": "Tarte aux pommes, 6 parts", "priceCents": 1650, "stock": 6 }
+  ]
+}

@@ -1,0 +1,518 @@
+diff --git a/README.md b/README.md
+index 74ccaef..d3497e8 100644
+--- a/README.md
++++ b/README.md
+@@ -33,9 +33,9 @@ docs/                     décisions, incidents, exploitation
+ 
+ | Service | Méthode | Chemin | Rôle |
+ |---|---|---|---|
+-| orders | POST | `/orders` | passer une commande : `customer_email`, `sku`, `quantity` |
++| orders | POST | `/orders` | passer une commande : `customer_email` et `lines`, une liste de `sku` et `quantity` |
+ | orders | GET | `/orders/{id}` | lire une commande |
+-| billing | GET | `/invoices` | les factures ; `?order_id=` pour celles d'une commande |
++| billing | GET | `/invoices` | les factures, avec leurs lignes ; `?order_id=` pour celles d'une commande |
+ | billing | GET | `/invoices/{number}` | lire une facture |
+ | notifications | GET | `/outbox` | les messages remis au relais de courrier |
+ 
+@@ -58,7 +58,7 @@ from services.orders.app import create_app
+ 
+ bus = InMemoryBus()
+ orders = create_app(bus)
+-status, order = orders.handle("POST", "/orders", {"customer_email": "ana@example.test", "sku": "MUG", "quantity": 1})
++status, order = orders.handle("POST", "/orders", {"customer_email": "ana@example.test", "lines": [{"sku": "MUG", "quantity": 1}]})
+ events = bus.published("order.created")
+ ```
+ 
+diff --git a/contracts/api/invoice.json b/contracts/api/invoice.json
+index dc61ce9..1e6ddbc 100644
+--- a/contracts/api/invoice.json
++++ b/contracts/api/invoice.json
+@@ -4,11 +4,26 @@
+   "description": "What billing answers to GET /invoices/{number}, and each item of GET /invoices.",
+   "type": "object",
+   "additionalProperties": false,
+-  "required": ["number", "order_id", "customer_email", "total_cents", "issued_at"],
++  "required": ["number", "order_id", "customer_email", "lines", "total_cents", "issued_at"],
+   "properties": {
+     "number": {"type": "string", "pattern": "^F-[0-9]{4}-[0-9]{6}$"},
+     "order_id": {"type": "string", "minLength": 1},
+     "customer_email": {"type": "string", "pattern": "@"},
++    "lines": {
++      "type": "array",
++      "minItems": 1,
++      "items": {
++        "type": "object",
++        "additionalProperties": false,
++        "required": ["sku", "quantity", "unit_price_cents", "amount_cents"],
++        "properties": {
++          "sku": {"type": "string", "minLength": 1},
++          "quantity": {"type": "integer", "minimum": 1},
++          "unit_price_cents": {"type": "integer", "minimum": 0, "description": "Tax included."},
++          "amount_cents": {"type": "integer", "minimum": 0}
++        }
++      }
++    },
+     "total_cents": {"type": "integer", "minimum": 0, "description": "Tax included."},
+     "issued_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."}
+   }
+diff --git a/contracts/api/order.json b/contracts/api/order.json
+index cee30e9..7c35d9b 100644
+--- a/contracts/api/order.json
++++ b/contracts/api/order.json
+@@ -4,12 +4,24 @@
+   "description": "What orders answers to POST /orders and GET /orders/{id}.",
+   "type": "object",
+   "additionalProperties": false,
+-  "required": ["id", "customer_email", "sku", "quantity", "total_cents", "created_at"],
++  "required": ["id", "customer_email", "lines", "total_cents", "created_at"],
+   "properties": {
+     "id": {"type": "string", "minLength": 1},
+     "customer_email": {"type": "string", "pattern": "@"},
+-    "sku": {"type": "string", "minLength": 1},
+-    "quantity": {"type": "integer", "minimum": 1},
++    "lines": {
++      "type": "array",
++      "minItems": 1,
++      "items": {
++        "type": "object",
++        "additionalProperties": false,
++        "required": ["sku", "quantity", "unit_price_cents"],
++        "properties": {
++          "sku": {"type": "string", "minLength": 1},
++          "quantity": {"type": "integer", "minimum": 1},
++          "unit_price_cents": {"type": "integer", "minimum": 0, "description": "Tax included."}
++        }
++      }
++    },
+     "total_cents": {"type": "integer", "minimum": 0, "description": "Tax included."},
+     "created_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."}
+   }
+diff --git a/contracts/events/order.created.json b/contracts/events/order.created.json
+index f291518..93eb021 100644
+--- a/contracts/events/order.created.json
++++ b/contracts/events/order.created.json
+@@ -16,12 +16,24 @@
+     "payload": {
+       "type": "object",
+       "additionalProperties": false,
+-      "required": ["order_id", "customer_email", "sku", "quantity", "total_cents", "created_at"],
++      "required": ["order_id", "customer_email", "lines", "total_cents", "created_at"],
+       "properties": {
+         "order_id": {"type": "string", "minLength": 1},
+         "customer_email": {"type": "string", "pattern": "@"},
+-        "sku": {"type": "string", "minLength": 1},
+-        "quantity": {"type": "integer", "minimum": 1},
++        "lines": {
++          "type": "array",
++          "minItems": 1,
++          "items": {
++            "type": "object",
++            "additionalProperties": false,
++            "required": ["sku", "quantity", "unit_price_cents"],
++            "properties": {
++              "sku": {"type": "string", "minLength": 1},
++              "quantity": {"type": "integer", "minimum": 1},
++              "unit_price_cents": {"type": "integer", "minimum": 0, "description": "Tax included."}
++            }
++          }
++        },
+         "total_cents": {"type": "integer", "minimum": 0, "description": "Tax included."},
+         "created_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."}
+       }
+diff --git a/services/billing/app.py b/services/billing/app.py
+index 4088348..601f004 100644
+--- a/services/billing/app.py
++++ b/services/billing/app.py
+@@ -16,12 +16,16 @@ from datetime import datetime, timezone
+ from typing import Any, Callable
+ from urllib.parse import parse_qs, urlsplit
+ 
+-from services.billing.ledger import Ledger
++from services.billing.ledger import Invoice, InvoiceLine, Ledger
+ from shared.bus import Bus, Event, connect, envelope
+ 
+ Response = tuple[int, dict[str, Any]]
+ 
+ 
++def _resource(invoice: Invoice) -> dict[str, Any]:
++    return {**asdict(invoice), "lines": [asdict(line) for line in invoice.lines]}
++
++
+ class BillingApp:
+     def __init__(self, bus: Bus, clock: Callable[[], datetime]) -> None:
+         self.bus = bus
+@@ -31,7 +35,9 @@ class BillingApp:
+ 
+     def on_order_created(self, event: Event) -> None:
+         order = event["payload"]
+-        invoice = self.ledger.issue(order["order_id"], order["customer_email"], order["total_cents"], self.clock())
++        lines = [InvoiceLine(line["sku"], line["quantity"], line["unit_price_cents"],
++                             line["quantity"] * line["unit_price_cents"]) for line in order["lines"]]
++        invoice = self.ledger.issue(order["order_id"], order["customer_email"], lines, order["total_cents"], self.clock())
+         if invoice is None:
+             return  # delivered again: this order is already invoiced
+         payload = {"invoice_number": invoice.number, "order_id": invoice.order_id,
+@@ -44,12 +50,12 @@ class BillingApp:
+         if method == "GET" and url.path == "/invoices":
+             wanted = parse_qs(url.query).get("order_id")
+             invoices = [invoice for invoice in self.ledger.all() if not wanted or invoice.order_id in wanted]
+-            return 200, {"invoices": [asdict(invoice) for invoice in invoices]}
++            return 200, {"invoices": [_resource(invoice) for invoice in invoices]}
+         if method == "GET" and url.path.startswith("/invoices/"):
+             invoice = self.ledger.by_number(url.path[len("/invoices/"):])
+             if invoice is None:
+                 return 404, {"error": "invoice_not_found"}
+-            return 200, asdict(invoice)
++            return 200, _resource(invoice)
+         return 404, {"error": "not_found"}
+ 
+ 
+diff --git a/services/billing/ledger.py b/services/billing/ledger.py
+index f6ff5fd..cb6bafb 100644
+--- a/services/billing/ledger.py
++++ b/services/billing/ledger.py
+@@ -5,6 +5,14 @@ from dataclasses import dataclass
+ from datetime import datetime
+ 
+ 
++@dataclass(frozen=True)
++class InvoiceLine:
++    sku: str
++    quantity: int
++    unit_price_cents: int
++    amount_cents: int
++
++
+ @dataclass(frozen=True)
+ class Invoice:
+     """An issued invoice. Frozen: a mistake is fixed by a credit note, never by an edit."""
+@@ -12,6 +20,7 @@ class Invoice:
+     number: str
+     order_id: str
+     customer_email: str
++    lines: tuple[InvoiceLine, ...]
+     total_cents: int
+     issued_at: str
+ 
+@@ -21,7 +30,8 @@ class Ledger:
+         self._by_order: dict[str, Invoice] = {}
+         self._sequence = 0
+ 
+-    def issue(self, order_id: str, customer_email: str, total_cents: int, issued_at: datetime) -> Invoice | None:
++    def issue(self, order_id: str, customer_email: str, lines: list[InvoiceLine], total_cents: int,
++              issued_at: datetime) -> Invoice | None:
+         """Writes the invoice of an order, or returns None when the order already has one.
+ 
+         The number is taken here, once the order is known to be new: an event delivered
+@@ -33,6 +43,7 @@ class Ledger:
+             number=f"F-{issued_at.year}-{self._sequence:06d}",
+             order_id=order_id,
+             customer_email=customer_email,
++            lines=tuple(lines),
+             total_cents=total_cents,
+             issued_at=issued_at.isoformat(timespec="seconds"),
+         )
+diff --git a/services/billing/test_app.py b/services/billing/test_app.py
+index 4acce3b..3654f1a 100644
+--- a/services/billing/test_app.py
++++ b/services/billing/test_app.py
+@@ -9,13 +9,19 @@ from shared.bus import InMemoryBus
+ NOON = datetime(2026, 6, 2, 12, 0, tzinfo=timezone.utc)
+ 
+ 
+-def order_created(order_id="o-1", total_cents=3980):
++SHIRTS_AND_A_MUG = [{"sku": "TSHIRT-M", "quantity": 2, "unit_price_cents": 1990},
++                    {"sku": "MUG", "quantity": 1, "unit_price_cents": 950}]
++ONE_MUG = [{"sku": "MUG", "quantity": 1, "unit_price_cents": 950}]
++
++
++def order_created(order_id="o-1", lines=SHIRTS_AND_A_MUG):
+     return {
+         "id": f"order.created:{order_id}",
+         "type": "order.created",
+         "occurred_at": "2026-06-02T11:59:58+00:00",
+-        "payload": {"order_id": order_id, "customer_email": "ana@example.test", "sku": "TSHIRT-M", "quantity": 2,
+-                    "total_cents": total_cents, "created_at": "2026-06-02T11:59:58+00:00"},
++        "payload": {"order_id": order_id, "customer_email": "ana@example.test", "lines": lines,
++                    "total_cents": sum(line["quantity"] * line["unit_price_cents"] for line in lines),
++                    "created_at": "2026-06-02T11:59:58+00:00"},
+     }
+ 
+ 
+@@ -30,8 +36,12 @@ class OrderCreatedConsumerTest(unittest.TestCase):
+         bus.publish(order_created())
+         _status, answer = app.handle("GET", "/invoices")
+         self.assertEqual(answer["invoices"], [{"number": "F-2026-000001", "order_id": "o-1",
+-                                               "customer_email": "ana@example.test", "total_cents": 3980,
+-                                               "issued_at": "2026-06-02T12:00:00+00:00"}])
++                                               "customer_email": "ana@example.test",
++                                               "lines": [{"sku": "TSHIRT-M", "quantity": 2, "unit_price_cents": 1990,
++                                                          "amount_cents": 3980},
++                                                         {"sku": "MUG", "quantity": 1, "unit_price_cents": 950,
++                                                          "amount_cents": 950}],
++                                               "total_cents": 4930, "issued_at": "2026-06-02T12:00:00+00:00"}])
+ 
+     def test_the_invoice_is_announced_once_with_a_stable_id(self):
+         _app, bus = make()
+@@ -39,13 +49,13 @@ class OrderCreatedConsumerTest(unittest.TestCase):
+         events = bus.published("invoice.issued")
+         self.assertEqual([event["id"] for event in events], ["invoice.issued:F-2026-000001"])
+         self.assertEqual(events[0]["payload"], {"invoice_number": "F-2026-000001", "order_id": "o-1",
+-                                                "customer_email": "ana@example.test", "total_cents": 3980,
++                                                "customer_email": "ana@example.test", "total_cents": 4930,
+                                                 "issued_at": "2026-06-02T12:00:00+00:00"})
+ 
+     def test_an_event_published_again_later_changes_nothing(self):
+         app, bus = make()
+         bus.publish(order_created("o-1"))
+-        bus.publish(order_created("o-2", total_cents=950))
++        bus.publish(order_created("o-2", lines=ONE_MUG))
+         bus.publish(order_created("o-1"))
+         _status, answer = app.handle("GET", "/invoices")
+         self.assertEqual([(invoice["number"], invoice["order_id"]) for invoice in answer["invoices"]],
+@@ -57,7 +67,7 @@ class InvoicesApiTest(unittest.TestCase):
+     def setUp(self):
+         self.app, bus = make()
+         bus.publish(order_created("o-1"))
+-        bus.publish(order_created("o-2", total_cents=950))
++        bus.publish(order_created("o-2", lines=ONE_MUG))
+ 
+     def test_invoices_can_be_filtered_by_order(self):
+         _status, answer = self.app.handle("GET", "/invoices?order_id=o-2")
+diff --git a/services/billing/test_ledger.py b/services/billing/test_ledger.py
+index 6a5152c..380c4dd 100644
+--- a/services/billing/test_ledger.py
++++ b/services/billing/test_ledger.py
+@@ -2,37 +2,41 @@ import dataclasses
+ import unittest
+ from datetime import datetime, timezone
+ 
+-from services.billing.ledger import Ledger
++from services.billing.ledger import InvoiceLine, Ledger
+ 
+ NOON = datetime(2026, 6, 2, 12, 0, tzinfo=timezone.utc)
++TWO_SHIRTS = [InvoiceLine("TSHIRT-M", 2, 1990, 3980)]
+ 
+ 
+ class LedgerTest(unittest.TestCase):
+     def test_the_first_invoice_of_the_year(self):
+-        invoice = Ledger().issue("o-1", "ana@example.test", 3980, NOON)
++        invoice = Ledger().issue("o-1", "ana@example.test", TWO_SHIRTS, 3980, NOON)
+         self.assertEqual((invoice.number, invoice.order_id, invoice.total_cents, invoice.issued_at),
+                          ("F-2026-000001", "o-1", 3980, "2026-06-02T12:00:00+00:00"))
++        self.assertEqual(invoice.lines, (InvoiceLine("TSHIRT-M", 2, 1990, 3980),))
+ 
+     def test_an_order_is_invoiced_once(self):
+         ledger = Ledger()
+-        first = ledger.issue("o-1", "ana@example.test", 3980, NOON)
+-        self.assertIsNone(ledger.issue("o-1", "ana@example.test", 3980, NOON))
++        first = ledger.issue("o-1", "ana@example.test", TWO_SHIRTS, 3980, NOON)
++        self.assertIsNone(ledger.issue("o-1", "ana@example.test", TWO_SHIRTS, 3980, NOON))
+         self.assertEqual(ledger.all(), [first])
+ 
+     def test_numbers_follow_each_other_without_a_gap_even_when_an_order_comes_back(self):
+         ledger = Ledger()
+         for order_id in ("o-1", "o-1", "o-2", "o-1", "o-2", "o-3"):
+-            ledger.issue(order_id, "ana@example.test", 100, NOON)
++            ledger.issue(order_id, "ana@example.test", TWO_SHIRTS, 3980, NOON)
+         self.assertEqual([invoice.number for invoice in ledger.all()], ["F-2026-000001", "F-2026-000002", "F-2026-000003"])
+ 
+     def test_an_issued_invoice_cannot_be_edited(self):
+-        invoice = Ledger().issue("o-1", "ana@example.test", 3980, NOON)
++        invoice = Ledger().issue("o-1", "ana@example.test", TWO_SHIRTS, 3980, NOON)
+         with self.assertRaises(dataclasses.FrozenInstanceError):
+             invoice.total_cents = 0
++        with self.assertRaises(dataclasses.FrozenInstanceError):
++            invoice.lines[0].quantity = 20
+ 
+     def test_lookups(self):
+         ledger = Ledger()
+-        invoice = ledger.issue("o-1", "ana@example.test", 3980, NOON)
++        invoice = ledger.issue("o-1", "ana@example.test", TWO_SHIRTS, 3980, NOON)
+         self.assertEqual(ledger.for_order("o-1"), invoice)
+         self.assertEqual(ledger.by_number("F-2026-000001"), invoice)
+         self.assertIsNone(ledger.for_order("o-2"))
+diff --git a/services/orders/app.py b/services/orders/app.py
+index 2d85ce4..803fded 100644
+--- a/services/orders/app.py
++++ b/services/orders/app.py
+@@ -1,7 +1,7 @@
+ """Orders service: accepts an order, prices it from the catalog, announces it.
+ 
+-    POST /orders        {"customer_email": ..., "sku": ..., "quantity": ...}   201, the order
+-    GET  /orders/{id}                                                            200, the order
++    POST /orders        {"customer_email": ..., "lines": [{"sku": ..., "quantity": ...}]}   201, the order
++    GET  /orders/{id}                                                                         200, the order
+ 
+ What it answers and what it publishes is described in contracts/ (api/order,
+ events/order.created); test_contract.py holds the service to it.
+@@ -19,6 +19,18 @@ from shared.bus import Bus, connect, envelope
+ Response = tuple[int, dict[str, Any]]
+ 
+ 
++def _line_problems(line: Any, index: int) -> list[str]:
++    if not isinstance(line, dict):
++        return [f"lines[{index}]: must be a JSON object"]
++    problems = []
++    if not catalog.knows(line.get("sku")):
++        problems.append(f"lines[{index}].sku: unknown article")
++    quantity = line.get("quantity")
++    if not isinstance(quantity, int) or isinstance(quantity, bool) or quantity < 1:
++        problems.append(f"lines[{index}].quantity: must be an integer of at least 1")
++    return problems
++
++
+ def _problems(body: Any) -> list[str]:
+     if not isinstance(body, dict):
+         return ["body: must be a JSON object"]
+@@ -26,11 +38,11 @@ def _problems(body: Any) -> list[str]:
+     email = body.get("customer_email")
+     if not isinstance(email, str) or "@" not in email:
+         problems.append("customer_email: must be an e-mail address")
+-    if not catalog.knows(body.get("sku")):
+-        problems.append("sku: unknown article")
+-    quantity = body.get("quantity")
+-    if not isinstance(quantity, int) or isinstance(quantity, bool) or quantity < 1:
+-        problems.append("quantity: must be an integer of at least 1")
++    lines = body.get("lines")
++    if not isinstance(lines, list) or not lines:
++        return problems + ["lines: must be a list of at least one line"]
++    for index, line in enumerate(lines):
++        problems += _line_problems(line, index)
+     return problems
+ 
+ 
+@@ -53,24 +65,29 @@ class OrdersApp:
+         if problems:
+             return 422, {"error": "invalid_order", "details": problems}
+         now = self.clock().isoformat(timespec="seconds")
++        lines = [{"sku": line["sku"], "quantity": line["quantity"],
++                  "unit_price_cents": catalog.unit_price_cents(line["sku"])} for line in body["lines"]]
+         order = {
+             "id": f"o-{self.new_id()}",
+             "customer_email": body["customer_email"],
+-            "sku": body["sku"],
+-            "quantity": body["quantity"],
+-            "total_cents": catalog.unit_price_cents(body["sku"]) * body["quantity"],
++            "lines": lines,
++            "total_cents": sum(line["unit_price_cents"] * line["quantity"] for line in lines),
+             "created_at": now,
+         }
+         self.orders[order["id"]] = order
+-        payload = {"order_id": order["id"], **{key: value for key, value in order.items() if key != "id"}}
++        payload = {"order_id": order["id"], **{key: value for key, value in _copy(order).items() if key != "id"}}
+         self.bus.publish(envelope("order.created", f"order.created:{order['id']}", now, payload))
+-        return 201, dict(order)
++        return 201, _copy(order)
+ 
+     def get_order(self, order_id: str) -> Response:
+         order = self.orders.get(order_id)
+         if order is None:
+             return 404, {"error": "order_not_found"}
+-        return 200, dict(order)
++        return 200, _copy(order)
++
++
++def _copy(order: dict[str, Any]) -> dict[str, Any]:
++    return {**order, "lines": [dict(line) for line in order["lines"]]}
+ 
+ 
+ def create_app(bus: Bus, clock: Callable[[], datetime] | None = None,
+diff --git a/services/orders/test_app.py b/services/orders/test_app.py
+index 668569d..fe67437 100644
+--- a/services/orders/test_app.py
++++ b/services/orders/test_app.py
+@@ -5,7 +5,9 @@ from services.orders.app import create_app
+ from shared.bus import InMemoryBus
+ 
+ NOON = datetime(2026, 6, 2, 12, 0, tzinfo=timezone.utc)
+-TWO_SHIRTS = {"customer_email": "ana@example.test", "sku": "TSHIRT-M", "quantity": 2}
++TWO_SHIRTS = {"customer_email": "ana@example.test", "lines": [{"sku": "TSHIRT-M", "quantity": 2}]}
++SHIRTS_AND_A_MUG = {"customer_email": "ana@example.test",
++                    "lines": [{"sku": "TSHIRT-M", "quantity": 2}, {"sku": "MUG", "quantity": 1}]}
+ 
+ 
+ def make():
+@@ -19,27 +21,42 @@ class CreateOrderTest(unittest.TestCase):
+         app, _bus = make()
+         status, order = app.handle("POST", "/orders", TWO_SHIRTS)
+         self.assertEqual(status, 201)
+-        self.assertEqual(order, {"id": "o-0001", "customer_email": "ana@example.test", "sku": "TSHIRT-M",
+-                                 "quantity": 2, "total_cents": 3980, "created_at": "2026-06-02T12:00:00+00:00"})
++        self.assertEqual(order, {"id": "o-0001", "customer_email": "ana@example.test",
++                                 "lines": [{"sku": "TSHIRT-M", "quantity": 2, "unit_price_cents": 1990}],
++                                 "total_cents": 3980, "created_at": "2026-06-02T12:00:00+00:00"})
++
++    def test_an_order_of_several_lines_totals_them(self):
++        app, _bus = make()
++        status, order = app.handle("POST", "/orders", SHIRTS_AND_A_MUG)
++        self.assertEqual((status, order["total_cents"]), (201, 2 * 1990 + 950))
++        self.assertEqual(order["lines"], [{"sku": "TSHIRT-M", "quantity": 2, "unit_price_cents": 1990},
++                                          {"sku": "MUG", "quantity": 1, "unit_price_cents": 950}])
+ 
+     def test_an_accepted_order_is_announced_once_with_a_stable_id(self):
+         app, bus = make()
+-        app.handle("POST", "/orders", TWO_SHIRTS)
++        app.handle("POST", "/orders", SHIRTS_AND_A_MUG)
+         events = bus.published("order.created")
+         self.assertEqual(len(events), 1)
+         self.assertEqual(events[0]["id"], "order.created:o-0001")
+         self.assertEqual(events[0]["payload"], {"order_id": "o-0001", "customer_email": "ana@example.test",
+-                                                "sku": "TSHIRT-M", "quantity": 2, "total_cents": 3980,
+-                                                "created_at": "2026-06-02T12:00:00+00:00"})
++                                                "lines": [{"sku": "TSHIRT-M", "quantity": 2, "unit_price_cents": 1990},
++                                                          {"sku": "MUG", "quantity": 1, "unit_price_cents": 950}],
++                                                "total_cents": 4930, "created_at": "2026-06-02T12:00:00+00:00"})
+ 
+     def test_an_invalid_order_is_refused_and_announces_nothing(self):
++        def one_line(**line):
++            return {"customer_email": "ana@example.test", "lines": [{"sku": "TSHIRT-M", "quantity": 2, **line}]}
++
+         cases = {
+             "no e-mail": {**TWO_SHIRTS, "customer_email": "ana"},
+-            "unknown article": {**TWO_SHIRTS, "sku": "UMBRELLA"},
+-            "zero quantity": {**TWO_SHIRTS, "quantity": 0},
+-            "fractional quantity": {**TWO_SHIRTS, "quantity": 1.5},
+-            "true is not a quantity": {**TWO_SHIRTS, "quantity": True},
++            "unknown article": one_line(sku="UMBRELLA"),
++            "zero quantity": one_line(quantity=0),
++            "fractional quantity": one_line(quantity=1.5),
++            "true is not a quantity": one_line(quantity=True),
+             "not an object": ["TSHIRT-M"],
++            "no line": {"customer_email": "ana@example.test", "lines": []},
++            "no lines at all": {"customer_email": "ana@example.test"},
++            "a line that is not an object": {"customer_email": "ana@example.test", "lines": ["MUG"]},
+         }
+         for name, body in cases.items():
+             with self.subTest(name):
+@@ -50,14 +67,14 @@ class CreateOrderTest(unittest.TestCase):
+ 
+     def test_every_problem_of_an_order_is_listed(self):
+         app, _bus = make()
+-        _status, answer = app.handle("POST", "/orders", {"sku": "UMBRELLA", "quantity": 0})
++        _status, answer = app.handle("POST", "/orders", {"lines": [{"sku": "UMBRELLA", "quantity": 0}]})
+         self.assertEqual(len(answer["details"]), 3)
+ 
+ 
+ class ReadOrderTest(unittest.TestCase):
+     def test_an_order_reads_back_as_it_was_answered(self):
+         app, _bus = make()
+-        _status, created = app.handle("POST", "/orders", TWO_SHIRTS)
++        _status, created = app.handle("POST", "/orders", SHIRTS_AND_A_MUG)
+         self.assertEqual(app.handle("GET", f"/orders/{created['id']}"), (200, created))
+ 
+     def test_an_unknown_order_and_an_unknown_route_are_404(self):
+diff --git a/services/orders/test_contract.py b/services/orders/test_contract.py
+index 8ed2ac1..0ea36c4 100644
+--- a/services/orders/test_contract.py
++++ b/services/orders/test_contract.py
+@@ -11,7 +11,8 @@ from tools.schema import contract, validate
+ def place_an_order():
+     bus = InMemoryBus()
+     app = create_app(bus)
+-    _status, order = app.handle("POST", "/orders", {"customer_email": "ana@example.test", "sku": "MUG", "quantity": 3})
++    _status, order = app.handle("POST", "/orders", {"customer_email": "ana@example.test",
++                                                    "lines": [{"sku": "MUG", "quantity": 3}, {"sku": "TSHIRT-M", "quantity": 1}]})
+     return app, bus, order
+ 
+ 
