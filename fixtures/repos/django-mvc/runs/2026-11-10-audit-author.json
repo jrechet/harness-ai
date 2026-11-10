@@ -1,0 +1,157 @@
+{
+  "audit": {
+    "process": "cursus — instructions d'agent d'un monolithe Django, écrites à la main il y a deux ans",
+    "scope": "fixtures/repos/django-mvc/repo (AGENTS.md, CLAUDE.md, .github/workflows, tests garde-fous, admin, docs/)",
+    "date": "2026-11-10",
+    "health_score": 51,
+    "cut_the_agent_test": { "passed": false, "leaked_steps": 3 }
+  },
+  "elements": [
+    {
+      "id": "agents-md",
+      "path": "AGENTS.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": ["wf-ci", "test-queries"],
+      "verdict": "SPLIT",
+      "priority": "P1",
+      "finding": "Fichier écrit avec soin et jamais relu : trois règles valent encore de l'or (e-mails, capacité, migrations appliquées), mais aucune n'a de garde-fou, l'une cite un job qui n'existe plus, la commande de test échoue, deux contraintes sont contredites par le dépôt, et un tiers du fichier est du générique ou des consignes d'une autre génération de modèles. Ni ligne Mode, ni Interdits, ni dates.",
+      "evidence": ["AGENTS.md:30", "AGENTS.md:36-38", "AGENTS.md:43-47", "AGENTS.md:51-52", "AGENTS.md:56-58", "AGENTS.md:60", "requirements.txt:1", ".github/workflows/ci.yml:9"],
+      "target": "Un AGENTS.md de moins de 60 lignes : mode délégation, table de commandes confirmées, les règles avec leur incident et leur statut réel, une section Interdits. Les règles e-mails et capacité restent mot pour mot dans leur fond.",
+      "check": "harness status atteint le palier 1 ; chaque « Vérifiée par » désigne un fichier ou un job qui existe et qui bloque."
+    },
+    {
+      "id": "claude-md",
+      "path": "CLAUDE.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": ["test-queries"],
+      "verdict": "MERGE",
+      "priority": "P2",
+      "finding": "Copie partielle d'AGENTS.md qui a divergé : elle a la bonne commande de test et connaît le test de requêtes, qu'AGENTS.md ignore, mais sa version de la règle des e-mails dit le contraire de l'originale (« toute inscription créée envoie sa confirmation ») et elle répète le job disparu et Python 3.8. C'est le fichier que Claude Code charge.",
+      "evidence": ["CLAUDE.md:8", "CLAUDE.md:17", "CLAUDE.md:18", "CLAUDE.md:20", "CLAUDE.md:21", "AGENTS.md:56"],
+      "target": "Un stub `@AGENTS.md` ; ce que CLAUDE.md sait de plus (commande de test, catalog/tests/test_queries.py) est reporté dans AGENTS.md.",
+      "check": "CLAUDE.md fait une ligne ; aucune règle n'existe en deux versions."
+    },
+    {
+      "id": "wf-ci",
+      "path": ".github/workflows/ci.yml",
+      "declared_layer": "L4",
+      "actual_layer": "L4",
+      "called_by": [],
+      "calls": ["test-queries", "test-services"],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "Un job `test` bloquant, sain pour ce qu'il porte (makemigrations --check, tests). Le job `frozen-migrations` que citent AGENTS.md et CLAUDE.md n'y est pas : rien ne refuse la modification d'une migration appliquée.",
+      "evidence": [".github/workflows/ci.yml:9", ".github/workflows/ci.yml:19", "AGENTS.md:58", "CLAUDE.md:20"],
+      "target": "Une étape qui échoue quand le diff d'une PR modifie ou supprime un fichier existant sous */migrations/.",
+      "check": "Une PR qui retouche enrollments/migrations/0002 est rouge."
+    },
+    {
+      "id": "admin-enrollment",
+      "path": "enrollments/admin.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": [],
+      "calls": ["services"],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "Le formulaire d'ajout de l'admin écrit une Enrollment confirmée sans passer par services.enroll() : la règle de capacité est déjà contournée dans le dépôt qui la déclare. L'action cancel_selected, elle, envoie un e-mail de promotion par ligne annulée.",
+      "evidence": ["enrollments/admin.py:8", "enrollments/admin.py:16", "docs/postmortems/2024-09-session-surbookee.md:19"],
+      "target": "has_add_permission à faux, ou un formulaire d'ajout qui appelle services.enroll().",
+      "check": "Un test d'admin : l'ajout direct d'une inscription confirmée dans une session pleine est refusé."
+    },
+    {
+      "id": "test-queries",
+      "path": "catalog/tests/test_queries.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["wf-ci"],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Garde-fou réel : nombre de requêtes fixé pour chaque page de liste, lancé par le job bloquant.",
+      "evidence": ["catalog/tests/test_queries.py:18", "catalog/tests/test_queries.py:27", ".github/workflows/ci.yml:21"],
+      "target": "Inchangé.",
+      "check": "Un count() par ligne dans un template fait échouer le job test."
+    },
+    {
+      "id": "test-services",
+      "path": "enrollments/tests/test_services.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["wf-ci"],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Les règles de places, de liste d'attente et d'envoi après commit sont testées. Ces tests ne prouvent pas le verrou, SQLite l'ignore : c'est une fuite de la règle, pas un défaut du fichier.",
+      "evidence": ["enrollments/tests/test_services.py:14", "enrollments/tests/test_services.py:69"],
+      "target": "Inchangé.",
+      "check": "Aucun."
+    }
+  ],
+  "process_leaks": [
+    {
+      "rule": "Aucun e-mail depuis un signal post_save ni save() ; un traitement en masse n'envoie jamais un e-mail par ligne",
+      "told_in": "AGENTS.md:56",
+      "if_skipped": "Des milliers de messages et le compte SMTP suspendu, comme le 18 mars 2024 (docs/postmortems/2024-03-confirmations-en-masse.md). La règle est déjà violée à petite échelle par l'action d'admin cancel_selected, et CLAUDE.md:18 dit l'inverse.",
+      "belongs_in": "L3",
+      "guard_tool": "Un test qui échoue si un receveur est connecté à post_save d'un modèle du projet, et un test par traitement en masse qui compte mail.outbox"
+    },
+    {
+      "rule": "Toute inscription passe par enrollments.services.enroll(), qui verrouille la session (select_for_update) avant de compter les places",
+      "told_in": "AGENTS.md:57",
+      "if_skipped": "Plus de confirmés que de places, comme le 9 septembre 2024. Les tests tournent sous SQLite, qui ignore le verrou ; l'admin écrit déjà des inscriptions sans passer par le service.",
+      "belongs_in": "L3",
+      "guard_tool": "Un job PostgreSQL avec un test de concurrence sur enroll(), et un contrôle qui refuse Enrollment.objects.create et bulk_create hors de enrollments/services.py"
+    },
+    {
+      "rule": "Une migration déjà appliquée ne se modifie jamais",
+      "told_in": "AGENTS.md:58",
+      "if_skipped": "La production garde l'ancien schéma alors que tout est vert ici. Le fichier dit la règle vérifiée par le job frozen-migrations, absent de .github/workflows/ci.yml : garde-fou mensonger par dérive.",
+      "belongs_in": "L4",
+      "guard_tool": "Une étape de ci.yml qui compare les fichiers existants de */migrations/ à la branche cible"
+    }
+  ],
+  "guarded_rules": [
+    {
+      "rule": "Une page de liste ne fait pas une requête par ligne",
+      "told_in": "AGENTS.md:60",
+      "guarded_by": "catalog/tests/test_queries.py:18 et :27, job test (.github/workflows/ci.yml:21)"
+    },
+    {
+      "rule": "Un changement de modèle est livré avec le fichier que makemigrations génère",
+      "told_in": "AGENTS.md:59",
+      "guarded_by": ".github/workflows/ci.yml:19 (makemigrations --check --dry-run)"
+    }
+  ],
+  "removals": [
+    { "path": "AGENTS.md", "line": 43, "text": "Respecte PEP 8, lignes de 100 caractères au plus.", "reason": "useless", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 44, "text": "Donne des noms clairs aux variables et aux fonctions.", "reason": "useless", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 45, "text": "Une docstring pour chaque fonction publique.", "reason": "useless", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 36, "text": "Réfléchis étape par étape et annonce ton plan avant d'écrire du code.", "reason": "useless", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 37, "text": "N'invente pas d'API Django : si tu n'es pas sûr qu'une fonction existe, dis-le au lieu de deviner.", "reason": "outdated", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 38, "text": "Donne toujours le fichier complet, jamais un extrait avec `# ... reste inchangé`", "reason": "harmful", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 51, "text": "Le code doit tourner sous Python 3.8, la version du serveur de production", "reason": "outdated", "ask_owner": true },
+    { "path": "CLAUDE.md", "line": 17, "text": "Python 3.8 sur le serveur : pas de `match`, pas de `X | Y`.", "reason": "outdated", "ask_owner": true },
+    { "path": "AGENTS.md", "line": 52, "text": "Reste sur les API de Django 4.2 LTS, l'hébergeur ne valide que les versions LTS", "reason": "outdated", "ask_owner": true },
+    { "path": "AGENTS.md", "line": 30, "text": "python manage.py test --settings=cursus.settings_ci", "reason": "outdated", "ask_owner": false },
+    { "path": "CLAUDE.md", "line": 18, "text": "E-mails : toute inscription créée envoie sa confirmation, par `enrollments/notifications.py`. Pas de signal.", "reason": "harmful", "ask_owner": false }
+  ],
+  "instruction_files": [
+    { "path": "AGENTS.md", "loaded_lines": 67, "instruction_pct": 30, "reference_pct": 35, "noise_pct": 35, "justified_rules": false, "maintenance_clause": false },
+    { "path": "CLAUDE.md", "loaded_lines": 23, "instruction_pct": 55, "reference_pct": 20, "noise_pct": 25, "justified_rules": false, "maintenance_clause": false }
+  ],
+  "remediation": [
+    { "order": 1, "priority": "P1", "verdict": "SPLIT", "element": "agents-md", "action": "Réécrire AGENTS.md au palier 1 : mode, commandes confirmées, règles avec incident et statut réel, Interdits ; retirer les lignes listées dans removals après les deux questions au propriétaire.", "depends_on": [], "check": "harness status au palier 1.", "needs_human_approval": true },
+    { "order": 2, "priority": "P2", "verdict": "MERGE", "element": "claude-md", "action": "Reporter dans AGENTS.md la commande de test et le test de requêtes, puis réduire CLAUDE.md à `@AGENTS.md`.", "depends_on": ["agents-md"], "check": "CLAUDE.md fait une ligne.", "needs_human_approval": true },
+    { "order": 3, "priority": "P2", "verdict": "PUSH_DOWN", "element": "wf-ci", "action": "Ajouter l'étape qui refuse la modification d'une migration existante.", "depends_on": [], "check": "Une PR qui retouche une migration appliquée est rouge.", "needs_human_approval": false },
+    { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "admin-enrollment", "action": "Fermer l'ajout direct d'une inscription dans l'admin, ou le faire passer par services.enroll().", "depends_on": [], "check": "Test d'admin sur une session pleine.", "needs_human_approval": false }
+  ],
+  "unverified": [
+    "Le verrou select_for_update : aucune base PostgreSQL disponible, SQLite l'ignore.",
+    "La version de Python et de Django en production : déduites de requirements.txt et de ci.yml, à confirmer par le propriétaire."
+  ]
+}

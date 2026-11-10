@@ -189,7 +189,7 @@ createApp({
             <template v-if="state.dangling && state.dangling.length">
               <h2 style="margin-top:16px">Références sans cible</h2>
               <ul class="checks"><li v-for="d in state.dangling" :key="d.ref"><span class="ko" aria-label="introuvable">✗</span>
-                <span><code>{{ d.ref }}</code> · ligne {{ d.line }} · {{ d.kind === 'contract' ? 'contrat cité, SKILL.md introuvable' : 'garde-fou cité, chemin introuvable' }}</span></li></ul>
+                <span><code>{{ d.ref }}</code> · ligne {{ d.line }} · {{ d.kind === 'contract' ? 'contrat cité, SKILL.md introuvable' : d.kind === 'job' ? 'job de CI cité, absent des workflows' : 'garde-fou cité, chemin introuvable' }}</span></li></ul>
             </template>
           </section>
           <section class="card facts">

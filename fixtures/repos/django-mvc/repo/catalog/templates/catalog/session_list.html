@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Sessions à venir{% endblock %}
+
+{% block content %}
+<h1>Sessions à venir{% if course %} : {{ course.title }}{% endif %}</h1>
+{% if course %}<p><a href="{% url 'catalog:session_list' %}">Toutes les formations</a></p>{% endif %}
+
+<table>
+  <thead>
+    <tr><th>Formation</th><th>Début</th><th>Lieu</th><th>Places</th></tr>
+  </thead>
+  <tbody>
+    {% for session in sessions %}
+    <tr>
+      <td><a href="{{ session.get_absolute_url }}">{{ session.course.title }}</a></td>
+      <td>{{ session.starts_at|date:"j F Y, H:i" }}</td>
+      <td>{{ session.location }}</td>
+      <td>
+        {% if session.seats_left > 0 %}
+          {{ session.seats_left }} sur {{ session.capacity }}
+        {% else %}
+          Complet{% if session.waitlisted_count %}, {{ session.waitlisted_count }} en attente{% endif %}
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="4">Aucune session à venir.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if is_paginated %}
+<nav>
+  {% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}">Précédentes</a>{% endif %}
+  Page {{ page_obj.number }} sur {{ paginator.num_pages }}
+  {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}">Suivantes</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

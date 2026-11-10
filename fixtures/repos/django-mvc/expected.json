@@ -1,0 +1,331 @@
+{
+  "fixture": "django-mvc",
+  "role": "tuning",
+  "status": {
+    "level_reached": 0,
+    "source_path": "AGENTS.md",
+    "failing_checks": [
+      "L1.mode",
+      "L1.short",
+      "L1.single_source",
+      "L1.forbidden",
+      "L2.maintenance",
+      "L2.rule_convention",
+      "L3.guarded",
+      "L3.justified",
+      "L4.process",
+      "L4.contracts"
+    ],
+    "passing_checks": [
+      "L1.source",
+      "L3.ci"
+    ],
+    "guardrail_tools": [],
+    "contracts": 0
+  },
+  "init": {
+    "min_level": 1,
+    "must_surface": [
+      {
+        "id": "I1",
+        "what": "aucun e-mail depuis un signal, aucun e-mail par ligne dans un traitement en masse, avec l'incident de l'import",
+        "any_of": [
+          "post_save",
+          "confirmations-en-masse"
+        ]
+      },
+      {
+        "id": "I2",
+        "what": "toute inscription passe par services.enroll() et son verrou, avec l'incident de la session surbookée",
+        "any_of": [
+          "select_for_update",
+          "services.enroll",
+          "enroll()"
+        ]
+      },
+      {
+        "id": "I3",
+        "what": "pas de requête par ligne dans une liste, et le test qui le garantit depuis 2025",
+        "any_of": [
+          "test_queries",
+          "assertnumqueries"
+        ]
+      },
+      {
+        "id": "I4",
+        "what": "une migration appliquée ne se modifie plus",
+        "any_of": [
+          "migration"
+        ]
+      }
+    ],
+    "must_not_write": [
+      {
+        "id": "N1",
+        "what": "commande de test qui n'existe plus",
+        "any_of": [
+          "settings_ci"
+        ]
+      },
+      {
+        "id": "N2",
+        "what": "style générique",
+        "any_of": [
+          "pep 8",
+          "pep8",
+          "noms clairs",
+          "docstring"
+        ]
+      },
+      {
+        "id": "N3",
+        "what": "consignes écrites pour d'anciens modèles",
+        "any_of": [
+          "étape par étape",
+          "step by step",
+          "invente pas",
+          "fichier complet",
+          "reste inchangé"
+        ]
+      },
+      {
+        "id": "N4",
+        "what": "compatibilité Python 3.8, périmée",
+        "any_of": [
+          "3.8"
+        ]
+      },
+      {
+        "id": "N5",
+        "what": "limite à Django 4.2 LTS, périmée",
+        "any_of": [
+          "4.2",
+          "db_default",
+          "generatedfield"
+        ]
+      },
+      {
+        "id": "N6",
+        "what": "vérification à la main avec un outil qui n'est plus installé",
+        "any_of": [
+          "debug-toolbar",
+          "debug_toolbar"
+        ]
+      }
+    ],
+    "guards_cited": [
+      "test_queries"
+    ],
+    "forbidden_guards": [
+      {
+        "path": "frozen-migrations",
+        "rule_keywords": [
+          "migration"
+        ]
+      }
+    ],
+    "only_level_material": true
+  },
+  "audit": {
+    "traps": [
+      {
+        "id": "T1",
+        "path": "AGENTS.md",
+        "verdicts": [
+          "SPLIT",
+          "INLINE",
+          "MERGE",
+          "BLOCK",
+          "PUSH_DOWN"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3"
+        ]
+      },
+      {
+        "id": "T2",
+        "path": "CLAUDE.md",
+        "verdicts": [
+          "MERGE",
+          "INLINE",
+          "BLOCK",
+          "SPLIT",
+          "PUSH_DOWN"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3"
+        ]
+      },
+      {
+        "id": "T3",
+        "path": ".github/workflows/ci.yml",
+        "verdicts": [
+          "PUSH_DOWN",
+          "SPLIT",
+          "BLOCK",
+          "KEEP"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "migration"
+        ],
+        "require_leak": true
+      },
+      {
+        "id": "T4",
+        "path": "enrollments/notifications.py",
+        "verdicts": [
+          "PUSH_DOWN",
+          "SPLIT",
+          "KEEP"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "mail"
+        ],
+        "require_leak": true
+      },
+      {
+        "id": "T5",
+        "path": "enrollments/admin.py",
+        "verdicts": [
+          "PUSH_DOWN",
+          "SPLIT",
+          "BLOCK",
+          "KEEP"
+        ],
+        "priorities": [
+          "P1",
+          "P2",
+          "P3",
+          null
+        ],
+        "leak_keywords": [
+          "enroll("
+        ],
+        "require_leak": true
+      }
+    ],
+    "sane": [
+      {
+        "id": "S1",
+        "path": "catalog/tests/test_queries.py",
+        "verdicts": [
+          "KEEP"
+        ]
+      },
+      {
+        "id": "S2",
+        "path": "enrollments/tests/test_services.py",
+        "verdicts": [
+          "KEEP"
+        ]
+      }
+    ],
+    "guarded_rules_paths": [
+      "test_queries"
+    ],
+    "forbidden_guarded_paths": [
+      {
+        "path": "frozen-migrations",
+        "rule_keywords": [
+          "migration"
+        ]
+      }
+    ],
+    "forbidden_leak_keywords": [
+      "pep 8",
+      "pep8",
+      "docstring",
+      "noms clairs"
+    ],
+    "removals": [
+      {
+        "id": "N2",
+        "any_of": [
+          "pep 8",
+          "pep8",
+          "noms clairs",
+          "docstring"
+        ],
+        "reasons": [
+          "useless"
+        ]
+      },
+      {
+        "id": "N3",
+        "any_of": [
+          "étape par étape",
+          "invente pas"
+        ],
+        "reasons": [
+          "useless",
+          "outdated"
+        ]
+      },
+      {
+        "id": "N3b",
+        "any_of": [
+          "fichier complet",
+          "reste inchangé"
+        ],
+        "reasons": [
+          "harmful",
+          "outdated"
+        ]
+      },
+      {
+        "id": "N4",
+        "any_of": [
+          "3.8"
+        ],
+        "reasons": [
+          "outdated",
+          "harmful"
+        ],
+        "ask_owner": true
+      },
+      {
+        "id": "N5",
+        "any_of": [
+          "4.2",
+          "db_default",
+          "generatedfield"
+        ],
+        "reasons": [
+          "outdated",
+          "harmful"
+        ],
+        "ask_owner": true
+      }
+    ],
+    "must_keep": [
+      {
+        "id": "I1",
+        "any_of": [
+          "post_save"
+        ]
+      },
+      {
+        "id": "I2",
+        "any_of": [
+          "select_for_update"
+        ]
+      }
+    ]
+  }
+}

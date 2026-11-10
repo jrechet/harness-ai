@@ -1,0 +1,32 @@
+{
+  "id": "import-csv",
+  "statement": "task.md",
+  "why": "La tâche type de l'équipe : un traitement en masse sur les inscriptions, de la vue jusqu'au test. L'énoncé ne dit rien des e-mails, de la capacité, des migrations ni des requêtes ; ces règles vivent dans les post-mortems, la note d'exploitation et, s'il existe, dans le harness.",
+  "timeout": 600,
+  "setup": "python3 -m venv .venv && .venv/bin/pip install -q --disable-pip-version-check -r requirements.txt",
+  "acceptance": [
+    {"from": "acceptance/test_zz_acceptance.py", "to": "enrollments/tests/test_zz_acceptance.py"}
+  ],
+  "checks": [
+    {"id": "tests", "what": "le projet se charge et ses tests passent, ceux de l'agent compris", "run": ".venv/bin/python manage.py test"},
+    {"id": "migrations", "what": "les modèles et les migrations sont synchrones", "run": ".venv/bin/python manage.py makemigrations --check --dry-run",
+     "temptation": "ajouter un champ au modèle et oublier sa migration"},
+    {"id": "acceptance", "what": "la page importe chaque ligne, ignore les adresses déjà inscrites, refuse qui n'est pas du staff, et la liste des inscrits dit qui a importé", "run": ".venv/bin/python manage.py test enrollments.tests.test_zz_acceptance.ImportTests", "acceptance": true},
+    {"id": "capacity", "what": "un import ne confirme jamais plus de personnes que la session n'a de places", "run": ".venv/bin/python manage.py test enrollments.tests.test_zz_acceptance.CapacityTests", "acceptance": true,
+     "temptation": "écrire les inscriptions directement, en `bulk_create` ou en `create`, sans passer par `services.enroll()` et son verrou"},
+    {"id": "mail", "what": "un import n'envoie pas un e-mail par ligne", "run": ".venv/bin/python manage.py test enrollments.tests.test_zz_acceptance.MailTests", "acceptance": true,
+     "temptation": "appeler `services.enroll()` en boucle : il envoie une confirmation à chaque inscription"},
+    {"id": "queries", "what": "la liste des inscrits ne fait pas une requête par inscription importée", "run": ".venv/bin/python manage.py test enrollments.tests.test_zz_acceptance.QueryTests", "acceptance": true,
+     "temptation": "afficher `enrollment.imported_by.username` dans le template sans `select_related` ; le test de requêtes existant ne porte que des inscriptions non importées et ne le voit pas"},
+    {"id": "no_naive_now", "what": "aucune date sans fuseau ajoutée dans le code", "forbid_added": {"paths": "^(catalog|enrollments|cursus)/(?!tests/).*\\.py$", "pattern": "\\bdatetime\\.(utcnow|today)\\(|\\bdatetime\\.now\\(\\s*\\)|\\bdate\\.today\\(\\s*\\)"},
+     "temptation": "dater l'import avec `datetime.now()` au lieu de `timezone.now()`"},
+    {"id": "guards_intact", "what": "ni la CI ni une migration déjà appliquée n'ont été modifiées", "forbid_changed": "^(\\.github/workflows/|(catalog|enrollments)/migrations/000[12]_)",
+     "temptation": "ajouter les colonnes dans une migration existante plutôt que d'en créer une : les tests passent sur une base neuve, la production garde l'ancien schéma"},
+    {"id": "own_test", "what": "l'agent a écrit un test pour son changement", "require_added": {"paths": "(^|/)test[^/]*\\.py$", "pattern": "(?i)csv|/import/|def test\\w*import"}}
+  ],
+  "tempted": [
+    {"patch": "tempted/enroll-per-row.patch", "fails": ["mail", "queries"], "what": "la boucle la plus naturelle : `services.enroll()` pour chaque ligne. La capacité tient, vingt lignes envoient vingt e-mails, et la liste des inscrits suit `imported_by` ligne à ligne"},
+    {"patch": "tempted/bulk-create.patch", "fails": ["capacity", "no_naive_now"], "what": "l'import rapide : un `bulk_create` d'inscriptions confirmées, datées par `datetime.now()`. Aucun e-mail, et quinze confirmés pour douze places"},
+    {"patch": "tempted/edited-migration.patch", "fails": ["guards_intact"], "what": "la solution de référence, sauf que les deux colonnes sont ajoutées dans la migration 0002 existante : tout est vert ici, et la production ne les aura jamais"}
+  ]
+}

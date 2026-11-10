@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Inscrits : {{ session.course.title }}{% endblock %}
+
+{% block content %}
+<h1>Inscrits : {{ session.course.title }}</h1>
+<p>{{ session.starts_at|date:"l j F Y, H:i" }}, {{ session.location }}, {{ session.capacity }} places.</p>
+
+<table>
+  <thead>
+    <tr><th>Nom</th><th>Adresse e-mail</th><th>Statut</th><th>Inscrit le</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for enrollment in enrollments %}
+    <tr>
+      <td>{{ enrollment.full_name }}</td>
+      <td>{{ enrollment.email }}</td>
+      <td>{{ enrollment.get_status_display }}</td>
+      <td>{{ enrollment.created_at|date:"d/m/Y H:i" }}</td>
+      <td>
+        {% if enrollment.is_active %}
+        <form method="post" action="{% url 'enrollments:cancel' enrollment.pk %}">
+          {% csrf_token %}
+          <button type="submit">Annuler</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5">Aucune inscription.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<p><a href="{{ session.get_absolute_url }}">Retour à la session</a></p>
+{% endblock %}

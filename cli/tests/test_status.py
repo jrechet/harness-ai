@@ -175,6 +175,16 @@ class DanglingReferenceTests(TempRepo):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL1)          # `eslint/no-raw-fetch` : pas de dossier eslint/
         self.assertEqual(self.state()["dangling"], [])
 
+    def test_ci_job_cited_but_gone_from_the_workflows_is_dangling(self):
+        rule = "- Une migration appliquée ne se modifie jamais. Vérifié par : le job `frozen-migrations` de la CI."
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1 + rule + "\n")
+        self.assertEqual(self.state()["dangling"], [])          # pas de workflow : rien à confronter
+        write(self.repo, ".github/workflows/ci.yml", "name: CI\non: push\njobs:\n  test:\n    runs-on: x\n    steps: []\n")
+        self.assertEqual([(d["kind"], d["ref"]) for d in self.state()["dangling"]], [("job", "frozen-migrations")])
+        self.assertIn("absent des workflows", maturity.render_markdown(self.state()))
+        write(self.repo, ".github/workflows/ci.yml", "jobs:\n    test:\n        steps: []\n    frozen-migrations:\n        steps: []\n")
+        self.assertEqual(self.state()["dangling"], [])
+
     def test_file_cited_by_basename_is_found_anywhere(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL1.replace("`eslint/no-raw-fetch`", "`ci.yml`"))
         self.assertEqual(len(self.state()["dangling"]), 1)

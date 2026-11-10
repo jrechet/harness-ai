@@ -186,9 +186,34 @@ def _repo_files(repo: str, limit: int = 20000) -> list[str]:
     return found
 
 
+def workflow_jobs(repo: str) -> set[str] | None:
+    """Les identifiants de jobs des workflows GitHub du dépôt ; None s'il n'y a pas de workflow."""
+    wf_dir = os.path.join(repo, WORKFLOW_DIR)
+    files = sorted(f for f in os.listdir(wf_dir) if f.endswith((".yml", ".yaml"))) if os.path.isdir(wf_dir) else []
+    if not files:
+        return None
+    jobs: set[str] = set()
+    for name in files:
+        indent = None
+        in_jobs = False
+        for line in (_read(os.path.join(wf_dir, name)) or "").splitlines():
+            if re.match(r"^jobs:\s*(#.*)?$", line):
+                in_jobs, indent = True, None
+                continue
+            if in_jobs and re.match(r"^\S", line):
+                in_jobs = False
+            key = re.match(r"^(\s+)([\w.-]+):\s*(#.*)?$", line)
+            if in_jobs and key:
+                indent = indent or len(key.group(1))
+                if len(key.group(1)) == indent:
+                    jobs.add(key.group(2))
+    return jobs
+
+
 def dangling_facts(repo: str, source_text: str | None) -> list[dict[str, Any]]:
     """Références du fichier source qui ne mènent nulle part : un contrat cité sous « Tâches
-    déléguées » sans SKILL.md, un chemin cité après « Vérifiée par » qui n'existe pas. Un nom de règle
+    déléguées » sans SKILL.md, un chemin cité après « Vérifiée par » qui n'existe pas, un job de CI
+    cité qu'aucun workflow ne définit (le garde-fou a disparu, la phrase est restée). Un nom de règle
     de linter (`eslint/no-raw-fetch`) n'est pas un chemin : on ne juge qu'un jeton avec une extension,
     ou un chemin dont le premier segment existe à la racine."""
     if not source_text:
@@ -204,10 +229,14 @@ def dangling_facts(repo: str, source_text: str | None) -> list[dict[str, Any]]:
             if name and not any(_exists(repo, f"{d}/{name.group(1)}/SKILL.md") for d in CONTRACT_DIRS):
                 dangling.append({"kind": "contract", "ref": name.group(1), "line": number})
     files: list[str] | None = None
+    jobs = workflow_jobs(repo)
     for number, rule in iter_rules(source_text):
         if not GUARDED_RE.search(rule):
             continue
         claim = GUARDED_RE.split(rule, maxsplit=1)[-1]
+        for job in re.findall(r"\bjobs?\s+`([\w.-]+)`", claim, flags=re.I):
+            if jobs is not None and job not in jobs:
+                dangling.append({"kind": "job", "ref": job, "line": number})
         for token in re.findall(r"`([^`\s]+)`", claim):
             token = token.rstrip(".,;:").lstrip("./")
             has_ext = bool(re.search(r"\.\w{1,5}$", token))

@@ -9,6 +9,7 @@ import argparse
 import difflib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -182,6 +183,9 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
     for ref in state["dangling"]:                                 # un pas ne promet pas le pas suivant
         if ref["kind"] == "guard" and base and facts.cited_path_exists(base, ref["ref"]):
             continue        # `result_dir` ne porte que les instructions : le garde-fou vit dans le dépôt de la fixture
+        if ref["kind"] == "job":
+            problems.append(f"référence sans cible : job `{ref['ref']}` ligne {ref['line']} (cité, absent des workflows)")
+            continue
         problems.append(f"référence sans cible : `{ref['ref']}` ligne {ref['line']} "
                         + ("(contrat cité, pas de SKILL.md)" if ref["kind"] == "contract" else "(garde-fou cité, chemin introuvable)"))
     if expected.get("only_level_material"):
@@ -248,7 +252,9 @@ def bare_copy(fixture_dir: str, dest: str, branch: str = "develop", keep_instrum
     readme = os.path.join(dest, "README.md")
     if os.path.exists(readme):
         with open(readme, encoding="utf-8") as fh:
-            lines = [l for l in fh.read().splitlines() if "fixture" not in l.lower() and "pièges" not in l.lower()]
+            # La ligne qui avoue le banc. « fixture » seul est aussi un mot de Django et de pytest.
+            lines = [l for l in fh.read().splitlines()
+                     if not re.search(r"harness-ai|d[ée]p[ôo]t \*\*synth[ée]tique\*\*|pièges d'instrumentation", l, re.I)]
         with open(readme, "w", encoding="utf-8") as fh:
             fh.write("\n".join(lines).rstrip() + "\n")
     if commit:

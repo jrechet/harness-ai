@@ -204,7 +204,8 @@ def render_markdown(state: dict) -> str:
     if state.get("dangling"):
         out.append("## Références sans cible")
         for d in state["dangling"]:
-            what = "contrat cité, SKILL.md introuvable" if d["kind"] == "contract" else "garde-fou cité, chemin introuvable"
+            what = {"contract": "contrat cité, SKILL.md introuvable", "job": "job de CI cité, absent des workflows"}.get(
+                d["kind"], "garde-fou cité, chemin introuvable")
             out.append(f"- ligne {d['line']} : `{d['ref']}` ({what})")
         out.append("")
     lay = state["layers"]

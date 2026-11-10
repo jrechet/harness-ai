@@ -46,7 +46,7 @@ class BenchCase(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = os.path.join(self.tmp.name, "repos")
         self.fx = os.path.join(self.root, "demo")
-        for rel, content in {"README.md": "# demo\n\nUne fixture.\n", "calc.py": CALC, "test_calc.py": TEST_CALC,
+        for rel, content in {"README.md": "# demo\n\nDépôt **synthétique** : une fixture du projet harness-ai.\n\nLes fixtures de test se chargent avec loaddata.\n", "calc.py": CALC, "test_calc.py": TEST_CALC,
                              "CLAUDE.md": "# notes\n- Think step by step.\n", "tools/guard.py": "print('ok')\n",
                              "node_modules/x/index.js": "x\n"}.items():
             write(self.fx, f"repo/{rel}", content)
@@ -99,7 +99,10 @@ class ArmTests(BenchCase):
         work = self.work("asis")
         self.assertFalse(os.path.exists(os.path.join(work, "node_modules")))
         with open(os.path.join(work, "README.md"), encoding="utf-8") as fh:
-            self.assertNotIn("fixture", fh.read())
+            readme = fh.read()
+        self.assertNotIn("harness-ai", readme)
+        self.assertNotIn("synthétique", readme)
+        self.assertIn("fixtures de test", readme)            # le mot seul appartient aussi au projet
 
     def test_available_arms_follow_what_the_fixture_has(self):
         self.assertEqual(bench.available_arms(self.fx), ["bare", "asis", "harness"])
