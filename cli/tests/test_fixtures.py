@@ -67,7 +67,7 @@ class AllFixturesTests(unittest.TestCase):
                 with open(os.path.join(fixtures.FIXTURES_ROOT, name, "traps.md"), encoding="utf-8") as fh:
                     traps_md = fh.read()
                 exp = load_expected(name)["audit"]
-                for trap in exp["traps"] + exp["sane"]:
+                for trap in exp["traps"] + exp["sane"] + exp.get("removals", []) + exp.get("must_keep", []):
                     self.assertIn(f"| {trap['id']} |", traps_md, f"{name}:{trap['id']}")
 
     def test_traps_md_lists_every_init_expectation(self):
@@ -262,3 +262,44 @@ Mode : **délégation**.
         for noise in ("N1", "N2", "N3", "N4", "N5", "N6", "N7"):
             self.assertIn(f"{noise} écrit à tort", text)
         self.assertEqual(result["score"], "4/4")      # les faits y sont, noyés : le défaut est le bruit
+
+
+class RemovalGraderTests(unittest.TestCase):
+    """Le verdict de retrait : motif accepté, question au propriétaire pour le périmé, lignes à garder."""
+
+    def setUp(self):
+        self.expected = {k: v for k, v in load_expected("ts-monorepo")["audit"].items() if k in ("removals", "must_keep")}
+
+    def removals(self, **override):
+        base = {
+            "N2": {"path": "CLAUDE.md", "line": 62, "text": "Use meaningful variable names.", "reason": "useless"},
+            "N3": {"path": "CLAUDE.md", "line": 71, "text": "IMPORTANT: Think step by step before making any change.", "reason": "useless"},
+            "N3b": {"path": "CLAUDE.md", "line": 74, "text": "Never apply partial edits to a file larger than 500 lines", "reason": "harmful"},
+            "N4": {"path": "apps/web/CLAUDE.md", "line": 6, "text": "Pas d'optional chaining : IE11", "reason": "outdated", "ask_owner": True},
+            "N5": {"path": "apps/web/CLAUDE.md", "line": 5, "text": "importe-le depuis ../../api/src/tickets/service.ts", "reason": "harmful"},
+        }
+        base.update(override)
+        return {"removals": [r for r in base.values() if r]}
+
+    def test_every_expected_removal_found(self):
+        result = fixtures.check_audit(self.removals(), self.expected)
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["score"], "5/5")
+
+    def test_missing_removal_is_reported(self):
+        result = fixtures.check_audit(self.removals(N3b=None), self.expected)
+        self.assertTrue(any(m.startswith("N3b") for m in result["missed"]), result)
+
+    def test_wrong_reason_is_reported(self):
+        result = fixtures.check_audit(self.removals(N2={"path": "CLAUDE.md", "text": "Use meaningful variable names.", "reason": "harmful"}), self.expected)
+        self.assertTrue(any(w.startswith("N2") for w in result["wrong"]), result)
+
+    def test_outdated_line_removed_without_asking_the_owner_is_wrong(self):
+        result = fixtures.check_audit(self.removals(N4={"path": "apps/web/CLAUDE.md", "text": "IE11", "reason": "outdated"}), self.expected)
+        self.assertTrue(any("question au propriétaire" in w for w in result["wrong"]), result)
+
+    def test_removing_a_line_worth_keeping_is_penalised(self):
+        gold = {"path": "CLAUDE.md", "line": 103, "text": "when you change anything in `packages/shared`, run npm run test:web", "reason": "useless"}
+        result = fixtures.check_audit(self.removals(GOLD=gold), self.expected)
+        self.assertTrue(any(f.startswith("I1") for f in result["sane_flagged"]), result)
+        self.assertFalse(result["ok"])

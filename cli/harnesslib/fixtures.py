@@ -115,35 +115,29 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
     for k in expected.get("forbidden_leak_keywords", []):
         if k.lower() in leaks_text:
             sane_flagged.append(f"process_leaks contient « {k} » : une convention de style n'est pas une fuite de processus")
-    total = len(expected.get("traps", []))
+    # Retraits : les lignes d'instructions que l'audit propose d'enlever, avec leur motif.
+    removals = audit.get("removals") or []
+    removal_text = lambda r: " ".join(str(r.get(k) or "") for k in ("text", "path")).lower()  # noqa: E731
+    for want in expected.get("removals", []):
+        hits = [r for r in removals if any(k.lower() in removal_text(r) for k in want["any_of"])]
+        good = [r for r in hits if r.get("reason") in want["reasons"]]
+        if good and want.get("ask_owner") and not any(r.get("ask_owner") for r in good):
+            wrong.append(f"{want['id']} : retrait proposé sans question au propriétaire, alors que lui seul sait si c'est périmé")
+        elif good:
+            found.append(want["id"])
+        elif hits:
+            got = ", ".join(str(r.get("reason")) for r in hits)
+            wrong.append(f"{want['id']} : retrait motivé {got}, attendu {'/'.join(want['reasons'])}")
+        else:
+            missed.append(f"{want['id']} : aucun retrait proposé pour une ligne contenant {want['any_of']}")
+    for keep in expected.get("must_keep", []):                  # la ligne qui vaut de l'or, noyée dans le bruit
+        for r in removals:
+            if any(k.lower() in (r.get("text") or "").lower() for k in keep["any_of"]):
+                sane_flagged.append(f"{keep['id']} : retrait proposé pour une ligne à garder « {(r.get('text') or '')[:60]} »")
+    total = len(expected.get("traps", [])) + len(expected.get("removals", []))
     return {"found": found, "missed": missed, "wrong": wrong, "sane_flagged": sane_flagged,
             "global": global_problems, "score": f"{len(found)}/{total}",
             "ok": not (missed or wrong or sane_flagged or global_problems)}
-
-
-SKIP_DIRS = {".git", "node_modules", "vendor", "dist", "build", ".harness", "runs"}
-INSTRUCTION_NAMES = {"AGENTS.md", "CLAUDE.md", "SKILL.md", "copilot-instructions.md"}
-
-
-def instruction_corpus(repo: str) -> dict[str, str]:
-    """Tout le texte d'instructions d'un dépôt, par chemin relatif : AGENTS.md et CLAUDE.md à tout
-    niveau, contrats (SKILL.md), stub Copilot, règles Cursor, avec leurs `@inclusions` résolues."""
-    corpus: dict[str, str] = {}
-    for root, dirs, files in os.walk(repo):
-        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
-        rel_root = os.path.relpath(root, repo)
-        for name in files:
-            in_cursor = rel_root.replace(os.sep, "/").startswith(".cursor/rules")
-            if name in INSTRUCTION_NAMES or in_cursor:
-                path = os.path.join(root, name)
-                try:
-                    with open(path, encoding="utf-8") as fh:
-                        text = fh.read()
-                except (OSError, UnicodeDecodeError):
-                    continue
-                corpus[os.path.normpath(os.path.join(rel_root, name)).replace(os.sep, "/")] = \
-                    facts.resolve_includes(root, text)
-    return corpus
 
 
 def check_init(result_dir: str, expected: dict, today: date | None = None) -> dict[str, Any]:
@@ -151,7 +145,7 @@ def check_init(result_dir: str, expected: dict, today: date | None = None) -> di
     palier atteint, faits non découvrables remontés (`must_surface`), bruit recopié (`must_not_write`),
     garde-fous réels cités (`guards_cited`), garde-fous mensongers crus (`forbidden_guards`)."""
     state = maturity.evaluate(facts.collect(result_dir, today=today))
-    corpus = instruction_corpus(result_dir)
+    corpus = facts.instruction_corpus(result_dir)
     text = "\n".join(corpus.values()).lower()
     rules = [r for t in corpus.values() for r in parse_rules(t)]
     guarded = [r.lower() for r in rules if facts.GUARDED_RE.search(r) and not facts.UNGUARDED_RE.search(r)]
@@ -255,7 +249,7 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         with open(args.audit, encoding="utf-8") as fh:
             audit = json.load(fh)
         result = check_audit(audit, expected.get("audit", {}))
-        print(f"## audit : {result['score']} pièges trouvés" + (" · conforme" if result["ok"] else ""))
+        print(f"## audit : {result['score']} pièges et retraits trouvés" + (" · conforme" if result["ok"] else ""))
         for key, title in (("missed", "Manqués"), ("wrong", "Mauvais verdict"), ("sane_flagged", "Sains signalés"),
                            ("global", "Global")):
             if result[key]:

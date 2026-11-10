@@ -142,6 +142,7 @@ def layer_view(f: dict) -> dict[str, Any]:
 
 
 def evaluate(f: dict) -> dict[str, Any]:
+    target = (f.get("config") or {}).get("target_level")      # None : le propriétaire n'a rien déclaré
     levels = []
     reached = 0
     blocked = False
@@ -154,34 +155,57 @@ def evaluate(f: dict) -> dict[str, Any]:
         if achieved:
             reached = num
         levels.append({"level": num, "name": name, "summary": summary, "achieved": achieved,
+                       "in_scope": target is None or num <= target,
                        "checks": checks, "passed_checks": sum(c["passed"] for c in checks), "total_checks": len(checks)})
     next_level = next((l for l in levels if not l["achieved"]), None)
-    next_actions = [c["next_action"] for c in (next_level["checks"] if next_level else []) if not c["passed"]]
+    # Un palier est un endroit où l'on peut rester : au-delà du palier visé, on ne propose rien.
+    pushing = next_level is not None and next_level["in_scope"]
+    next_actions = [c["next_action"] for c in (next_level["checks"] if pushing else []) if not c["passed"]]
     return {
         "schema": "harness-state/1",
         "repo": f["repo"],
         "date": f["date"],
         "level": {"reached": reached, "name": LEVELS[reached][1], "next": next_level["level"] if next_level else None},
+        "target": {"level": target, "name": LEVELS[target][1] if target else None,
+                   "reached": target is not None and reached >= target},
         "levels": levels,
         "layers": layer_view(f),
         "next_actions": next_actions[:3],
+        "dangling": f.get("dangling") or [],
         "facts": f,
     }
 
 
 def render_markdown(state: dict) -> str:
     lvl = state["level"]
+    target = state.get("target") or {"level": None, "reached": False}
+    if target["level"] is None:
+        goal = "aucun palier visé : `harness target <n>` dit où tu veux t'arrêter"
+    elif target["reached"]:
+        goal = f"visé : {target['level']} · **objectif atteint**"
+    else:
+        goal = f"visé : {target['level']} · {target['name']}"
     out = [f"# État du harness — {state['repo']}", "",
-           f"**Palier atteint** : {lvl['reached']} · {lvl['name']}" + (f" · prochain : {lvl['next']}" if lvl["next"] is not None else " · maximum"),
+           f"**Palier atteint** : {lvl['reached']} · {lvl['name']} · {goal}",
            f"**Date** : {state['date']}", ""]
     for l in state["levels"]:
         if not l["level"]:
+            continue
+        if not l.get("in_scope", True):
+            out.append(f"## · Palier {l['level']} — {l['name']} (hors objectif)")
+            out.append("")
             continue
         mark = "✓" if l["achieved"] else "·"
         out.append(f"## {mark} Palier {l['level']} — {l['name']} ({l['passed_checks']}/{l['total_checks']})")
         out.append(f"_{l['summary']}_")
         for c in l["checks"]:
             out.append(f"- [{'x' if c['passed'] else ' '}] {c['label']}" + ("" if c["passed"] else f" → {c['next_action']}"))
+        out.append("")
+    if state.get("dangling"):
+        out.append("## Références sans cible")
+        for d in state["dangling"]:
+            what = "contrat cité, SKILL.md introuvable" if d["kind"] == "contract" else "garde-fou cité, chemin introuvable"
+            out.append(f"- ligne {d['line']} : `{d['ref']}` ({what})")
         out.append("")
     lay = state["layers"]
     out.append(f"## Couches ({'audit du ' + str(lay.get('date')) if lay['source'] == 'audit' else 'estimation, pas d’audit'})")
@@ -197,5 +221,9 @@ def render_markdown(state: dict) -> str:
     if state["next_actions"]:
         out.append("## Prochaines actions")
         out.extend(f"{i}. {a}" for i, a in enumerate(state["next_actions"], 1))
+        out.append("")
+    elif target["reached"]:
+        out.append("## Objectif atteint")
+        out.append(f"Le palier visé est tenu. Rien à faire. `harness target {min(4, target['level'] + 1)}` si tu veux aller plus loin.")
         out.append("")
     return "\n".join(out)

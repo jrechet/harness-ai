@@ -23,6 +23,31 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     return p
 
 
+def build_target_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    parser.add_argument("level", nargs="?", type=int, choices=[1, 2, 3, 4], help="palier visé ; omis : affiche l'objectif")
+    parser.add_argument("repo", nargs="?", default=".", help="chemin du dépôt (défaut : .)")
+    parser.add_argument("--harness-dir", default=".harness")
+    return parser
+
+
+def target_main(args: argparse.Namespace) -> int:
+    """Écrit le palier visé dans `<harness-dir>/config.json` : au-delà, `status` ne propose rien."""
+    hdir = os.path.join(os.path.abspath(args.repo), args.harness_dir)
+    path = os.path.join(hdir, "config.json")
+    config = facts.load_json(path) or {"schema": "harness-config/1"}
+    if args.level is None:
+        current = facts.config_facts(hdir)["target_level"]
+        print(f"palier visé : {current}" if current else "aucun palier visé")
+        return 0
+    config["target_level"] = args.level
+    os.makedirs(hdir, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(config, fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+    print(f"palier visé : {args.level} · {maturity.LEVELS[args.level][1]} (écrit dans {os.path.relpath(path)})")
+    return 0
+
+
 def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) -> int:
     if args is None:
         args = build_parser().parse_args(argv)

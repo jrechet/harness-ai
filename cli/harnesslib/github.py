@@ -566,23 +566,24 @@ class Harvester:
 NON_RULE_HEADINGS = re.compile(r"^#{1,6}\s+(maintenance|t[âa]ches|tasks|ce que fait|what this|installation|commandes|commands|processus|working process|workflow)", re.I)
 
 
-def parse_rules(agents_md: str) -> list[str]:
-    """Les puces d'un AGENTS.md, lignes de continuation jointes, hors sections
-    de maintenance, de tâches, de commandes et de processus de travail (le
-    processus cadre l'agent, ce n'est pas une règle qu'un incident viole). On ne présume pas d'un titre
-    « Règles » : les fichiers réels rangent leurs règles sous « Pièges », « Base
-    de données », etc."""
-    rules: list[str] = []
+def iter_rules(agents_md: str) -> list[tuple[int, str]]:
+    """Les puces d'un AGENTS.md avec leur numéro de ligne (1 = première ligne), lignes de
+    continuation jointes, hors sections de maintenance, de tâches, de commandes et de processus de
+    travail (le processus cadre l'agent, ce n'est pas une règle qu'un incident viole). On ne présume
+    pas d'un titre « Règles » : les fichiers réels rangent leurs règles sous « Pièges », « Base de
+    données », etc."""
+    rules: list[tuple[int, str]] = []
     skip = False
     current: list[str] | None = None
+    start = 0
 
     def flush() -> None:
         nonlocal current
         if current:
-            rules.append(" ".join(part.strip() for part in current))
+            rules.append((start, " ".join(part.strip() for part in current)))
         current = None
 
-    for line in agents_md.splitlines():
+    for number, line in enumerate(agents_md.splitlines(), 1):
         if re.match(r"^#{1,6}\s", line):
             flush()
             skip = bool(NON_RULE_HEADINGS.match(line))
@@ -592,12 +593,18 @@ def parse_rules(agents_md: str) -> list[str]:
         if re.match(r"^\s*[-*]\s+", line):
             flush()
             current = [re.sub(r"^\s*[-*]\s+", "", line)]
+            start = number
         elif current is not None and line.startswith("  ") and line.strip():
             current.append(line)
         else:
             flush()
     flush()
     return rules
+
+
+def parse_rules(agents_md: str) -> list[str]:
+    """Le texte des règles, sans leur ligne : voir `iter_rules`."""
+    return [text for _, text in iter_rules(agents_md)]
 
 
 # --------------------------------------------------------------------- CLI

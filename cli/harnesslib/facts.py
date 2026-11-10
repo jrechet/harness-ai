@@ -13,7 +13,7 @@ import re
 from datetime import date, datetime
 from typing import Any
 
-from .github import parse_rules
+from .github import iter_rules, parse_rules
 
 INSTRUCTION_FILES = ["AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md"]
 CURSOR_RULES_DIR = ".cursor/rules"
@@ -50,6 +50,12 @@ UNGUARDED_RE = re.compile(r"\(non\s+v[ée]rifi[ée]e?\)|\(unverified\)", re.I)
 WHY_RE = re.compile(r"pourquoi\s*:|why\s*:|incident|issue\s*#?\d+|#\d+|https?://", re.I)
 # « Git Workflow » d'un fichier généré n'est pas un processus de travail : « workflow » seul, ou qualifié.
 PROCESS_HEADING_RE = re.compile(r"processus de travail|working process|working agreements?|^(?:agent |working )?workflow$", re.I)
+# Date d'une règle : `[2026-11]` ou `[2026-11-10]` en fin de puce. Sans elle, « sans incident depuis
+# six mois » ne se calcule pas et rien ne dit pour quelle génération de modèles la règle fut écrite.
+RULE_DATE_RE = re.compile(r"\[(\d{4}-\d{2}(?:-\d{2})?)\]")
+DELEGATED_HEADING_RE = re.compile(r"t[âa]ches d[ée]l[ée]gu[ée]es|delegated tasks", re.I)
+SKIP_DIRS = {".git", "node_modules", "vendor", "dist", "build", ".harness", "runs", "__pycache__", ".venv"}
+INSTRUCTION_NAMES = {"AGENTS.md", "CLAUDE.md", "SKILL.md", "copilot-instructions.md"}
 RULE_CONVENTION_RE = re.compile(r"`rule:`|\brule:\s", re.I)
 
 
@@ -124,6 +130,8 @@ def instruction_facts(repo: str) -> dict[str, Any]:
             "rules_guarded": sum(1 for r in rules if GUARDED_RE.search(r)),
             "rules_unguarded_marked": sum(1 for r in rules if UNGUARDED_RE.search(r)),
             "rules_justified": sum(1 for r in rules if WHY_RE.search(r)),
+            "rules_dated": sum(1 for r in rules if rule_date(r)),
+            "oldest_rule_date": min((d for d in map(rule_date, rules) if d), default=None),
             "has_maintenance_section": any(re.search(r"maintenance", h, re.I) for h in headings),
             "has_process_section": any(PROCESS_HEADING_RE.search(h) for h in headings),
             "has_forbidden_section": any(re.search(r"interdits?|never do|forbidden", h, re.I) for h in headings),
@@ -131,6 +139,84 @@ def instruction_facts(repo: str) -> dict[str, Any]:
             "harvest_marker": {"date": marker.group(1), "ref": marker.group(2)} if marker else None,
         })
     return {"files": files, "source": source}
+
+
+def rule_date(rule: str) -> str | None:
+    """La date portée par une règle (`[AAAA-MM]` ou `[AAAA-MM-JJ]`), la dernière si plusieurs."""
+    found = RULE_DATE_RE.findall(rule)
+    return found[-1] if found else None
+
+
+def instruction_corpus(repo: str, names: set[str] | None = None, resolve: bool = True) -> dict[str, str]:
+    """Le texte d'instructions d'un dépôt, par chemin relatif : AGENTS.md et CLAUDE.md à tout niveau,
+    contrats (SKILL.md), stub Copilot, règles Cursor ; `@inclusions` résolues sauf `resolve=False`."""
+    names = names or INSTRUCTION_NAMES
+    corpus: dict[str, str] = {}
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        rel_root = os.path.relpath(root, repo).replace(os.sep, "/")
+        for name in sorted(files):
+            if name in names or (names is INSTRUCTION_NAMES and rel_root.startswith(".cursor/rules")):
+                text = _read(os.path.join(root, name))
+                if text is None:
+                    continue
+                rel = name if rel_root == "." else f"{rel_root}/{name}"
+                corpus[rel] = resolve_includes(root, text) if resolve else text
+    return corpus
+
+
+def config_facts(hdir: str) -> dict[str, Any]:
+    """`.harness/config.json` : ce que le propriétaire a décidé, à commencer par le palier visé."""
+    config = load_json(os.path.join(hdir, "config.json")) or {}
+    target = config.get("target_level")
+    return {"target_level": target if isinstance(target, int) and 1 <= target <= 4 else None}
+
+
+def _repo_files(repo: str, limit: int = 20000) -> list[str]:
+    found: list[str] = []
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if d not in {".git", "node_modules", "__pycache__", ".venv"}]
+        rel_root = os.path.relpath(root, repo).replace(os.sep, "/")
+        for name in files:
+            found.append(name if rel_root == "." else f"{rel_root}/{name}")
+            if len(found) >= limit:
+                return found
+    return found
+
+
+def dangling_facts(repo: str, source_text: str | None) -> list[dict[str, Any]]:
+    """Références du fichier source qui ne mènent nulle part : un contrat cité sous « Tâches
+    déléguées » sans SKILL.md, un chemin cité après « Vérifiée par » qui n'existe pas. Un nom de règle
+    de linter (`eslint/no-raw-fetch`) n'est pas un chemin : on ne juge qu'un jeton avec une extension,
+    ou un chemin dont le premier segment existe à la racine."""
+    if not source_text:
+        return []
+    dangling: list[dict[str, Any]] = []
+    in_delegated = False
+    for number, line in enumerate(source_text.splitlines(), 1):
+        if re.match(r"^#{1,6}\s", line):
+            in_delegated = bool(DELEGATED_HEADING_RE.search(line))
+            continue
+        if in_delegated and re.match(r"^\s*[-*]\s+", line):
+            name = re.search(r"`([\w.-]+)`", line)
+            if name and not any(_exists(repo, f"{d}/{name.group(1)}/SKILL.md") for d in CONTRACT_DIRS):
+                dangling.append({"kind": "contract", "ref": name.group(1), "line": number})
+    files: list[str] | None = None
+    for number, rule in iter_rules(source_text):
+        if not GUARDED_RE.search(rule):
+            continue
+        claim = GUARDED_RE.split(rule, maxsplit=1)[-1]
+        for token in re.findall(r"`([^`\s]+)`", claim):
+            token = token.rstrip(".,;:").lstrip("./")
+            has_ext = bool(re.search(r"\.\w{1,5}$", token))
+            rooted = "/" in token and _exists(repo, token.split("/", 1)[0])
+            if not (has_ext or rooted) or _exists(repo, token):
+                continue
+            if files is None:
+                files = _repo_files(repo)
+            if not any(f == token or f.endswith("/" + token) or f.startswith(token.rstrip("/") + "/") for f in files):
+                dangling.append({"kind": "guard", "ref": token, "line": number})
+    return dangling
 
 
 def contract_facts(repo: str, source_text: str | None) -> dict[str, Any]:
@@ -199,6 +285,8 @@ def audit_facts(audit: dict | None) -> dict[str, Any] | None:
         "priorities": priorities,
         "process_leaks": len(audit.get("process_leaks") or []),
         "guarded_rules": len(audit.get("guarded_rules") or []),
+        "removals": {reason: sum(1 for r in audit.get("removals") or [] if r.get("reason") == reason)
+                     for reason in ("useless", "harmful", "outdated")},
     }
 
 
@@ -248,4 +336,6 @@ def collect(repo: str, harness_dir: str = ".harness", audit_path: str | None = N
         "audit": audit_facts(audit),
         "harvest": harvest_facts(harvest),
         "harvest_marker_age_days": days_since(marker, today),
+        "config": config_facts(hdir),
+        "dangling": dangling_facts(repo, source_text),
     }

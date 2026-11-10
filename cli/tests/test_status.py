@@ -11,7 +11,7 @@ from contextlib import redirect_stdout
 from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from harnesslib import facts, maturity, status  # noqa: E402
+from harnesslib import facts, maturity, rules, status  # noqa: E402
 
 TODAY = date(2026, 11, 9)
 
@@ -100,6 +100,114 @@ class Level0Tests(TempRepo):
         self.assertEqual(s["facts"]["instructions"]["source"]["path"], "CLAUDE.md")
         self.assertTrue(self.check(s, "L1.source")["passed"])
         self.assertFalse(self.check(s, "L1.short")["passed"])
+
+
+class TargetLevelTests(TempRepo):
+    """Un palier est un endroit où l'on peut rester : au-delà du palier visé, status ne pousse pas."""
+
+    def test_without_target_the_next_level_is_proposed(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        s = self.state()
+        self.assertEqual(s["target"], {"level": None, "name": None, "reached": False})
+        self.assertTrue(s["next_actions"])
+        self.assertIn("aucun palier visé", maturity.render_markdown(s))
+
+    def test_target_reached_proposes_nothing_and_says_so(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 1}))
+        s = self.state()
+        self.assertEqual(s["level"]["reached"], 1)
+        self.assertTrue(s["target"]["reached"])
+        self.assertEqual(s["next_actions"], [])
+        md = maturity.render_markdown(s)
+        self.assertIn("objectif atteint", md)
+        self.assertIn("Palier 2 — Bouclé (hors objectif)", md)
+        self.assertNotIn("Section Maintenance", md)
+
+    def test_target_above_current_level_keeps_pushing_up_to_it_only(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 2}))
+        s = self.state()
+        self.assertFalse(s["target"]["reached"])
+        self.assertTrue(s["next_actions"])
+        self.assertEqual([l["in_scope"] for l in s["levels"]], [True, True, True, False, False])
+
+    def test_invalid_target_is_ignored(self):
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 9}))
+        self.assertIsNone(self.state()["target"]["level"])
+
+    def test_target_command_writes_config_and_keeps_other_keys(self):
+        write(self.repo, ".harness/config.json", json.dumps({"schema": "harness-config/1", "note": "x"}))
+        from harness import main as harness_main
+        with redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(harness_main(["target", "3", self.repo]), 0)
+        with open(os.path.join(self.repo, ".harness/config.json"), encoding="utf-8") as fh:
+            config = json.load(fh)
+        self.assertEqual(config, {"schema": "harness-config/1", "note": "x", "target_level": 3})
+        self.assertIn("Vérifié", out.getvalue())
+
+
+class DanglingReferenceTests(TempRepo):
+    """Ce qui est posé reste cohérent : un contrat ou un garde-fou cité doit exister."""
+
+    def test_contract_cited_without_skill_is_dangling(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL4)
+        self.assertEqual([(d["kind"], d["ref"]) for d in self.state()["dangling"]], [("contract", "bump-dependency")])
+        write(self.repo, ".claude/skills/bump-dependency/SKILL.md", "# x\n")
+        self.assertEqual(self.state()["dangling"], [])
+
+    def test_guard_path_that_does_not_exist_is_dangling(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1.replace("`eslint/no-raw-fetch`", "`tools/check.mjs`, job `lint`"))
+        self.assertEqual([(d["kind"], d["ref"]) for d in self.state()["dangling"]], [("guard", "tools/check.mjs")])
+        write(self.repo, "tools/check.mjs", "")
+        self.assertEqual(self.state()["dangling"], [])
+
+    def test_linter_rule_name_and_job_name_are_not_paths(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)          # `eslint/no-raw-fetch` : pas de dossier eslint/
+        self.assertEqual(self.state()["dangling"], [])
+
+    def test_file_cited_by_basename_is_found_anywhere(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1.replace("`eslint/no-raw-fetch`", "`ci.yml`"))
+        self.assertEqual(len(self.state()["dangling"]), 1)
+        write(self.repo, ".github/workflows/ci.yml", "on: push\n")
+        self.assertEqual(self.state()["dangling"], [])
+
+
+class RuleDateTests(TempRepo):
+    DATED = AGENTS_LEVEL1.replace("(non vérifiée)", "(non vérifiée) [2026-03]")
+
+    def test_dated_rules_are_counted(self):
+        write(self.repo, "AGENTS.md", self.DATED)
+        src = self.state()["facts"]["instructions"]["source"]
+        self.assertEqual((src["rules_total"], src["rules_dated"], src["oldest_rule_date"]), (3, 1, "2026-03"))
+
+    def test_rules_command_reads_the_date_from_the_rule(self):
+        write(self.repo, "AGENTS.md", self.DATED)
+        rows = rules.collect(self.repo, TODAY)
+        dated = [r for r in rows if r["since_source"] == "rule"]
+        self.assertEqual(len(dated), 1)
+        self.assertEqual((dated[0]["since"], dated[0]["age_days"], dated[0]["marked_unguarded"], dated[0]["justified"]),
+                         ("2026-03", 253, True, True))
+        self.assertTrue(any(r["guarded"] for r in rows))
+
+    def test_rules_command_falls_back_on_git_blame(self):
+        import subprocess
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        env = {**os.environ, "GIT_AUTHOR_NAME": "o", "GIT_AUTHOR_EMAIL": "o@example.test", "GIT_COMMITTER_NAME": "o",
+               "GIT_COMMITTER_EMAIL": "o@example.test", "GIT_AUTHOR_DATE": "2025-01-15T10:00:00Z",
+               "GIT_COMMITTER_DATE": "2025-01-15T10:00:00Z"}
+        for cmd in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "x"]):
+            subprocess.run(["git", "-C", self.repo, *cmd], check=True, env=env, capture_output=True)
+        rows = rules.collect(self.repo, TODAY)
+        self.assertTrue(rows)
+        self.assertTrue(all(r["since"] == "2025-01-15" and r["since_source"] == "git" for r in rows))
+        self.assertIn("(git)", rules.render_markdown(rows))
+
+    def test_rules_of_subdirectory_files_are_listed_with_their_path(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        write(self.repo, "apps/web/CLAUDE.md", "# Web\n- Tout passe par `escapeHtml`. Pourquoi : pentest. [2026-03]\n")
+        files = {r["file"] for r in rules.collect(self.repo, TODAY, blame=False)}
+        self.assertEqual(files, {"AGENTS.md", "apps/web/CLAUDE.md"})
 
 
 class HeadingAndToolDetectionTests(TempRepo):
