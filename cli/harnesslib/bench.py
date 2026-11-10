@@ -309,6 +309,7 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     rc.add_argument("--run", help="chemin des sorties de l'exécution")
     rc.add_argument("--note")
     rc.add_argument("--date")
+    rc.add_argument("--skill-rev", help="version des skills évaluée (défaut : le commit courant)")
     rc.add_argument("--results", default=RESULTS)
     rp = sub.add_parser("report", help="le registre des résultats")
     rp.add_argument("--format", choices=["md", "json"], default="md")
@@ -357,7 +358,7 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         return 1 if problems else 0
     if cmd == "record":
         row = record({"date": args.date or date.today().isoformat(), "kind": args.kind, "fixture": args.fixture,
-                      "task": args.task, "arm": args.arm, "model": args.model, "skill_rev": _skill_rev(),
+                      "task": args.task, "arm": args.arm, "model": args.model, "skill_rev": args.skill_rev or _skill_rev(),
                       "score": args.score, "ok": bool(args.ok), "blind": not args.author, "run": args.run,
                       "note": args.note}, args.results)
         print(json.dumps(row, ensure_ascii=False))

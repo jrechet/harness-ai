@@ -25,7 +25,7 @@ Mode : **délégation**. Un agent peut recevoir une tâche entière et ouvrir un
 - <Règle en une phrase.> Pourquoi : <incident ou raison, ou « pas d'incident connu »>. Vérifiée par : <chemin du garde-fou qui bloque> | (non vérifiée) [<AAAA-MM>]
 
 ## Interdits
-- <Ce qu'un agent ne fait jamais, même si la tâche semble le demander.> Pourquoi : <…>
+- <Ce qu'un agent ne fait jamais, même si la tâche semble le demander.> Pourquoi : <…> [<AAAA-MM>]
 ```
 
 Variante assistance, ligne de mode : `Mode : **assistance**. L'humain pilote et relit chaque diff ; ce fichier évite les allers-retours, il n'est pas un garde-fou.`

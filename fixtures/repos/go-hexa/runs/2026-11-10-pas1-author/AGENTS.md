@@ -19,6 +19,6 @@ Service de tenue de comptes : ouvrir un compte, lire un solde, virer de l'argent
 - Une migration appliquée ne se modifie plus : on ajoute un fichier au numéro suivant. Pourquoi : staging et production ne rejouent que ce que `deploy.yml` leur passe. (non vérifiée) [2026-11]
 
 ## Interdits
-- `make reset-db` et `make migrate` avec un `DATABASE_URL` qui n'est pas ta base locale. Pourquoi : `reset-db` détruit le schéma sans regarder la cible ; deux jours de données QA perdus sur staging le 3 février 2026.
-- Lancer `deploy.yml` avec `dry_run` à faux, ou vers `production`.
-- Modifier un fichier existant de `migrations/`.
+- `make reset-db` et `make migrate` avec un `DATABASE_URL` qui n'est pas ta base locale. Pourquoi : `reset-db` détruit le schéma sans regarder la cible ; deux jours de données QA perdus sur staging le 3 février 2026. [2026-02]
+- Lancer `deploy.yml` avec `dry_run` à faux, ou vers `production`. Pourquoi : demande du propriétaire, pas d'incident connu. [2026-11]
+- Modifier un fichier existant de `migrations/`. Pourquoi : voir la règle des migrations. [2026-11]

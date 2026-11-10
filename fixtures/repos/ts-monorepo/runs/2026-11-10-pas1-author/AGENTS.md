@@ -19,5 +19,5 @@ Support interne : tickets, statuts, une API et une page web. Le modèle du ticke
 - Un statut ou une transition se déclare dans `packages/shared`, jamais dans une app. Pourquoi : ADR 0001, pas d'incident connu. Vérifiée par : `packages/shared/src/ticket.test.ts` pour les transitions seulement. [2025-11]
 
 ## Interdits
-- Ajouter un pilote de base de données ou une dépendance d'exécution. Pourquoi : le stockage de production vit dans `deskly-infra` ; `TicketStore` est en mémoire exprès.
-- Modifier `deskly-infra` depuis une tâche de ce dépôt.
+- Ajouter un pilote de base de données ou une dépendance d'exécution. Pourquoi : le stockage de production vit dans `deskly-infra` ; `TicketStore` est en mémoire exprès. [2025-11]
+- Modifier `deskly-infra` depuis une tâche de ce dépôt. Pourquoi : demande du propriétaire, pas d'incident connu. [2026-11]

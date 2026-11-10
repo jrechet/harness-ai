@@ -10,7 +10,7 @@ const fetchJson = async (url) => {
 };
 
 const Stairs = {
-  props: ["levels", "reached"],
+  props: ["levels", "reached", "target"],
   emits: ["select"],
   data: () => ({ selected: null }),
   methods: {
@@ -19,10 +19,13 @@ const Stairs = {
   template: `
     <div class="stairs" role="list">
       <button v-for="l in levels.filter(x => x.level)" :key="l.level" class="step" role="listitem"
-              :class="{ achieved: l.achieved, next: !l.achieved && l.level === reached + 1 }"
+              :class="{ achieved: l.achieved, next: !l.achieved && l.level === reached + 1 && l.in_scope !== false,
+                        out: l.in_scope === false, target: l.level === target }"
               :aria-pressed="selected === l.level" :style="{ paddingTop: (6 + l.level * 8) + 'px' }" @click="pick(l)">
         <span class="num">Palier {{ l.level }}</span>
         <span class="name">{{ l.name }}</span>
+        <span class="goal" v-if="l.level === target">objectif</span>
+        <span class="goal" v-else-if="l.in_scope === false">hors objectif</span>
         <span class="count">{{ l.passed_checks }}/{{ l.total_checks }}</span>
         <span class="bar"><i :style="{ width: (100 * l.passed_checks / l.total_checks) + '%' }"></i></span>
       </button>
@@ -34,12 +37,13 @@ const Checks = {
   template: `
     <div v-if="level">
       <p class="summary">{{ level.summary }}</p>
+      <p class="hint" v-if="level.in_scope === false">Hors objectif : ce palier n'est pas visé, rien n'est proposé ici. <code>harness target {{ level.level }}</code> pour le viser.</p>
       <ul class="checks">
         <li v-for="c in level.checks" :key="c.id">
           <span :class="c.passed ? 'ok' : 'ko'" :aria-label="c.passed ? 'passe' : 'échoue'">{{ c.passed ? '✓' : '✗' }}</span>
           <span>{{ c.label }}
             <span class="value" v-if="c.value !== null && c.value !== undefined && typeof c.value !== 'object'"> · {{ c.value }}</span>
-            <div class="action" v-if="!c.passed">→ {{ c.next_action }}</div>
+            <div class="action" v-if="!c.passed && level.in_scope !== false">→ {{ c.next_action }}</div>
           </span>
         </li>
       </ul>
@@ -142,7 +146,11 @@ createApp({
       try {
         [state.value, hist.value] = await Promise.all([fetchJson("/api/state"), fetchJson("/api/history")]);
         error.value = null;
-        if (selected.value === null) selected.value = state.value.level.next;
+        // Ne pas ouvrir d'office un palier que l'utilisateur ne vise pas : ce serait le pousser.
+        if (selected.value === null) {
+          const next = state.value.levels.find(l => l.level === state.value.level.next);
+          selected.value = next && next.in_scope !== false ? next.level : state.value.level.reached || null;
+        }
       } catch (e) { error.value = e.message; }
     };
     onMounted(() => { load(); setInterval(load, 10000); });
@@ -150,7 +158,8 @@ createApp({
     const selectedLevel = computed(() => state.value?.levels.find(l => l.level === selected.value) || null);
     const facts = computed(() => state.value?.facts || null);
     const src = computed(() => facts.value?.instructions.source || {});
-    return { state, hist, error, selected, selectedLevel, repoName, facts, src, names: LEVEL_NAMES, load };
+    const target = computed(() => state.value?.target || { level: null, reached: false });
+    return { state, hist, error, selected, selectedLevel, repoName, facts, src, target, names: LEVEL_NAMES, load };
   },
   template: `
     <main>
@@ -159,28 +168,37 @@ createApp({
         <header>
           <h1>{{ repoName }}</h1>
           <span class="badge">Palier {{ state.level.reached }} · {{ state.level.name }}</span>
-          <span class="badge muted" v-if="state.level.next !== null">prochain : {{ state.level.next }} · {{ names[state.level.next] }}</span>
-          <span class="badge muted" v-else>palier maximum</span>
+          <span class="badge ok" v-if="target.reached">objectif atteint</span>
+          <span class="badge muted" v-else-if="target.level !== null">visé : {{ target.level }} · {{ names[target.level] }}</span>
+          <span class="badge muted" v-else>aucun palier visé</span>
           <span class="path">{{ state.repo }} · {{ state.date }}</span>
         </header>
         <div class="grid">
           <section class="card wide">
             <h2>Paliers de maturité</h2>
-            <Stairs :levels="state.levels" :reached="state.level.reached" @select="selected = $event"/>
+            <Stairs :levels="state.levels" :reached="state.level.reached" :target="target.level" @select="selected = $event"/>
             <Checks :level="selectedLevel"/>
             <p class="hint" v-if="!selectedLevel">Clique un palier pour voir ses vérifications.</p>
           </section>
           <section class="card">
             <h2>Prochaines actions</h2>
             <ol class="actions" v-if="state.next_actions.length"><li v-for="a in state.next_actions" :key="a">{{ a }}</li></ol>
-            <p class="hint" v-else>Rien à faire : palier maximum atteint.</p>
+            <p class="hint" v-else-if="target.reached">Objectif atteint : le palier visé est tenu. Rien à faire.</p>
+            <p class="hint" v-else-if="state.level.next === null">Rien à faire : palier maximum atteint.</p>
+            <p class="hint" v-else>Rien à faire dans le palier visé.</p>
+            <template v-if="state.dangling && state.dangling.length">
+              <h2 style="margin-top:16px">Références sans cible</h2>
+              <ul class="checks"><li v-for="d in state.dangling" :key="d.ref"><span class="ko" aria-label="introuvable">✗</span>
+                <span><code>{{ d.ref }}</code> · ligne {{ d.line }} · {{ d.kind === 'contract' ? 'contrat cité, SKILL.md introuvable' : 'garde-fou cité, chemin introuvable' }}</span></li></ul>
+            </template>
           </section>
           <section class="card facts">
             <h2>Faits mesurés</h2>
             <dl>
               <dt>Fichier source</dt><dd>{{ src.path || 'aucun' }}<span v-if="src.lines"> · {{ src.lines }} lignes</span></dd>
               <dt>Mode</dt><dd>{{ src.mode || 'non déclaré' }}</dd>
-              <dt>Règles</dt><dd>{{ src.rules_total ?? 0 }} · {{ src.rules_guarded ?? 0 }} vérifiées · {{ src.rules_justified ?? 0 }} justifiées</dd>
+              <dt>Règles</dt><dd>{{ src.rules_total ?? 0 }} · {{ src.rules_guarded ?? 0 }} vérifiées · {{ src.rules_justified ?? 0 }} justifiées · {{ src.rules_dated ?? 0 }} datées</dd>
+              <dt>Plus ancienne règle</dt><dd>{{ src.oldest_rule_date || 'aucune date' }}</dd>
               <dt>Dernier harvest</dt><dd>{{ facts.harvest_marker_age_days === null ? 'jamais' : 'il y a ' + facts.harvest_marker_age_days + ' j' }}</dd>
               <dt>Contrats</dt><dd>{{ facts.contracts.count }}</dd>
               <dt>Garde-fous</dt><dd>{{ Object.keys(facts.guardrails.tools).join(', ') || 'aucun détecté' }}</dd>

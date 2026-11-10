@@ -7,12 +7,18 @@
     "name": "Cadré",
     "next": 2
   },
+  "target": {
+    "level": null,
+    "name": null,
+    "reached": false
+  },
   "levels": [
     {
       "level": 0,
       "name": "Rien",
       "summary": "Aucun fichier d'instructions : l'agent part de zéro à chaque session.",
       "achieved": true,
+      "in_scope": true,
       "checks": [],
       "passed_checks": 0,
       "total_checks": 0
@@ -22,6 +28,7 @@
       "name": "Cadré",
       "summary": "Un AGENTS.md court, un mode explicite, des stubs : l'agent sait où il est.",
       "achieved": true,
+      "in_scope": true,
       "checks": [
         {
           "id": "L1.source",
@@ -41,7 +48,7 @@
           "id": "L1.short",
           "label": "Le fichier chargé fait au plus 60 lignes",
           "passed": true,
-          "value": 33,
+          "value": 39,
           "next_action": null
         },
         {
@@ -51,7 +58,7 @@
           "value": {
             "exists": true,
             "lines": 1,
-            "loaded_lines": 33,
+            "loaded_lines": 39,
             "is_stub": true
           },
           "next_action": null
@@ -72,6 +79,7 @@
       "name": "Bouclé",
       "summary": "La boucle de retour tourne : les incidents deviennent des règles.",
       "achieved": false,
+      "in_scope": true,
       "checks": [
         {
           "id": "L2.maintenance",
@@ -110,6 +118,7 @@
       "name": "Vérifié",
       "summary": "Les règles obligatoires sont portées par des outils, pas par du texte.",
       "achieved": false,
+      "in_scope": true,
       "checks": [
         {
           "id": "L3.ci",
@@ -129,7 +138,7 @@
           "id": "L3.justified",
           "label": "Au moins 50 % des règles disent pourquoi",
           "passed": true,
-          "value": 0.6,
+          "value": 0.71,
           "next_action": null
         },
         {
@@ -148,6 +157,7 @@
       "name": "Délégué",
       "summary": "Des tâches entières sont confiées à l'agent et reviennent propres.",
       "achieved": false,
+      "in_scope": true,
       "checks": [
         {
           "id": "L4.mode",
@@ -166,9 +176,9 @@
         {
           "id": "L4.contracts",
           "label": "Au moins un contrat de tâche existe et est référencé",
-          "passed": false,
-          "value": 0,
-          "next_action": "Créer .claude/skills/<tâche>/SKILL.md pour la première tâche déléguée et le citer dans AGENTS.md."
+          "passed": true,
+          "value": 1,
+          "next_action": null
         },
         {
           "id": "L4.clean_prs",
@@ -185,7 +195,7 @@
           "next_action": "Pousser en L3/L4 les étapes qui n'existent que dans des prompts."
         }
       ],
-      "passed_checks": 1,
+      "passed_checks": 2,
       "total_checks": 5
     }
   ],
@@ -197,7 +207,7 @@
         "misplaced": null
       },
       "L2": {
-        "total": 1,
+        "total": 2,
         "misplaced": null
       },
       "L3": {
@@ -214,6 +224,7 @@
   "next_actions": [
     "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore."
   ],
+  "dangling": [],
   "facts": {
     "repo": "/home/user/harness-ai",
     "date": "2026-11-10",
@@ -221,14 +232,14 @@
       "files": {
         "AGENTS.md": {
           "exists": true,
-          "lines": 33,
-          "loaded_lines": 33,
+          "lines": 39,
+          "loaded_lines": 39,
           "is_stub": false
         },
         "CLAUDE.md": {
           "exists": true,
           "lines": 1,
-          "loaded_lines": 33,
+          "loaded_lines": 39,
           "is_stub": true
         },
         ".github/copilot-instructions.md": {
@@ -242,11 +253,13 @@
       "source": {
         "path": "AGENTS.md",
         "mode": "assistance",
-        "lines": 33,
-        "rules_total": 5,
+        "lines": 39,
+        "rules_total": 7,
         "rules_guarded": 0,
         "rules_unguarded_marked": 3,
-        "rules_justified": 3,
+        "rules_justified": 5,
+        "rules_dated": 0,
+        "oldest_rule_date": null,
         "has_maintenance_section": true,
         "has_process_section": true,
         "has_forbidden_section": true,
@@ -258,8 +271,14 @@
       }
     },
     "contracts": {
-      "count": 0,
-      "items": []
+      "count": 1,
+      "items": [
+        {
+          "name": "harness-stress",
+          "path": ".claude/skills/harness-stress/SKILL.md",
+          "referenced": true
+        }
+      ]
     },
     "guardrails": {
       "tools": {},
@@ -268,6 +287,10 @@
     },
     "audit": null,
     "harvest": null,
-    "harvest_marker_age_days": 1
+    "harvest_marker_age_days": 1,
+    "config": {
+      "target_level": null
+    },
+    "dangling": []
   }
 }

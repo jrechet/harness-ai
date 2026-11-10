@@ -44,6 +44,10 @@ header .path { color: var(--text-muted); font-size: 13px; word-break: break-all;
 .step.achieved { border-color: var(--good); }
 .step.achieved .name::before { content: "✓ "; color: var(--good); }
 .step.next { border-color: var(--series-1); }
+.step.out { opacity: .5; border-style: dashed; }
+.step.target { box-shadow: inset 0 -3px 0 var(--series-1); }
+.step .goal { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+.badge.ok { background: var(--good); }
 .step .bar { height: 4px; background: var(--surface-2); border-radius: 2px; margin-top: 8px; overflow: hidden; }
 .step .bar i { display: block; height: 100%; background: var(--series-1); }
 .step.achieved .bar i { background: var(--good); }

@@ -19,13 +19,18 @@ Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluati
 - Une exécution de skill faite par la session qui a écrit les pièges est une base de régression, pas une mesure. Pourquoi : biais d'auteur constaté sur java-back. (non vérifiée)
 
 ## Interdits
-- Lire `traps.md`, `expected.json` ou `runs/` d'une fixture pendant une exécution à l'aveugle.
+- Lire `traps.md`, `expected.json`, `tasks/` ou `runs/` d'une fixture pendant une exécution à l'aveugle. Seuls `owner.md` et, pour une tâche, `task.md` se donnent à l'agent évalué.
+- Lancer une exécution à l'aveugle ou une campagne `harness-stress` sans demande du propriétaire. Pourquoi : environ 130 000 tokens par exécution.
+- Modifier un `expected.json`, un `traps.md` ou le noteur pour faire passer une exécution. Pourquoi : qui corrige la copie et le corrigé fait toujours monter la note.
 - Commiter des `__pycache__` ou un `.skill` ; ajouter une dépendance hors bibliothèque standard au CLI.
 
 ## Processus de travail
 - Les questions ouvertes (arbitrage, choix d'approche, information que seul le propriétaire détient) sont posées **en fin de message**, dans une section « Questions » numérotée, une par ligne, avec le défaut proposé. Jamais noyées dans le corps, jamais implicites, jamais laissées « dans la PR ». Pas de section s'il n'y en a pas.
 - Les décisions déjà prises ne sont pas rouvertes ; les hypothèses prises sans question sont dites en une ligne.
 - Une tâche est finie quand les tests passent, les fixtures sont conformes, et le commit est poussé sur `main`.
+
+## Tâches déléguées
+- `harness-stress` (`.claude/skills/harness-stress`) — une campagne d'évaluation des skills sur les projets types, à la demande, corrections en PR dédiée.
 
 ## Maintenance de ce fichier
 - Un commentaire de review qui commence par `rule:` est une règle candidate, ajoutée ici dans la même PR avec le lien.

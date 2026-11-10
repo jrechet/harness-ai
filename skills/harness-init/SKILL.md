@@ -35,7 +35,7 @@ Test pour chaque phrase candidate : *si je l'enlève, l'agent fait-il quelque ch
 ### 3. Écriture
 Depuis `references/agents-template.md`, bloc « Pas 1 » :
 - `AGENTS.md` à la racine, **sous 60 lignes**, ligne de mode en tête. Sections vides supprimées plutôt que remplies de générique.
-- Chaque règle porte trois choses : **pourquoi** (l'incident, ou « pas d'incident connu » plutôt qu'une raison inventée), **par quoi elle est vérifiée** (`Vérifiée par : <chemin>` seulement pour un garde-fou que tu as vu bloquer, sinon `(non vérifiée)`), et **depuis quand** (`[AAAA-MM]`, la date de l'incident ou de la décision ; à défaut, aujourd'hui). Une règle reprise d'un ancien fichier garde sa date d'origine : elle ne rajeunit pas parce qu'on la recopie.
+- Chaque règle, et chaque interdit, porte trois choses : **pourquoi** (l'incident, ou « pas d'incident connu » plutôt qu'une raison inventée), **par quoi elle est vérifiée** (`Vérifiée par : <chemin>` seulement pour un garde-fou que tu as vu bloquer, sinon `(non vérifiée)`), et **depuis quand** (`[AAAA-MM]`, la date de l'incident ou de la décision ; à défaut, aujourd'hui). Une règle reprise d'un ancien fichier garde sa date d'origine : elle ne rajeunit pas parce qu'on la recopie.
 - Une règle que le dépôt viole déjà le dit, avec le fichier : l'agent ne doit pas prendre le contre-exemple pour modèle.
 - Stubs : `CLAUDE.md` contenant uniquement `@AGENTS.md` ; `.github/copilot-instructions.md` et `.cursor/rules/agents.mdc` selon les outils déclarés.
 - Un marqueur de harvest déjà présent est gardé tel quel. On n'en pose pas.

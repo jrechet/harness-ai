@@ -20,17 +20,22 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 
 | Skill | Rôle |
 |---|---|
-| [`harness-init`](skills/harness-init/SKILL.md) | Met en place l'instrumentation IA d'un repo à partir de zéro : entretien (délégation par défaut ou assistance), reconnaissance, AGENTS.md court comme source unique, stubs CLAUDE.md / Copilot / Cursor, premier contrat de tâche, convention de retour `rule:`, puis harness-audit en mode gate. |
+| [`harness-init`](skills/harness-init/SKILL.md) | Le pas 1. Trois questions, une reconnaissance, puis un AGENTS.md court comme source unique : mode, règles justifiées et datées, Interdits, stubs CLAUDE.md / Copilot / Cursor. Sur un dépôt déjà instrumenté, il retire ce qui ne sert plus. Il pose le palier 1 et s'arrête. |
+| [`harness-step`](skills/harness-step/SKILL.md) | Un pas à la fois. Lit l'état mesuré, demande une fois jusqu'où tu veux aller, fait le plus petit pas vers ce palier, montre l'avant et l'après, et s'arrête. Au-delà du palier visé il ne propose rien. |
 | [`harness-harvest`](skills/harness-harvest/SKILL.md) | Fait évoluer AGENTS.md et les contrats à partir de l'activité depuis le dernier harvest : `rule:`, corrections après coup sur PRs d'agent, checks ignorés, règles orphelines, tâches récurrentes. Un catalogue de signaux indépendant de la source, GitHub en premier adaptateur, une PR dédiée avec un commit par candidat. |
-| [`harness-audit`](skills/harness-audit/SKILL.md) | Audite un harness ou un AGENTS.md/CLAUDE.md, classe chaque élément dans la grille L1–L4, rend un verdict par élément (KEEP / INLINE / PUSH_DOWN / PROMOTE / MERGE / SPLIT / BLOCK) et un plan de remédiation. Rapport à format fixe (Markdown + JSON) défini dans `references/report-template.md`. |
+| [`harness-audit`](skills/harness-audit/SKILL.md) | Audite un harness ou un AGENTS.md/CLAUDE.md, classe chaque élément dans la grille L1–L4, rend un verdict par élément (KEEP / INLINE / PUSH_DOWN / PROMOTE / MERGE / SPLIT / BLOCK / REMOVE) et un plan de remédiation. Sa revue de pertinence dit quelles lignes ne changent plus ce que fait l'agent : inutiles, nuisibles, ou périmées, ces dernières posées en question au propriétaire. Rapport à format fixe (Markdown + JSON) défini dans `references/report-template.md`. |
 
 ## Progression mesurée
 
-`harness status` calcule le palier de maturité du repo à partir de faits (fichiers, règles, dernier audit, dernier harvest), écrit `.harness/state.json` et dit quoi faire ensuite. Cinq paliers : Rien, Cadré, Bouclé, Vérifié, Délégué. Modèle et seuils dans [docs/maturity.md](docs/maturity.md).
+`harness status` calcule le palier de maturité du repo à partir de faits (fichiers, règles, dernier audit, dernier harvest) et écrit `.harness/state.json`. Cinq paliers : Rien, Cadré, Bouclé, Vérifié, Délégué. Un palier est un endroit où l'on peut rester : tu déclares celui que tu vises, et au-delà l'état ne propose rien. Modèle et seuils dans [docs/maturity.md](docs/maturity.md).
 
 ```bash
 python3 cli/harness.py status <chemin-du-repo>
+python3 cli/harness.py target 1 <chemin-du-repo>    # « je m'arrête au palier 1 »
+python3 cli/harness.py rules <chemin-du-repo>       # les règles, leur âge, leur garde-fou
 ```
+
+Le palier mesure la forme du harness, pas le travail des agents. La preuve que les agents travaillent mieux vient des PR réelles, d'un harvest à l'autre, et du banc avant et après sur les projets types (`fixtures/README.md`).
 
 ### Voir la progression
 
@@ -42,10 +47,10 @@ Ouvre http://127.0.0.1:8787 : une application Vue locale, sans build ni dépenda
 
 ## Parcours
 
-1. `harness-init` pose le squelette et la boucle de retour, et vise le palier 1.
-2. L'équipe marque les incidents en review avec `rule:` ; les règles entrent de préférence en CI, sinon dans AGENTS.md avec leur justification.
-3. `harness-audit` relit périodiquement : règles racontées sans garde-fou, coût de contexte, règles orphelines à retirer.
-4. `harness-harvest` collecte les signaux depuis le dernier harvest et ouvre une PR de proposition : push-down en CI, ajout, raccourcissement, retrait, nouveau contrat.
+1. `harness-init` pose le palier 1 : un fichier court, un mode, des interdits. On peut s'arrêter là.
+2. `harness-step`, quand tu veux aller plus loin, fait un pas vers le palier que tu vises et s'arrête : la boucle de retour `rule:` (palier 2), un garde-fou par règle (palier 3), le processus de travail et un contrat de tâche (palier 4).
+3. `harness-harvest` collecte les signaux depuis le dernier harvest et ouvre une PR de proposition : push-down en CI, ajout, raccourcissement, retrait, nouveau contrat.
+4. `harness-audit` relit quand le modèle change ou tous les six mois : règles racontées sans garde-fou, et lignes qui ne servent plus.
 
 ## Installation
 
@@ -84,20 +89,22 @@ harness-ai/
 │   └── marketplace.json     # pour /plugin marketplace add
 ├── app/                     # application de suivi (Vue 3 vendorisé, sans build), servie par `harness serve`
 ├── cli/
-│   ├── harness.py           # point d'entrée : status, harvest github, fixture check, serve
-│   ├── harnesslib/          # facts, maturity, status, github, fixtures, serve (stdlib uniquement)
+│   ├── harness.py           # point d'entrée : status, target, rules, harvest github, fixture, bench, serve
+│   ├── harnesslib/          # facts, maturity, status, rules, github, fixtures, bench, serve (stdlib uniquement)
 │   └── tests/               # python3 -m unittest discover -s cli/tests
-├── fixtures/                # fixtures d'audit et projets types, pour évaluer les skills
+├── fixtures/                # fixtures d'audit, projets types avec leurs tâches, registre des résultats
 ├── docs/
 │   ├── cahier-des-charges.md # ce que harness-ai doit tenir, et où on en est
 │   └── maturity.md          # le modèle de maturité et ses seuils
 ├── skills/
 │   ├── harness-audit/
 │   ├── harness-init/
+│   ├── harness-step/
 │   ├── harness-harvest/
 │   └── <nom-du-skill>/
 │       ├── SKILL.md         # instructions chargées par l'agent
 │       └── references/      # fichiers lus à la demande (templates, grilles)
+├── .claude/skills/harness-stress/   # skill de mainteneur : met les skills à l'épreuve sur fixtures/, à la demande
 └── README.md
 ```
 

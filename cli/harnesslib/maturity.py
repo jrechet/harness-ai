@@ -224,6 +224,6 @@ def render_markdown(state: dict) -> str:
         out.append("")
     elif target["reached"]:
         out.append("## Objectif atteint")
-        out.append(f"Le palier visé est tenu. Rien à faire. `harness target {min(4, target['level'] + 1)}` si tu veux aller plus loin.")
+        out.append("Le palier visé est tenu. Rien à faire.")
         out.append("")
     return "\n".join(out)
