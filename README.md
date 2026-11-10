@@ -87,8 +87,9 @@ harness-ai/
 │   ├── harness.py           # point d'entrée : status, harvest github, fixture check, serve
 │   ├── harnesslib/          # facts, maturity, status, github, fixtures, serve (stdlib uniquement)
 │   └── tests/               # python3 -m unittest discover -s cli/tests
-├── fixtures/                # dépôts synthétiques avec pièges, pour évaluer les skills
+├── fixtures/                # fixtures d'audit et projets types, pour évaluer les skills
 ├── docs/
+│   ├── cahier-des-charges.md # ce que harness-ai doit tenir, et où on en est
 │   └── maturity.md          # le modèle de maturité et ses seuils
 ├── skills/
 │   ├── harness-audit/

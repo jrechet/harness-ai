@@ -3,14 +3,14 @@
 Mode : **assistance**. Le propriétaire pilote et relit chaque changement ; ce fichier évite les allers-retours, il n'est pas un garde-fou.
 
 ## Ce que fait ce repo
-Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluation (`fixtures/`) et application de suivi (`app/`) pour installer, auditer et faire évoluer l'instrumentation IA d'un dépôt. Modèle de maturité dans `docs/maturity.md`.
+Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluation (`fixtures/`) et application de suivi (`app/`) pour installer, auditer et faire évoluer l'instrumentation IA d'un dépôt. Modèle de maturité dans `docs/maturity.md`, exigences et état dans `docs/cahier-des-charges.md`.
 
 ## Ce qui change → ce qu'on lance
 | Si tu touches… | Lance… | Vérifié en CI par |
 |---|---|---|
 | `cli/` | `python3 -m unittest discover -s cli/tests` | rien : pas de CI |
 | une fixture ou son `expected.json` | `python3 cli/harness.py fixture check <nom>` | rien |
-| un SKILL.md | une exécution à l'aveugle sur une fixture, notée par `fixture check --audit` | rien |
+| un SKILL.md | une exécution à l'aveugle sur une fixture, notée par `fixture check --audit` ou `--init` | rien |
 
 ## Règles
 - Tout ce qui doit être **garanti** va dans `cli/`, pas dans le texte d'un skill ; les skills appellent le CLI. Pourquoi : la grille L1–L4 appliquée à nous-mêmes. (non vérifiée)

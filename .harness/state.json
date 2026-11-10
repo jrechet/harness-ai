@@ -1,7 +1,7 @@
 {
   "schema": "harness-state/1",
   "repo": "/home/user/harness-ai",
-  "date": "2026-11-09",
+  "date": "2026-11-10",
   "level": {
     "reached": 1,
     "name": "Cadré",
@@ -91,7 +91,7 @@
           "id": "L2.marker_fresh",
           "label": "Un harvest a tourné depuis moins de 45 jours",
           "passed": true,
-          "value": 0,
+          "value": 1,
           "next_action": null
         },
         {
@@ -216,7 +216,7 @@
   ],
   "facts": {
     "repo": "/home/user/harness-ai",
-    "date": "2026-11-09",
+    "date": "2026-11-10",
     "instructions": {
       "files": {
         "AGENTS.md": {
@@ -268,6 +268,6 @@
     },
     "audit": null,
     "harvest": null,
-    "harvest_marker_age_days": 0
+    "harvest_marker_age_days": 1
   }
 }
