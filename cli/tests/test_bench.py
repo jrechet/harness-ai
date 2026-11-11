@@ -216,6 +216,67 @@ class PlanAndRegistryTests(BenchCase):
         self.assertIn("Registre vide", bench.render_report([]))
 
 
+class PlayTests(BenchCase):
+    """`bench play` : la chaîne complète, avec un faux agent à la place du vrai."""
+
+    def play(self, arm="asis", files=None, **kwargs):
+        seen = {}
+
+        def fake_agent(workdir, prompt, task):
+            seen.update(workdir=workdir, prompt=prompt, claude_md=os.path.exists(os.path.join(workdir, "CLAUDE.md")))
+            for rel, content in (SOLUTION if files is None else files).items():
+                write(workdir, rel, content)
+            return {"report": "J'ai ajouté sub.", "error": None, "usage": {"tokens": 1234, "turns": 3, "duration_s": 5, "denied": 0}}
+
+        self.results = os.path.join(self.tmp.name, "results.jsonl")
+        self.work_root = os.path.join(self.tmp.name, "scratch")
+        done = bench.play(self.fx, "sub", arm, self.work_root, runner=fake_agent, label="génération test",
+                          results=self.results, day="2026-01-02", **kwargs)
+        return done, seen
+
+    def test_the_agent_gets_the_statement_verbatim_in_a_neutral_path(self):
+        done, seen = self.play("bare")
+        self.assertEqual(seen["prompt"], "Ajoute sub.\n")
+        self.assertFalse(seen["claude_md"])
+        rel = os.path.relpath(seen["workdir"], self.work_root)
+        self.assertRegex(rel, r"^w-[^/]+/repo$")
+        for word in ("bare", "demo", "fixture", "harness"):
+            self.assertNotIn(word, rel)
+
+    def test_outputs_are_filed_and_the_run_is_recorded(self):
+        done, _ = self.play("harness")
+        self.assertTrue(done["check"]["ok"])
+        self.assertEqual(os.path.basename(done["out"]), "2026-01-02-task-blind-harness")
+        self.assertEqual(sorted(os.listdir(done["out"])), ["compte-rendu.md", "diff.patch", "note.md", "usage.json"])
+        with open(os.path.join(done["out"], "diff.patch"), encoding="utf-8") as fh:
+            self.assertIn("+def sub(a, b):", fh.read())
+        with open(os.path.join(done["out"], "usage.json"), encoding="utf-8") as fh:
+            self.assertEqual(json.load(fh)["tokens"], 1234)
+        row = bench.load_results(self.results)[-1]
+        self.assertEqual((row["kind"], row["arm"], row["score"], row["ok"], row["model"]), ("task", "harness", "6/6", True, "génération test"))
+
+    def test_a_failed_run_is_recorded_too(self):
+        done, _ = self.play("asis", files={})
+        self.assertFalse(done["check"]["ok"])
+        self.assertFalse(bench.load_results(self.results)[-1]["ok"])
+
+    def test_the_working_copy_must_live_outside_this_repository(self):
+        with self.assertRaises(SystemExit):
+            bench.play(self.fx, "sub", "bare", os.path.join(bench.repo_root(), "scratch"), runner=lambda *a: {})
+
+    def test_the_agent_command_is_neutral_and_confined(self):
+        cmd = bench.agent_command({"agent_bash": ["go *", "git *"]})
+        joined = " ".join(cmd)
+        self.assertIn("--setting-sources project", joined)
+        self.assertIn("--strict-mcp-config", joined)
+        self.assertIn("--permission-prompts none", joined)
+        self.assertIn("Bash(go *)", cmd)
+        self.assertIn(f"Read(/{bench.repo_root()}/**)", cmd)
+        self.assertNotIn("bypassPermissions", joined)
+        self.assertNotIn("--dangerously-skip-permissions", joined)
+        self.assertNotIn("Bash", [c for c in cmd if c == "Bash"])          # jamais Bash sans restriction
+
+
 @unittest.skipUnless(os.environ.get("HARNESS_SELFTEST"), "HARNESS_SELFTEST=1 : rejoue les tâches des vraies fixtures (go, npm)")
 class RealFixtureTaskTests(unittest.TestCase):
     def test_every_task_of_every_fixture_is_well_posed(self):

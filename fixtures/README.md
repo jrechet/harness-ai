@@ -101,6 +101,8 @@ tempted/<nom>.patch     la solution qu'on écrit naturellement : marche, et éch
 
 La solution tentée doit **passer les commandes visibles du projet** et n'échouer qu'aux tests cachés ou aux contrôles de diff. Si les tests du dépôt la rattrapent, un agent qui les lance la corrige seul et la tâche ne mesure plus ce que les instructions apprennent : `bench selftest` l'annonce par un avertissement. De même, un fait que l'énoncé de la tâche exerce ne doit pas se trouver en clair dans un document que tout agent soigneux lit.
 
+`agent_bash` liste les commandes que l'agent évalué a le droit de lancer (`"go *"`, `"git *"`) : la chaîne d'outils du projet et git, rien d'autre.
+
 Contrôles de `task.json` : `run` (une commande, verte si elle sort à 0 ; `"acceptance": true` pour celles qui ont besoin des tests cachés), `forbid_added` et `require_added` (un motif dans les lignes ajoutées sous des chemins), `forbid_changed` (des chemins qu'on ne touche pas : un garde-fou, la CI, une migration appliquée), `max_changed_lines`. `setup` lance une installation avant les commandes. Les tests cachés n'utilisent que la surface publique du projet, pour compiler quelle que soit la solution.
 
 ```bash
@@ -143,7 +145,13 @@ python3 cli/harness.py bench record --kind task --fixture go-hexa --task deposit
 python3 cli/harness.py bench report                        # le registre fixtures/results.jsonl
 ```
 
-Le banc ne lance aucun agent : il prépare, note et tient le registre. Lancer une campagne est le travail du skill `harness-stress`, à la demande.
+`bench play` enchaîne le tout pour un bras : copie de travail à un chemin neutre, agent, note, sorties rangées dans `runs/<date>-task-blind-<bras>/`, registre. L'agent est un processus séparé qui ne reçoit que `task.md` et ne charge que les instructions du dépôt de travail ; ni les consignes ni les outils de la session qui lance la campagne ne l'atteignent. Il est confiné à son dossier, avec les seules commandes de la liste `agent_bash` de la tâche.
+
+```bash
+python3 cli/harness.py bench play go-hexa deposit --arm harness --work-root /tmp/banc --label 2026-11
+```
+
+Décider d'une campagne et l'interpréter reste le travail du skill `harness-stress`, à la demande.
 
 ## Lancer
 

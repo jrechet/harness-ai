@@ -8,10 +8,13 @@ L'écart entre les bras est la preuve que le harness sert, ou qu'une ligne ne se
   bench plan                              les exécutions d'agent d'une campagne, et leur coût estimé
   bench prepare <fixture> <dest> --arm …  le dépôt de travail d'un bras, avec un commit de départ
   bench check <fixture> <tâche> <dir>     note le travail rendu : tests, tests cachés, tentations
+  bench play <fixture> <tâche> --arm …    joue la tâche par un agent neutre, note, range, enregistre
   bench selftest <fixture>                la tâche est-elle bien posée ? solution verte, tentation rouge
   bench record … / bench report           le registre des résultats, par skill, bras et modèle
 
-Rien ici ne lance un agent : le banc prépare, note et tient le registre."""
+Seul `play` lance un agent, et toujours le même : un processus séparé, confiné à sa copie de travail,
+qui ne reçoit que l'énoncé et ne charge que les instructions du dépôt. Le reste prépare, note et tient
+le registre."""
 from __future__ import annotations
 
 import argparse
@@ -134,6 +137,15 @@ def diff(workdir: str) -> dict[str, dict[str, Any]]:
     return changes
 
 
+def patch_of(workdir: str) -> str:
+    """Le diff complet du travail rendu, fichiers non suivis compris, depuis le commit de départ."""
+    base = _git(workdir, "rev-list", "--max-parents=0", "HEAD").split()[0]
+    with tempfile.TemporaryDirectory() as tmp:
+        env = {"GIT_INDEX_FILE": os.path.join(tmp, "index")}
+        _git(workdir, "add", "-A", env=env)
+        return _git(workdir, "diff", "--cached", "--no-color", base, env=env)
+
+
 def _diff_check(spec: dict, changes: dict[str, dict[str, Any]]) -> tuple[bool, str]:
     if "forbid_changed" in spec:
         hits = sorted(p for p in changes if re.search(spec["forbid_changed"], p))
@@ -194,6 +206,95 @@ def check(fixture_dir: str, task_id: str, workdir: str) -> dict[str, Any]:
     passed = sum(c["passed"] for c in checks)
     return {"fixture": os.path.basename(os.path.normpath(fixture_dir)), "task": task_id, "checks": checks,
             "files_changed": sorted(changes), "score": f"{passed}/{len(checks)}", "ok": passed == len(checks)}
+
+
+AGENT_TIMEOUT = 1800
+# Variables de la session appelante qui annonceraient d'autres dépôts à l'agent évalué.
+AGENT_ENV_SCRUB = ("CLAUDE_ADDITIONAL_DIRECTORIES", "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD")
+
+
+def repo_root() -> str:
+    return os.path.dirname(os.path.dirname(os.path.abspath(fixtures.FIXTURES_ROOT)))
+
+
+def agent_command(task: dict[str, Any]) -> list[str]:
+    """La commande de l'agent évalué. Neutre : seuls les réglages et instructions du dépôt de travail
+    (`--setting-sources project`), aucun serveur MCP, aucun skill. Confiné : modifications acceptées dans
+    son dossier, commandes limitées à la liste `agent_bash` de la tâche, tout le reste refusé sans
+    question (`--permission-prompts none`), lecture de ce dépôt-ci interdite. Jamais de contournement
+    des permissions."""
+    bash = [f"Bash({rule})" for rule in task.get("agent_bash", [])]
+    return ["claude", "-p", "--output-format", "json", "--no-session-persistence",
+            "--setting-sources", "project", "--strict-mcp-config", "--disable-slash-commands",
+            "--permission-mode", "acceptEdits", "--permission-prompts", "none",
+            "--allowedTools", "Read", "Edit", "Write", "Glob", "Grep", *bash,
+            "--disallowedTools", f"Read(/{repo_root()}/**)"]
+
+
+def run_agent(workdir: str, prompt: str, task: dict[str, Any]) -> dict[str, Any]:
+    """Lance l'agent dans `workdir` avec l'énoncé pour seul message, et rend son compte rendu et sa
+    consommation. Aucun nom de modèle n'est gardé : le registre porte une étiquette de génération."""
+    cmd = agent_command(task)
+    env = {k: v for k, v in os.environ.items() if k not in AGENT_ENV_SCRUB}
+    try:
+        out = subprocess.run(cmd[:2] + [prompt] + cmd[2:], cwd=workdir, env=env, stdin=subprocess.DEVNULL,
+                             capture_output=True, text=True, timeout=task.get("agent_timeout", AGENT_TIMEOUT))
+    except subprocess.TimeoutExpired:
+        return {"report": "", "error": "délai dépassé", "usage": {}}
+    try:
+        data = json.loads(out.stdout)
+    except json.JSONDecodeError:
+        return {"report": out.stdout[-2000:], "error": (out.stderr or "sortie illisible")[-500:], "usage": {}}
+    usage = data.get("usage") or {}
+    fresh = sum(usage.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "output_tokens"))
+    return {"report": data.get("result") or "", "error": data.get("subtype") if data.get("is_error") else None,
+            "usage": {"tokens": fresh, "cache_read_tokens": usage.get("cache_read_input_tokens") or 0,
+                      "output_tokens": usage.get("output_tokens") or 0, "turns": data.get("num_turns"),
+                      "duration_s": round((data.get("duration_ms") or 0) / 1000),
+                      "denied": len(data.get("permission_denials") or []),
+                      # ce que l'agent a voulu lancer et qui lui a été refusé : une tentation se lit aussi là
+                      "denied_commands": [str((d.get("tool_input") or {}).get("command") or d.get("tool_name"))[:160]
+                                          for d in data.get("permission_denials") or []]}}
+
+
+def render_check(result: dict[str, Any]) -> str:
+    out = [f"# Tâche {result['fixture']}/{result['task']} : {result['score']}" + (" · conforme" if result["ok"] else "")]
+    for c in result["checks"]:
+        out.append(f"- [{'x' if c['passed'] else ' '}] {c['id']} : {c['what']}"
+                   + ("" if c["passed"] or not c["detail"] else "\n      " + c["detail"].replace("\n", "\n      ")))
+    return "\n".join(out) + "\n"
+
+
+def play(fixture_dir: str, task_id: str, arm: str, work_root: str, out_dir: str | None = None,
+         runner=run_agent, label: str | None = None, results: str | None = RESULTS, day: str | None = None) -> dict[str, Any]:
+    """Une exécution complète : copie de travail au chemin neutre, agent, note, sorties rangées, registre.
+    L'agent ne reçoit que le contenu de `task.md`, mot pour mot, quel que soit le bras."""
+    work_root = os.path.abspath(work_root)
+    if (work_root + os.sep).startswith(repo_root() + os.sep):
+        raise SystemExit("--work-root doit être hors de ce dépôt : l'agent évalué n'a pas le droit de le lire")
+    task = load_task(fixture_dir, task_id)
+    name = os.path.basename(os.path.normpath(fixture_dir))
+    day = day or date.today().isoformat()
+    os.makedirs(work_root, exist_ok=True)
+    workdir = os.path.join(tempfile.mkdtemp(prefix="w-", dir=work_root), "repo")   # ni le bras ni le banc dans le chemin
+    prepare(fixture_dir, workdir, arm)
+    with open(os.path.join(task["dir"], task["statement"]), encoding="utf-8") as fh:
+        prompt = fh.read()
+    agent = runner(workdir, prompt, task)
+    result = check(fixture_dir, task_id, workdir)
+    out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-task-blind-{arm}")
+    os.makedirs(out_dir, exist_ok=True)
+    for rel, text in (("diff.patch", patch_of(workdir)), ("compte-rendu.md", agent.get("report") or ""),
+                      ("note.md", render_check(result)),
+                      ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")):
+        with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    if results:
+        record({"date": day, "kind": "task", "fixture": name, "task": task_id, "arm": arm, "model": label,
+                "skill_rev": _skill_rev(), "score": result["score"], "ok": result["ok"], "blind": True,
+                "run": os.path.relpath(out_dir, repo_root()), "note": "agent neutre, processus séparé"
+                + (f" ; {agent['error']}" if agent.get("error") else "")}, results)
+    return {"arm": arm, "workdir": workdir, "out": out_dir, "check": result, "usage": agent.get("usage", {}), "error": agent.get("error")}
 
 
 def selftest(fixture_dir: str) -> list[str]:
@@ -315,6 +416,14 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     ch.add_argument("task")
     ch.add_argument("workdir")
     ch.add_argument("--format", choices=["md", "json"], default="md")
+    pp = sub.add_parser("play", help="joue une tâche par un agent neutre, la note, range et enregistre")
+    pp.add_argument("fixture")
+    pp.add_argument("task")
+    pp.add_argument("--arm", choices=ARMS, required=True)
+    pp.add_argument("--work-root", required=True, help="dossier temporaire hors de ce dépôt, pour la copie de travail")
+    pp.add_argument("--out", help="où ranger les sorties (défaut : runs/<date>-task-blind-<bras> de la fixture)")
+    pp.add_argument("--label", help="étiquette de génération pour le registre")
+    pp.add_argument("--no-record", action="store_true", help="ne pas écrire dans le registre")
     st = sub.add_parser("selftest", help="vérifie que les tâches d'une fixture sont bien posées")
     st.add_argument("fixture")
     rc = sub.add_parser("record", help="ajoute une exécution au registre")
@@ -363,11 +472,17 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
             json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
             sys.stdout.write("\n")
         else:
-            print(f"# Tâche {result['fixture']}/{result['task']} : {result['score']}" + (" · conforme" if result["ok"] else ""))
-            for c in result["checks"]:
-                print(f"- [{'x' if c['passed'] else ' '}] {c['id']} : {c['what']}"
-                      + ("" if c["passed"] or not c["detail"] else "\n      " + c["detail"].replace("\n", "\n      ")))
+            sys.stdout.write(render_check(result))
         return 0 if result["ok"] else 1
+    if cmd == "play":
+        done = play(resolve(args.fixture), args.task, args.arm, args.work_root, args.out, label=args.label,
+                    results=None if args.no_record else RESULTS)
+        u = done["usage"]
+        print(f"bras {done['arm']} : {done['check']['score']}" + (" · conforme" if done["check"]["ok"] else "")
+              + (f" · {_thousands(u['tokens'])} tokens neufs, {u.get('turns')} tours, {u.get('duration_s')} s, {u.get('denied')} refus" if u else "")
+              + (f" · erreur : {done['error']}" if done["error"] else "") + f"\nsorties : {done['out']}")
+        sys.stdout.write(render_check(done["check"]))
+        return 0 if done["check"]["ok"] else 1
     if cmd == "selftest":
         result = selftest_full(resolve(args.fixture))
         problems = result["problems"]
