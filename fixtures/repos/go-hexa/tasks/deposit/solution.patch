@@ -11,7 +11,7 @@ index 7dc19cd..5a8298e 100644
  | GET | `/transfers/quote` | frais d'un virement |
  
 diff --git a/internal/adapters/httpapi/server.go b/internal/adapters/httpapi/server.go
-index 8b54e11..be38224 100644
+index 8b54e11..01d3857 100644
 --- a/internal/adapters/httpapi/server.go
 +++ b/internal/adapters/httpapi/server.go
 @@ -21,6 +21,7 @@ func (s *Server) Handler() http.Handler {
@@ -22,7 +22,7 @@ index 8b54e11..be38224 100644
  	mux.HandleFunc("POST /transfers", s.createTransfer)
  	mux.HandleFunc("GET /transfers/quote", s.quote)
  	return mux
-@@ -64,6 +65,28 @@ func (s *Server) getAccount(w http.ResponseWriter, r *http.Request) {
+@@ -64,6 +65,32 @@ func (s *Server) getAccount(w http.ResponseWriter, r *http.Request) {
  	writeJSON(w, http.StatusOK, toAccountBody(account))
  }
  
@@ -35,7 +35,7 @@ index 8b54e11..be38224 100644
 +		writeError(w, http.StatusBadRequest, "invalid_body", "amount_cents must be an integer")
 +		return
 +	}
-+	account, err := s.svc.Deposit(r.Context(), app.DepositCommand{
++	account, replayed, err := s.svc.Deposit(r.Context(), app.DepositCommand{
 +		IdempotencyKey: r.Header.Get("Idempotency-Key"),
 +		Account:        r.PathValue("id"),
 +		AmountCents:    body.AmountCents,
@@ -44,6 +44,10 @@ index 8b54e11..be38224 100644
 +	if err != nil {
 +		writeDomainError(w, err)
 +		return
++	}
++	if replayed {
++		// The mobile app reads this header so as not to show a confirmation twice.
++		w.Header().Set("Idempotency-Replayed", "true")
 +	}
 +	writeJSON(w, http.StatusCreated, toAccountBody(account))
 +}
@@ -168,7 +172,7 @@ index 8c55d89..daa5676 100644
 +}
 diff --git a/internal/app/deposit.go b/internal/app/deposit.go
 new file mode 100644
-index 0000000..871c220
+index 0000000..0cc08e3
 --- /dev/null
 +++ b/internal/app/deposit.go
 @@ -0,0 +1,67 @@
@@ -189,22 +193,22 @@ index 0000000..871c220
 +}
 +
 +// Deposit credits an account once per idempotency key. A replay of the same
-+// request returns the account as it is; the same key with another request is a
-+// conflict. The key is looked up in the transaction that writes.
-+func (s *Service) Deposit(ctx context.Context, cmd DepositCommand) (*domain.Account, error) {
++// request returns the account as it is, and says so; the same key with another
++// request is a conflict. The key is looked up in the transaction that writes.
++func (s *Service) Deposit(ctx context.Context, cmd DepositCommand) (account *domain.Account, replayed bool, err error) {
 +	if cmd.IdempotencyKey == "" {
-+		return nil, ErrMissingIdempotencyKey
++		return nil, false, ErrMissingIdempotencyKey
 +	}
 +	amount, err := domain.NewMoney(cmd.AmountCents, cmd.Currency)
 +	if err != nil {
-+		return nil, err
++		return nil, false, err
 +	}
 +	if amount.IsZero() {
-+		return nil, domain.ErrZeroAmount
++		return nil, false, domain.ErrZeroAmount
 +	}
 +	var result *domain.Account
 +	err = s.uow.Do(ctx, func(tx Tx) error {
-+		account, err := tx.Accounts().Get(ctx, domain.AccountID(cmd.Account))
++		found, err := tx.Accounts().Get(ctx, domain.AccountID(cmd.Account))
 +		if err != nil {
 +			return err
 +		}
@@ -213,38 +217,38 @@ index 0000000..871c220
 +			return err
 +		}
 +		if previous != nil {
-+			if previous.Account != account.ID || previous.Amount != amount {
++			if previous.Account != found.ID || previous.Amount != amount {
 +				return ErrIdempotencyConflict
 +			}
-+			result = account
++			result, replayed = found, true
 +			return nil
 +		}
-+		if err := account.Credit(amount); err != nil {
++		if err := found.Credit(amount); err != nil {
 +			return err
 +		}
-+		if err := tx.Accounts().Save(ctx, account); err != nil {
++		if err := tx.Accounts().Save(ctx, found); err != nil {
 +			return err
 +		}
-+		result = account
++		result = found
 +		return tx.Deposits().Save(ctx, &domain.Deposit{
 +			ID:             domain.DepositID(s.ids.NewID()),
-+			Account:        account.ID,
++			Account:        found.ID,
 +			Amount:         amount,
 +			IdempotencyKey: cmd.IdempotencyKey,
 +			CreatedAt:      s.clock.Now(),
 +		})
 +	})
 +	if err != nil {
-+		return nil, err
++		return nil, false, err
 +	}
-+	return result, nil
++	return result, replayed, nil
 +}
 diff --git a/internal/app/deposit_test.go b/internal/app/deposit_test.go
 new file mode 100644
-index 0000000..fe1aa7f
+index 0000000..660e66b
 --- /dev/null
 +++ b/internal/app/deposit_test.go
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,59 @@
 +package app_test
 +
 +import (
@@ -258,7 +262,7 @@ index 0000000..fe1aa7f
 +
 +func TestDepositRequiresAnIdempotencyKey(t *testing.T) {
 +	svc, _ := newService(t, map[string]int64{"alice": 0})
-+	_, err := svc.Deposit(context.Background(), app.DepositCommand{Account: "alice", AmountCents: 500, Currency: "EUR"})
++	_, _, err := svc.Deposit(context.Background(), app.DepositCommand{Account: "alice", AmountCents: 500, Currency: "EUR"})
 +	if !errors.Is(err, app.ErrMissingIdempotencyKey) {
 +		t.Fatalf("got %v", err)
 +	}
@@ -267,9 +271,13 @@ index 0000000..fe1aa7f
 +func TestReplayedDepositCreditsOnce(t *testing.T) {
 +	svc, _ := newService(t, map[string]int64{"alice": 100})
 +	cmd := app.DepositCommand{IdempotencyKey: "d1", Account: "alice", AmountCents: 500, Currency: "EUR"}
-+	for range 2 {
-+		if _, err := svc.Deposit(context.Background(), cmd); err != nil {
++	for attempt, want := range []bool{false, true} {
++		_, replayed, err := svc.Deposit(context.Background(), cmd)
++		if err != nil {
 +			t.Fatal(err)
++		}
++		if replayed != want {
++			t.Fatalf("attempt %d: replayed is %v, want %v", attempt+1, replayed, want)
 +		}
 +	}
 +	if got := balance(t, svc, "alice"); got != 600 {
@@ -280,11 +288,11 @@ index 0000000..fe1aa7f
 +func TestDepositKeyReusedForAnotherAmountIsAConflict(t *testing.T) {
 +	svc, _ := newService(t, map[string]int64{"alice": 0})
 +	cmd := app.DepositCommand{IdempotencyKey: "d1", Account: "alice", AmountCents: 500, Currency: "EUR"}
-+	if _, err := svc.Deposit(context.Background(), cmd); err != nil {
++	if _, _, err := svc.Deposit(context.Background(), cmd); err != nil {
 +		t.Fatal(err)
 +	}
 +	cmd.AmountCents = 501
-+	if _, err := svc.Deposit(context.Background(), cmd); !errors.Is(err, app.ErrIdempotencyConflict) {
++	if _, _, err := svc.Deposit(context.Background(), cmd); !errors.Is(err, app.ErrIdempotencyConflict) {
 +		t.Fatalf("got %v", err)
 +	}
 +}
@@ -292,11 +300,11 @@ index 0000000..fe1aa7f
 +func TestDepositRejectsZeroAndForeignCurrency(t *testing.T) {
 +	svc, _ := newService(t, map[string]int64{"alice": 0})
 +	zero := app.DepositCommand{IdempotencyKey: "d1", Account: "alice", AmountCents: 0, Currency: "EUR"}
-+	if _, err := svc.Deposit(context.Background(), zero); !errors.Is(err, domain.ErrZeroAmount) {
++	if _, _, err := svc.Deposit(context.Background(), zero); !errors.Is(err, domain.ErrZeroAmount) {
 +		t.Fatalf("got %v", err)
 +	}
 +	usd := app.DepositCommand{IdempotencyKey: "d2", Account: "alice", AmountCents: 5, Currency: "USD"}
-+	if _, err := svc.Deposit(context.Background(), usd); !errors.Is(err, domain.ErrCurrencyMismatch) {
++	if _, _, err := svc.Deposit(context.Background(), usd); !errors.Is(err, domain.ErrCurrencyMismatch) {
 +		t.Fatalf("got %v", err)
 +	}
 +}

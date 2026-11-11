@@ -271,6 +271,64 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
 INSTRUMENTATION = ["AGENTS.md", "CLAUDE.md", ".claude", ".cursor", ".agents", ".github/copilot-instructions.md", ".harness"]
 
 
+def check_oral_facts(fixture_dir: str, expected: dict) -> list[str]:
+    """Un projet type porte au moins un fait écrit nulle part ailleurs que dans ses instructions, ou
+    dit par son propriétaire. C'est le seul endroit où un harness peut montrer un gain : un fait rangé
+    dans un ADR, un agent soigneux le trouve seul (campagne du 2026-11-11). Pour chaque fait marqué
+    `only_in_instructions` : ses mots ne se lisent dans aucun autre fichier du dépôt, il s'apprend
+    quelque part (instructions du dépôt ou `owner.md`), un contrôle de tâche l'exerce (`exercises`), et
+    une solution tentée échoue à ce contrôle. Une fixture sans tâche n'est pas concernée."""
+    tasks_dir = os.path.join(fixture_dir, "tasks")
+    if not os.path.isdir(tasks_dir):
+        return []
+    oral = [f for f in expected.get("init", {}).get("must_surface", []) if f.get("only_in_instructions")]
+    if not oral:
+        return ["aucun fait marqué `only_in_instructions` : tout ce que ce projet apprend se lit dans sa documentation"]
+    repo = os.path.join(fixture_dir, "repo")
+    elsewhere: dict[str, str] = {}          # texte des fichiers qui ne sont pas des instructions
+    instructions = ""
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if d not in {".git", "node_modules", ".venv", "__pycache__"}]
+        for name in files:
+            path = os.path.join(root, name)
+            if os.path.getsize(path) > 1_000_000:
+                continue
+            try:
+                with open(path, encoding="utf-8", errors="ignore") as fh:
+                    text = fh.read().lower()
+            except OSError:
+                continue
+            if name in ("AGENTS.md", "CLAUDE.md"):
+                instructions += text
+            else:
+                elsewhere[os.path.relpath(path, repo).replace(os.sep, "/")] = text
+    owner = (facts._read(os.path.join(fixture_dir, "owner.md")) or "").lower()
+    checks = []                             # (tâche, contrôle)
+    tempted_fails: set[str] = set()
+    for task_id in sorted(os.listdir(tasks_dir)):
+        path = os.path.join(tasks_dir, task_id, "task.json")
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as fh:
+                task = json.load(fh)
+            checks += [(task_id, c) for c in task.get("checks", [])]
+            tempted_fails |= {cid for t in task.get("tempted", []) for cid in t.get("fails", [])}
+    problems = []
+    for fact in oral:
+        words = [w.lower() for w in fact["only_in_instructions"]]
+        for word in words:
+            where = sorted(p for p, text in elsewhere.items() if word in text)
+            if where:
+                problems.append(f"{fact['id']} : « {word} » se lit aussi dans {', '.join(where[:3])} : le fait est découvrable")
+        if not any(w in instructions or w in owner for w in words):
+            problems.append(f"{fact['id']} : aucun de {words} dans les instructions du dépôt ni dans owner.md : nulle part où l'apprendre")
+        exercising = [c["id"] for _, c in checks if c.get("exercises") == fact["id"]]
+        if not exercising:
+            problems.append(f"{fact['id']} : aucun contrôle de tâche ne l'exerce (`exercises`)")
+        elif not any(cid in tempted_fails for cid in exercising):
+            problems.append(f"{fact['id']} : aucune solution tentée n'échoue à {exercising} : rien ne prouve que le contrôle départage")
+    return problems
+
+
 COPY_IGNORE = shutil.ignore_patterns("node_modules", "__pycache__", ".venv", "*.pyc", ".pytest_cache")
 
 
@@ -353,6 +411,12 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
     for p in problems:
         print(f"- {p}")
     ok = not problems
+    if os.path.isdir(os.path.join(fixture_dir, "tasks")):
+        oral = check_oral_facts(fixture_dir, expected)
+        print("## faits écrits nulle part ailleurs : " + ("conforme" if not oral else f"{len(oral)} écart(s)"))
+        for p in oral:
+            print(f"- {p}")
+        ok = ok and not oral
     if args.audit:
         with open(args.audit, encoding="utf-8") as fh:
             audit = json.load(fh)

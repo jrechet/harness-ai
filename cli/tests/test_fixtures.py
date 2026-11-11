@@ -112,6 +112,18 @@ class AllFixturesTests(unittest.TestCase):
                         seen += 1
         self.assertGreaterEqual(seen, 2)
 
+    def test_every_example_project_carries_a_fact_written_nowhere_else(self):
+        """Un projet type : au moins un fait qui ne se lit que dans ses instructions ou ne se tient que
+        de son propriétaire, exercé par un contrôle de tâche qu'une solution tentée manque."""
+        seen = 0
+        for name in self.fixture_names():
+            fixture_dir = os.path.join(fixtures.FIXTURES_ROOT, name)
+            if os.path.isdir(os.path.join(fixture_dir, "tasks")):
+                with self.subTest(fixture=name):
+                    self.assertEqual(fixtures.check_oral_facts(fixture_dir, load_expected(name)), [])
+                    seen += 1
+        self.assertGreaterEqual(seen, 5)
+
     def test_fixture_readme_does_not_point_to_the_answer_key(self):
         for name in self.fixture_names():
             readme = os.path.join(fixtures.FIXTURES_ROOT, name, "repo", "README.md")
@@ -258,6 +270,7 @@ Mode : **délégation**.
 - Toute écriture exige une clé d'idempotence. Pourquoi : incident du double débit. (non vérifiée)
 - Un montant est un entier en centimes, jamais un flottant. Pourquoi : ADR 0002. (non vérifiée)
 - Une migration appliquée ne se modifie plus. (non vérifiée)
+- Une réponse rejouée porte l'en-tête `Idempotency-Replayed: true`. Pourquoi : l'application mobile, dit par l'équipe. (non vérifiée)
 
 ## Interdits
 - `make reset-db` hors base locale.
@@ -279,7 +292,7 @@ Mode : **délégation**.
     def test_good_init_is_conformant(self):
         result = self.grade(self.GOOD)
         self.assertEqual(result["problems"], [])
-        self.assertEqual(result["score"], "5/5")
+        self.assertEqual(result["score"], "6/6")
 
     def test_missing_fact_is_reported(self):
         result = self.grade(self.GOOD.replace("- `make reset-db` hors base locale.", "- Rien à signaler."))
@@ -374,7 +387,7 @@ Mode : **délégation**.
         text = " ".join(result["problems"])
         for noise in ("N1", "N2", "N3", "N4", "N5", "N6", "N7"):
             self.assertIn(f"{noise} écrit à tort", text)
-        self.assertEqual(result["score"], "4/4")      # les faits y sont, noyés : le défaut est le bruit
+        self.assertEqual(result["score"], "4/5")      # les faits du dépôt y sont, noyés ; celui que seule l'équipe tient, non
 
 
 class RemovalGraderTests(unittest.TestCase):
@@ -416,3 +429,71 @@ class RemovalGraderTests(unittest.TestCase):
         result = fixtures.check_audit(self.removals(GOLD=gold), self.expected)
         self.assertTrue(any(f.startswith("I1") for f in result["sane_flagged"]), result)
         self.assertFalse(result["ok"])
+
+
+class OralFactTests(unittest.TestCase):
+    """Un fait « écrit nulle part ailleurs » : absent du reste du dépôt, apprenable, exercé, départageant."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.fx = self.tmp.name
+        self.put("repo/README.md", "# demo\n")
+        self.put("repo/src/app.py", "def deposit():\n    return 201\n")
+        self.put("owner.md", "Une réponse rejouée porte l'en-tête Idempotency-Replayed.\n")
+        self.task = {"checks": [{"id": "replay_header", "what": "x", "run": "true", "acceptance": True, "exercises": "I6"}],
+                     "tempted": [{"patch": "tempted/without.patch", "fails": ["replay_header"]}]}
+        self.expected = {"init": {"must_surface": [
+            {"id": "I1", "what": "dans la doc", "any_of": ["idempot"]},
+            {"id": "I6", "what": "en-tête", "any_of": ["idempotency-replayed"], "only_in_instructions": ["idempotency-replayed"]}]}}
+        self.save_task()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def put(self, rel, text):
+        path = os.path.join(self.fx, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    def save_task(self):
+        self.put("tasks/deposit/task.json", json.dumps(self.task))
+
+    def problems(self):
+        return fixtures.check_oral_facts(self.fx, self.expected)
+
+    def test_a_fact_only_the_owner_holds_exercised_by_a_separating_check(self):
+        self.assertEqual(self.problems(), [])
+
+    def test_a_fixture_without_tasks_is_not_concerned(self):
+        import shutil
+        shutil.rmtree(os.path.join(self.fx, "tasks"))
+        self.assertEqual(fixtures.check_oral_facts(self.fx, {"init": {"must_surface": []}}), [])
+
+    def test_a_project_whose_every_fact_is_documented_is_reported(self):
+        self.expected["init"]["must_surface"].pop()
+        self.assertTrue(any("only_in_instructions" in p for p in self.problems()))
+
+    def test_a_fact_also_written_in_a_document_is_discoverable(self):
+        self.put("repo/docs/adr/0004.md", "Nous posons l'en-tête Idempotency-Replayed sur les rejeux.\n")
+        self.assertTrue(any("découvrable" in p and "docs/adr/0004.md" in p for p in self.problems()), self.problems())
+
+    def test_a_fact_in_the_repository_s_own_instructions_is_fine(self):
+        self.put("owner.md", "rien\n")
+        self.put("repo/services/billing/AGENTS.md", "- Une réponse rejouée porte Idempotency-Replayed.\n")
+        self.assertEqual(self.problems(), [])
+
+    def test_a_fact_nobody_can_learn_is_reported(self):
+        self.put("owner.md", "rien\n")
+        self.assertTrue(any("nulle part où l'apprendre" in p for p in self.problems()))
+
+    def test_a_fact_no_task_check_exercises_is_reported(self):
+        del self.task["checks"][0]["exercises"]
+        self.save_task()
+        self.assertTrue(any("aucun contrôle de tâche" in p for p in self.problems()))
+
+    def test_an_exercising_check_no_tempted_solution_fails_is_reported(self):
+        self.task["tempted"] = [{"patch": "tempted/other.patch", "fails": ["acceptance"]}]
+        self.save_task()
+        self.assertTrue(any("rien ne prouve que le contrôle départage" in p for p in self.problems()))

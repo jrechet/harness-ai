@@ -1,6 +1,6 @@
 # Propriétaire fictif — django-mvc (cursus)
 
-Ce fichier se donne à l'agent qui joue harness-init ou harness-audit à l'aveugle : ce sont les réponses de l'équipe. Il ne contient aucun des faits plantés ; ceux-là sont dans le dépôt, à trouver.
+Ce fichier se donne à l'agent qui joue harness-init ou harness-audit à l'aveugle : ce sont les réponses de l'équipe. Les faits plantés sont dans le dépôt, à trouver, sauf un : celui que l'équipe ajoute d'elle-même plus bas ne se lit nulle part ailleurs.
 
 ## Réponses à l'entretien
 1. **Mode** : délégation. On veut confier des tickets entiers et relire la PR à la fin.
@@ -9,6 +9,9 @@ Ce fichier se donne à l'agent qui joue harness-init ou harness-audit à l'aveug
 4. **Outils** : Claude Code pour deux d'entre nous, Copilot pour le troisième.
 5. **Première tâche à déléguer** : un traitement de données d'inscription, import ou export, de la vue jusqu'au test.
 6. **Interdits** : modifier une migration déjà appliquée ; envoyer un vrai e-mail depuis autre chose que la production ; sortir du serveur des données personnelles d'inscrits.
+
+## Ce que l'équipe ajoute d'elle-même
+« Une chose qui n'est écrite nulle part : l'hébergeur coupe toute requête à trente secondes. On a convenu avec lui, en février 2025, qu'un traitement lancé depuis une page ne dépasse pas 500 lignes, et que ce plafond se lit dans le réglage Django `CURSUS_IMPORT_MAX_ROWS`, pour qu'il puisse le baisser sans nous. Le réglage n'existe pas encore : aucun traitement de ce genre n'a été écrit. Au-delà du plafond, on refuse le fichier entier. »
 
 ## Si l'agent pose d'autres questions
 - « D'où viennent AGENTS.md et CLAUDE.md ? » : AGENTS.md a été écrit à la main fin 2024 par la développeuse qui a monté le projet. Elle est partie début 2025 et personne ne l'a relu depuis. CLAUDE.md a été recopié de mémoire par l'un de nous quand on a commencé avec Claude Code ; depuis, quand on corrige quelque chose, c'est dans celui-là.

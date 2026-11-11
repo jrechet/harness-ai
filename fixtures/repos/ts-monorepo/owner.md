@@ -1,6 +1,6 @@
 # Propriétaire fictif — ts-monorepo (deskly)
 
-Ce fichier se donne à l'agent qui joue harness-init à l'aveugle : ce sont les réponses de l'équipe à l'entretien. Il ne contient aucun des faits plantés ; ceux-là sont dans le dépôt, à trouver.
+Ce fichier se donne à l'agent qui joue harness-init à l'aveugle : ce sont les réponses de l'équipe à l'entretien. Les faits plantés sont dans le dépôt, à trouver, sauf un : celui que l'équipe ajoute d'elle-même plus bas ne se lit nulle part ailleurs.
 
 ## Réponses à l'entretien
 1. **Mode** : délégation.
@@ -9,6 +9,9 @@ Ce fichier se donne à l'agent qui joue harness-init à l'aveugle : ce sont les 
 4. **Outils** : Claude Code seul.
 5. **Première tâche à déléguer** : ajouter un statut de ticket, du modèle partagé jusqu'à l'écran.
 6. **Interdits** : ajouter un pilote de base de données ou une dépendance d'exécution ; toucher à `deskly-infra`.
+
+## Ce que l'équipe ajoute d'elle-même
+« Une chose qui n'est écrite nulle part : tout changement du modèle partagé monte la version dans `packages/shared/package.json`. `deskly-infra` épingle cette version et ne redéploie le stockage que si elle change. On l'a oublié deux fois, la dernière en septembre 2026 : l'API servait un statut que le stockage refusait. »
 
 ## Si l'agent pose d'autres questions
 - « D'où vient le CLAUDE.md ? » : généré par `/init` il y a huit mois, complété deux fois à la main dans la section Notes. Personne ne l'a relu en entier.

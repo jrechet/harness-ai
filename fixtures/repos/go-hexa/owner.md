@@ -1,6 +1,6 @@
 # Propriétaire fictif — go-hexa (ledger)
 
-Ce fichier se donne à l'agent qui joue harness-init à l'aveugle : ce sont les réponses de l'équipe à l'entretien. Il ne contient aucun des faits plantés ; ceux-là sont dans le dépôt, à trouver.
+Ce fichier se donne à l'agent qui joue harness-init à l'aveugle : ce sont les réponses de l'équipe à l'entretien. Les faits plantés sont dans le dépôt, à trouver, sauf un : celui que l'équipe ajoute d'elle-même plus bas ne se lit nulle part ailleurs.
 
 ## Réponses à l'entretien
 1. **Mode** : délégation. On veut confier des tickets entiers et relire la PR à la fin.
@@ -9,6 +9,9 @@ Ce fichier se donne à l'agent qui joue harness-init à l'aveugle : ce sont les 
 4. **Outils** : Claude Code et Copilot.
 5. **Première tâche à déléguer** : ajouter un endpoint à partir d'un cas d'usage, du handler jusqu'au test.
 6. **Interdits** : toucher à une base qui n'est pas la sienne, modifier une migration déjà appliquée, lancer `deploy.yml` sans `dry_run`.
+
+## Ce que l'équipe ajoute d'elle-même
+« Une chose qui n'est écrite nulle part, et qu'on redit à chaque revue : quand un endpoint rejoue une requête déjà traitée, sa réponse porte l'en-tête `Idempotency-Replayed: true`. L'application mobile s'en sert depuis juin 2026 pour ne pas afficher deux fois la confirmation. `POST /transfers` ne le fait pas encore, c'est au backlog ; tout nouvel endpoint d'écriture doit le faire. »
 
 ## Si l'agent pose d'autres questions
 - « Pourquoi le lint ne bloque pas ? » : personne n'a pris le temps de solder la dette. Oui, on sait que ça affaiblit ce qui s'appuie dessus.

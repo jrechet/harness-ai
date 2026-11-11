@@ -61,6 +61,16 @@
         "any_of": [
           "migration"
         ]
+      },
+      {
+        "id": "I6",
+        "what": "une réponse rejouée porte l'en-tête Idempotency-Replayed, dit par l'équipe et écrit nulle part ailleurs",
+        "any_of": [
+          "idempotency-replayed"
+        ],
+        "only_in_instructions": [
+          "idempotency-replayed"
+        ]
       }
     ],
     "must_not_write": [

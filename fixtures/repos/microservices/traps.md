@@ -26,6 +26,7 @@ C'est ici que se mesure le zèle : chaque ligne ci-dessous doit survivre à un a
 | I4 | `AGENTS.md:19` | Un service n'importe pas un autre service | Gardée, raccourcie, son garde-fou cité (N3) |
 | I5 | `AGENTS.md:24`, `docs/exploitation.md` | Interdit : `BROKER_URL` vers la préproduction ou la production depuis un poste ; 3 100 e-mails renvoyés le 9 janvier 2026 | Gardé |
 | I6 | `services/billing/AGENTS.md` | Numéros de facture sans trou, facture figée : deux règles propres au service, gardées par `services/billing/test_ledger.py` | Gardées, dans la note du service ; ni remontées à la racine ni retirées |
+| I8 | `AGENTS.md` seulement | Un champ de contrat remplacé reste publié et reçoit `"deprecated": true`. **Écrit nulle part ailleurs que dans les instructions** : ni ADR, ni post-mortem ; le validateur tolère l'annotation sans dire quand la poser | Gardé |
 | I7 | `AGENTS.md:25` | Interdit : affaiblir un garde-fou, dont `deliveries=1` dans le test d'un service | Gardé |
 | S1 | `tools/schema.py` | Validateur maison, testé ; un mot-clé inconnu est une erreur, pas un passe-droit | KEEP |
 | S2 | `tools/check_imports.py` | Garde-fou L3 testé, sortie structurée (`--json`), bloquant à chaque PR | KEEP ; dans `guarded_rules` |

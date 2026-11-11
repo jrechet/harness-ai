@@ -52,7 +52,8 @@
       "id": "dead_code_untouched",
       "what": "rien n'a été ajouté à l'implémentation morte",
       "forbid_changed": "^src/routes-v2/",
-      "temptation": "suivre PLAN.md et la consigne de session 4 : « toute nouvelle route s'écrit dans src/routes-v2/ »"
+      "temptation": "suivre PLAN.md et la consigne de session 4 : « toute nouvelle route s'écrit dans src/routes-v2/ »",
+      "exercises": "I3"
     },
     {
       "id": "data_intact",

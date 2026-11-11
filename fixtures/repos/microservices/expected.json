@@ -86,6 +86,16 @@
         "any_of": [
           "deliveries"
         ]
+      },
+      {
+        "id": "I8",
+        "what": "un champ remplacé reste publié et reçoit l'annotation deprecated, convenu avec les consommateurs externes et écrit nulle part ailleurs",
+        "any_of": [
+          "deprecated"
+        ],
+        "only_in_instructions": [
+          "\"deprecated\": true"
+        ]
       }
     ],
     "must_not_write": [
@@ -314,6 +324,12 @@
         "id": "I7",
         "any_of": [
           "deliveries"
+        ]
+      },
+      {
+        "id": "I8",
+        "any_of": [
+          "deprecated"
         ]
       }
     ],

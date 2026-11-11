@@ -15,6 +15,7 @@ Support interne : tickets, statuts, une API et une page web. Le modèle du ticke
 
 ## Règles
 - Un changement dans `packages/shared` se valide avec les tests et les types du web lancés à la main. Pourquoi : le job `web` ne se déclenche pas sur ce dossier et rien ne rejoue tout ; liste des tickets vide 2 h 40 le 9 juin 2026 (`docs/postmortems/2026-06-statut-inconnu.md`). (non vérifiée) [2026-06]
+- Un changement du modèle partagé monte la version dans `packages/shared/package.json`. Pourquoi : `deskly-infra` épingle cette version et ne redéploie le stockage que si elle change ; oublié deux fois, la dernière en septembre 2026. Dit par l'équipe, écrit nulle part ailleurs. (non vérifiée) [2026-09]
 - Une app n'importe jamais une autre app, un package jamais une app, et un package s'importe par son entrée publique. Pourquoi : ADR 0001. Vérifiée par : `tools/check-boundaries.mjs`, job `boundaries`. [2025-11]
 - Un statut ou une transition se déclare dans `packages/shared`, jamais dans une app. Pourquoi : ADR 0001, pas d'incident connu. Vérifiée par : `packages/shared/src/ticket.test.ts` pour les transitions seulement. [2025-11]
 

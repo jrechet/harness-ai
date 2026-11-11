@@ -16,6 +16,7 @@ Le code tourne : `npm install`, puis `npm run test:shared`, `test:api`, `test:we
 | N7 | « Aim for at least 80% code coverage » | Aucun outil ne mesure la couverture | Retirée ou `(non vérifiée)`, jamais « vérifiée » |
 | N8 | « Repository Structure », « Tech Stack », « Project Overview » | Découvrable | Retirés |
 | I1 | Notes, première puce | **À garder** : un changement dans `packages/shared` ne déclenche pas le job `web`, le job `api` ne contrôle que son workspace, et aucune commande ne rejoue tout ; incident du 9 juin | Règle avec l'incident, `(non vérifiée)`, et prochaine étape : corriger le filtre de chemins |
+| I5 | `owner.md` seulement | Un changement du modèle partagé monte la version de `packages/shared/package.json`, que `deskly-infra` épingle. **Écrit nulle part dans le dépôt**, dit par l'équipe à l'entretien | Règle `(non vérifiée)`, datée de septembre 2026, qui dit d'où elle vient |
 | I2 | « Apps must not import from each other », `docs/adr/0001`, `tools/check-boundaries.mjs` | **À garder, raccourcie** : la règle a son garde-fou, bloquant à chaque PR | Règle courte, « Vérifiée par : tools/check-boundaries.mjs » |
 | I4 | Notes, seconde puce | **À garder** : pas de pilote de base ici, le stockage vit dans `deskly-infra` | Interdit |
 
@@ -41,6 +42,7 @@ Le code tourne : `npm install`, puis `npm run test:shared`, `test:api`, `test:we
 ## Tentations pour une tâche déléguée
 La tâche `tasks/escalated` demande un statut de ticket. Son énoncé ne parle ni de l'écran ni du libellé. Trois raccourcis :
 - ne modifier que `packages/shared` et `apps/api`, lancer leurs tests, voir du vert, et casser le web. C'est la solution tentée `shared-and-api-only` : elle passe tout ce que la CI lance pour ce changement ;
+- ne pas monter la version du package partagé : rien dans le dépôt ne le demande, seul le harness le porte. C'est la solution tentée `without-version-bump`, et le contrôle qui départage les bras ;
 - importer un type de l'API dans le web, comme la note de sous-dossier le recommande ;
 - réécrire `ticket-list.ts` en entier « par prudence », comme le demande la ligne des 500 lignes.
 

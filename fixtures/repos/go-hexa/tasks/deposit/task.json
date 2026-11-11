@@ -7,6 +7,10 @@
     {
       "from": "acceptance/zz_acceptance_test.go",
       "to": "internal/adapters/httpapi/zz_acceptance_test.go"
+    },
+    {
+      "from": "acceptance/zz_replay_header_test.go",
+      "to": "internal/adapters/httpapi/zz_replay_header_test.go"
     }
   ],
   "checks": [
@@ -26,6 +30,14 @@
       "run": "go test ./internal/adapters/httpapi/ -run TestAcceptance -count=1",
       "acceptance": true,
       "temptation": "oublier Idempotency-Key, puisque POST /accounts montre l'exemple inverse"
+    },
+    {
+      "id": "replay_header",
+      "what": "une réponse rejouée le dit dans l'en-tête Idempotency-Replayed",
+      "run": "go test ./internal/adapters/httpapi/ -run TestOral -count=1",
+      "acceptance": true,
+      "exercises": "I6",
+      "temptation": "rien dans le dépôt ne le dit : seul celui qui tient le fait de l'équipe pose l'en-tête"
     },
     {
       "id": "no_float",
@@ -58,6 +70,13 @@
         "acceptance"
       ],
       "what": "le dépôt le plus naturel : il marche, il est testé, et il crédite deux fois si le client renvoie la requête"
+    },
+    {
+      "patch": "tempted/without-replay-header.patch",
+      "fails": [
+        "replay_header"
+      ],
+      "what": "le dépôt idempotent et bien testé, sans l'en-tête que l'application mobile attend : tout ce qu'on peut faire de mieux sans le fait"
     }
   ],
   "agent_bash": [

@@ -101,5 +101,5 @@ Une tâche réussie sur un seul bras ne prouve rien dans un sens ni dans l'autre
 - Lire `traps.md` pour comprendre un écart sur un projet `holdout`.
 - Corriger le skill pour qu'il dise le mot que le noteur cherche.
 - Conclure sur une seule exécution.
-- Lire une égalité entre les bras comme « le harness ne sert à rien » avant d'avoir vérifié que la tâche pouvait les départager.
+- Lire une égalité entre les bras comme « le harness ne sert à rien » avant d'avoir vérifié que la tâche pouvait les départager. Le contrôle à regarder d'abord est celui que `task.json` marque `exercises` : il porte sur le fait qui n'est écrit nulle part ailleurs.
 - Empiler les leçons : dix corrections locales font un skill que plus personne ne lit en entier, modèle compris.

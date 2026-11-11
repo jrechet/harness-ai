@@ -51,6 +51,16 @@
         "any_of": [
           "deskly-infra"
         ]
+      },
+      {
+        "id": "I5",
+        "what": "un changement du modèle partagé monte la version du package, dit par l'équipe et écrit nulle part ailleurs",
+        "any_of": [
+          "shared/package.json"
+        ],
+        "only_in_instructions": [
+          "shared/package.json"
+        ]
       }
     ],
     "must_not_write": [

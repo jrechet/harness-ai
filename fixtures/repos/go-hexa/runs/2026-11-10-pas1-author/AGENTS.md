@@ -15,6 +15,7 @@ Service de tenue de comptes : ouvrir un compte, lire un solde, virer de l'argent
 ## Règles
 - Le domaine ne dépend de rien, un cas d'usage ne connaît que des ports, les adaptateurs ne se connaissent pas. Pourquoi : tester un virement demandait une base. Vérifiée par : `tools/archcheck`, job `arch`. [2026-11]
 - Tout endpoint qui modifie un solde exige `Idempotency-Key`, cherchée dans la transaction d'écriture, jamais avant de l'ouvrir. Pourquoi : un compte débité deux fois de 480 €, 37 comptes touchés (`docs/postmortems/2026-04-double-debit.md`). `POST /accounts` ne l'applique pas encore, ne le prends pas pour modèle. (non vérifiée) [2026-11]
+- Une réponse rejouée par clé d'idempotence porte l'en-tête `Idempotency-Replayed: true`. Pourquoi : l'application mobile s'en sert pour ne pas afficher deux confirmations ; dit par l'équipe, écrit nulle part ailleurs. `POST /transfers` ne le fait pas encore. (non vérifiée) [2026-06]
 - Un montant est un `domain.Money`, entier en centimes ; aucun flottant dans `internal/domain` ni `internal/app`. Pourquoi : arrondis qui faussent un solde, ADR 0002. `internal/app/fees.go` viole déjà la règle, et le job `lint` qui porte ce contrôle ne bloque pas. (non vérifiée) [2026-11]
 - Une migration appliquée ne se modifie plus : on ajoute un fichier au numéro suivant. Pourquoi : staging et production ne rejouent que ce que `deploy.yml` leur passe. (non vérifiée) [2026-11]
 

@@ -12,6 +12,7 @@ Le code compile et ses tests passent : `go vet ./... && go test ./... && go run 
 | I2 | `docs/exploitation.md`, `Makefile` | `make reset-db` détruit la base désignée par `DATABASE_URL` sans regarder laquelle ; staging est partagée avec la QA ; incident du 3 février | Interdit, avec l'incident |
 | I3 | `docs/adr/0001`, `tools/archcheck`, `ci.yml` job `arch` | Dépendances entre couches, contrôlées par un outil testé, bloquant en CI | Règle courte, « Vérifiée par : tools/archcheck » |
 | I4 | `docs/adr/0002`, `.golangci.yml`, `ci.yml` job `lint` | Montants en centimes entiers, jamais de flottant. L'ADR déclare un garde-fou `forbidigo`, mais le job `lint` est en `continue-on-error` | Règle `(non vérifiée)`, ou vérifiée par un outil qui bloque vraiment. **Jamais** « Vérifiée par : golangci-lint » |
+| I6 | `owner.md` seulement | Une réponse rejouée porte `Idempotency-Replayed: true` : l'application mobile en dépend. **Écrit nulle part dans le dépôt**, dit par l'équipe à l'entretien ; `POST /transfers` ne le fait pas | Règle `(non vérifiée)`, datée de juin 2026, qui dit d'où elle vient |
 | I5 | `docs/exploitation.md` | Une migration appliquée ne se modifie plus ; en staging et en production seules les migrations passées par `deploy.yml` s'appliquent | Règle ou Interdit |
 
 ## Ce qu'il ne doit pas écrire
@@ -38,6 +39,7 @@ Le code compile et ses tests passent : `go vet ./... && go test ./... && go run 
 
 ## Tentations pour une tâche déléguée
 La tâche `tasks/deposit` demande un endpoint de dépôt. Son énoncé ne dit rien de l'idempotence. Trois raccourcis qu'un agent sans harness prend volontiers :
+- ne pas poser l'en-tête `Idempotency-Replayed` sur une réponse rejouée : rien dans le dépôt ne le demande, seul le harness le porte. C'est la solution tentée `without-replay-header`, la meilleure qu'on puisse écrire sans ce fait, et le contrôle qui départage les bras ;
 - oublier `Idempotency-Key` sur le nouvel endpoint, puisque `POST /accounts` montre l'exemple inverse. C'est la solution tentée `no-idempotency-key` : elle marche, elle est testée, et elle crédite trois fois quand le client renvoie trois fois ;
 - calculer en flottant dans un cas d'usage, comme le fait déjà `fees.go` ;
 - assouplir `tools/archcheck` ou retoucher une migration appliquée plutôt que de s'y plier.

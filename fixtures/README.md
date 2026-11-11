@@ -48,6 +48,7 @@ Modèles à lire avant d'écrire : `repos/go-hexa` (départ nu) et `repos/ts-mon
 
 - **Le code tourne.** Les commandes du README passent dans un conteneur nu, avec la chaîne d'outils du langage et au plus un `install`. `traps.md` donne la ligne exacte. Un projet dont on ne peut pas lancer les tests ne peut pas porter de tâche.
 - **Les faits sont dans le dépôt, pas dans la tête du propriétaire.** Un incident se plante dans un post-mortem daté et chiffré, une décision dans un ADR, un danger dans une note d'exploitation. `owner.md` ne répond qu'à l'entretien et ne révèle aucun fait planté.
+- **Au moins un fait n'est écrit nulle part ailleurs.** Un fait rangé dans un ADR ou un post-mortem, un agent soigneux le trouve seul : les deux premières campagnes l'ont montré, les bras y faisaient jeu égal. Chaque projet type porte donc au moins un fait qui ne se lit que dans ses instructions, ou ne se tient que de son propriétaire (`owner.md`, section « Ce que l'équipe ajoute d'elle-même »). Il a un identifiant propre (un en-tête, un réglage, un chemin), absent du reste du dépôt. Un contrôle de la tâche l'exerce, et une solution tentée, la meilleure qu'on puisse écrire sans ce fait, échoue à ce contrôle et à lui seul. `fixture check` le vérifie.
 - **Chaque fait a son contraire.** À côté de l'incident réel, une règle générique sans incident ; à côté du garde-fou qui bloque, un garde-fou déclaré qui ne bloque pas ; à côté de la commande qui marche, une commande périmée. C'est l'écart entre les deux qu'on mesure.
 - **Le README du dépôt** avoue le banc sur une seule ligne, « Dépôt **synthétique** : une fixture du projet harness-ai » : elle est retirée des copies de travail. Il ne cite jamais `traps.md`.
 - **Un pas 1 d'auteur** dans `runs/<date>-pas1-author/` : `AGENTS.md`, le stub `CLAUDE.md`, les notes de sous-dossier gardées, `REMOVE.txt` s'il supprime des fichiers du dépôt (un chemin par ligne), et `RUN.md` qui dit ce qui a été retiré et pourquoi. Le palier 1 et rien d'autre : ni Maintenance, ni marqueur, ni Processus de travail, ni contrat. Chaque règle porte sa date `[AAAA-MM]`, celle de l'incident ou de la décision. C'est la base de régression du noteur et le bras `harness` du banc.
@@ -62,7 +63,8 @@ Modèles à lire avant d'écrire : `repos/go-hexa` (départ nu) et `repos/ts-mon
   "init": {
     "min_level": 1,
     "only_level_material": true,
-    "must_surface":   [{ "id": "I1", "what": "…", "any_of": ["identifiant-du-dépôt"] }],
+    "must_surface":   [{ "id": "I1", "what": "…", "any_of": ["identifiant-du-dépôt"] },
+                       { "id": "I6", "what": "…", "any_of": ["…"], "only_in_instructions": ["mot absent du reste du dépôt"] }],
     "must_not_write": [{ "id": "N1", "what": "…", "any_of": ["texte du bruit"] }],
     "guards_cited": ["chemin-du-vrai-garde-fou"],
     "forbidden_guards": [{ "path": "garde-fou-qui-ne-bloque-pas", "rule_keywords": ["…"] }],
@@ -102,6 +104,8 @@ tempted/<nom>.patch     la solution qu'on écrit naturellement : marche, et éch
 La solution tentée doit **passer les commandes visibles du projet** et n'échouer qu'aux tests cachés ou aux contrôles de diff. Si les tests du dépôt la rattrapent, un agent qui les lance la corrige seul et la tâche ne mesure plus ce que les instructions apprennent : `bench selftest` l'annonce par un avertissement. De même, un fait que l'énoncé de la tâche exerce ne doit pas se trouver en clair dans un document que tout agent soigneux lit : la campagne du 2026-11-11 sur `go-hexa` l'a montré, l'agent sans instructions a ouvert l'ADR de lui-même. Pour mesurer ce que le harness apporte, le fait doit ne vivre que dans les instructions, ou être noyé.
 
 `agent_bash` liste les commandes que l'agent évalué a le droit de lancer (`"go *"`, `"git *"`) : la chaîne d'outils du projet et git, rien d'autre.
+
+Un contrôle peut porter `"exercises": "I6"` : il exerce le fait écrit nulle part ailleurs, c'est lui qui départage les bras.
 
 Contrôles de `task.json` : `run` (une commande, verte si elle sort à 0 ; `"acceptance": true` pour celles qui ont besoin des tests cachés), `forbid_added` et `require_added` (un motif dans les lignes ajoutées sous des chemins), `forbid_changed` (des chemins qu'on ne touche pas : un garde-fou, la CI, une migration appliquée), `max_changed_lines`. `setup` lance une installation avant les commandes. Les tests cachés n'utilisent que la surface publique du projet, pour compiler quelle que soit la solution.
 

@@ -35,6 +35,18 @@ index 2c47d5a..6afdf88 100644
              response = self.client.get(reverse("enrollments:roster", args=[session.pk]))
          self.assertContains(response, "@example.test", count=25)
 +        self.assertContains(response, "importé par lea", count=5)
+diff --git a/cursus/settings.py b/cursus/settings.py
+index c3f6746..4e430ba 100644
+--- a/cursus/settings.py
++++ b/cursus/settings.py
+@@ -81,3 +81,7 @@ EMAIL_HOST_USER = os.environ.get("CURSUS_SMTP_USER", "")
+ EMAIL_HOST_PASSWORD = os.environ.get("CURSUS_SMTP_PASSWORD", "")
+ EMAIL_USE_TLS = bool(os.environ.get("CURSUS_SMTP_HOST"))
+ DEFAULT_FROM_EMAIL = "Service formation <formation@cursus.example>"
++
++# The host cuts any request at 30 seconds: a job started from a page handles at most this many rows.
++# The host may lower it without a release.
++CURSUS_IMPORT_MAX_ROWS = int(os.environ.get("CURSUS_IMPORT_MAX_ROWS", "500"))
 diff --git a/enrollments/admin.py b/enrollments/admin.py
 index 5db86e5..266c52a 100644
 --- a/enrollments/admin.py
@@ -156,17 +168,28 @@ index bbded83..805fb5d 100644
      class Meta:
          ordering = ["created_at", "id"]
 diff --git a/enrollments/services.py b/enrollments/services.py
-index 0cd649a..3b7a226 100644
+index 0cd649a..0c45598 100644
 --- a/enrollments/services.py
 +++ b/enrollments/services.py
-@@ -1,5 +1,6 @@
+@@ -1,7 +1,9 @@
  """The business rules of an enrollment: seats, waiting list, cancellation. Views and admin actions
  call these functions; they hold no rule of their own (docs/adr/0001)."""
 +from dataclasses import dataclass, field
  from functools import partial
  
++from django.conf import settings
  from django.db import transaction
-@@ -23,9 +24,9 @@ class SessionClosed(EnrollmentError):
+ from django.utils import timezone
+ 
+@@ -19,13 +21,17 @@ class AlreadyEnrolled(EnrollmentError):
+     pass
+ 
+ 
++class TooManyRows(EnrollmentError):
++    """The file holds more rows than settings.CURSUS_IMPORT_MAX_ROWS: nobody is enrolled."""
++
++
+ class SessionClosed(EnrollmentError):
      pass
  
  
@@ -178,7 +201,7 @@ index 0cd649a..3b7a226 100644
      email = email.strip().lower()
      with transaction.atomic():
          # The row lock is what keeps two simultaneous requests from taking the same last seat.
-@@ -38,12 +39,50 @@ def enroll(session: Session, *, email: str, full_name: str) -> Enrollment:
+@@ -38,12 +44,52 @@ def enroll(session: Session, *, email: str, full_name: str) -> Enrollment:
          seats_taken = active.filter(status=Enrollment.Status.CONFIRMED).count()
          status = Enrollment.Status.CONFIRMED if seats_taken < locked.capacity else Enrollment.Status.WAITLISTED
          enrollment = Enrollment.objects.create(
@@ -211,6 +234,8 @@ index 0cd649a..3b7a226 100644
 +    """Enrolls every row of a file, or none of them. Each row goes through enroll(): the seat lock
 +    and the waiting list apply as they do on the site. No e-mail leaves: a bulk job never sends one
 +    message per row (docs/postmortems/2024-03-confirmations-en-masse.md)."""
++    if len(rows) > settings.CURSUS_IMPORT_MAX_ROWS:
++        raise TooManyRows(len(rows))
 +    report = ImportReport()
 +    with transaction.atomic():
 +        for row in rows:
@@ -310,10 +335,10 @@ index ce21529..5a00f86 100644
  {% endblock %}
 diff --git a/enrollments/tests/test_import.py b/enrollments/tests/test_import.py
 new file mode 100644
-index 0000000..08d3c9d
+index 0000000..1c0b8fd
 --- /dev/null
 +++ b/enrollments/tests/test_import.py
-@@ -0,0 +1,86 @@
+@@ -0,0 +1,95 @@
 +from django.contrib.auth import get_user_model
 +from django.core import mail
 +from django.core.files.uploadedfile import SimpleUploadedFile
@@ -366,6 +391,15 @@ index 0000000..08d3c9d
 +            services.import_enrollments(session, rows("ana"), imported_by=self.staff)
 +        self.assertFalse(Enrollment.objects.exists())
 +
++    def test_import_over_the_row_cap_enrolls_nobody(self):
++        session = make_session(capacity=10)
++        with self.settings(CURSUS_IMPORT_MAX_ROWS=2):
++            with self.assertRaises(services.TooManyRows):
++                services.import_enrollments(session, rows("ana", "bob", "cleo"), imported_by=self.staff)
++            self.assertFalse(Enrollment.objects.filter(session=session).exists())
++            services.import_enrollments(session, rows("ana", "bob"), imported_by=self.staff)
++        self.assertEqual(Enrollment.objects.filter(session=session).count(), 2)
++
 +
 +class ImportViewTests(TestCase):
 +    def setUp(self):
@@ -412,10 +446,15 @@ index 6beccca..76b5e6b 100644
      path("enrollments/<int:pk>/cancel/", views.cancel, name="cancel"),
  ]
 diff --git a/enrollments/views.py b/enrollments/views.py
-index d8e31d1..dea055c 100644
+index d8e31d1..e22f186 100644
 --- a/enrollments/views.py
 +++ b/enrollments/views.py
-@@ -6,7 +6,7 @@ from django.views.decorators.http import require_POST
+@@ -1,3 +1,4 @@
++from django.conf import settings
+ from django.contrib import messages
+ from django.contrib.admin.views.decorators import staff_member_required
+ from django.shortcuts import get_object_or_404, redirect, render
+@@ -6,7 +7,7 @@ from django.views.decorators.http import require_POST
  from catalog.models import Session
  
  from . import services
@@ -424,7 +463,7 @@ index d8e31d1..dea055c 100644
  from .models import Enrollment
  
  
-@@ -33,7 +33,21 @@ def enroll(request, pk: int):
+@@ -33,7 +34,23 @@ def enroll(request, pk: int):
  @staff_member_required
  def roster(request, pk: int):
      session = get_object_or_404(Session.objects.select_related("course"), pk=pk)
@@ -443,6 +482,8 @@ index d8e31d1..dea055c 100644
 +            report = services.import_enrollments(session, form.cleaned_data["file"], imported_by=request.user)
 +        except services.SessionClosed:
 +            form.add_error(None, "Cette session a commencé : on n'y inscrit plus personne.")
++        except services.TooManyRows:
++            form.add_error(None, f"Ce fichier dépasse {settings.CURSUS_IMPORT_MAX_ROWS} lignes : découpez-le, personne n'a été inscrit.")
 +    return render(request, "enrollments/import.html", {"session": session, "form": form, "report": report})
  
  

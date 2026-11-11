@@ -47,6 +47,9 @@
         "what": "src/routes-v2 est une refonte abandonnée, pas branchée : tout va dans src/routes",
         "any_of": [
           "routes-v2"
+        ],
+        "only_in_instructions": [
+          "abandonn"
         ]
       },
       {

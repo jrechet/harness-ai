@@ -40,6 +40,18 @@ index 29fa40f..eb9b2c0 100644
 +  assert.ok(html.includes("Escaladé"), html);
 +  assert.deepEqual([...html.matchAll(/data-status="(\w+)"/g)].map((m) => m[1]).sort(), ["in_progress", "resolved"]);
 +});
+diff --git a/packages/shared/package.json b/packages/shared/package.json
+index d9e9039..c08d67d 100644
+--- a/packages/shared/package.json
++++ b/packages/shared/package.json
+@@ -1,6 +1,6 @@
+ {
+   "name": "@deskly/shared",
+-  "version": "1.4.0",
++  "version": "1.5.0",
+   "private": true,
+   "type": "module",
+   "exports": {
 diff --git a/packages/shared/src/ticket.test.ts b/packages/shared/src/ticket.test.ts
 index 033241a..c39d874 100644
 --- a/packages/shared/src/ticket.test.ts

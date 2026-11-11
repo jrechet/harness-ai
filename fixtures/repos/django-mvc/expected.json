@@ -57,6 +57,16 @@
         "any_of": [
           "migration"
         ]
+      },
+      {
+        "id": "I5",
+        "what": "plafond de lignes d'un traitement lancé depuis une page, dit par l'équipe et écrit nulle part ailleurs",
+        "any_of": [
+          "cursus_import_max_rows"
+        ],
+        "only_in_instructions": [
+          "cursus_import_max_rows"
+        ]
       }
     ],
     "must_not_write": [

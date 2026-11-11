@@ -75,7 +75,7 @@ index cee30e9..8a4e54f 100644
    }
  }
 diff --git a/contracts/events/order.created.json b/contracts/events/order.created.json
-index f291518..fd2adb1 100644
+index f291518..47f54d9 100644
 --- a/contracts/events/order.created.json
 +++ b/contracts/events/order.created.json
 @@ -20,10 +20,25 @@
@@ -86,8 +86,8 @@ index f291518..fd2adb1 100644
 -        "quantity": {"type": "integer", "minimum": 1},
 -        "total_cents": {"type": "integer", "minimum": 0, "description": "Tax included."},
 -        "created_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."}
-+        "sku": {"type": "string", "minLength": 1, "description": "The first line. Still published for the readers written before `lines`."},
-+        "quantity": {"type": "integer", "minimum": 1, "description": "The first line. Still published for the readers written before `lines`."},
++        "sku": {"type": "string", "minLength": 1, "description": "The first line. Still published for the readers written before `lines`.", "deprecated": true},
++        "quantity": {"type": "integer", "minimum": 1, "description": "The first line. Still published for the readers written before `lines`.", "deprecated": true},
 +        "total_cents": {"type": "integer", "minimum": 0, "description": "Tax included, every line."},
 +        "created_at": {"type": "string", "minLength": 20, "description": "ISO 8601, UTC."},
 +        "lines": {

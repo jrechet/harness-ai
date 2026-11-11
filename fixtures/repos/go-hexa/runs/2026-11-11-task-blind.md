@@ -1,5 +1,7 @@
 # Campagne du 2026-11-11 — tâche `deposit` sur ses deux bras
 
+> Depuis cette campagne, le projet porte un fait écrit nulle part dans le dépôt, l'en-tête `Idempotency-Replayed`, et la tâche un contrôle qui l'exerce. Les sorties ci-dessous portent sur la version d'avant.
+
 Première mesure par `bench play` : un agent par bras, en processus séparé, qui ne reçoit que l'énoncé et ne charge que les instructions du dépôt de travail. Sorties dans `2026-11-11-task-blind-<bras>/` : `diff.patch`, `compte-rendu.md`, `note.md`, `usage.json`.
 
 | Bras | Instructions du dépôt | Note | Tokens neufs | Tours | Durée |
