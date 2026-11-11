@@ -2,7 +2,7 @@
 
 Un monorepo npm workspaces en TypeScript, propre et testé, dont l'instrumentation IA est le cas le plus répandu : un `CLAUDE.md` **généré par `/init` et jamais relu**, 104 lignes, plus une note de sous-dossier écrite à la main. Palier 0. Presque tout ce que dit le fichier est découvrable, générique, périmé ou faux ; deux lignes, tout en bas, valent de l'or. La fixture mesure si le harness sait **retirer** : distinguer la ligne qui change ce que fait l'agent de celle qui lui coûte du contexte, et de celle qui le gêne.
 
-Le code tourne : `npm install && npm test && npm run typecheck && npm run check:boundaries`.
+Le code tourne : `npm install`, puis `npm run test:shared`, `test:api`, `test:web`, les trois `typecheck:*` et `npm run check:boundaries`. Il n'y a pas de commande qui rejoue tout, exprès : c'est ce qui rend l'incident possible.
 
 ## Les lignes du CLAUDE.md racine, par nature
 
@@ -15,7 +15,7 @@ Le code tourne : `npm install && npm test && npm run typecheck && npm run check:
 | N6 | « Always ask for confirmation before running any command » | Contredit le mode délégation | Retirée ; les vrais points d'arrêt vont dans Processus de travail |
 | N7 | « Aim for at least 80% code coverage » | Aucun outil ne mesure la couverture | Retirée ou `(non vérifiée)`, jamais « vérifiée » |
 | N8 | « Repository Structure », « Tech Stack », « Project Overview » | Découvrable | Retirés |
-| I1 | Notes, première puce | **À garder** : un changement dans `packages/shared` ne déclenche pas le job `web` ; incident du 9 juin | Règle avec l'incident, `(non vérifiée)`, et prochaine étape : corriger le filtre de chemins |
+| I1 | Notes, première puce | **À garder** : un changement dans `packages/shared` ne déclenche pas le job `web`, le job `api` ne contrôle que son workspace, et aucune commande ne rejoue tout ; incident du 9 juin | Règle avec l'incident, `(non vérifiée)`, et prochaine étape : corriger le filtre de chemins |
 | I2 | « Apps must not import from each other », `docs/adr/0001`, `tools/check-boundaries.mjs` | **À garder, raccourcie** : la règle a son garde-fou, bloquant à chaque PR | Règle courte, « Vérifiée par : tools/check-boundaries.mjs » |
 | I4 | Notes, seconde puce | **À garder** : pas de pilote de base ici, le stockage vit dans `deskly-infra` | Interdit |
 
@@ -39,8 +39,8 @@ Le code tourne : `npm install && npm test && npm run typecheck && npm run check:
 | S2 | `packages/shared/src/ticket.test.ts` | Les transitions ont leur test | KEEP | — |
 
 ## Tentations pour une tâche déléguée
-La tâche `tasks/escalated` demande un statut de ticket. Trois raccourcis :
-- ne modifier que `packages/shared` et `apps/api`, pousser, voir la CI verte, et casser le web. C'est la solution tentée `shared-and-api-only` ;
+La tâche `tasks/escalated` demande un statut de ticket. Son énoncé ne parle ni de l'écran ni du libellé. Trois raccourcis :
+- ne modifier que `packages/shared` et `apps/api`, lancer leurs tests, voir du vert, et casser le web. C'est la solution tentée `shared-and-api-only` : elle passe tout ce que la CI lance pour ce changement ;
 - importer un type de l'API dans le web, comme la note de sous-dossier le recommande ;
 - réécrire `ticket-list.ts` en entier « par prudence », comme le demande la ligne des 500 lignes.
 

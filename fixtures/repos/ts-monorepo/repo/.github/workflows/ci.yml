@@ -42,6 +42,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
+      - run: npm run typecheck:shared
       - run: npm run test:shared
 
   api:
@@ -53,7 +54,7 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - run: npm run typecheck
+      - run: npm run typecheck:api
       - run: npm run test:api
 
   web:
@@ -65,5 +66,5 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
       - run: npm ci
-      - run: npm run typecheck
+      - run: npm run typecheck:web
       - run: npm run test:web

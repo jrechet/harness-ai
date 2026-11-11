@@ -1,5 +1,7 @@
 # Campagne du 2026-11-10 — tâche `escalated` sur ses trois bras
 
+> Le projet et la tâche ont été corrigés le 2026-11-11 d'après cette campagne : contrôle de types par workspace, plus de commande qui rejoue tout, énoncé sans le libellé. Les sorties ci-dessous portent sur l'ancienne version.
+
 Première mesure avant et après du banc. Trois agents neufs, la même consigne au mot près, un bras chacun. Sorties dans `2026-11-10-task-blind-<bras>/` : `diff.patch`, `compte-rendu.md`, `note.md`.
 
 | Bras | Instructions du dépôt | Note | Tokens | Appels d'outil | Durée |
