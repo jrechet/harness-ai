@@ -32,8 +32,9 @@ from . import facts, fixtures
 
 ARMS = ("bare", "asis", "harness")
 # Coût estimé d'une exécution d'agent, en tokens. Audit et init : les sept premières évaluations à
-# l'aveugle. Tâche : moyenne des trois exécutions de la campagne du 2026-11-10 (113 000 à 126 000).
-COST = {"audit": 130_000, "init": 130_000, "task": 120_000}
+# l'aveugle, jouées par un agent de la session. Tâche : tokens neufs mesurés par `bench play` le
+# 2026-11-11 (70 000 et 75 000), hors relecture de cache, qui en ajoute environ 650 000 par exécution.
+COST = {"audit": 130_000, "init": 130_000, "task": 75_000}
 RESULTS = os.path.join(os.path.dirname(fixtures.FIXTURES_ROOT), "results.jsonl")
 OVERLAY_SKIP = {"RUN.md", "README.md", "REMOVE.txt"}   # ce qui décrit une exécution n'est pas du harness
 OVERLAY_REMOVE = "REMOVE.txt"                    # un chemin par ligne : ce que le pas a supprimé du dépôt

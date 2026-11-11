@@ -99,7 +99,7 @@ solution.patch          la solution de référence : passe tous les contrôles
 tempted/<nom>.patch     la solution qu'on écrit naturellement : marche, et échoue aux contrôles déclarés
 ```
 
-La solution tentée doit **passer les commandes visibles du projet** et n'échouer qu'aux tests cachés ou aux contrôles de diff. Si les tests du dépôt la rattrapent, un agent qui les lance la corrige seul et la tâche ne mesure plus ce que les instructions apprennent : `bench selftest` l'annonce par un avertissement. De même, un fait que l'énoncé de la tâche exerce ne doit pas se trouver en clair dans un document que tout agent soigneux lit.
+La solution tentée doit **passer les commandes visibles du projet** et n'échouer qu'aux tests cachés ou aux contrôles de diff. Si les tests du dépôt la rattrapent, un agent qui les lance la corrige seul et la tâche ne mesure plus ce que les instructions apprennent : `bench selftest` l'annonce par un avertissement. De même, un fait que l'énoncé de la tâche exerce ne doit pas se trouver en clair dans un document que tout agent soigneux lit : la campagne du 2026-11-11 sur `go-hexa` l'a montré, l'agent sans instructions a ouvert l'ADR de lui-même. Pour mesurer ce que le harness apporte, le fait doit ne vivre que dans les instructions, ou être noyé.
 
 `agent_bash` liste les commandes que l'agent évalué a le droit de lancer (`"go *"`, `"git *"`) : la chaîne d'outils du projet et git, rien d'autre.
 
