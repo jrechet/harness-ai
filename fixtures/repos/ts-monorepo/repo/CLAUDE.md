@@ -49,10 +49,10 @@ deskly/
 
 ```bash
 npm install            # install dependencies
-npm test               # run all tests
+npm run test:shared    # run shared tests
 npm run test:api       # run API tests
 npm run test:web       # run web tests
-npm run typecheck      # type-check everything
+npm run typecheck:web  # type-check a workspace
 npm run lint           # lint the code
 npm run build          # build all workspaces
 npm run dev:api        # start the API in watch mode
