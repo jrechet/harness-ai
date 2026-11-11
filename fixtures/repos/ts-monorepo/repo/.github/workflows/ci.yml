@@ -24,6 +24,7 @@ jobs:
               - 'packages/shared/**'
             web:
               - 'apps/web/**'
+              - 'packages/shared/**'
 
   boundaries:
     runs-on: ubuntu-latest
