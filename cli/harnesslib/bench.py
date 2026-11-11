@@ -248,7 +248,8 @@ def run_agent(workdir: str, prompt: str, task: dict[str, Any]) -> dict[str, Any]
         return {"report": out.stdout[-2000:], "error": (out.stderr or "sortie illisible")[-500:], "usage": {}}
     usage = data.get("usage") or {}
     fresh = sum(usage.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "output_tokens"))
-    return {"report": data.get("result") or "", "error": data.get("subtype") if data.get("is_error") else None,
+    failed = data.get("subtype") not in (None, "success")       # is_error seul ne suffit pas : vu vrai avec un travail rendu
+    return {"report": data.get("result") or "", "error": data.get("subtype") if failed else None,
             "usage": {"tokens": fresh, "cache_read_tokens": usage.get("cache_read_input_tokens") or 0,
                       "output_tokens": usage.get("output_tokens") or 0, "turns": data.get("num_turns"),
                       "duration_s": round((data.get("duration_ms") or 0) / 1000),

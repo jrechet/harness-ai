@@ -1,0 +1,12 @@
+{
+  "tokens": 46114,
+  "cache_read_tokens": 319269,
+  "output_tokens": 12782,
+  "turns": 32,
+  "duration_s": 112,
+  "denied": 1,
+  "denied_commands": [
+    "for f in src/*.js src/routes/*.js src/services/*.js src/lib/*.js src/routes-v2/orders.js test/orders.test.js test/webhook*.test.js test/store.test.js scripts/*."
+  ],
+  "error": null
+}

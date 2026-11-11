@@ -1,0 +1,12 @@
+{
+  "tokens": 36371,
+  "cache_read_tokens": 189580,
+  "output_tokens": 13168,
+  "turns": 15,
+  "duration_s": 103,
+  "denied": 1,
+  "denied_commands": [
+    "git branch -a && git remote -v\npython3 - <<'EOF'\nimport re\np='src/routes/webhook.js'; s=open(p).read()\na=s.index(\"  if (event.type === 'payment.succeeded') {\")\n"
+  ],
+  "error": null
+}

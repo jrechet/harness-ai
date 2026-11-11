@@ -1,0 +1,317 @@
+diff --git a/NOTES.md b/NOTES.md
+index 210c32d..67cdfed 100644
+--- a/NOTES.md
++++ b/NOTES.md
+@@ -9,7 +9,9 @@ Notes prises au fil des sessions. Pas triées.
+   { "id": "evt_3fa9c1", "type": "payment.succeeded", "created": 1773478800,
+     "data": { "orderId": "ord_5d0c2a91be", "paymentId": "pay_88c1", "amountCents": 1240 } }
+   ```
+-- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On ne traite que le premier.
++- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On traite `payment.succeeded` (payée, le stock part) et `payment.refunded` (remboursée, le stock revient si la commande était payée) ; `payment.failed` est ignoré.
++- Annulation (`POST /orders/:id/cancel`) : seulement une commande `pending`, sinon 409. Logique dans `services/orders.js` (`cancelOrder`, `refundOrder`), partagée v1/v2. La route est en v1 aussi, parce que la v2 n'est pas branchée et que la fonctionnalité doit marcher maintenant.
++- Limite connue : le lien de paiement reste valable après une annulation. Si le client paie quand même, `payment.succeeded` passe la commande à `paid` (l'argent est encaissé) ; à rembourser à la main dans PayFlux.
+ - Signature : en-tête `X-Payflux-Signature`, HMAC-SHA256 en hexadécimal du corps brut, avec le secret du webhook. Vérifier sur le corps tel qu'il arrive, pas sur le JSON reformaté.
+ - Doc PayFlux, « Livraison des webhooks » (recopié le 2026-03-15) : livraison « au moins une fois ». Nouvelle tentative à +30 s, +5 min, +1 h, +6 h puis +24 h tant que la réponse n'est pas un 2xx reçu en moins de 5 s. Un événement déjà acquitté peut être relivré. L'`id` de l'événement ne change pas d'une livraison à l'autre.
+ - L'URL du webhook se règle dans le tableau de bord PayFlux, Développeurs > Webhooks.
+diff --git a/TODO.md b/TODO.md
+index 531307e..4628eb1 100644
+--- a/TODO.md
++++ b/TODO.md
+@@ -5,7 +5,7 @@ Liste de l'utilisateur, dans l'ordre où il l'a demandé.
+ - [x] Commander depuis le téléphone
+ - [x] Payer en ligne
+ - [x] Export des commandes pour le matin (`scripts/export-orders.js`)
+-- [ ] Annuler une commande (demandé le 2026-05-10)
++- [x] Annuler une commande (demandé le 2026-05-10) — avant paiement ; une commande payée se rembourse dans PayFlux et le stock revient
+ - [ ] SMS quand la commande est prête
+ - [ ] Mot de passe pour voir les commandes
+ - [ ] Finir la v2 (webhook) et la brancher
+diff --git a/src/routes-v2/orders.js b/src/routes-v2/orders.js
+index 1c7b853..3c2b97e 100644
+--- a/src/routes-v2/orders.js
++++ b/src/routes-v2/orders.js
+@@ -1,6 +1,6 @@
+ import { readJson, sendJson } from '../lib/http.js';
+ import { paymentUrl } from '../lib/payflux.js';
+-import { computeTotal, newOrderId } from '../services/orders.js';
++import { cancelOrder, computeTotal, newOrderId } from '../services/orders.js';
+ import { formatDateTime, formatMoney } from '../utils/helpers.js';
+ import { validateOrder } from './validate.js';
+ 
+@@ -51,8 +51,9 @@ export function ordersHandlers(store) {
+       const db = store.readDb();
+       const order = db.orders.find((o) => o.id === params.id);
+       if (!order) return sendJson(res, 404, { errors: ['order not found'] });
+-      order.status = 'cancelled';
+-      order.cancelledAt = new Date().toISOString();
++      if (!cancelOrder(order)) {
++        return sendJson(res, 409, { errors: [`order is ${order.status}, it cannot be cancelled`] });
++      }
+       store.writeDb(db);
+       return sendJson(res, 200, { order: present(order) });
+     },
+diff --git a/src/routes/index.js b/src/routes/index.js
+index 71cb69a..f29e2ec 100644
+--- a/src/routes/index.js
++++ b/src/routes/index.js
+@@ -4,7 +4,7 @@ import { config } from '../config.js';
+ import { sendJson } from '../lib/http.js';
+ import { summary } from '../services/stats.js';
+ import { readDb } from '../store.js';
+-import { createOrder, getOrder, listOrders } from './orders.js';
++import { cancel, createOrder, getOrder, listOrders } from './orders.js';
+ import { listProducts } from './products.js';
+ import { handleWebhook } from './webhook.js';
+ 
+@@ -40,6 +40,10 @@ export async function route(req, res) {
+   if (req.method === 'GET' && orderMatch) {
+     return getOrder(req, res, orderMatch[1]);
+   }
++  const cancelMatch = pathname.match(/^\/orders\/([\w-]+)\/cancel$/);
++  if (req.method === 'POST' && cancelMatch) {
++    return cancel(req, res, cancelMatch[1]);
++  }
+   if (req.method === 'POST' && pathname === '/webhooks/payflux') {
+     return handleWebhook(req, res);
+   }
+diff --git a/src/routes/orders.js b/src/routes/orders.js
+index 91ffa3a..a34524e 100644
+--- a/src/routes/orders.js
++++ b/src/routes/orders.js
+@@ -1,6 +1,6 @@
+ import { readJson, sendJson } from '../lib/http.js';
+ import { paymentUrl } from '../lib/payflux.js';
+-import { computeTotal, newOrderId, presentOrder } from '../services/orders.js';
++import { cancelOrder, computeTotal, newOrderId, presentOrder } from '../services/orders.js';
+ import { readDb, writeDb } from '../store.js';
+ 
+ export async function createOrder(req, res) {
+@@ -55,6 +55,18 @@ export function getOrder(req, res, id) {
+   return sendJson(res, 200, presentOrder(order));
+ }
+ 
++// POST /orders/:id/cancel
++export function cancel(req, res, id) {
++  const db = readDb();
++  const order = db.orders.find((o) => o.id === id);
++  if (!order) return sendJson(res, 404, { error: 'order not found' });
++  if (!cancelOrder(order)) {
++    return sendJson(res, 409, { error: `order is ${order.status}, it cannot be cancelled` });
++  }
++  writeDb(db);
++  return sendJson(res, 200, presentOrder(order));
++}
++
+ // GET /orders?status=paid&pickupDate=2026-05-09
+ export function listOrders(req, res, url) {
+   const db = readDb();
+diff --git a/src/routes/webhook.js b/src/routes/webhook.js
+index ecb8de8..8eb40ab 100644
+--- a/src/routes/webhook.js
++++ b/src/routes/webhook.js
+@@ -1,6 +1,7 @@
+ import { readBody, sendJson } from '../lib/http.js';
+ import { log } from '../lib/logger.js';
+ import { verifySignature } from '../lib/payflux.js';
++import { refundOrder } from '../services/orders.js';
+ import { readDb, writeDb } from '../store.js';
+ 
+ // POST /webhooks/payflux
+@@ -22,7 +23,8 @@ export async function handleWebhook(req, res) {
+     const db = readDb();
+     const order = db.orders.find((o) => o.id === event.data.orderId);
+     if (!order) return sendJson(res, 404, { error: 'order not found' });
+-    if (order.status === 'paid') {
++    // redelivered event, or a late delivery after the refund: must not take the stock again
++    if (order.status === 'paid' || order.status === 'refunded') {
+       return sendJson(res, 200, { received: true });
+     }
+     order.status = 'paid';
+@@ -38,6 +40,18 @@ export async function handleWebhook(req, res) {
+     return sendJson(res, 200, { received: true });
+   }
+ 
+-  // payment.failed, payment.refunded... nothing to do for now
++  if (event.type === 'payment.refunded') {
++    const db = readDb();
++    const order = db.orders.find((o) => o.id === event.data.orderId);
++    if (!order) return sendJson(res, 404, { error: 'order not found' });
++    // refundOrder returns false for a redelivered event: the stock is back already
++    if (refundOrder(order, db.products)) {
++      writeDb(db);
++      log('info', `order ${order.id} refunded (${event.id})`);
++    }
++    return sendJson(res, 200, { received: true });
++  }
++
++  // payment.failed... nothing to do for now
+   return sendJson(res, 200, { received: true, ignored: event.type });
+ }
+diff --git a/src/services/orders.js b/src/services/orders.js
+index 3a0c0ac..5417f62 100644
+--- a/src/services/orders.js
++++ b/src/services/orders.js
+@@ -24,3 +24,31 @@ export function presentOrder(order) {
+     pickupLabel: order.pickupDate ? toFrenchDate(order.pickupDate) : null,
+   };
+ }
++
++// Cancels an order that is not paid yet. A pending order has taken no stock,
++// so nothing goes back. Returns false when the order cannot be cancelled
++// (paid or refunded: the money has moved, it goes through PayFlux).
++export function cancelOrder(order) {
++  if (order.status === 'cancelled') return true;
++  if (order.status !== 'pending') return false;
++  order.status = 'cancelled';
++  order.cancelledAt = new Date().toISOString();
++  return true;
++}
++
++// Applies a PayFlux refund. The stock comes back only if the order had taken
++// it, that is if it was paid. Returns false when there is nothing to do
++// (a redelivered event), so the caller does not write.
++export function refundOrder(order, products) {
++  if (order.status === 'refunded') return false;
++  const wasPaid = order.status === 'paid';
++  order.status = 'refunded';
++  order.refundedAt = new Date().toISOString();
++  if (wasPaid) {
++    for (const item of order.items) {
++      const product = products.find((p) => p.id === item.productId);
++      if (product) product.stock += item.quantity;
++    }
++  }
++  return true;
++}
+diff --git a/test/orders.test.js b/test/orders.test.js
+index 9ea4d01..3004ae1 100644
+--- a/test/orders.test.js
++++ b/test/orders.test.js
+@@ -84,3 +84,27 @@ test('an unknown order answers 404', async () => {
+   const res = await fetch(`${base}/orders/ord_nope`);
+   assert.equal(res.status, 404);
+ });
++
++test('a pending order is cancelled, answered like GET, and the stock does not move', async () => {
++  const stockOf = async () => (await (await fetch(`${base}/products`)).json()).find((p) => p.id === 'croissant').stock;
++  const before = await stockOf();
++  const created = await (
++    await fetch(`${base}/orders`, {
++      method: 'POST',
++      headers: { 'Content-Type': 'application/json' },
++      body: JSON.stringify({ customer, items: [{ productId: 'croissant', quantity: 2 }] }),
++    })
++  ).json();
++
++  const res = await fetch(`${base}/orders/${created.id}/cancel`, { method: 'POST' });
++  assert.equal(res.status, 200);
++  const cancelled = await res.json();
++  assert.equal(cancelled.status, 'cancelled');
++  assert.deepEqual(cancelled, await (await fetch(`${base}/orders/${created.id}`)).json());
++  assert.equal(await stockOf(), before);
++});
++
++test('cancelling an unknown order answers 404', async () => {
++  const res = await fetch(`${base}/orders/ord_nope/cancel`, { method: 'POST' });
++  assert.equal(res.status, 404);
++});
+diff --git a/test/routes-v2.test.js b/test/routes-v2.test.js
+index ef10e4a..80569cb 100644
+--- a/test/routes-v2.test.js
++++ b/test/routes-v2.test.js
+@@ -85,6 +85,23 @@ test('v2 cancels an order', async () => {
+   assert.equal(res.body.order.status, 'cancelled');
+ });
+ 
++test('v2 refuses to cancel a paid order', async () => {
++  const store = memoryStore();
++  const router = createRouter(store);
++  const created = await call(router, 'POST', '/orders', { customer, items: [{ productId: 'croissant', quantity: 1 }] });
++  const db = store.readDb();
++  db.orders[0].status = 'paid';
++  store.writeDb(db);
++  const res = await call(router, 'POST', `/orders/${created.body.order.id}/cancel`);
++  assert.equal(res.status, 409);
++  assert.equal(store.readDb().orders[0].status, 'paid');
++});
++
++test('v2 cancel answers 404 for an unknown order', async () => {
++  const res = await call(createRouter(memoryStore()), 'POST', '/orders/ord_nope/cancel');
++  assert.equal(res.status, 404);
++});
++
+ test('v2 answers false for an unknown route', async () => {
+   const res = await call(createRouter(memoryStore()), 'GET', '/nope');
+   assert.equal(res.handled, false);
+diff --git a/test/webhook.test.js b/test/webhook.test.js
+index 97a9e16..73cf4a3 100644
+--- a/test/webhook.test.js
++++ b/test/webhook.test.js
+@@ -85,3 +85,67 @@ test('an event for an unknown order answers 404', async () => {
+   const res = await sendEvent({ id: 'evt_2', type: 'payment.succeeded', data: { orderId: 'ord_nope', paymentId: 'pay_3' } });
+   assert.equal(res.status, 404);
+ });
++
++test('payment.refunded marks the order refunded and gives the stock back, once', async () => {
++  const before = await stockOf('croissant');
++  const order = await newOrder(3);
++  await sendEvent({ id: 'evt_10', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_10' } });
++  assert.equal(await stockOf('croissant'), before - 3);
++
++  const refund = { id: 'evt_11', type: 'payment.refunded', data: { orderId: order.id, paymentId: 'pay_10' } };
++  const res = await sendEvent(refund);
++  assert.equal(res.status, 200);
++  const read = await (await fetch(`${base}/orders/${order.id}`)).json();
++  assert.equal(read.status, 'refunded');
++  assert.equal(await stockOf('croissant'), before);
++
++  // PayFlux delivers at least once
++  assert.equal((await sendEvent(refund)).status, 200);
++  assert.equal(await stockOf('croissant'), before);
++});
++
++test('a late payment.succeeded after the refund does not take the stock again', async () => {
++  const before = await stockOf('croissant');
++  const order = await newOrder(2);
++  const paid = { id: 'evt_20', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_20' } };
++  await sendEvent(paid);
++  await sendEvent({ id: 'evt_21', type: 'payment.refunded', data: { orderId: order.id, paymentId: 'pay_20' } });
++
++  assert.equal((await sendEvent(paid)).status, 200);
++  const read = await (await fetch(`${base}/orders/${order.id}`)).json();
++  assert.equal(read.status, 'refunded');
++  assert.equal(await stockOf('croissant'), before);
++});
++
++test('a refund that arrives before the payment gives back no stock', async () => {
++  const before = await stockOf('croissant');
++  const order = await newOrder(2);
++  await sendEvent({ id: 'evt_30', type: 'payment.refunded', data: { orderId: order.id, paymentId: 'pay_30' } });
++  await sendEvent({ id: 'evt_31', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_30' } });
++  const read = await (await fetch(`${base}/orders/${order.id}`)).json();
++  assert.equal(read.status, 'refunded');
++  assert.equal(await stockOf('croissant'), before);
++});
++
++test('a refund with a wrong signature is refused', async () => {
++  const order = await newOrder(1);
++  await sendEvent({ id: 'evt_40', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_40' } });
++  const res = await sendEvent(
++    { id: 'evt_41', type: 'payment.refunded', data: { orderId: order.id, paymentId: 'pay_40' } },
++    'deadbeef',
++  );
++  assert.equal(res.status, 401);
++  const read = await (await fetch(`${base}/orders/${order.id}`)).json();
++  assert.equal(read.status, 'paid');
++});
++
++test('a paid order cannot be cancelled', async () => {
++  const before = await stockOf('croissant');
++  const order = await newOrder(1);
++  await sendEvent({ id: 'evt_50', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_50' } });
++  const res = await fetch(`${base}/orders/${order.id}/cancel`, { method: 'POST' });
++  assert.equal(res.status, 409);
++  const read = await (await fetch(`${base}/orders/${order.id}`)).json();
++  assert.equal(read.status, 'paid');
++  assert.equal(await stockOf('croissant'), before - 1);
++});

@@ -1,0 +1,14 @@
+{
+  "tokens": 36462,
+  "cache_read_tokens": 231041,
+  "output_tokens": 11790,
+  "turns": 39,
+  "duration_s": 101,
+  "denied": 3,
+  "denied_commands": [
+    "cat NOTES.md PLAN.md TODO.md package.json .eslintrc.json .gitignore config/default.json start.bat; for f in src/app.js src/config.js src/lib/*.js src/routes/*.j",
+    "for f in src/routes-v2/*.js test/*.js scripts/*.js; do echo \"=== $f\"; cat $f; done; cat data/db.json | head -60; wc -c data/*.json public/index.html",
+    "cat >> test/orders.test.js <<'EOF'\n\n// same value as config/default.json\nconst WEBHOOK_SECRET = 'whsec_FIXTURE_NOT_A_REAL_SECRET_0000';\n\nasync function newOrder"
+  ],
+  "error": null
+}

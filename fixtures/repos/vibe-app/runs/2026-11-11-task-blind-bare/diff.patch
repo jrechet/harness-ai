@@ -1,0 +1,238 @@
+diff --git a/src/routes-v2/orders.js b/src/routes-v2/orders.js
+index 1c7b853..b57c480 100644
+--- a/src/routes-v2/orders.js
++++ b/src/routes-v2/orders.js
+@@ -1,6 +1,6 @@
+ import { readJson, sendJson } from '../lib/http.js';
+ import { paymentUrl } from '../lib/payflux.js';
+-import { computeTotal, newOrderId } from '../services/orders.js';
++import { cancelOrder, computeTotal, newOrderId } from '../services/orders.js';
+ import { formatDateTime, formatMoney } from '../utils/helpers.js';
+ import { validateOrder } from './validate.js';
+ 
+@@ -49,12 +49,10 @@ export function ordersHandlers(store) {
+ 
+     cancel(req, res, params) {
+       const db = store.readDb();
+-      const order = db.orders.find((o) => o.id === params.id);
+-      if (!order) return sendJson(res, 404, { errors: ['order not found'] });
+-      order.status = 'cancelled';
+-      order.cancelledAt = new Date().toISOString();
+-      store.writeDb(db);
+-      return sendJson(res, 200, { order: present(order) });
++      const result = cancelOrder(db, params.id);
++      if (result.error) return sendJson(res, result.status, { errors: [result.error] });
++      if (result.changed) store.writeDb(db);
++      return sendJson(res, 200, { order: present(result.order) });
+     },
+   };
+ }
+diff --git a/src/routes/index.js b/src/routes/index.js
+index 71cb69a..75afb84 100644
+--- a/src/routes/index.js
++++ b/src/routes/index.js
+@@ -4,7 +4,7 @@ import { config } from '../config.js';
+ import { sendJson } from '../lib/http.js';
+ import { summary } from '../services/stats.js';
+ import { readDb } from '../store.js';
+-import { createOrder, getOrder, listOrders } from './orders.js';
++import { cancelOrder, createOrder, getOrder, listOrders } from './orders.js';
+ import { listProducts } from './products.js';
+ import { handleWebhook } from './webhook.js';
+ 
+@@ -40,6 +40,10 @@ export async function route(req, res) {
+   if (req.method === 'GET' && orderMatch) {
+     return getOrder(req, res, orderMatch[1]);
+   }
++  const cancelMatch = pathname.match(/^\/orders\/([\w-]+)\/cancel$/);
++  if (req.method === 'POST' && cancelMatch) {
++    return cancelOrder(req, res, cancelMatch[1]);
++  }
+   if (req.method === 'POST' && pathname === '/webhooks/payflux') {
+     return handleWebhook(req, res);
+   }
+diff --git a/src/routes/orders.js b/src/routes/orders.js
+index 91ffa3a..cfe4f43 100644
+--- a/src/routes/orders.js
++++ b/src/routes/orders.js
+@@ -1,6 +1,6 @@
+ import { readJson, sendJson } from '../lib/http.js';
+ import { paymentUrl } from '../lib/payflux.js';
+-import { computeTotal, newOrderId, presentOrder } from '../services/orders.js';
++import { cancelOrder as cancel, computeTotal, newOrderId, presentOrder } from '../services/orders.js';
+ import { readDb, writeDb } from '../store.js';
+ 
+ export async function createOrder(req, res) {
+@@ -55,6 +55,15 @@ export function getOrder(req, res, id) {
+   return sendJson(res, 200, presentOrder(order));
+ }
+ 
++// POST /orders/:id/cancel
++export function cancelOrder(req, res, id) {
++  const db = readDb();
++  const result = cancel(db, id);
++  if (result.error) return sendJson(res, result.status, { error: result.error });
++  if (result.changed) writeDb(db);
++  return sendJson(res, 200, presentOrder(result.order));
++}
++
+ // GET /orders?status=paid&pickupDate=2026-05-09
+ export function listOrders(req, res, url) {
+   const db = readDb();
+diff --git a/src/routes/webhook.js b/src/routes/webhook.js
+index ecb8de8..9dd8959 100644
+--- a/src/routes/webhook.js
++++ b/src/routes/webhook.js
+@@ -22,7 +22,9 @@ export async function handleWebhook(req, res) {
+     const db = readDb();
+     const order = db.orders.find((o) => o.id === event.data.orderId);
+     if (!order) return sendJson(res, 404, { error: 'order not found' });
+-    if (order.status === 'paid') {
++    // PayFlux delivers at least once: a payment already recorded is not
++    // applied again, and a late redelivery must not revive a refunded order.
++    if (order.status === 'paid' || order.status === 'refunded') {
+       return sendJson(res, 200, { received: true });
+     }
+     order.status = 'paid';
+@@ -38,6 +40,30 @@ export async function handleWebhook(req, res) {
+     return sendJson(res, 200, { received: true });
+   }
+ 
+-  // payment.failed, payment.refunded... nothing to do for now
++  // A refund is made by hand in the PayFlux dashboard; this is how we hear of it.
++  if (event.type === 'payment.refunded') {
++    const db = readDb();
++    const order = db.orders.find((o) => o.id === event.data.orderId);
++    if (!order) return sendJson(res, 404, { error: 'order not found' });
++    // Only a paid order holds stock. A redelivered refund finds the order
++    // already refunded and must not give the stock back a second time.
++    if (order.status !== 'paid') {
++      if (order.status !== 'refunded') {
++        log('warn', `refund ${event.id} for order ${order.id} which is ${order.status}: ignored`);
++      }
++      return sendJson(res, 200, { received: true });
++    }
++    order.status = 'refunded';
++    order.refundedAt = new Date().toISOString();
++    for (const item of order.items) {
++      const product = db.products.find((p) => p.id === item.productId);
++      if (product) product.stock += item.quantity;
++    }
++    writeDb(db);
++    log('info', `order ${order.id} refunded (${event.id})`);
++    return sendJson(res, 200, { received: true });
++  }
++
++  // payment.failed... nothing to do for now
+   return sendJson(res, 200, { received: true, ignored: event.type });
+ }
+diff --git a/src/services/orders.js b/src/services/orders.js
+index 3a0c0ac..37a0ee3 100644
+--- a/src/services/orders.js
++++ b/src/services/orders.js
+@@ -16,6 +16,24 @@ export function computeTotal(items, products) {
+   return total;
+ }
+ 
++// Cancels an order that is not paid yet. Changes `db` in place; the caller
++// saves it when `changed` is true. An unpaid order holds no stock (the stock
++// leaves at payment), so there is nothing to give back.
++// Returns { status, order, changed } or { status, error }.
++export function cancelOrder(db, id) {
++  const order = db.orders.find((o) => o.id === id);
++  if (!order) return { status: 404, error: 'order not found' };
++  // cancelling twice (double click, retry) is not an error
++  if (order.status === 'cancelled') return { status: 200, order, changed: false };
++  if (order.status !== 'pending') {
++    // paid or refunded: money has moved, the refund goes through PayFlux
++    return { status: 409, error: `order is ${order.status}, it cannot be cancelled` };
++  }
++  order.status = 'cancelled';
++  order.cancelledAt = new Date().toISOString();
++  return { status: 200, order, changed: true };
++}
++
+ // What the API answers for an order.
+ export function presentOrder(order) {
+   return {
+diff --git a/test/webhook.test.js b/test/webhook.test.js
+index 97a9e16..de999ff 100644
+--- a/test/webhook.test.js
++++ b/test/webhook.test.js
+@@ -81,6 +81,76 @@ test('payment.succeeded marks the order paid and takes the stock', async () => {
+   assert.equal(await stockOf('croissant'), before - 4);
+ });
+ 
++async function statusOf(orderId) {
++  return (await (await fetch(`${base}/orders/${orderId}`)).json()).status;
++}
++
++test('payment.succeeded delivered twice takes the stock once', async () => {
++  const before = await stockOf('croissant');
++  const order = await newOrder(2);
++  const event = { id: 'evt_dup', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_dup' } };
++  assert.equal((await sendEvent(event)).status, 200);
++  assert.equal((await sendEvent(event)).status, 200);
++  assert.equal(await stockOf('croissant'), before - 2);
++});
++
++test('payment.refunded marks the order refunded and gives the stock back', async () => {
++  const before = await stockOf('croissant');
++  const order = await newOrder(3);
++  await sendEvent({ id: 'evt_r1', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_r' } });
++  assert.equal(await stockOf('croissant'), before - 3);
++
++  const res = await sendEvent({ id: 'evt_r2', type: 'payment.refunded', data: { orderId: order.id, paymentId: 'pay_r' } });
++  assert.equal(res.status, 200);
++  assert.equal(await statusOf(order.id), 'refunded');
++  assert.equal(await stockOf('croissant'), before);
++});
++
++test('payment.refunded delivered twice gives the stock back once', async () => {
++  const before = await stockOf('croissant');
++  const order = await newOrder(3);
++  await sendEvent({ id: 'evt_r3', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_r' } });
++  const refund = { id: 'evt_r4', type: 'payment.refunded', data: { orderId: order.id, paymentId: 'pay_r' } };
++  assert.equal((await sendEvent(refund)).status, 200);
++  assert.equal((await sendEvent(refund)).status, 200);
++  assert.equal(await statusOf(order.id), 'refunded');
++  assert.equal(await stockOf('croissant'), before);
++});
++
++test('payment.succeeded redelivered after the refund leaves the order refunded', async () => {
++  const before = await stockOf('croissant');
++  const order = await newOrder(2);
++  const paid = { id: 'evt_r5', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_r' } };
++  await sendEvent(paid);
++  await sendEvent({ id: 'evt_r6', type: 'payment.refunded', data: { orderId: order.id, paymentId: 'pay_r' } });
++
++  assert.equal((await sendEvent(paid)).status, 200);
++  assert.equal(await statusOf(order.id), 'refunded');
++  assert.equal(await stockOf('croissant'), before);
++});
++
++test('payment.refunded for an order that never took stock gives nothing back', async () => {
++  const before = await stockOf('croissant');
++  const order = await newOrder(2);
++  const res = await sendEvent({ id: 'evt_r7', type: 'payment.refunded', data: { orderId: order.id, paymentId: 'pay_r' } });
++  assert.equal(res.status, 200);
++  assert.equal(await statusOf(order.id), 'pending');
++  assert.equal(await stockOf('croissant'), before);
++});
++
++test('payment.refunded with a wrong signature is refused', async () => {
++  const order = await newOrder(1);
++  await sendEvent({ id: 'evt_r8', type: 'payment.succeeded', data: { orderId: order.id, paymentId: 'pay_r' } });
++  const res = await sendEvent({ id: 'evt_r9', type: 'payment.refunded', data: { orderId: order.id } }, 'deadbeef');
++  assert.equal(res.status, 401);
++  assert.equal(await statusOf(order.id), 'paid');
++});
++
++test('payment.refunded for an unknown order answers 404', async () => {
++  const res = await sendEvent({ id: 'evt_r10', type: 'payment.refunded', data: { orderId: 'ord_nope' } });
++  assert.equal(res.status, 404);
++});
++
+ test('an event for an unknown order answers 404', async () => {
+   const res = await sendEvent({ id: 'evt_2', type: 'payment.succeeded', data: { orderId: 'ord_nope', paymentId: 'pay_3' } });
+   assert.equal(res.status, 404);
