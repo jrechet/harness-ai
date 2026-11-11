@@ -12,11 +12,12 @@ tools/           contrôle des frontières entre workspaces
 docs/            décisions et incidents
 ```
 
+Il n'y a pas de commande « tout tester » : le vrai dépôt met vingt-cinq minutes à tout rejouer, on lance donc le workspace qu'on touche, et la CI fait de même.
+
 ```bash
 npm install
-npm test                  # tout
-npm run test:api          # un workspace : test:shared, test:api, test:web
-npm run typecheck
+npm run test:api          # les tests d'un workspace : test:shared, test:api, test:web
+npm run typecheck:api     # ses types : typecheck:shared, typecheck:api, typecheck:web
 npm run check:boundaries
 npm run dev:api
 ```

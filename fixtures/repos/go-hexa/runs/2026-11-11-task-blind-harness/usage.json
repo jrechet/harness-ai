@@ -1,0 +1,16 @@
+{
+  "tokens": 70042,
+  "cache_read_tokens": 651541,
+  "output_tokens": 21738,
+  "turns": 34,
+  "duration_s": 176,
+  "denied": 5,
+  "denied_commands": [
+    "cat go.mod .github/workflows/deploy.yml deploy/*.sh .golangci.yml .gitignore; ls; echo \"DB=${DATABASE_URL:-<vide>}\"; which psql postgres pg_ctl docker golangci-",
+    "set -e\ngit checkout -q -b feat/deposits\ncat > internal/domain/deposit.go <<'EOF'\npackage domain\n\nimport \"time\"\n\n// DepositID identifies a deposit.\ntype DepositI",
+    "gofmt -l . ; go vet ./... && go test ./... && go run ./tools/archcheck; go vet -tags integration ./internal/adapters/postgres/; golangci-lint run 2>&1 | tail -1",
+    "printenv DATABASE_URL",
+    "golangci-lint run"
+  ],
+  "error": null
+}

@@ -28,14 +28,14 @@ L'agent évalué ne doit rien pouvoir lire du corrigé. Tout se passe dans un do
 - **Le dépôt** :
   - mesure d'audit : `bench prepare <projet> <dir> --arm asis` ;
   - mesure d'init : `bench prepare <projet> <dir> --arm asis` s'il a déjà des instructions, `--arm bare` sinon ;
-  - mesure de tâche : un `bench prepare` par bras, `bare`, `asis`, `harness`.
+  - mesure de tâche : rien à préparer, `bench play` s'en charge.
 
 ### 3. Jouer, à l'aveugle
 Un **agent neuf par exécution**, sans mémoire de cette session. Son message contient, et rien d'autre :
 - pour un skill : le chemin du kit, le chemin du dépôt, le skill à suivre, et pour un init le contenu de `owner.md` présenté comme les réponses du propriétaire. Il rend ses fichiers dans le dépôt de travail et son compte rendu ;
-- pour une tâche : le chemin du dépôt, le contenu de `task.md`, et trois phrases, **mot pour mot les mêmes sur tous les bras** : ne travaille que dans ce dossier ; lis d'abord les fichiers d'instructions du dépôt s'il y en a, à la racine puis dans les dossiers où tu travailles ; personne ne répondra à une question pendant la tâche. La deuxième remplace le chargement qu'une vraie session fait d'elle-même : sans elle, un agent lancé d'ailleurs ne lit pas les instructions du dépôt et les bras ne diffèrent plus. Pas de kit, pas de skill : on mesure ce que les instructions du dépôt lui font faire.
+- pour une tâche : tu ne lances pas l'agent toi-même. `python3 cli/harness.py bench play <projet> <tâche> --arm <bras> --work-root <dossier temporaire> --label <étiquette>` le fait, une commande par bras, à lancer en parallèle. L'agent est un processus séparé qui ne reçoit que `task.md` et ne charge que les instructions du dépôt de travail, comme une vraie session. Il est confiné : ses commandes sont limitées à la liste `agent_bash` de la tâche, et ce qu'on lui refuse est gardé dans `usage.json`. La commande note, range les sorties et écrit le registre.
 
-Un agent lancé depuis ta session en hérite les consignes et les outils : le bras sans instructions n'est alors pas nu, et les bras se ressemblent plus qu'ils ne devraient. Dis-le dans le rapport, ou lance chaque exécution dans un processus neutre qui ne charge que les instructions du dépôt de travail.
+Un agent lancé depuis ta session en hérite les consignes et les outils : le bras sans instructions n'est alors pas nu, et les bras se ressemblent plus qu'ils ne devraient. C'est pour cela que les tâches passent par `bench play`. Les mesures d'audit et d'init, elles, se jouent encore par un agent de ta session : dis dans le rapport que ses consignes s'y ajoutent.
 
 Ne lui donne ni indice, ni critère de notation, ni le nom du projet type. Ne lance pas la même exécution deux fois en espérant mieux : la variance se traite à l'étape 5.
 

@@ -1,0 +1,15 @@
+{
+  "tokens": 75432,
+  "cache_read_tokens": 660067,
+  "output_tokens": 22322,
+  "turns": 37,
+  "duration_s": 186,
+  "denied": 4,
+  "denied_commands": [
+    "set -e\ngit checkout -q -b feat/account-deposits\ncat > internal/domain/deposit.go <<'EOF'\npackage domain\n\nimport \"time\"\n\n// DepositID identifies a deposit.\ntype ",
+    "gofmt -l . ; go vet ./... && go vet -tags integration ./internal/adapters/postgres/ && go test ./... 2>&1 | tail -20; go run ./tools/archcheck; echo arch=$?; go",
+    "go run ./tools/archcheck && echo arch-ok; golangci-lint run 2>&1 | tail -20; which postgres pg_ctl initdb; ls /usr/lib/postgresql",
+    "make lint"
+  ],
+  "error": null
+}
