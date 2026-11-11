@@ -100,4 +100,5 @@ The API follows a layered approach: `http.ts` handles routing and delegates to t
 
 ## Notes
 
+- After the unknown-status incident (June 2026, `docs/postmortems/`): when you change anything in `packages/shared`, run `npm run test:web` and `npm run typecheck:web` yourself. CI only runs the web job when `apps/web` changes.
 - The production store lives in the `deskly-infra` repository. `TicketStore` is in-memory on purpose: do not add a database driver to this repository.

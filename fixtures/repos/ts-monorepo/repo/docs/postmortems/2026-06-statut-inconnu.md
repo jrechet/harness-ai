@@ -11,7 +11,9 @@ La PR ne touchait que `packages/shared`. Dans `ci.yml`, le filtre de chemins du 
 - Un test web vérifie que chaque statut partagé a un libellé.
 - Le 11 novembre 2026, `packages/shared/**` a été ajouté au filtre de chemins du job `web`, comme pour le job `api` : une PR qui ne touche que `packages/shared` lance le job `web`, donc `npm run typecheck:web` et `npm run test:web`. Les deux corrections ci-dessus ne protégeaient pas ces PR jusque-là : aucun autre job ne contrôle le workspace web.
 
-La consigne donnée en attendant, lancer `npm run test:web` et `npm run typecheck:web` à la main, est levée ; sa note est retirée de `CLAUDE.md`.
+La consigne donnée en attendant, lancer `npm run test:web` et `npm run typecheck:web` à la main, est levée.
 
 ## Ce qui reste ouvert
 Le déclenchement n'a pas encore été constaté en CI : la PR qui corrige le filtre ne touche pas `packages/shared` et ne lance donc pas elle-même le job `web`. À constater sur la première PR qui ne touche que `packages/shared`.
+
+La note de `CLAUDE.md` qui porte encore cette consigne, et dit que la CI ne lance le job `web` que si `apps/web` change, est à retirer.
