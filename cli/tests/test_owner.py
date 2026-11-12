@@ -75,5 +75,39 @@ class OwnerFileTests(unittest.TestCase):
                     self.assertEqual(owner.check(fixture, json.load(fh)), [], name)
 
 
+
+class BenchOwnerTests(unittest.TestCase):
+    """Le propriétaire du service Go entend les façons courantes de demander ce qui n'est écrit nulle
+    part, et seulement elles : une question sur le mode, la CI ou un point du code ne lui fait pas dire
+    le fait. Les questions refusées sont celles d'un pas 1 réel qui ne l'a pas demandé (2026-11-12)."""
+
+    def setUp(self):
+        with open(os.path.join(fixtures.FIXTURES_ROOT, "go-hexa", "owner.json"), encoding="utf-8") as fh:
+            self.owner = json.load(fh)
+
+    def says_the_fact(self, question):
+        return "oral" in owner.answer(self.owner, question)[0]
+
+    def test_it_hears_the_usual_ways_of_asking(self):
+        for q in ["Qu'est-ce que vous redites à chaque revue, ou qu'un nouveau venu apprend en se trompant ?",
+                  "Y a-t-il des règles que l'équipe applique sans les avoir jamais écrites ?",
+                  "Quelles conventions implicites un agent devrait-il connaître ?",
+                  "Qu'est-ce qui revient le plus souvent dans vos commentaires de PR ?",
+                  "Qu'est-ce qu'un nouveau développeur rate toujours au début ?",
+                  "Quelle erreur un agent ferait-il ici sans que la CI la voie ?",
+                  "Avez-vous autre chose à ajouter avant que j'écrive le fichier ?",
+                  "Y a-t-il un savoir d'équipe qui n'est dans aucun document ?",
+                  "Qu'est-ce que vous corrigez souvent en relecture ?"]:
+            self.assertTrue(self.says_the_fact(q), q)
+
+    def test_questions_that_do_not_invite_it_do_not_get_it(self):
+        for q in ["Mode : délégation ou assistance (l'humain relit chaque diff en direct) ?",
+                  "Interdits : qu'est-ce qu'un agent ne doit jamais toucher ou faire ?",
+                  "Quels agents utilisez-vous ? Quelle CI, et quels checks bloquent la fusion ?",
+                  "internal/app/fees.go calcule les frais avec un float64, alors que l'ADR 0002 interdit tout flottant. Exception ?",
+                  "Le README cite 'make e2e', mais le Makefile n'a pas de cible e2e. Abandonnée ?",
+                  "POST /accounts est exempté d'Idempotency-Key et sa reprise est au backlog. Un agent le laisse tel quel ?"]:
+            self.assertFalse(self.says_the_fact(q), q)
+
 if __name__ == "__main__":
     unittest.main()
