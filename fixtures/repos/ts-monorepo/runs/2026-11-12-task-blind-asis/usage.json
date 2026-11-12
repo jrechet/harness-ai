@@ -1,0 +1,13 @@
+{
+  "tokens": 69565,
+  "cache_read_tokens": 591633,
+  "output_tokens": 8431,
+  "turns": 32,
+  "duration_s": 86,
+  "denied": 2,
+  "denied_commands": [
+    "for f in packages/shared/src/*.ts apps/web/src/*.ts apps/web/CLAUDE.md apps/web/index.html apps/api/src/*.ts apps/api/src/tickets/*.ts docs/postmortems/*.md doc",
+    "for s in test:shared test:api test:web typecheck:shared typecheck:api typecheck:web check:boundaries; do echo \"== $s\"; npm run -s $s 2>&1 | grep -E \"^# (pass|fa"
+  ],
+  "error": null
+}
