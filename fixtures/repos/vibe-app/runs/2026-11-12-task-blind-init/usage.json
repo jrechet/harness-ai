@@ -1,0 +1,12 @@
+{
+  "tokens": 35456,
+  "cache_read_tokens": 652929,
+  "output_tokens": 10036,
+  "turns": 20,
+  "duration_s": 89,
+  "denied": 1,
+  "denied_commands": [
+    "python3 - <<'EOF'\np='src/routes/index.js'\ns=open(p).read()\ns=s.replace(\"import { createOrder, getOrder, listOrders } from './orders.js';\",\"import { cancelOrder,"
+  ],
+  "error": null
+}

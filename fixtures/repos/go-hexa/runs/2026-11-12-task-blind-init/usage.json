@@ -1,0 +1,12 @@
+{
+  "tokens": 68506,
+  "cache_read_tokens": 942755,
+  "output_tokens": 20656,
+  "turns": 29,
+  "duration_s": 175,
+  "denied": 1,
+  "denied_commands": [
+    "python3 - <<'EOF'\np='internal/adapters/memory/store.go'\ns=open(p).read()\ns=s.replace(\"\"\"\ttransfers map[string]domain.Transfer // by idempotency key\n}\n\nfunc NewS"
+  ],
+  "error": null
+}
