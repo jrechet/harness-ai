@@ -364,6 +364,7 @@ def check_oral_facts(fixture_dir: str, expected: dict) -> list[str]:
         else:
             elsewhere[rel] = text
     owner = (facts._read(os.path.join(fixture_dir, "owner.md")) or "").lower()
+    owner += (facts._read(os.path.join(fixture_dir, "owner.json")) or "").lower()     # le propriétaire simulé
     checks = []                             # (tâche, contrôle)
     tempted_fails: set[str] = set()
     for task_id in sorted(os.listdir(tasks_dir)):
@@ -478,6 +479,13 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         for p in oral:
             print(f"- {p}")
         ok = ok and not oral
+    if os.path.isfile(os.path.join(fixture_dir, "owner.json")):
+        from . import owner
+        posed = owner.check(fixture_dir, expected)
+        print("## propriétaire simulé : " + ("conforme" if not posed else f"{len(posed)} écart(s)"))
+        for p in posed:
+            print(f"- {p}")
+        ok = ok and not posed
     if args.audit:
         with open(args.audit, encoding="utf-8") as fh:
             audit = json.load(fh)

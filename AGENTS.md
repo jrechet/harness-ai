@@ -19,7 +19,7 @@ Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluati
 - Une exécution de skill faite par la session qui a écrit les pièges est une base de régression, pas une mesure. Pourquoi : biais d'auteur constaté sur java-back. (non vérifiée) [2026-11]
 
 ## Interdits
-- Lire `traps.md`, `expected.json`, `tasks/` ou `runs/` d'une fixture pendant une exécution à l'aveugle. Seuls `owner.md` et, pour une tâche, `task.md` se donnent à l'agent évalué. [2026-11]
+- Lire `traps.md`, `expected.json`, `tasks/` ou `runs/` d'une fixture pendant une exécution à l'aveugle. Seuls `owner.md` et, pour une tâche, `task.md` se donnent à l'agent évalué ; `owner.json` lui répond par `bench init`, il ne se lit pas. [2026-11]
 - Lancer une exécution à l'aveugle ou une campagne `harness-stress` sans demande du propriétaire. Pourquoi : environ 130 000 tokens par exécution. [2026-11]
 - Modifier un `expected.json`, un `traps.md` ou le noteur pour faire passer une exécution. Pourquoi : qui corrige la copie et le corrigé fait toujours monter la note. [2026-11]
 - Commiter des `__pycache__` ou un `.skill` ; ajouter une dépendance hors bibliothèque standard au CLI. [2026-11]

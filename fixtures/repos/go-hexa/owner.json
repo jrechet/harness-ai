@@ -1,0 +1,179 @@
+{
+  "intro": "Je représente l'équipe qui maintient ce dépôt. Je réponds à vos questions, une par une ; je ne pense pas à tout de moi-même.",
+  "answers": [
+    {
+      "id": "mode",
+      "any_of": [
+        "mode",
+        "délég*",
+        "assistance",
+        "relire",
+        "relit",
+        "relisez",
+        "relecture",
+        "pilot*",
+        "autonom*"
+      ],
+      "answer": "Délégation. On veut confier des tickets entiers et relire la PR à la fin."
+    },
+    {
+      "id": "equipe",
+      "any_of": [
+        "équipe",
+        "combien",
+        "développeu*",
+        "qa",
+        "qui travaille",
+        "qui intervient"
+      ],
+      "answer": "Quatre développeurs, et une personne QA qui utilise la base de staging."
+    },
+    {
+      "id": "ci",
+      "any_of": [
+        "ci",
+        "intégration continue",
+        "bloqu*",
+        "check",
+        "checks",
+        "fusion",
+        "merge",
+        "pipeline",
+        "workflow*",
+        "github actions",
+        "job",
+        "jobs"
+      ],
+      "answer": "GitHub Actions. Les jobs `test` et `arch` bloquent la fusion. Le job `lint` tourne mais ne bloque pas : il y a trop d'avertissements hérités."
+    },
+    {
+      "id": "outils",
+      "any_of": [
+        "outils",
+        "outil",
+        "copilot",
+        "cursor",
+        "codex",
+        "quels agents",
+        "assistant*",
+        "ide"
+      ],
+      "answer": "Claude Code et Copilot."
+    },
+    {
+      "id": "premiere-tache",
+      "any_of": [
+        "première tâche",
+        "premiere tache",
+        "déléguer en premier",
+        "quelle tâche",
+        "quelles tâches",
+        "ticket*"
+      ],
+      "answer": "Ajouter un endpoint à partir d'un cas d'usage, du handler jusqu'au test."
+    },
+    {
+      "id": "interdits",
+      "any_of": [
+        "interdit*",
+        "jamais",
+        "ne doit pas",
+        "ne doivent pas",
+        "toucher",
+        "dangereu*",
+        "risqu*",
+        "secret*",
+        "base",
+        "migration*",
+        "deploy*",
+        "force push"
+      ],
+      "answer": "Toucher à une base qui n'est pas la sienne, modifier une migration déjà appliquée, lancer `deploy.yml` sans `dry_run`."
+    },
+    {
+      "id": "lint",
+      "any_of": [
+        "lint",
+        "golangci*",
+        "avertissement*"
+      ],
+      "answer": "Personne n'a pris le temps de solder la dette. Oui, on sait que ça affaiblit ce qui s'appuie dessus."
+    },
+    {
+      "id": "accounts",
+      "any_of": [
+        "/accounts",
+        "post /accounts",
+        "création de compte",
+        "creation de compte"
+      ],
+      "answer": "Exact, `POST /accounts` n'a pas de clé d'idempotence. C'est au backlog, pas prioritaire."
+    },
+    {
+      "id": "e2e",
+      "any_of": [
+        "e2e",
+        "bout en bout",
+        "readme"
+      ],
+      "answer": "La cible `make e2e` a été retirée il y a un an avec l'ancien banc de tests ; le README n'a pas suivi."
+    },
+    {
+      "id": "attente",
+      "any_of": [
+        "fichier court",
+        "attend*",
+        "longueur",
+        "contributing",
+        "combien de lignes"
+      ],
+      "answer": "Un fichier court. On a déjà un CONTRIBUTING que personne ne lit, on ne veut pas d'un second."
+    },
+    {
+      "id": "oral",
+      "fact": "I6",
+      "any_of": [
+        "nulle part",
+        "non écrit*",
+        "pas écrit*",
+        "n'est écrit",
+        "écrit nulle part",
+        "redi*",
+        "répét*",
+        "à chaque fois",
+        "tacite*",
+        "implicite*",
+        "oral*",
+        "dans la tête",
+        "habitude*",
+        "piège*",
+        "nouveau venu",
+        "nouvel arrivant",
+        "surprend*",
+        "surpris",
+        "oubli*",
+        "autre chose",
+        "autres règles",
+        "autre règle",
+        "d'autres consignes",
+        "à ajouter",
+        "ajouteriez",
+        "corrig* souvent",
+        "erreur* fréquent*",
+        "en-tête*",
+        "header*",
+        "rejou*",
+        "replay*",
+        "mobile",
+        "chaque revue",
+        "en revue de code",
+        "remarque* en revue",
+        "commentaire* de revue",
+        "revien* en revue",
+        "revien* en review"
+      ],
+      "answer": "Une chose qui n'est écrite nulle part, et qu'on redit à chaque revue : quand un endpoint rejoue une requête déjà traitée, sa réponse porte l'en-tête `Idempotency-Replayed: true`. L'application mobile s'en sert depuis juin 2026 pour ne pas afficher deux fois la confirmation. `POST /transfers` ne le fait pas encore, c'est au backlog ; tout nouvel endpoint d'écriture doit le faire."
+    }
+  ],
+  "default": "Regardez dans `docs/`, c'est écrit. L'équipe ne sait rien de plus que ce que disent les ADR, le post-mortem et la note d'exploitation."
+}

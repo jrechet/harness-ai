@@ -29,7 +29,7 @@ import tempfile
 from datetime import date
 from typing import Any
 
-from . import facts, fixtures
+from . import facts, fixtures, owner
 
 ARMS = ("bare", "asis", "harness")
 # Coût estimé d'une exécution d'agent, en tokens. Audit et init : les sept premières évaluations à
@@ -300,6 +300,18 @@ INIT_PROMPT = (
 )
 
 
+INIT_PROMPT_ASKED = (
+    "Mets en place l'instrumentation IA de ce dépôt en suivant le skill décrit dans "
+    "{kit}/skills/harness-init/SKILL.md. Ses fichiers de référence sont dans le même dossier, et le CLI "
+    "qu'il cite est {kit}/cli/harness.py.\n\n"
+    "Le propriétaire du dépôt répond par écrit pendant cette séance, mais seulement à ce qu'on lui "
+    "demande. Pour l'interroger, à tout moment : python3 {client} \"première question\" \"deuxième question\"\n\n"
+    "{intro}"
+    "Termine par le compte rendu que le skill demande."
+)
+ANSWER_MODES = ("auto", "given", "asked")
+
+
 def owner_answers(fixture_dir: str) -> str:
     """Les réponses du propriétaire, sans le chapeau qui dit à quoi sert le fichier : il parle du banc."""
     text = facts._read(os.path.join(fixture_dir, "owner.md")) or ""
@@ -346,10 +358,17 @@ def export_overlay(workdir: str, dest: str) -> list[str]:
 
 
 def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runner=run_agent,
-              label: str | None = None, results: str | None = RESULTS, day: str | None = None) -> dict[str, Any]:
-    """Le pas 1 joué à l'aveugle : le dépôt tel qu'on le trouve, le kit, les réponses du propriétaire
-    données d'avance, et rien d'autre. Note par le bloc `init`, compte rendu compris ; ce que le pas a
-    changé est rangé dans `overlay/`, prêt à servir de bras `harness` à une tâche."""
+              label: str | None = None, results: str | None = RESULTS, day: str | None = None,
+              answers: str = "auto") -> dict[str, Any]:
+    """Le pas 1 joué à l'aveugle : le dépôt tel qu'on le trouve, le kit, le propriétaire, et rien d'autre.
+    Note par le bloc `init`, compte rendu compris ; ce que le pas a changé est rangé dans `overlay/`,
+    prêt à servir de bras `harness` à une tâche.
+
+    Le propriétaire répond de deux façons. `given` : ses réponses d'`owner.md` sont données d'avance
+    dans le message, y compris ce qu'il dit de lui-même. `asked` : il ne répond qu'aux questions,
+    d'après `owner.json`, par une commande posée dans le kit ; l'échange est gardé dans `entretien.md`
+    et dit si l'entretien est allé chercher les faits que seul le propriétaire détient. `auto` prend
+    `asked` quand le projet a un `owner.json`."""
     work_root = _guard_work_root(work_root)
     name = os.path.basename(os.path.normpath(fixture_dir))
     day = day or date.today().isoformat()
@@ -359,31 +378,57 @@ def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runn
     workdir, kit = os.path.join(parent, "repo"), make_kit(os.path.join(parent, "kit"))
     prepare(fixture_dir, workdir, "asis" if "asis" in available_arms(fixture_dir) else "bare")
     tasks = [load_task(fixture_dir, t) for t in list_tasks(fixture_dir)]
-    spec = {"agent_bash": sorted({rule for t in tasks for rule in t.get("agent_bash", [])}
-                                 | {f"python3 {kit}/cli/harness.py *"})}
-    prompt = INIT_PROMPT.format(kit=kit, owner=owner_answers(fixture_dir))
-    agent = runner(workdir, prompt, spec)
+    bash = {rule for t in tasks for rule in t.get("agent_bash", [])} | {f"python3 {kit}/cli/harness.py *"}
+    if answers not in ANSWER_MODES:
+        raise SystemExit(f"--answers : {answers} ; attendu : {', '.join(ANSWER_MODES)}")
+    simulated = owner.load(fixture_dir)
+    if answers == "asked" and simulated is None:
+        raise SystemExit(f"{name} n'a pas de {owner.FILE} : son propriétaire ne sait que donner ses réponses d'avance")
+    interview = None
+    if simulated is not None and answers != "given":
+        with owner.Interview(simulated) as interview:
+            client = interview.install(kit)
+            intro = (simulated.get("intro") or "").strip()
+            prompt = INIT_PROMPT_ASKED.format(kit=kit, client=client, intro=f"Il se présente ainsi : {intro}\n\n" if intro else "")
+            agent = runner(workdir, prompt, {"agent_bash": sorted(bash | {f"python3 {client} *"})})
+    else:
+        prompt = INIT_PROMPT.format(kit=kit, owner=owner_answers(fixture_dir))
+        agent = runner(workdir, prompt, {"agent_bash": sorted(bash)})
     graded = fixtures.check_init(workdir, expected.get("init", {}), date.fromisoformat(day),
                                  base=os.path.join(fixture_dir, "repo"), report=agent.get("report") or "")
     out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-init-blind")
     os.makedirs(out_dir, exist_ok=True)
     changed = export_overlay(workdir, os.path.join(out_dir, "overlay"))
+    asked_facts = sorted({a["fact"] for a in (simulated or {}).get("answers", []) if a.get("fact")}) if interview else []
+    fetched = interview.fetched() if interview else {}
+    talk = ("" if interview is None else
+            f"\nEntretien : {len(interview.log)} question(s). " + " ; ".join(
+                f"{f}, que seul le propriétaire détient : " + (f"demandé à la question {fetched[f]}" if f in fetched else "jamais demandé")
+                for f in asked_facts) + "\n")
     note = (f"# Pas 1 de {name} : palier {graded['level']} · {graded['score']} faits remontés"
-            + (" · conforme" if graded["ok"] else f" · {len(graded['problems'])} écart(s)") + "\n"
+            + (" · conforme" if graded["ok"] else f" · {len(graded['problems'])} écart(s)") + "\n" + talk
             + "".join(f"- {p}\n" for p in graded["problems"])
             + ("\nCité sans être recopié : non compté, à relire.\n" + "".join(f"- {m}\n" for m in graded["mentions"])
                if graded["mentions"] else ""))
-    for rel, text in (("diff.patch", patch_of(workdir)), ("compte-rendu.md", agent.get("report") or ""), ("note.md", note),
-                      ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")):
+    outputs = [("diff.patch", patch_of(workdir)), ("compte-rendu.md", agent.get("report") or ""), ("note.md", note),
+               ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")]
+    if interview is not None:
+        outputs += [("entretien.md", interview.render(name)),
+                    ("entretien.json", json.dumps(interview.log, ensure_ascii=False, indent=2) + "\n")]
+    for rel, text in outputs:
         with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
             fh.write(text)
+    how = ("agent neutre, processus séparé" if interview is None else
+           f"agent neutre ; propriétaire qui ne répond qu'aux questions, {len(interview.log)} posée(s)"
+           + "".join(f" ; {f} " + ("demandé" if f in fetched else "jamais demandé") for f in asked_facts))
     if results:
         record({"date": day, "kind": "init", "fixture": name, "task": None, "arm": None, "model": label,
                 "skill_rev": _skill_rev(), "score": graded["score"], "ok": graded["ok"], "blind": True,
-                "run": os.path.relpath(out_dir, repo_root()), "note": "agent neutre, processus séparé"
+                "run": os.path.relpath(out_dir, repo_root()), "note": how
                 + (f" ; {agent['error']}" if agent.get("error") else "")}, results)
     return {"workdir": workdir, "out": out_dir, "check": graded, "changed": changed, "note": note,
-            "usage": agent.get("usage", {}), "error": agent.get("error")}
+            "usage": agent.get("usage", {}), "error": agent.get("error"),
+            "interview": None if interview is None else {"questions": len(interview.log), "fetched": fetched}}
 
 
 def play(fixture_dir: str, task_id: str, arm: str, work_root: str, out_dir: str | None = None,
@@ -553,6 +598,9 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     pi.add_argument("--out", help="où ranger les sorties (défaut : runs/<date>-init-blind de la fixture)")
     pi.add_argument("--label", help="étiquette de génération pour le registre")
     pi.add_argument("--no-record", action="store_true", help="ne pas écrire dans le registre")
+    pi.add_argument("--answers", choices=ANSWER_MODES, default="auto",
+                    help="given : réponses d'owner.md données d'avance ; asked : le propriétaire ne répond qu'aux "
+                         "questions (owner.json) ; auto : asked si le projet a un owner.json")
     st = sub.add_parser("selftest", help="vérifie que les tâches d'une fixture sont bien posées")
     st.add_argument("fixture")
     rc = sub.add_parser("record", help="ajoute une exécution au registre")
@@ -614,7 +662,7 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         return 0 if done["check"]["ok"] else 1
     if cmd == "init":
         done = play_init(resolve(args.fixture), args.work_root, args.out, label=args.label,
-                         results=None if args.no_record else RESULTS)
+                         results=None if args.no_record else RESULTS, answers=args.answers)
         u = done["usage"]
         sys.stdout.write(done["note"])
         print((f"{_thousands(u['tokens'])} tokens neufs, {u.get('turns')} tours, {u.get('duration_s')} s, {u.get('denied')} refus · " if u else "")
