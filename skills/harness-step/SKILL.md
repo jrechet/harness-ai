@@ -22,7 +22,7 @@ Si `status` dit « aucun palier visé », pose **une** question avec ce tableau,
 
 | Palier | Ce que ça apporte | Ce que ça demande |
 |---|---|---|
-| 1 Cadré | L'agent sait où il est et ce qu'il ne touche pas | Une demi-heure, trois questions |
+| 1 Cadré | L'agent sait où il est et ce qu'il ne touche pas | Une demi-heure, quatre questions |
 | 2 Bouclé | Les remarques de review deviennent des règles | Une habitude : écrire `rule:` en review, et quelques semaines |
 | 3 Vérifié | Les règles obligatoires sont tenues par des outils, plus par du texte | Une CI, et du code de garde-fou règle par règle |
 | 4 Délégué | Des tâches entières partent et reviennent propres | Des contrats de tâche, et des PR d'agent à observer |

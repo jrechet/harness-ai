@@ -1,6 +1,6 @@
 ---
 name: harness-init
-description: Pose le premier palier de l'instrumentation IA d'un dépôt — un AGENTS.md court comme source unique, avec mode, règles justifiées et datées, Interdits, et les stubs CLAUDE.md / Copilot / Cursor — après trois questions et une reconnaissance du repo. N'écrit que ce que l'agent ne peut pas découvrir seul, retire d'un fichier existant ce qui ne sert plus, puis s'arrête : les paliers suivants sont d'autres pas, menés par harness-step. Utiliser dès que l'utilisateur veut « commencer avec Claude Code / Copilot / Cursor sur ce projet », créer ou refaire un AGENTS.md ou CLAUDE.md, « instrumenter le repo pour l'IA », ou ne sait pas par où commencer — même sans employer le mot init. Ne pas utiliser pour auditer sans modifier (harness-audit) ni pour avancer un dépôt déjà cadré (harness-step).
+description: Pose le premier palier de l'instrumentation IA d'un dépôt — un AGENTS.md court comme source unique, avec mode, règles justifiées et datées, Interdits, et les stubs CLAUDE.md / Copilot / Cursor — après quatre questions et une reconnaissance du repo. N'écrit que ce que l'agent ne peut pas découvrir seul, retire d'un fichier existant ce qui ne sert plus, puis s'arrête : les paliers suivants sont d'autres pas, menés par harness-step. Utiliser dès que l'utilisateur veut « commencer avec Claude Code / Copilot / Cursor sur ce projet », créer ou refaire un AGENTS.md ou CLAUDE.md, « instrumenter le repo pour l'IA », ou ne sait pas par où commencer — même sans employer le mot init. Ne pas utiliser pour auditer sans modifier (harness-audit) ni pour avancer un dépôt déjà cadré (harness-step).
 ---
 
 # Harness init — le pas 1
@@ -13,12 +13,13 @@ Mode par défaut : **délégation** (l'agent reçoit une tâche entière et revi
 
 ## Déroulé
 
-### 1. Entretien — trois questions, en une fois
+### 1. Entretien — quatre questions, en une fois
 Pose-les ensemble, avec le défaut proposé. Ne commence rien avant les réponses.
 
 1. **Mode** : délégation (défaut) ou assistance ? Si l'équipe relit chaque diff en direct et qu'aucun agent ne tourne hors session, propose assistance.
 2. **Interdits** : qu'est-ce qu'un agent ne doit jamais toucher ou faire (dossiers, secrets, base partagée, migrations prod, force push) ?
 3. **Outils et CI** : quels agents (Claude Code seul, ou aussi Copilot, Cursor, Codex) ? Quelle CI, et quels checks **bloquent** la fusion aujourd'hui ?
+4. **Ce qui n'est écrit nulle part** : qu'est-ce que vous redites à chaque revue, ou qu'un nouveau venu apprend en se trompant, et qu'aucun fichier ne dit ? C'est la seule réponse que la lecture du dépôt ne remplace pas : un fait rangé dans un ADR ou un post-mortem, l'agent le trouve seul ; celui-là, jamais. Il vaut une règle, avec « dit par l'équipe » pour pourquoi. Si la réponse est « rien », écris-le dans le compte rendu, n'en invente pas.
 
 Si le propriétaire ne sait pas (« je ne l'ai jamais relu »), ne comble pas à sa place : écris moins. L'équipe, la première tâche à déléguer et le processus de travail ne se demandent pas ici.
 
