@@ -65,7 +65,8 @@ Modèles à lire avant d'écrire : `repos/go-hexa` (départ nu) et `repos/ts-mon
     "only_level_material": true,
     "must_surface":   [{ "id": "I1", "what": "…", "any_of": ["identifiant-du-dépôt"] },
                        { "id": "I6", "what": "…", "any_of": ["…"], "only_in_instructions": ["mot absent du reste du dépôt"] }],
-    "must_not_write": [{ "id": "N1", "what": "…", "any_of": ["texte du bruit"] }],
+    "must_not_write": [{ "id": "N1", "what": "…", "any_of": ["texte du bruit"] },
+                       { "id": "N2", "what": "commande qui n'existe plus", "any_of": ["make e2e"], "mention_ok": true }],   // la citer pour la démentir n'est pas la recopier
     "guards_cited": ["chemin-du-vrai-garde-fou"],
     "forbidden_guards": [{ "path": "garde-fou-qui-ne-bloque-pas", "rule_keywords": ["…"] }],
     "never_guarded": [{ "what": "…", "rule_keywords": ["l'un"], "rule_all_of": ["tous"] }],   // rien ne la vérifie : « vérifiée par : la revue » est faux aussi
@@ -136,6 +137,8 @@ python3 cli/harness.py fixture check go-hexa --init <dépôt produit par l'init>
 ```
 
 Il vérifie le palier atteint, les faits non découvrables remontés (`must_surface`), le bruit recopié (`must_not_write`), les garde-fous réels cités après « Vérifiée par » (`guards_cited`) et les garde-fous mensongers crus (`forbidden_guards`). Les mots cherchés sont des identifiants du dépôt (`reset-db`, `archcheck`, `packages/shared`), pas des tournures : la note ne dépend pas de la langue du rapport.
+
+Un mot de `must_not_write` compte où qu'il soit, sauf pour une entrée `mention_ok` : un identifiant du dépôt qu'une règle saine peut avoir à nommer pour le démentir, une commande que le README annonce encore par exemple. La ligne n'est alors qu'une citation si elle dit que la chose n'est plus là **et** ne reprend pas quatre mots de suite d'une ligne d'origine qui porte ce mot. Les citations sont listées sous la note, non comptées, à relire. La liste des tournures qui disent « n'est plus là » dépend de la langue : elle ne sert qu'à excuser, une tournure inconnue laisse la ligne comptée. Ne marquer `mention_ok` ni un secret, ni une préférence de style, ni une consigne d'ancien modèle : ceux-là n'ont aucune raison d'être nommés.
 
 Sur une fixture d'audit, sans bloc `init` : un agent neuf reçoit le skill, le dépôt nu et les réponses d'entretien d'un propriétaire fictif. On note ensuite : `harness status` sur ce qu'il a produit (palier 1 attendu, 5/5), son audit de gate contre les pièges de la fixture d'origine encore présents (`fixture check --audit`), et une relecture des règles écrites : non-découvrables seulement, justifications réelles ou déclarées absentes, garde-fous nommés. Deux exécutions : `repos/java-back/runs/2026-11-09-init-blind/` (dépôt nu) et `repos/node-front/runs/2026-11-09-init-blind/` (repo déjà instrumenté, à fusionner : le cas le plus fréquent).
 

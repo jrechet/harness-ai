@@ -104,7 +104,8 @@
         "what": "commande du README qui n'existe plus",
         "any_of": [
           "replay.py"
-        ]
+        ],
+        "mention_ok": true
       },
       {
         "id": "N2",

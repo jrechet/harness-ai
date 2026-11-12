@@ -305,6 +305,41 @@ Mode : **délégation**.
         self.assertIn("N2 écrit à tort", text)
         self.assertIn("AGENTS.md", text)
 
+    # Le dépôt d'origine du projet : sans lui, rien ne dit si une ligne est recopiée, et tout mot compte.
+    ORIGIN = os.path.join(fixtures.FIXTURES_ROOT, "go-hexa", "repo")
+
+    def grade_against_origin(self, agents_md):
+        with open(os.path.join(self.tmp.name, "AGENTS.md"), "w", encoding="utf-8") as fh:
+            fh.write(agents_md)
+        return fixtures.check_init(self.tmp.name, self.init, date(2026, 11, 10), base=self.ORIGIN)
+
+    def test_a_command_named_to_say_it_is_gone_is_a_citation_not_noise(self):
+        result = self.grade_against_origin(self.GOOD + "- Le README cite `make e2e`, qui n'existe plus : `make test` fait foi.\n")
+        self.assertEqual(result["problems"], [])
+        self.assertEqual(len(result["mentions"]), 1, result["mentions"])
+        self.assertIn("N1 cité, non compté", result["mentions"][0])
+        self.assertIn("make e2e", result["mentions"][0])
+
+    def test_a_gone_command_given_as_a_thing_to_run_still_counts(self):
+        result = self.grade_against_origin(self.GOOD + "- `make e2e` avant de pousser.\n")
+        self.assertTrue(any(p.startswith("N1 écrit à tort") for p in result["problems"]), result["problems"])
+        self.assertEqual(result["mentions"], [])
+
+    def test_a_line_taken_from_the_original_counts_even_when_it_says_gone(self):
+        with open(os.path.join(self.ORIGIN, "README.md"), encoding="utf-8") as fh:
+            source = next(line for line in fh if "make e2e" in line)
+        copied = source.strip().lstrip("-# ").rstrip() + " (retiré depuis)"
+        result = self.grade_against_origin(self.GOOD + f"- {copied}\n")
+        self.assertTrue(any(p.startswith("N1 écrit à tort") for p in result["problems"]), (copied, result))
+
+    def test_a_citation_is_not_excused_without_the_original_repository(self):
+        result = self.grade(self.GOOD + "- Le README cite `make e2e`, qui n'existe plus.\n")
+        self.assertTrue(any(p.startswith("N1 écrit à tort") for p in result["problems"]), result["problems"])
+
+    def test_noise_that_no_rule_needs_to_name_counts_wherever_it_stands(self):
+        result = self.grade_against_origin(self.GOOD + "- Le style « Go idiomatique » du CONTRIBUTING n'existe plus.\n")
+        self.assertTrue(any(p.startswith("N2 écrit à tort") for p in result["problems"]), result["problems"])
+
     def test_lying_guard_is_not_believed(self):
         lie = self.GOOD.replace("jamais un flottant. Pourquoi : ADR 0002. (non vérifiée)",
                                 "jamais un flottant. Pourquoi : ADR 0002. Vérifiée par : golangci-lint, job `lint`.")

@@ -177,20 +177,90 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
             "ok": not (missed or wrong or sane_flagged or global_problems)}
 
 
+WORD_RE = re.compile(r"\w+")
+REPRISE_RUN = 4     # mots consécutifs partagés avec une ligne d'origine : à partir de là, la ligne est recopiée
+# Ce qui dit qu'une chose n'est plus là. Une liste de tournures dépend de la langue : elle ne sert qu'à
+# excuser, jamais à accuser. Une tournure absente d'ici laisse la ligne comptée, comme avant.
+GONE_MARKERS = ("n'existe", "n’existe", "inexistant", "retiré", "supprimé", "abandonn", "périmé", "obsolète",
+                "n'est plus", "n’est plus", "plus installé", "does not exist", "doesn't exist", "no longer",
+                "removed", "obsolete", "abandoned")
+TEXT_SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__"}
+
+
+def _repo_texts(repo: str) -> dict[str, str]:
+    """Le texte de chaque fichier lisible d'un dépôt, en minuscules, par chemin relatif."""
+    texts: dict[str, str] = {}
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if d not in TEXT_SKIP_DIRS]
+        for name in files:
+            path = os.path.join(root, name)
+            try:
+                if os.path.getsize(path) > 1_000_000:
+                    continue
+                with open(path, encoding="utf-8", errors="ignore") as fh:
+                    texts[os.path.relpath(path, repo).replace(os.sep, "/")] = fh.read().lower()
+            except OSError:
+                continue
+    return texts
+
+
+def _shares_run(a: list[str], b: list[str], need: int) -> bool:
+    grams = {tuple(b[i:i + need]) for i in range(len(b) - need + 1)}
+    return any(tuple(a[i:i + need]) in grams for i in range(len(a) - need + 1))
+
+
+def _excerpt(line: str, word: str, around: int = 70) -> str:
+    at = line.lower().find(word.lower())
+    start, end = max(0, at - around), min(len(line), at + len(word) + around)
+    return ("… " if start else "") + line[start:end].strip() + (" …" if end < len(line) else "")
+
+
+def noise_hits(corpus: dict[str, str], noise: dict, origin: dict[str, str] | None) -> tuple[dict[str, list[str]], list[str]]:
+    """Où un bruit est écrit (mot → fichiers), et les passages qui ne font que le citer.
+
+    Par défaut tout mot trouvé compte. Une entrée `mention_ok` porte un identifiant du dépôt qu'une
+    règle saine peut avoir à nommer pour le démentir (« le README annonce `make e2e`, qui n'existe
+    plus ») : la ligne n'est alors qu'une citation si elle dit que la chose n'est plus là
+    (`GONE_MARKERS`) **et** ne reprend pas une ligne d'origine qui porte le mot (`REPRISE_RUN` mots
+    de suite en commun). Sans le dépôt d'origine, rien ne dit si la ligne est recopiée : tout compte."""
+    written: dict[str, list[str]] = {}
+    cited: list[str] = []
+    lenient = bool(noise.get("mention_ok")) and origin is not None
+    for word in noise["any_of"]:
+        low = word.lower()
+        sources = [WORD_RE.findall(line) for text in (origin or {}).values() for line in text.splitlines()
+                   if low in line] if lenient else []
+        need = max(REPRISE_RUN, len(WORD_RE.findall(low)) + 2)
+        for path, text in corpus.items():
+            for line in text.splitlines():
+                if low not in line.lower():
+                    continue
+                words = WORD_RE.findall(line.lower())
+                if (lenient and any(m in line.lower() for m in GONE_MARKERS)
+                        and not any(_shares_run(words, src, need) for src in sources)):
+                    quote = f"{word} : « {_excerpt(line.strip(), word)} »"
+                    if quote not in cited:
+                        cited.append(quote)
+                elif path not in written.setdefault(word, []):
+                    written[word].append(path)
+    return written, cited
+
+
 def check_init(result_dir: str, expected: dict, today: date | None = None, base: str | None = None,
                report: str | None = None) -> dict[str, Any]:
     """Note ce qu'un harness-init a écrit dans `result_dir` contre le bloc `init` d'expected.json :
     palier atteint, faits non découvrables remontés (`must_surface`), bruit recopié (`must_not_write`),
     garde-fous réels cités (`guards_cited`), garde-fous mensongers crus (`forbidden_guards`), références
     sans cible, matériel des paliers suivants posé trop tôt (`only_level_material`), et fichier sain
-    réécrit sans raison (`min_similarity`). `base` est le
-    dépôt de la fixture quand `result_dir` ne contient que les fichiers d'instructions."""
+    réécrit sans raison (`min_similarity`). `base` est le dépôt de la fixture tel qu'il était avant le
+    pas : il sert quand `result_dir` ne contient que les fichiers d'instructions, et à dire si une
+    ligne recopie le bruit d'origine ou ne fait que le citer (`noise_hits`)."""
     state = maturity.evaluate(facts.collect(result_dir, today=today))
     corpus = facts.instruction_corpus(result_dir)
     text = "\n".join(corpus.values()).lower()
     rules = [r for t in corpus.values() for r in parse_rules(t)]
     guarded = [r.lower() for r in rules if facts.GUARDED_RE.search(r) and not facts.UNGUARDED_RE.search(r)]
-    problems, surfaced = [], []
+    problems, surfaced, mentions = [], [], []
     level = state["level"]["reached"]
     if level < expected.get("min_level", 1):
         failing = [c["id"] for l in state["levels"] if l["level"] <= expected.get("min_level", 1)
@@ -201,11 +271,13 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
             surfaced.append(fact["id"])
         else:
             problems.append(f"{fact['id']} non remonté : {fact['what']} (aucun de {fact['any_of']})")
+    origin = _repo_texts(base) if base else None
     for noise in expected.get("must_not_write", []):
-        hits = [k for k in noise["any_of"] if k.lower() in text]
-        if hits:
-            where = sorted(p for p, t in corpus.items() if any(k.lower() in t.lower() for k in hits))
-            problems.append(f"{noise['id']} écrit à tort : {noise['what']} ({', '.join(hits)} dans {', '.join(where)})")
+        written, cited = noise_hits(corpus, noise, origin)
+        if written:
+            where = sorted({p for paths in written.values() for p in paths})
+            problems.append(f"{noise['id']} écrit à tort : {noise['what']} ({', '.join(written)} dans {', '.join(where)})")
+        mentions += [f"{noise['id']} cité, non compté · {quote}" for quote in cited]
     for path in expected.get("guards_cited", []):
         if not any(path.lower() in r for r in guarded):
             problems.append(f"garde-fou {path} cité par aucune règle « Vérifiée par »")
@@ -264,7 +336,7 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
             problems.append(f"{keep['path']} réécrit : {ratio:.2f} de ressemblance avec le fichier de départ, "
                             f"au moins {keep['ratio']} attendu d'un harness déjà sain")
     total = len(expected.get("must_surface", []))
-    return {"level": level, "surfaced": surfaced, "problems": problems,
+    return {"level": level, "surfaced": surfaced, "problems": problems, "mentions": mentions,
             "score": f"{len(surfaced)}/{total}", "files": sorted(corpus), "ok": not problems}
 
 
@@ -284,24 +356,13 @@ def check_oral_facts(fixture_dir: str, expected: dict) -> list[str]:
     oral = [f for f in expected.get("init", {}).get("must_surface", []) if f.get("only_in_instructions")]
     if not oral:
         return ["aucun fait marqué `only_in_instructions` : tout ce que ce projet apprend se lit dans sa documentation"]
-    repo = os.path.join(fixture_dir, "repo")
     elsewhere: dict[str, str] = {}          # texte des fichiers qui ne sont pas des instructions
     instructions = ""
-    for root, dirs, files in os.walk(repo):
-        dirs[:] = [d for d in dirs if d not in {".git", "node_modules", ".venv", "__pycache__"}]
-        for name in files:
-            path = os.path.join(root, name)
-            if os.path.getsize(path) > 1_000_000:
-                continue
-            try:
-                with open(path, encoding="utf-8", errors="ignore") as fh:
-                    text = fh.read().lower()
-            except OSError:
-                continue
-            if name in ("AGENTS.md", "CLAUDE.md"):
-                instructions += text
-            else:
-                elsewhere[os.path.relpath(path, repo).replace(os.sep, "/")] = text
+    for rel, text in _repo_texts(os.path.join(fixture_dir, "repo")).items():
+        if os.path.basename(rel) in ("AGENTS.md", "CLAUDE.md"):
+            instructions += text
+        else:
+            elsewhere[rel] = text
     owner = (facts._read(os.path.join(fixture_dir, "owner.md")) or "").lower()
     checks = []                             # (tâche, contrôle)
     tempted_fails: set[str] = set()
@@ -440,5 +501,9 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
               + (" · conforme" if result["ok"] else f" · {len(result['problems'])} écart(s)"))
         for line in result["problems"]:
             print(f"- {line}")
+        if result["mentions"]:
+            print("### Cité sans être recopié : non compté, à relire")
+            for line in result["mentions"]:
+                print(f"- {line}")
         ok = ok and result["ok"]
     return 0 if ok else 1

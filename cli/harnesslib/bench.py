@@ -363,13 +363,16 @@ def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runn
                                  | {f"python3 {kit}/cli/harness.py *"})}
     prompt = INIT_PROMPT.format(kit=kit, owner=owner_answers(fixture_dir))
     agent = runner(workdir, prompt, spec)
-    graded = fixtures.check_init(workdir, expected.get("init", {}), date.fromisoformat(day), report=agent.get("report") or "")
+    graded = fixtures.check_init(workdir, expected.get("init", {}), date.fromisoformat(day),
+                                 base=os.path.join(fixture_dir, "repo"), report=agent.get("report") or "")
     out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-init-blind")
     os.makedirs(out_dir, exist_ok=True)
     changed = export_overlay(workdir, os.path.join(out_dir, "overlay"))
     note = (f"# Pas 1 de {name} : palier {graded['level']} · {graded['score']} faits remontés"
             + (" · conforme" if graded["ok"] else f" · {len(graded['problems'])} écart(s)") + "\n"
-            + "".join(f"- {p}\n" for p in graded["problems"]))
+            + "".join(f"- {p}\n" for p in graded["problems"])
+            + ("\nCité sans être recopié : non compté, à relire.\n" + "".join(f"- {m}\n" for m in graded["mentions"])
+               if graded["mentions"] else ""))
     for rel, text in (("diff.patch", patch_of(workdir)), ("compte-rendu.md", agent.get("report") or ""), ("note.md", note),
                       ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")):
         with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:

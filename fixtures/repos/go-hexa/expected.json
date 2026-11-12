@@ -79,7 +79,8 @@
         "what": "commande périmée du README",
         "any_of": [
           "make e2e"
-        ]
+        ],
+        "mention_ok": true
       },
       {
         "id": "N2",

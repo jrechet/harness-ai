@@ -70,7 +70,8 @@
         "any_of": [
           "npm run lint",
           "npm run build"
-        ]
+        ],
+        "mention_ok": true
       },
       {
         "id": "N2",

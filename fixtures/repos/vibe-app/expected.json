@@ -79,7 +79,8 @@
           "nodemon",
           "favicon",
           "bug du total"
-        ]
+        ],
+        "mention_ok": true
       },
       {
         "id": "N2",
@@ -129,14 +130,16 @@
           "npm run seed",
           "test:coverage",
           "docker compose"
-        ]
+        ],
+        "mention_ok": true
       },
       {
         "id": "N8",
         "what": "plans abandonnés et TODO de session",
         "any_of": [
           "sqlite"
-        ]
+        ],
+        "mention_ok": true
       }
     ],
     "guards_cited": [],

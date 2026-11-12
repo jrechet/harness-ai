@@ -75,7 +75,8 @@
         "what": "commande de test qui n'existe plus",
         "any_of": [
           "settings_ci"
-        ]
+        ],
+        "mention_ok": true
       },
       {
         "id": "N2",
@@ -120,7 +121,8 @@
         "any_of": [
           "debug-toolbar",
           "debug_toolbar"
-        ]
+        ],
+        "mention_ok": true
       }
     ],
     "guards_cited": [
