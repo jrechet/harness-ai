@@ -9,10 +9,11 @@ L'écart entre les bras est la preuve que le harness sert, ou qu'une ligne ne se
   bench prepare <fixture> <dest> --arm …  le dépôt de travail d'un bras, avec un commit de départ
   bench check <fixture> <tâche> <dir>     note le travail rendu : tests, tests cachés, tentations
   bench play <fixture> <tâche> --arm …    joue la tâche par un agent neutre, note, range, enregistre
+  bench init <fixture>                    joue le pas 1 par un agent neutre, avec les réponses du propriétaire
   bench selftest <fixture>                la tâche est-elle bien posée ? solution verte, tentation rouge
   bench record … / bench report           le registre des résultats, par skill, bras et modèle
 
-Seul `play` lance un agent, et toujours le même : un processus séparé, confiné à sa copie de travail,
+Seuls `play` et `init` lancent un agent, et toujours le même : un processus séparé, confiné à sa copie de travail,
 qui ne reçoit que l'énoncé et ne charge que les instructions du dépôt. Le reste prépare, note et tient
 le registre."""
 from __future__ import annotations
@@ -289,19 +290,112 @@ def render_check(result: dict[str, Any]) -> str:
     return "\n".join(out) + "\n"
 
 
-def play(fixture_dir: str, task_id: str, arm: str, work_root: str, out_dir: str | None = None,
-         runner=run_agent, label: str | None = None, results: str | None = RESULTS, day: str | None = None) -> dict[str, Any]:
-    """Une exécution complète : copie de travail au chemin neutre, agent, note, sorties rangées, registre.
-    L'agent ne reçoit que le contenu de `task.md`, mot pour mot, quel que soit le bras."""
+INIT_PROMPT = (
+    "Mets en place l'instrumentation IA de ce dépôt en suivant le skill décrit dans "
+    "{kit}/skills/harness-init/SKILL.md. Ses fichiers de référence sont dans le même dossier, et le CLI "
+    "qu'il cite est {kit}/cli/harness.py.\n\n"
+    "Le propriétaire du dépôt n'est pas joignable pendant cette séance. Voici ce qu'il a répondu à "
+    "l'avance ; n'attends aucune autre réponse.\n\n{owner}\n"
+    "Termine par le compte rendu que le skill demande."
+)
+
+
+def owner_answers(fixture_dir: str) -> str:
+    """Les réponses du propriétaire, sans le chapeau qui dit à quoi sert le fichier : il parle du banc."""
+    text = facts._read(os.path.join(fixture_dir, "owner.md")) or ""
+    start = text.find("\n## ")
+    return text[start + 1:] if start >= 0 else text
+
+
+def make_kit(dest: str) -> str:
+    """Ce que l'agent évalué connaît de harness-ai : les skills distribués et le CLI, sans ses tests
+    ni les fixtures."""
+    ignore = shutil.ignore_patterns("tests", "__pycache__", "*.pyc")
+    shutil.copytree(os.path.join(repo_root(), "skills"), os.path.join(dest, "skills"), ignore=ignore)
+    shutil.copytree(os.path.join(repo_root(), "cli"), os.path.join(dest, "cli"), ignore=ignore)
+    return dest
+
+
+def _guard_work_root(work_root: str) -> str:
     work_root = os.path.abspath(work_root)
     if (work_root + os.sep).startswith(repo_root() + os.sep):
         raise SystemExit("--work-root doit être hors de ce dépôt : l'agent évalué n'a pas le droit de le lire")
+    os.makedirs(work_root, exist_ok=True)
+    return work_root
+
+
+def export_overlay(workdir: str, dest: str) -> list[str]:
+    """Ce qu'un pas a changé dans le dépôt, sous la forme que `prepare --overlay` sait rejouer :
+    les fichiers ajoutés ou modifiés, et `REMOVE.txt` pour ceux qu'il a supprimés."""
+    removed, kept = [], []
+    for rel in sorted(diff(workdir)):
+        if rel.startswith(".harness/"):
+            continue
+        source = os.path.join(workdir, rel)
+        if os.path.isfile(source):
+            os.makedirs(os.path.dirname(os.path.join(dest, rel)) or dest, exist_ok=True)
+            shutil.copyfile(source, os.path.join(dest, rel))
+            kept.append(rel)
+        else:
+            removed.append(rel)
+    os.makedirs(dest, exist_ok=True)
+    if removed:
+        with open(os.path.join(dest, OVERLAY_REMOVE), "w", encoding="utf-8") as fh:
+            fh.write("# Supprimé par le pas, un chemin par ligne.\n" + "\n".join(removed) + "\n")
+    return kept + [f"- {r}" for r in removed]
+
+
+def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runner=run_agent,
+              label: str | None = None, results: str | None = RESULTS, day: str | None = None) -> dict[str, Any]:
+    """Le pas 1 joué à l'aveugle : le dépôt tel qu'on le trouve, le kit, les réponses du propriétaire
+    données d'avance, et rien d'autre. Note par le bloc `init`, compte rendu compris ; ce que le pas a
+    changé est rangé dans `overlay/`, prêt à servir de bras `harness` à une tâche."""
+    work_root = _guard_work_root(work_root)
+    name = os.path.basename(os.path.normpath(fixture_dir))
+    day = day or date.today().isoformat()
+    with open(os.path.join(fixture_dir, "expected.json"), encoding="utf-8") as fh:
+        expected = json.load(fh)
+    parent = tempfile.mkdtemp(prefix="w-", dir=work_root)
+    workdir, kit = os.path.join(parent, "repo"), make_kit(os.path.join(parent, "kit"))
+    prepare(fixture_dir, workdir, "asis" if "asis" in available_arms(fixture_dir) else "bare")
+    tasks = [load_task(fixture_dir, t) for t in list_tasks(fixture_dir)]
+    spec = {"agent_bash": sorted({rule for t in tasks for rule in t.get("agent_bash", [])}
+                                 | {f"python3 {kit}/cli/harness.py *"})}
+    prompt = INIT_PROMPT.format(kit=kit, owner=owner_answers(fixture_dir))
+    agent = runner(workdir, prompt, spec)
+    graded = fixtures.check_init(workdir, expected.get("init", {}), date.fromisoformat(day), report=agent.get("report") or "")
+    out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-init-blind")
+    os.makedirs(out_dir, exist_ok=True)
+    changed = export_overlay(workdir, os.path.join(out_dir, "overlay"))
+    note = (f"# Pas 1 de {name} : palier {graded['level']} · {graded['score']} faits remontés"
+            + (" · conforme" if graded["ok"] else f" · {len(graded['problems'])} écart(s)") + "\n"
+            + "".join(f"- {p}\n" for p in graded["problems"]))
+    for rel, text in (("diff.patch", patch_of(workdir)), ("compte-rendu.md", agent.get("report") or ""), ("note.md", note),
+                      ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")):
+        with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    if results:
+        record({"date": day, "kind": "init", "fixture": name, "task": None, "arm": None, "model": label,
+                "skill_rev": _skill_rev(), "score": graded["score"], "ok": graded["ok"], "blind": True,
+                "run": os.path.relpath(out_dir, repo_root()), "note": "agent neutre, processus séparé"
+                + (f" ; {agent['error']}" if agent.get("error") else "")}, results)
+    return {"workdir": workdir, "out": out_dir, "check": graded, "changed": changed, "note": note,
+            "usage": agent.get("usage", {}), "error": agent.get("error")}
+
+
+def play(fixture_dir: str, task_id: str, arm: str, work_root: str, out_dir: str | None = None,
+         runner=run_agent, label: str | None = None, results: str | None = RESULTS, day: str | None = None,
+         overlay: str | None = None, note: str | None = None) -> dict[str, Any]:
+    """Une exécution complète : copie de travail au chemin neutre, agent, note, sorties rangées, registre.
+    L'agent ne reçoit que le contenu de `task.md`, mot pour mot, quel que soit le bras. `overlay` joue
+    le bras `harness` avec un autre harness que celui de l'auteur, par exemple celui qu'un pas 1 joué
+    à l'aveugle a produit."""
+    work_root = _guard_work_root(work_root)
     task = load_task(fixture_dir, task_id)
     name = os.path.basename(os.path.normpath(fixture_dir))
     day = day or date.today().isoformat()
-    os.makedirs(work_root, exist_ok=True)
     workdir = os.path.join(tempfile.mkdtemp(prefix="w-", dir=work_root), "repo")   # ni le bras ni le banc dans le chemin
-    prepare(fixture_dir, workdir, arm)
+    prepare(fixture_dir, workdir, arm, overlay)
     with open(os.path.join(task["dir"], task["statement"]), encoding="utf-8") as fh:
         prompt = fh.read()
     agent = runner(workdir, prompt, task)
@@ -316,7 +410,7 @@ def play(fixture_dir: str, task_id: str, arm: str, work_root: str, out_dir: str 
     if results:
         record({"date": day, "kind": "task", "fixture": name, "task": task_id, "arm": arm, "model": label,
                 "skill_rev": _skill_rev(), "score": result["score"], "ok": result["ok"], "blind": True,
-                "run": os.path.relpath(out_dir, repo_root()), "note": "agent neutre, processus séparé"
+                "run": os.path.relpath(out_dir, repo_root()), "note": (note or "agent neutre, processus séparé")
                 + (f" ; {agent['error']}" if agent.get("error") else "")}, results)
     return {"arm": arm, "workdir": workdir, "out": out_dir, "check": result, "usage": agent.get("usage", {}), "error": agent.get("error")}
 
@@ -448,6 +542,14 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     pp.add_argument("--out", help="où ranger les sorties (défaut : runs/<date>-task-blind-<bras> de la fixture)")
     pp.add_argument("--label", help="étiquette de génération pour le registre")
     pp.add_argument("--no-record", action="store_true", help="ne pas écrire dans le registre")
+    pp.add_argument("--overlay", help="bras harness : le harness à poser, par exemple runs/<date>-init-blind/overlay")
+    pp.add_argument("--note", help="note du registre, pour dire d'où vient le harness joué")
+    pi = sub.add_parser("init", help="joue le pas 1 par un agent neutre, le note, range et enregistre")
+    pi.add_argument("fixture")
+    pi.add_argument("--work-root", required=True, help="dossier temporaire hors de ce dépôt")
+    pi.add_argument("--out", help="où ranger les sorties (défaut : runs/<date>-init-blind de la fixture)")
+    pi.add_argument("--label", help="étiquette de génération pour le registre")
+    pi.add_argument("--no-record", action="store_true", help="ne pas écrire dans le registre")
     st = sub.add_parser("selftest", help="vérifie que les tâches d'une fixture sont bien posées")
     st.add_argument("fixture")
     rc = sub.add_parser("record", help="ajoute une exécution au registre")
@@ -500,12 +602,21 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         return 0 if result["ok"] else 1
     if cmd == "play":
         done = play(resolve(args.fixture), args.task, args.arm, args.work_root, args.out, label=args.label,
-                    results=None if args.no_record else RESULTS)
+                    results=None if args.no_record else RESULTS, overlay=args.overlay, note=args.note)
         u = done["usage"]
         print(f"bras {done['arm']} : {done['check']['score']}" + (" · conforme" if done["check"]["ok"] else "")
               + (f" · {_thousands(u['tokens'])} tokens neufs, {u.get('turns')} tours, {u.get('duration_s')} s, {u.get('denied')} refus" if u else "")
               + (f" · erreur : {done['error']}" if done["error"] else "") + f"\nsorties : {done['out']}")
         sys.stdout.write(render_check(done["check"]))
+        return 0 if done["check"]["ok"] else 1
+    if cmd == "init":
+        done = play_init(resolve(args.fixture), args.work_root, args.out, label=args.label,
+                         results=None if args.no_record else RESULTS)
+        u = done["usage"]
+        sys.stdout.write(done["note"])
+        print((f"{_thousands(u['tokens'])} tokens neufs, {u.get('turns')} tours, {u.get('duration_s')} s, {u.get('denied')} refus · " if u else "")
+              + f"changé : {', '.join(done['changed']) or 'rien'}\nsorties : {done['out']}"
+              + (f"\nerreur : {done['error']}" if done["error"] else ""))
         return 0 if done["check"]["ok"] else 1
     if cmd == "selftest":
         result = selftest_full(resolve(args.fixture))

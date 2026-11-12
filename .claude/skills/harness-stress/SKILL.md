@@ -27,15 +27,16 @@ L'agent évalué ne doit rien pouvoir lire du corrigé. Tout se passe dans un do
 - **Le kit** : une copie de `skills/` et de `cli/` dans le dossier temporaire. C'est tout ce que l'agent connaît de harness-ai.
 - **Le dépôt** :
   - mesure d'audit : `bench prepare <projet> <dir> --arm asis` ;
-  - mesure d'init : `bench prepare <projet> <dir> --arm asis` s'il a déjà des instructions, `--arm bare` sinon ;
+  - mesure du pas 1 : rien à préparer, `bench init` s'en charge ;
   - mesure de tâche : rien à préparer, `bench play` s'en charge.
 
 ### 3. Jouer, à l'aveugle
 Un **agent neuf par exécution**, sans mémoire de cette session. Son message contient, et rien d'autre :
 - pour un skill : le chemin du kit, le chemin du dépôt, le skill à suivre, et pour un init le contenu de `owner.md` présenté comme les réponses du propriétaire. Il rend ses fichiers dans le dépôt de travail et son compte rendu ;
+- pour le pas 1 : tu ne lances pas l'agent toi-même. `python3 cli/harness.py bench init <projet> --work-root <dossier temporaire> --label <étiquette>` le fait : processus séparé, kit, réponses du propriétaire données d'avance et sans le chapeau d'`owner.md`. La commande note ce qui a été écrit et le compte rendu, et range dans `overlay/` ce que le pas a changé. Pour jouer la chaîne entière, donne ensuite ce dossier à `bench play --arm harness --overlay` : la tâche se joue alors avec le harness que le skill a produit, pas celui de l'auteur du projet ;
 - pour une tâche : tu ne lances pas l'agent toi-même. `python3 cli/harness.py bench play <projet> <tâche> --arm <bras> --work-root <dossier temporaire> --label <étiquette>` le fait, une commande par bras, à lancer en parallèle. L'agent est un processus séparé qui ne reçoit que `task.md` et ne charge que les instructions du dépôt de travail, comme une vraie session. Il est confiné : ses commandes sont limitées à la liste `agent_bash` de la tâche, et ce qu'on lui refuse est gardé dans `usage.json`. La commande note, range les sorties et écrit le registre.
 
-Un agent lancé depuis ta session en hérite les consignes et les outils : le bras sans instructions n'est alors pas nu, et les bras se ressemblent plus qu'ils ne devraient. C'est pour cela que les tâches passent par `bench play`. Les mesures d'audit et d'init, elles, se jouent encore par un agent de ta session : dis dans le rapport que ses consignes s'y ajoutent.
+Un agent lancé depuis ta session en hérite les consignes et les outils : le bras sans instructions n'est alors pas nu, et les bras se ressemblent plus qu'ils ne devraient. C'est pour cela que les tâches passent par `bench play`. La mesure d'audit, elle, se joue encore par un agent de ta session : dis dans le rapport que ses consignes s'y ajoutent.
 
 Ne lui donne ni indice, ni critère de notation, ni le nom du projet type. Ne lance pas la même exécution deux fois en espérant mieux : la variance se traite à l'étape 5.
 

@@ -157,6 +157,14 @@ python3 cli/harness.py bench report                        # le registre fixture
 python3 cli/harness.py bench play go-hexa deposit --arm harness --work-root /tmp/banc --label 2026-11
 ```
 
+`bench init` joue de même le pas 1 : le dépôt tel qu'on le trouve, les skills et le CLI, les réponses du propriétaire données d'avance. Il note ce qui a été écrit et le compte rendu, et range dans `overlay/` ce que le pas a changé. Ce dossier se donne à `bench play --overlay` pour jouer la tâche avec le harness que le skill a produit : c'est la chaîne entière, du skill au travail rendu.
+
+```bash
+python3 cli/harness.py bench init go-hexa --work-root /tmp/banc --label 2026-11
+python3 cli/harness.py bench play go-hexa deposit --arm harness --work-root /tmp/banc \
+    --overlay fixtures/repos/go-hexa/runs/<date>-init-blind/overlay --out fixtures/repos/go-hexa/runs/<date>-task-blind-init
+```
+
 Décider d'une campagne et l'interpréter reste le travail du skill `harness-stress`, à la demande.
 
 ## Lancer

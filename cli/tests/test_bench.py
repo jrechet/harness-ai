@@ -310,6 +310,78 @@ class PlayTests(BenchCase):
         self.assertNotIn("Bash", [c for c in cmd if c == "Bash"])          # jamais Bash sans restriction
 
 
+class InitPlayTests(BenchCase):
+    """`bench init` : le pas 1 joué par un agent neutre, puis rejoué comme bras d'une tâche."""
+
+    AGENTS = "# demo\n\nMode : **délégation**.\n\n## Règles\n- Pas d'eval. (non vérifiée) [2026-01]\n\n## Interdits\n- Toucher à tools/.\n"
+
+    def setUp(self):
+        super().setUp()
+        write(self.fx, "repo/PLAN.md", "plan abandonné\n")
+        write(self.fx, "owner.md", "# Propriétaire fictif\n\nCe fichier se donne à l'agent évalué ; les faits plantés sont ailleurs.\n\n"
+                                    "## Réponses à l'entretien\n1. **Mode** : délégation.\n")
+        self.results = os.path.join(self.tmp.name, "results.jsonl")
+        self.work_root = os.path.join(self.tmp.name, "scratch")
+        self.seen = {}
+
+    def init(self):
+        def fake_agent(workdir, prompt, spec):
+            self.seen.update(workdir=workdir, prompt=prompt, spec=spec, kit=os.path.join(os.path.dirname(workdir), "kit"))
+            write(workdir, "AGENTS.md", self.AGENTS)
+            write(workdir, "CLAUDE.md", "@AGENTS.md\n")
+            os.remove(os.path.join(workdir, "PLAN.md"))
+            return {"report": "Palier 1 atteint. PLAN.md supprimé.", "error": None,
+                    "usage": {"tokens": 4321, "turns": 9, "duration_s": 12, "denied": 0}}
+        return bench.play_init(self.fx, self.work_root, runner=fake_agent, label="génération test",
+                               results=self.results, day="2026-01-02")
+
+    def test_the_agent_gets_the_kit_and_the_owner_s_answers_without_the_header(self):
+        self.init()
+        kit = self.seen["kit"]
+        self.assertIn(f"{kit}/skills/harness-init/SKILL.md", self.seen["prompt"])
+        self.assertIn("**Mode** : délégation", self.seen["prompt"])
+        self.assertNotIn("faits plantés", self.seen["prompt"])
+        self.assertNotIn("évalué", self.seen["prompt"])
+        self.assertTrue(os.path.isfile(os.path.join(kit, "skills", "harness-init", "SKILL.md")))
+        self.assertTrue(os.path.isfile(os.path.join(kit, "cli", "harness.py")))
+        self.assertFalse(os.path.exists(os.path.join(kit, "cli", "tests")))
+        self.assertFalse(os.path.exists(os.path.join(kit, "fixtures")))
+        self.assertIn(f"python3 {kit}/cli/harness.py *", self.seen["spec"]["agent_bash"])
+        self.assertRegex(os.path.relpath(self.seen["workdir"], self.work_root), r"^w-[^/]+/repo$")
+
+    def test_the_step_is_graded_filed_and_recorded(self):
+        done = self.init()
+        self.assertTrue(done["check"]["ok"], done["check"])
+        self.assertEqual(os.path.basename(done["out"]), "2026-01-02-init-blind")
+        self.assertEqual(sorted(os.listdir(done["out"])), ["compte-rendu.md", "diff.patch", "note.md", "overlay", "usage.json"])
+        with open(os.path.join(done["out"], "note.md"), encoding="utf-8") as fh:
+            self.assertIn("palier 1", fh.read())
+        row = bench.load_results(self.results)[-1]
+        self.assertEqual((row["kind"], row["fixture"], row["ok"], row["model"]), ("init", "demo", True, "génération test"))
+
+    def test_what_the_step_changed_becomes_an_overlay_a_task_can_play(self):
+        done = self.init()
+        overlay = os.path.join(done["out"], "overlay")
+        self.assertEqual(sorted(os.listdir(overlay)), ["AGENTS.md", "CLAUDE.md", "REMOVE.txt"])
+        with open(os.path.join(overlay, "REMOVE.txt"), encoding="utf-8") as fh:
+            self.assertIn("PLAN.md", fh.read())
+        state = {}
+
+        def task_agent(workdir, prompt, task):
+            with open(os.path.join(workdir, "AGENTS.md"), encoding="utf-8") as fh:
+                state.update(agents=fh.read(), plan=os.path.exists(os.path.join(workdir, "PLAN.md")))
+            for rel, content in SOLUTION.items():
+                write(workdir, rel, content)
+            return {"report": "fait", "error": None, "usage": {"tokens": 1}}
+
+        played = bench.play(self.fx, "sub", "harness", self.work_root, runner=task_agent, overlay=overlay,
+                            results=self.results, day="2026-01-02", note="harness produit par le pas 1 à l'aveugle",
+                            out_dir=os.path.join(self.tmp.name, "out-task"))
+        self.assertEqual(state, {"agents": self.AGENTS, "plan": False})
+        self.assertTrue(played["check"]["ok"])
+        self.assertEqual(bench.load_results(self.results)[-1]["note"], "harness produit par le pas 1 à l'aveugle")
+
+
 @unittest.skipUnless(os.environ.get("HARNESS_SELFTEST"), "HARNESS_SELFTEST=1 : rejoue les tâches des vraies fixtures (go, npm)")
 class RealFixtureTaskTests(unittest.TestCase):
     def test_every_task_of_every_fixture_is_well_posed(self):
