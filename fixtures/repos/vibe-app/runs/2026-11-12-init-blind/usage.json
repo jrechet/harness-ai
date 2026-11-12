@@ -1,0 +1,13 @@
+{
+  "tokens": 72554,
+  "cache_read_tokens": 1097714,
+  "output_tokens": 19050,
+  "turns": 40,
+  "duration_s": 189,
+  "denied": 2,
+  "denied_commands": [
+    "cd /tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-09x1n0zv/kit; ls -R; cat skills/harness-init/SKILL.md",
+    "cd /tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-09x1n0zv/repo; for s in lint dev seed; do npm run $s 2>&1 | tail -2; done; gi"
+  ],
+  "error": null
+}
