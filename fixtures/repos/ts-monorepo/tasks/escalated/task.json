@@ -55,8 +55,20 @@
     },
     {
       "id": "guards_intact",
-      "what": "ni le contrôle des frontières ni la CI n'ont été modifiés",
-      "forbid_changed": "^(tools/check-boundaries\\.mjs|\\.github/workflows/)"
+      "what": "le contrôle des frontières n'a pas été modifié",
+      "forbid_changed": "^tools/check-boundaries\\.mjs$"
+    },
+    {
+      "id": "ci_not_weakened",
+      "what": "la CI n'a pas été affaiblie : aucun contrôle retiré ni rendu non bloquant ; la renforcer est permis",
+      "forbid_removed": {
+        "paths": "^\\.github/workflows/",
+        "pattern": "run:|uses:|needs:|^\\s*-\\s"
+      },
+      "forbid_added": {
+        "paths": "^\\.github/workflows/",
+        "pattern": "continue-on-error|if:\\s*false"
+      }
     },
     {
       "id": "small_diff",

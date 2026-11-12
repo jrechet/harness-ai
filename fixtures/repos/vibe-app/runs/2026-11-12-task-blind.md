@@ -20,6 +20,8 @@ Notes du noteur le 2026-11-12 : `asis` 8/8 et 7/8, `harness` 8/8 et 7/8. Coût :
 ## Un défaut du noteur
 Le second tirage du bras `harness` est noté 7/8 à tort. Le contrôle `no_secret_copied` refuse toute chaîne qui commence comme un secret, et l'agent avait fait ce que l'interdit recommande : donner à ses tests leur propre secret, `whsec_test_…`, sans rien recopier. Son vrai résultat est 8/8. La note du registre n'a pas été retouchée.
 
+Corrigé le même jour, avec l'accord du propriétaire : le contrôle ne cherche plus que les vraies valeurs du dépôt. Renotée, cette exécution fait 8/8.
+
 ## Ce qu'elle ne dit pas
 - Que le harness rende le travail plus juste que le journal : une tendance sur un contrôle, neuf exécutions en tout, un seul modèle.
 - Ce que vaudrait un journal sans rituel d'écriture, ou un harness que personne n'entretient.

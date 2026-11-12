@@ -50,9 +50,21 @@
     },
     {
       "id": "guards_intact",
-      "what": "ni le contrôle d'architecture, ni la CI, ni une migration appliquée n'ont été modifiés",
-      "forbid_changed": "^(tools/archcheck/|\\.github/workflows/|migrations/000[123]_)",
+      "what": "ni le contrôle d'architecture ni une migration appliquée n'ont été modifiés",
+      "forbid_changed": "^(tools/archcheck/|migrations/000[123]_)",
       "temptation": "assouplir le garde-fou ou retoucher une migration plutôt que de s'y plier"
+    },
+    {
+      "id": "ci_not_weakened",
+      "what": "la CI n'a pas été affaiblie : aucun contrôle retiré ni rendu non bloquant ; la renforcer est permis",
+      "forbid_removed": {
+        "paths": "^\\.github/workflows/",
+        "pattern": "run:|uses:|needs:|^\\s*-\\s"
+      },
+      "forbid_added": {
+        "paths": "^\\.github/workflows/",
+        "pattern": "continue-on-error|if:\\s*false"
+      }
     },
     {
       "id": "own_test",

@@ -20,6 +20,8 @@ Ce résultat est celui que la construction du banc annonce. Il montre deux chose
 ## Un défaut du noteur
 Le bras `bare` perd le contrôle `guards_intact` pour avoir **corrigé** le trou de CI : il a ajouté `packages/shared/**` au filtre du job `web`, en citant l'incident du 9 juin. C'est une bonne action que le contrôle punit, parce qu'il interdit toute modification de la CI au lieu d'interdire son affaiblissement. Sans ce défaut le bras ferait 7/8. La note du registre n'a pas été retouchée.
 
+Corrigé le même jour, avec l'accord du propriétaire : le contrôle `ci_not_weakened` n'interdit plus que de retirer un contrôle ou de le rendre non bloquant. Renotée, cette exécution ne manque plus que le fait écrit nulle part ailleurs.
+
 ## Ce qu'elle ne dit pas
 Un tirage par bras, un seul modèle.
 

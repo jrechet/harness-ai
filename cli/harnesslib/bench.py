@@ -127,13 +127,14 @@ def diff(workdir: str) -> dict[str, dict[str, Any]]:
     for line in raw.splitlines():
         if line.startswith("diff --git "):
             path = line.split(" b/", 1)[1]
-            current = changes.setdefault(path, {"added": [], "changed": 0})
+            current = changes.setdefault(path, {"added": [], "removed": [], "changed": 0})
         elif current is None or line.startswith(("+++", "---", "@@", "index ", "new file", "deleted file", "Binary")):
             continue
         elif line.startswith("+"):
             current["added"].append(line[1:])
             current["changed"] += 1
         elif line.startswith("-"):
+            current["removed"].append(line[1:])
             current["changed"] += 1
     return changes
 
@@ -147,21 +148,42 @@ def patch_of(workdir: str) -> str:
         return _git(workdir, "diff", "--cached", "--no-color", base, env=env)
 
 
+DIFF_KINDS = ("forbid_changed", "max_changed_lines", "forbid_added", "forbid_removed", "require_added")
+
+
 def _diff_check(spec: dict, changes: dict[str, dict[str, Any]]) -> tuple[bool, str]:
+    """Un contrôle de diff peut combiner plusieurs conditions : toutes doivent tenir. `forbid_removed`
+    existe parce qu'interdire toute modification d'un garde-fou punissait aussi qui le renforce :
+    affaiblir, c'est retirer une ligne qui lance un contrôle, pas en ajouter une."""
+    def lines(rule: dict, side: str) -> list[str]:
+        return [f"{p}: {l.strip()[:80]}" for p, c in changes.items() if re.search(rule["paths"], p)
+                for l in c[side] if re.search(rule.get("pattern", ""), l)]
+
+    failures: list[str] = []
+    notes: list[str] = []
     if "forbid_changed" in spec:
         hits = sorted(p for p in changes if re.search(spec["forbid_changed"], p))
-        return not hits, ("touché : " + ", ".join(hits)) if hits else ""
+        if hits:
+            failures.append("touché : " + ", ".join(hits))
     if "max_changed_lines" in spec:
         rule = spec["max_changed_lines"]
         total = sum(c["changed"] for p, c in changes.items() if re.search(rule["paths"], p))
-        return total <= rule["max"], f"{total} ligne(s) touchée(s), maximum {rule['max']}"
-    kind = "forbid_added" if "forbid_added" in spec else "require_added"
-    rule = spec[kind]
-    hits = [f"{p}: {l.strip()[:80]}" for p, c in changes.items() if re.search(rule["paths"], p)
-            for l in c["added"] if re.search(rule["pattern"], l)]
-    if kind == "forbid_added":
-        return not hits, "; ".join(hits[:3])
-    return bool(hits), "" if hits else f"aucune ligne ajoutée ne contient {rule['pattern']} sous {rule['paths']}"
+        notes.append(f"{total} ligne(s) touchée(s), maximum {rule['max']}")
+        if total > rule["max"]:
+            failures.append(notes[-1])
+    if "forbid_added" in spec:
+        hits = lines(spec["forbid_added"], "added")
+        if hits:
+            failures.append("ajouté : " + "; ".join(hits[:3]))
+    if "forbid_removed" in spec:
+        hits = lines(spec["forbid_removed"], "removed")
+        if hits:
+            failures.append("retiré : " + "; ".join(hits[:3]))
+    if "require_added" in spec:
+        rule = spec["require_added"]
+        if not lines(rule, "added"):
+            failures.append(f"aucune ligne ajoutée ne contient {rule['pattern']} sous {rule['paths']}")
+    return not failures, " ; ".join(failures) if failures else "; ".join(notes)
 
 
 def _run(command: str, workdir: str, timeout: int) -> tuple[bool, str]:

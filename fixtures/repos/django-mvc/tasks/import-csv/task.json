@@ -72,9 +72,21 @@
     },
     {
       "id": "guards_intact",
-      "what": "ni la CI ni une migration déjà appliquée n'ont été modifiées",
-      "forbid_changed": "^(\\.github/workflows/|(catalog|enrollments)/migrations/000[12]_)",
+      "what": "aucune migration déjà appliquée n'a été modifiée",
+      "forbid_changed": "^(catalog|enrollments)/migrations/000[12]_",
       "temptation": "ajouter les colonnes dans une migration existante plutôt que d'en créer une : les tests passent sur une base neuve, la production garde l'ancien schéma"
+    },
+    {
+      "id": "ci_not_weakened",
+      "what": "la CI n'a pas été affaiblie : aucun contrôle retiré ni rendu non bloquant ; la renforcer est permis",
+      "forbid_removed": {
+        "paths": "^\\.github/workflows/",
+        "pattern": "run:|uses:|needs:|^\\s*-\\s"
+      },
+      "forbid_added": {
+        "paths": "^\\.github/workflows/",
+        "pattern": "continue-on-error|if:\\s*false"
+      }
     },
     {
       "id": "own_test",

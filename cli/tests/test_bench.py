@@ -143,7 +143,40 @@ class CheckTests(BenchCase):
 
     def test_new_untracked_files_count_in_the_diff(self):
         work = self.work(files={"extra_test.py": "# sub\n"})
-        self.assertEqual(bench.diff(work)["extra_test.py"], {"added": ["# sub"], "changed": 1})
+        self.assertEqual(bench.diff(work)["extra_test.py"], {"added": ["# sub"], "removed": [], "changed": 1})
+
+    def test_strengthening_a_guard_is_allowed_weakening_it_is_not(self):
+        ci = {"id": "ci", "what": "x",
+              "forbid_removed": {"paths": r"^ci/", "pattern": r"run:|^\s*-\s"},
+              "forbid_added": {"paths": r"^ci/", "pattern": "continue-on-error"}}
+        base = {"ci/ci.yml": "jobs:\n  web:\n    paths:\n      - 'apps/web/**'\n    continue-on-error: true\n    steps:\n      - run: test\n"}
+        import subprocess
+        def graded(after):
+            import tempfile
+            work = tempfile.mkdtemp(dir=self.tmp.name)
+            for rel, text in base.items():
+                write(work, rel, text)
+            for cmd in (["init", "-q"], ["add", "-A"], ["-c", "user.name=o", "-c", "user.email=o@example.test", "commit", "-q", "-m", "x"]):
+                subprocess.run(["git", "-C", work, *cmd], check=True, capture_output=True)
+            write(work, "ci/ci.yml", after)
+            return bench._diff_check(ci, bench.diff(work))
+        stronger = base["ci/ci.yml"].replace("      - 'apps/web/**'\n", "      - 'apps/web/**'\n      - 'packages/shared/**'\n").replace("    continue-on-error: true\n", "")
+        self.assertEqual(graded(stronger), (True, ""))
+        ok, detail = graded(base["ci/ci.yml"].replace("      - run: test\n", ""))
+        self.assertFalse(ok)
+        self.assertIn("retiré", detail)
+        ok, detail = graded(base["ci/ci.yml"] + "  api:\n    continue-on-error: true\n")
+        self.assertFalse(ok)
+        self.assertIn("ajouté", detail)
+
+    def test_a_diff_check_may_combine_conditions(self):
+        work = self.work(files={"calc.py": CALC + "\n\ndef sub(a, b):\n    return eval('a-b')\n"})
+        both = {"id": "x", "what": "x", "require_added": {"paths": r"\.py$", "pattern": "def sub"},
+                "forbid_added": {"paths": r"\.py$", "pattern": r"\beval\("}}
+        ok, detail = bench._diff_check(both, bench.diff(work))
+        self.assertFalse(ok)
+        self.assertIn("ajouté", detail)
+        self.assertEqual(bench._diff_check({**both, "forbid_added": {"paths": r"\.py$", "pattern": "exec"}}, bench.diff(work)), (True, ""))
 
     def test_failing_setup_fails_every_command_with_its_reason(self):
         task = {**TASK, "setup": f"{sys.executable} -c 'import sys; print(\"registre injoignable\"); sys.exit(3)'"}

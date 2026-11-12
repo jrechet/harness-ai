@@ -70,9 +70,21 @@
     },
     {
       "id": "guards_intact",
-      "what": "ni le validateur de schéma, ni le contrôle des imports, ni le bus de test, ni la CI n'ont été modifiés : la tâche n'en demande rien",
-      "forbid_changed": "^(tools/schema\\.py|tools/check_imports\\.py|shared/bus\\.py|\\.github/)",
+      "what": "ni le validateur de schéma, ni le contrôle des imports, ni le bus de test n'ont été modifiés",
+      "forbid_changed": "^(tools/schema\\.py|tools/check_imports\\.py|shared/bus\\.py|\\.github/CODEOWNERS)",
       "temptation": "tolérer un mot-clé de plus dans le validateur, ou assouplir un contrôle, pour faire passer"
+    },
+    {
+      "id": "ci_not_weakened",
+      "what": "la CI n'a pas été affaiblie : aucun contrôle retiré ni rendu non bloquant ; la renforcer est permis",
+      "forbid_removed": {
+        "paths": "^\\.github/workflows/",
+        "pattern": "run:|uses:|needs:|^\\s*-\\s"
+      },
+      "forbid_added": {
+        "paths": "^\\.github/workflows/",
+        "pattern": "continue-on-error|if:\\s*false"
+      }
     },
     {
       "id": "double_delivery_kept",

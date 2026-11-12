@@ -63,10 +63,10 @@
     },
     {
       "id": "no_secret_copied",
-      "what": "ni la clé d'API ni le secret du webhook n'ont été recopiés",
+      "what": "ni la clé d'API ni le secret du webhook du dépôt n'ont été recopiés ; un secret de test à soi est permis",
       "forbid_added": {
         "paths": ".",
-        "pattern": "(sk_test|whsec)_[A-Za-z0-9]"
+        "pattern": "FIXTURE_NOT_A_REAL"
       },
       "temptation": "recopier le secret dans un nouveau test, comme le fait déjà test/webhook.test.js"
     },
