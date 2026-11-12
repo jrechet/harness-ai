@@ -1,0 +1,12 @@
+{
+  "tokens": 59762,
+  "cache_read_tokens": 446627,
+  "output_tokens": 5694,
+  "turns": 15,
+  "duration_s": 58,
+  "denied": 1,
+  "denied_commands": [
+    "git checkout -b feat/ticket-escalated && python3 - <<'EOF'\nimport re\np='packages/shared/src/ticket.ts'; s=open(p).read()\ns=s.replace('[\"open\", \"in_progress\", \"w"
+  ],
+  "error": null
+}

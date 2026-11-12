@@ -1,0 +1,124 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 73a9202..a15e047 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -24,6 +24,7 @@ jobs:
+               - 'packages/shared/**'
+             web:
+               - 'apps/web/**'
++              - 'packages/shared/**'
+ 
+   boundaries:
+     runs-on: ubuntu-latest
+diff --git a/apps/api/src/tickets/service.test.ts b/apps/api/src/tickets/service.test.ts
+index e38e744..3ede3df 100644
+--- a/apps/api/src/tickets/service.test.ts
++++ b/apps/api/src/tickets/service.test.ts
+@@ -33,6 +33,21 @@ test("the allowed path open, in_progress, waiting, in_progress, resolved, closed
+   }
+ });
+ 
++test("the escalation path in_progress, escalated, in_progress, escalated, resolved", () => {
++  const tickets = service();
++  const { id } = tickets.create({ title: "VPN broken", requester: "ana@example.test", priority: "high" });
++  for (const status of ["in_progress", "escalated", "in_progress", "escalated", "resolved"] as const) {
++    assert.equal(tickets.changeStatus(id, status).status, status);
++  }
++});
++
++test("an open ticket cannot be escalated directly", () => {
++  const tickets = service();
++  const { id } = tickets.create({ title: "VPN broken", requester: "ana@example.test", priority: "high" });
++  assert.throws(() => tickets.changeStatus(id, "escalated"), TransitionRefused);
++  assert.equal(tickets.list()[0]?.status, "open");
++});
++
+ test("an unknown ticket", () => {
+   assert.throws(() => service().changeStatus("nope", "closed"), TicketNotFound);
+ });
+diff --git a/apps/web/src/status-label.ts b/apps/web/src/status-label.ts
+index 8c9822b..eb500bd 100644
+--- a/apps/web/src/status-label.ts
++++ b/apps/web/src/status-label.ts
+@@ -6,6 +6,7 @@ const LABELS: Record<Status, string> = {
+   open: "Ouvert",
+   in_progress: "En cours",
+   waiting: "En attente du client",
++  escalated: "Escaladé",
+   resolved: "Résolu",
+   closed: "Fermé",
+ };
+diff --git a/apps/web/src/ticket-list.test.ts b/apps/web/src/ticket-list.test.ts
+index 29fa40f..e67b2e7 100644
+--- a/apps/web/src/ticket-list.test.ts
++++ b/apps/web/src/ticket-list.test.ts
+@@ -31,6 +31,12 @@ test("a ticket offers exactly the transitions the shared model allows", () => {
+   assert.deepEqual([...html.matchAll(/data-status="(\w+)"/g)].map((m) => m[1]).sort(), ["closed", "in_progress"]);
+ });
+ 
++test("an escalated ticket is labelled and offers going back to work or resolving", () => {
++  const html = renderTicketList([ticket({ status: "escalated" })]);
++  assert.match(html, /<span class="status">Escaladé<\/span>/);
++  assert.deepEqual([...html.matchAll(/data-status="(\w+)"/g)].map((m) => m[1]).sort(), ["in_progress", "resolved"]);
++});
++
+ test("an empty list says so", () => {
+   assert.match(renderTicketList([]), /Aucun ticket/);
+ });
+diff --git a/docs/postmortems/2026-06-statut-inconnu.md b/docs/postmortems/2026-06-statut-inconnu.md
+index 15a368b..25860e0 100644
+--- a/docs/postmortems/2026-06-statut-inconnu.md
++++ b/docs/postmortems/2026-06-statut-inconnu.md
+@@ -11,4 +11,6 @@ La PR ne touchait que `packages/shared`. Dans `ci.yml`, le filtre de chemins du
+ - Un test web vérifie que chaque statut partagé a un libellé.
+ 
+ ## Ce qui reste ouvert
++Corrigé le 12 novembre 2026 : le filtre du job `web` inclut désormais `packages/shared/**` (PR du statut `escalated`). Le paragraphe ci-dessous est conservé pour l'historique.
++
+ Le filtre de chemins du job `web` n'a pas été corrigé. Les deux corrections ci-dessus ne protègent que si le job `web` tourne, ce qu'il ne fait toujours pas quand seul `packages/shared` change. La consigne en attendant : lancer `npm run test:web` et `npm run typecheck:web` à la main.
+diff --git a/packages/shared/src/ticket.test.ts b/packages/shared/src/ticket.test.ts
+index 033241a..df42d29 100644
+--- a/packages/shared/src/ticket.test.ts
++++ b/packages/shared/src/ticket.test.ts
+@@ -18,6 +18,17 @@ test("a waiting ticket goes back to work or closes", () => {
+   assert.deepEqual([...nextStatuses("waiting")].sort(), ["closed", "in_progress"]);
+ });
+ 
++test("only an in_progress ticket can be escalated", () => {
++  assert.equal(canTransition("in_progress", "escalated"), true);
++  for (const from of ["open", "waiting", "resolved", "closed"] as const) {
++    assert.equal(canTransition(from, "escalated"), false, from);
++  }
++});
++
++test("an escalated ticket goes back to work or is resolved", () => {
++  assert.deepEqual([...nextStatuses("escalated")].sort(), ["in_progress", "resolved"]);
++});
++
+ test("parseNewTicket collects every error at once", () => {
+   const result = parseNewTicket({ title: " ", requester: "nobody", priority: "urgent" });
+   assert.equal(result.ok, false);
+diff --git a/packages/shared/src/ticket.ts b/packages/shared/src/ticket.ts
+index 590d25a..8291289 100644
+--- a/packages/shared/src/ticket.ts
++++ b/packages/shared/src/ticket.ts
+@@ -1,7 +1,7 @@
+ // The ticket model shared by the API and the web app. A status or a transition
+ // is declared here once; neither app keeps its own list.
+ 
+-export const STATUSES = ["open", "in_progress", "waiting", "resolved", "closed"] as const;
++export const STATUSES = ["open", "in_progress", "waiting", "escalated", "resolved", "closed"] as const;
+ export type Status = (typeof STATUSES)[number];
+ 
+ export const PRIORITIES = ["low", "normal", "high"] as const;
+@@ -19,8 +19,9 @@ export interface Ticket {
+ 
+ const TRANSITIONS: Record<Status, readonly Status[]> = {
+   open: ["in_progress", "closed"],
+-  in_progress: ["waiting", "resolved"],
++  in_progress: ["waiting", "escalated", "resolved"],
+   waiting: ["in_progress", "closed"],
++  escalated: ["in_progress", "resolved"],
+   resolved: ["closed", "in_progress"],
+   closed: [],
+ };
