@@ -1,0 +1,13 @@
+{
+  "tokens": 36694,
+  "cache_read_tokens": 593457,
+  "output_tokens": 10931,
+  "turns": 23,
+  "duration_s": 97,
+  "denied": 2,
+  "denied_commands": [
+    "cp data/db.json ../db.json.bak 2>/dev/null; sha1sum data/db.json; node --test 2>&1 | tail -12",
+    "python3 - <<'EOF'\nimport re\np='src/routes/index.js'; s=open(p).read()\ns=s.replace(\"import { createOrder, getOrder, listOrders } from './orders.js';\",\"import { c"
+  ],
+  "error": null
+}

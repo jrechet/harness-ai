@@ -1,0 +1,12 @@
+{
+  "tokens": 44505,
+  "cache_read_tokens": 567687,
+  "output_tokens": 11742,
+  "turns": 21,
+  "duration_s": 102,
+  "denied": 1,
+  "denied_commands": [
+    "cat > src/routes/webhook.js <<'EOF'\nimport { readBody, sendJson } from '../lib/http.js';\nimport { log } from '../lib/logger.js';\nimport { verifySignature } from"
+  ],
+  "error": null
+}
