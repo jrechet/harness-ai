@@ -1,0 +1,14 @@
+{
+  "tokens": 105807,
+  "cache_read_tokens": 1008080,
+  "output_tokens": 20240,
+  "turns": 32,
+  "duration_s": 177,
+  "denied": 3,
+  "denied_commands": [
+    "cat Makefile .github/workflows/ci.yml internal/adapters/httpapi/server_test.go internal/adapters/postgres/store_integration_test.go internal/adapters/memory/sto",
+    "git checkout -b feat/deposits && cat > internal/domain/deposit.go <<'EOF'\npackage domain\n\nimport \"time\"\n\n// DepositID identifies a deposit.\ntype DepositID strin",
+    "env | grep -i -E 'database|pg' ; pg_isready 2>&1; docker ps 2>&1 | head -3"
+  ],
+  "error": null
+}

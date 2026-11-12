@@ -1,0 +1,14 @@
+{
+  "tokens": 102380,
+  "cache_read_tokens": 699300,
+  "output_tokens": 19371,
+  "turns": 31,
+  "duration_s": 161,
+  "denied": 3,
+  "denied_commands": [
+    "cat go.mod; cat tools/archcheck/main.go | head -60; make test arch 2>&1 | tail -15; golangci-lint run 2>&1 | tail -10",
+    "cat > internal/app/deposit_test.go <<'EOF'\npackage app_test\n\nimport (\n\t\"context\"\n\t\"errors\"\n\t\"testing\"\n\n\t\"example.test/ledger/internal/app\"\n\t\"example.test/ledger",
+    "golangci-lint run ./..."
+  ],
+  "error": null
+}
