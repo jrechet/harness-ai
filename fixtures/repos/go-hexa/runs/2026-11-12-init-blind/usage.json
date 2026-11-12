@@ -1,0 +1,16 @@
+{
+  "tokens": 55932,
+  "cache_read_tokens": 890493,
+  "output_tokens": 10678,
+  "turns": 36,
+  "duration_s": 106,
+  "denied": 5,
+  "denied_commands": [
+    "cd /tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-edzcbpjh/kit; find . -type f | head -50; cat skills/harness-init/SKILL.md",
+    "go run ./tools/archcheck; echo \"exit=$?\"",
+    "golangci-lint run 2>&1 | tail -15; echo \"exit=$?\"",
+    "make lint",
+    "make e2e"
+  ],
+  "error": null
+}
