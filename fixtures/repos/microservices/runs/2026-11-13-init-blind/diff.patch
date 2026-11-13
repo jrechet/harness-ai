@@ -1,0 +1,325 @@
+diff --git a/.harness/state.json b/.harness/state.json
+new file mode 100644
+index 0000000..d3ab9f6
+--- /dev/null
++++ b/.harness/state.json
+@@ -0,0 +1,297 @@
++{
++  "schema": "harness-state/1",
++  "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-t6xap764/repo",
++  "date": "2026-11-13",
++  "level": {
++    "reached": 1,
++    "name": "Cadré",
++    "next": 2
++  },
++  "target": {
++    "level": null,
++    "name": null,
++    "reached": false
++  },
++  "levels": [
++    {
++      "level": 0,
++      "name": "Rien",
++      "summary": "Aucun fichier d'instructions : l'agent part de zéro à chaque session.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [],
++      "passed_checks": 0,
++      "total_checks": 0
++    },
++    {
++      "level": 1,
++      "name": "Cadré",
++      "summary": "Un AGENTS.md court, un mode explicite, des stubs : l'agent sait où il est.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L1.source",
++          "label": "Un fichier d'instructions existe (AGENTS.md)",
++          "passed": true,
++          "value": "AGENTS.md",
++          "next_action": null
++        },
++        {
++          "id": "L1.mode",
++          "label": "La ligne « Mode : délégation | assistance » est présente",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null
++        },
++        {
++          "id": "L1.short",
++          "label": "Le fichier chargé fait au plus 60 lignes",
++          "passed": true,
++          "value": 25,
++          "next_action": null
++        },
++        {
++          "id": "L1.single_source",
++          "label": "CLAUDE.md est un stub @AGENTS.md (ou absent)",
++          "passed": true,
++          "value": {
++            "exists": true,
++            "lines": 1,
++            "loaded_lines": 25,
++            "is_stub": true
++          },
++          "next_action": null
++        },
++        {
++          "id": "L1.forbidden",
++          "label": "Une section « Interdits » dit ce qu'un agent ne fait jamais",
++          "passed": true,
++          "value": true,
++          "next_action": null
++        }
++      ],
++      "passed_checks": 5,
++      "total_checks": 5
++    },
++    {
++      "level": 2,
++      "name": "Bouclé",
++      "summary": "La boucle de retour tourne : les incidents deviennent des règles.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L2.maintenance",
++          "label": "Une section Maintenance dit comment le fichier évolue",
++          "passed": false,
++          "value": false,
++          "next_action": "Ajouter la section Maintenance du template harness-init."
++        },
++        {
++          "id": "L2.rule_convention",
++          "label": "La convention `rule:` en review est documentée",
++          "passed": false,
++          "value": false,
++          "next_action": "Documenter : un commentaire de review qui commence par `rule:` est une règle candidate."
++        },
++        {
++          "id": "L2.marker_fresh",
++          "label": "Un harvest a tourné depuis moins de 45 jours",
++          "passed": false,
++          "value": null,
++          "next_action": "Lancer harness-harvest et fusionner sa PR, qui pose le marqueur."
++        },
++        {
++          "id": "L2.signal",
++          "label": "Le dernier harvest a trouvé au moins un signal réel (S1–S4)",
++          "passed": false,
++          "value": null,
++          "next_action": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore."
++        }
++      ],
++      "passed_checks": 0,
++      "total_checks": 4
++    },
++    {
++      "level": 3,
++      "name": "Vérifié",
++      "summary": "Les règles obligatoires sont portées par des outils, pas par du texte.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L3.ci",
++          "label": "Une CI existe (workflows ou .gitlab-ci.yml)",
++          "passed": true,
++          "value": [
++            "ci.yml"
++          ],
++          "next_action": null
++        },
++        {
++          "id": "L3.guarded",
++          "label": "Au moins 50 % des règles sont « Vérifiée par » un outil",
++          "passed": false,
++          "value": 0.38,
++          "next_action": "Pousser les règles racontées en L3 : lint custom, test d'architecture, check de PR."
++        },
++        {
++          "id": "L3.justified",
++          "label": "Au moins 50 % des règles disent pourquoi",
++          "passed": true,
++          "value": 1.0,
++          "next_action": null
++        },
++        {
++          "id": "L3.audit",
++          "label": "Un harness-audit existe et n'a aucun P1 ouvert",
++          "passed": false,
++          "value": null,
++          "next_action": "Lancer harness-audit, écrire son JSON dans .harness/audit.json, traiter les P1."
++        }
++      ],
++      "passed_checks": 2,
++      "total_checks": 4
++    },
++    {
++      "level": 4,
++      "name": "Délégué",
++      "summary": "Des tâches entières sont confiées à l'agent et reviennent propres.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L4.mode",
++          "label": "Le mode est délégation",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null
++        },
++        {
++          "id": "L4.process",
++          "label": "Une section « Processus de travail » cadre l'agent",
++          "passed": false,
++          "value": false,
++          "next_action": "Ajouter : quand s'arrêter et demander, critère de fini, CI rouge, test flaky."
++        },
++        {
++          "id": "L4.contracts",
++          "label": "Au moins un contrat de tâche existe et est référencé",
++          "passed": false,
++          "value": 0,
++          "next_action": "Créer .claude/skills/<tâche>/SKILL.md pour la première tâche déléguée et le citer dans AGENTS.md."
++        },
++        {
++          "id": "L4.clean_prs",
++          "label": "Le dernier harvest voit des PRs d'agent sans correction après coup",
++          "passed": false,
++          "value": null,
++          "next_action": "Chaque correction après coup (S2) est une règle ou un garde-fou manquant : les traiter."
++        },
++        {
++          "id": "L4.cut_the_agent",
++          "label": "Le test « coupe l'agent » de l'audit passe",
++          "passed": false,
++          "value": null,
++          "next_action": "Pousser en L3/L4 les étapes qui n'existent que dans des prompts."
++        }
++      ],
++      "passed_checks": 1,
++      "total_checks": 5
++    }
++  ],
++  "layers": {
++    "source": "estimate",
++    "layers": {
++      "L1": {
++        "total": null,
++        "misplaced": null
++      },
++      "L2": {
++        "total": 1,
++        "misplaced": null
++      },
++      "L3": {
++        "total": 1,
++        "misplaced": null
++      },
++      "L4": {
++        "total": 1,
++        "misplaced": null
++      }
++    },
++    "hint": "Lancer harness-audit pour une vue par couche mesurée."
++  },
++  "next_actions": [
++    "Ajouter la section Maintenance du template harness-init.",
++    "Documenter : un commentaire de review qui commence par `rule:` est une règle candidate.",
++    "Lancer harness-harvest et fusionner sa PR, qui pose le marqueur."
++  ],
++  "dangling": [],
++  "facts": {
++    "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-t6xap764/repo",
++    "date": "2026-11-13",
++    "instructions": {
++      "files": {
++        "AGENTS.md": {
++          "exists": true,
++          "lines": 25,
++          "loaded_lines": 25,
++          "is_stub": false
++        },
++        "CLAUDE.md": {
++          "exists": true,
++          "lines": 1,
++          "loaded_lines": 25,
++          "is_stub": true
++        },
++        ".github/copilot-instructions.md": {
++          "exists": false
++        },
++        ".cursor/rules": {
++          "exists": false,
++          "files": []
++        }
++      },
++      "source": {
++        "path": "AGENTS.md",
++        "mode": "delegation",
++        "lines": 25,
++        "rules_total": 8,
++        "rules_guarded": 3,
++        "rules_unguarded_marked": 2,
++        "rules_justified": 8,
++        "rules_dated": 8,
++        "oldest_rule_date": "2024-06",
++        "has_maintenance_section": false,
++        "has_process_section": false,
++        "has_forbidden_section": true,
++        "mentions_rule_convention": false,
++        "harvest_marker": null
++      }
++    },
++    "contracts": {
++      "count": 0,
++      "items": []
++    },
++    "guardrails": {
++      "tools": {
++        "codeowners": [
++          ".github/CODEOWNERS"
++        ]
++      },
++      "workflows": [
++        "ci.yml"
++      ],
++      "has_ci": true
++    },
++    "audit": null,
++    "harvest": null,
++    "harvest_marker_age_days": null,
++    "config": {
++      "target_level": null
++    },
++    "dangling": []
++  }
++}
+diff --git a/AGENTS.md b/AGENTS.md
+index 44ea25a..8f0f0fa 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -14,13 +14,12 @@ Le back-office d'une boutique en ligne, en trois services : `orders` prend les c
+ 
+ ## Règles
+ - Ce qu'un service publie ou répond est déclaré dans `contracts/`, et rien d'autre n'en sort : les schémas sont stricts. Pourquoi : le contrat est tout ce qu'un autre service a le droit de connaître (ADR 0001). Vérifiée par : `services/orders/test_contract.py` et `services/billing/test_contract.py`, avec `tools/schema.py`. [2024-06]
+-- Un changement de contrat est additif : on ajoute un champ, on ne renomme rien, on ne retire rien, on ne change le type de rien. Pourquoi : `customer_email` renommé en `email` le 12 mai 2026, 1 840 confirmations de commande jamais envoyées (`docs/postmortems/2026-05-champ-renomme.md`). Vérifiée par : `services/orders/test_contract.py`. [2026-05]
++- Un changement de contrat est additif : on ajoute un champ, on ne renomme rien, on ne retire rien, on ne change le type de rien. Pourquoi : `customer_email` renommé en `email` le 12 mai 2026, 1 840 confirmations de commande jamais envoyées (`docs/postmortems/2026-05-champ-renomme.md`). (non vérifiée) : `test_contract.py` reste vert quand le schéma et le fournisseur changent ensemble, et les tests de `billing` et `notifications` fabriquent leurs événements à la main sans les valider contre `contracts/` ; des lecteurs hors dépôt (export comptable, entrepôt) ne sont testés nulle part. [2026-05]
+ - Un champ de contrat qu'un autre remplace reste publié et reçoit `"deprecated": true` dans son schéma ; on ne le retire pas. Pourquoi : les consommateurs hors de ce dépôt lisent cette annotation pour planifier leur migration ; convenu avec eux en septembre 2026, écrit nulle part ailleurs. (non vérifiée) [2026-09]
+ - Un consommateur d'événements est idempotent : le broker livre « au moins une fois », le même événement revient avec le même `id`. Pourquoi : 212 factures émises en double le 18 novembre 2025 (`docs/postmortems/2025-11-factures-en-double.md`). Vérifiée par : `shared/bus.py`, qui livre chaque événement deux fois dans tous les tests. [2025-11]
+-- Un service n'importe jamais le code d'un autre service ; ce qu'il lui faut, il le lit dans l'événement ou le demande à l'API. Pourquoi : `billing` importait le catalogue de `orders`, les deux ne se déployaient plus l'un sans l'autre (ADR 0001). (non vérifiée) [2024-06]
+-- Avant d'ouvrir une PR, lance `grep -rnE "^(from|import) services\." services/ shared/ tools/` et relis chaque ligne à la main : un service n'importe que lui-même, `shared/` et `tools/` n'importent aucun service. Pourquoi : c'est le seul contrôle de la règle précédente. [2024-06]
+-- Un événement pèse moins de 64 Ko, enveloppe comprise : ni fichier ni export dans un événement, on publie son adresse. Pourquoi : au-delà, le plan mutualisé du broker coupe la connexion sans erreur côté éditeur ; un export de catalogue perdu en octobre 2024. (non vérifiée) [2024-10]
++- Un service n'importe jamais le code d'un autre service ; ce qu'il lui faut, il le lit dans l'événement ou le demande à l'API. Pourquoi : `billing` importait le catalogue de `orders`, les deux ne se déployaient plus l'un sans l'autre (ADR 0001). Vérifiée par : `tools/check_imports.py` (job `boundaries`). [2024-06]
+ 
+ ## Interdits
+ - Pointer `BROKER_URL` vers la préproduction ou la production depuis un poste ou une session d'agent. Pourquoi : une relecture lancée d'un poste le 9 janvier 2026 a renvoyé 3 100 e-mails de facture à des clients (`docs/exploitation.md`). [2026-01]
+-- Affaiblir un garde-fou pour faire passer un test : `deliveries=1` dans le test d'un service, un mot-clé de plus toléré par `tools/schema.py`, une exception dans `tools/check_imports.py`. Pourquoi : chacun porte une règle ci-dessus ; `.github/CODEOWNERS` les fait relire par l'équipe plateforme. [2025-11]
++- Affaiblir un garde-fou pour faire passer un test : `deliveries=1` dans le test d'un service, un mot-clé de plus toléré par `tools/schema.py`, une exception dans `tools/check_imports.py`. Pourquoi : chacun porte une règle ci-dessus ; `.github/CODEOWNERS` fait relire `tools/` et `shared/` par l'équipe plateforme, mais rien ne relit spécialement les tests de `services/`. [2025-11]
++- Modifier une facture émise, y compris par un script ou une migration. Pourquoi : obligation légale, une erreur se rattrape par un avoir que la comptabilité émet (`services/billing/AGENTS.md`). [2025-11]

@@ -235,7 +235,6 @@
         "timeout*",
         "délai* de requête",
         "coupe* les requêtes",
-        "hébergeur",
         "volume*",
         "nombre de lignes",
         "gros fichier*",
@@ -243,8 +242,9 @@
         "import csv",
         "import de fichier*",
         "importer un fichier",
-        "traitement* en masse",
-        "traitement* lancé*"
+        "traitement* lancé*",
+        "plafond de l'hébergeur",
+        "limite de l'hébergeur"
       ],
       "answer": "Une chose qui n'est écrite nulle part : l'hébergeur coupe toute requête à trente secondes. On a convenu avec lui, en février 2025, qu'un traitement lancé depuis une page ne dépasse pas 500 lignes, et que ce plafond se lit dans le réglage Django `CURSUS_IMPORT_MAX_ROWS`, pour qu'il puisse le baisser sans nous. Le réglage n'existe pas encore : aucun traitement de ce genre n'a été écrit. Au-delà du plafond, on refuse le fichier entier."
     }

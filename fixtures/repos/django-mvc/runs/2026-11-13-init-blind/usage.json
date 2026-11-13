@@ -1,0 +1,13 @@
+{
+  "tokens": 100255,
+  "cache_read_tokens": 869056,
+  "output_tokens": 15284,
+  "turns": 38,
+  "duration_s": 146,
+  "denied": 2,
+  "denied_commands": [
+    "cd /tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-q_ap6iym/kit; ls -R; cat skills/harness-init/SKILL.md",
+    "/tmp/claude-0/-tmp-claude-0--home-user-c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b-scratchpad-banc-w-q-ap6iym-repo/8b8eb796-3737-4be0-a0dc-4866c78ef333/scratchpad/venv"
+  ],
+  "error": null
+}

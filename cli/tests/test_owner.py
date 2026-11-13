@@ -80,7 +80,8 @@ class BenchOwnerTests(unittest.TestCase):
     """Chaque propriétaire simulé du banc entend les façons courantes de demander ce qui n'est écrit
     nulle part, et seulement elles : une question sur le mode, la CI ou un point du code ne lui fait pas
     dire le fait. Pour le service Go, les questions refusées sont celles d'un pas 1 réel qui ne l'a pas
-    demandé (2026-11-12)."""
+    demandé (2026-11-12) ; pour le monolithe Django, deux questions d'un pas 1 réel qui l'avaient
+    fait sortir sans le demander (2026-11-13)."""
 
     ASKS = ["Qu'est-ce que vous redites à chaque revue, ou qu'un nouveau venu apprend en se trompant ?",
             "Y a-t-il des règles que l'équipe applique sans les avoir jamais écrites ?",
@@ -101,7 +102,9 @@ class BenchOwnerTests(unittest.TestCase):
         "django-mvc": ["Le serveur est encore en Python 3.8 ?",
                        "Vous êtes tenus à Django 4.2 LTS ?",
                        "D'où viennent AGENTS.md et CLAUDE.md ?",
-                       "Pourquoi rien ne vérifie le verrou de services.enroll() ?"],
+                       "Pourquoi rien ne vérifie le verrou de services.enroll() ?",
+                       "AGENTS.md dit de rester sur Django 4.2 LTS parce que l'hébergeur ne valide que les LTS. Périmé ?",
+                       "Le post-mortem dit qu'un traitement en masse n'envoie jamais un e-mail par ligne. Toujours vrai ?"],
     }
 
     def owners(self):
