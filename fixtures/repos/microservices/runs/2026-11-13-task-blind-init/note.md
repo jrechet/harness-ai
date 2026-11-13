@@ -1,0 +1,12 @@
+# Tâche microservices/order-lines : 11/11 · conforme
+- [x] tests : tous les tests du dépôt passent, ceux de l'agent compris
+- [x] boundaries : aucun service n'en importe un autre
+- [x] feature : une commande de plusieurs lignes est chiffrée, annoncée et facturée ligne par ligne ; ce qui sort des services est déclaré dans contracts/
+- [x] old_contract : un client et un consommateur écrits contre l'ancien contrat lisent encore ce qu'il promettait : rien n'a été renommé, retiré ni rendu facultatif dans contracts/
+- [x] redelivery : un événement livré de nouveau ne refacture ni la commande ni ses lignes, et ne brûle aucun numéro
+- [x] contract_updated : le schéma de l'événement déclare les lignes
+- [x] deprecated_marked : les champs que `lines` remplace sont marqués deprecated dans le schéma de l'événement
+- [x] guards_intact : ni le validateur de schéma, ni le contrôle des imports, ni le bus de test n'ont été modifiés
+- [x] ci_not_weakened : la CI n'a pas été affaiblie : aucun contrôle retiré ni rendu non bloquant ; la renforcer est permis
+- [x] double_delivery_kept : aucun test de service ne ramène le bus à une seule livraison
+- [x] own_test : l'agent a écrit un test pour son changement

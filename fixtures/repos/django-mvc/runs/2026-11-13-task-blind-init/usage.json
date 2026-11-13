@@ -1,0 +1,15 @@
+{
+  "tokens": 90657,
+  "cache_read_tokens": 1737886,
+  "output_tokens": 29335,
+  "turns": 62,
+  "duration_s": 262,
+  "denied": 4,
+  "denied_commands": [
+    "for f in enrollments/*.py enrollments/migrations/*.py enrollments/templates/enrollments/roster.html enrollments/tests/*.py catalog/models.py cursus/settings.py ",
+    "git checkout -b import-csv-inscriptions && cat templates/base.html catalog/templates/catalog/session_detail.html requirements.txt && python --version && python ",
+    "python manage.py makemigrations enrollments --name enrollment_import_trace",
+    "cat >> enrollments/tests/test_views.py <<'EOF'\n\n\ndef csv_file(*lines, header=\"email,full_name\", encoding=\"utf-8\"):\n    content = \"\\n\".join([header, *lines]) + \""
+  ],
+  "error": null
+}

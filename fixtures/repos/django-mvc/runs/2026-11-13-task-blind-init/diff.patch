@@ -1,0 +1,665 @@
+diff --git a/README.md b/README.md
+index 19fb0c6..9d54597 100644
+--- a/README.md
++++ b/README.md
+@@ -26,7 +26,8 @@ python3 -m venv .venv
+ | `/` | tous | sessions à venir et places restantes ; `?course=<slug>` filtre par formation |
+ | `/sessions/<id>/` | tous | une session et son formulaire d'inscription |
+ | `/sessions/<id>/enroll/` | tous | `POST` : s'inscrire ; confirmé s'il reste une place, sinon liste d'attente |
+-| `/sessions/<id>/roster/` | staff | les inscrits d'une session |
++| `/sessions/<id>/roster/` | staff | les inscrits d'une session, avec qui a importé chacun et quand |
++| `/sessions/<id>/import/` | staff | importer des inscrits depuis un CSV `email,full_name` ; aucun e-mail envoyé, au plus `CURSUS_IMPORT_MAX_ROWS` lignes |
+ | `/enrollments/<id>/cancel/` | staff | `POST` : annuler ; la place libérée va au premier de la liste d'attente |
+ | `/admin/` | staff | formations, sessions, inscriptions |
+ 
+diff --git a/catalog/tests/test_queries.py b/catalog/tests/test_queries.py
+index 2c47d5a..af5f2fc 100644
+--- a/catalog/tests/test_queries.py
++++ b/catalog/tests/test_queries.py
+@@ -6,6 +6,7 @@ A template that reaches for a relation or a count on each row breaks these tests
+ from django.contrib.auth import get_user_model
+ from django.test import TestCase
+ from django.urls import reverse
++from django.utils import timezone
+ 
+ from .test_pages import fill, make_session
+ 
+@@ -27,3 +28,14 @@ class ListPagesQueryCountTests(TestCase):
+         with self.assertNumQueries(4):
+             response = self.client.get(reverse("enrollments:roster", args=[session.pk]))
+         self.assertContains(response, "@example.test", count=25)
++
++    def test_the_roster_does_not_query_per_importing_user(self):
++        session = make_session(capacity=20)
++        fill(session, confirmed=20, waitlisted=5)
++        staff = get_user_model().objects.create_user("lea", is_staff=True)
++        session.enrollments.update(imported_by=staff, imported_at=timezone.now())
++        self.client.force_login(staff)
++        # the browser session, the user, the training session, its enrollments with their importer
++        with self.assertNumQueries(4):
++            response = self.client.get(reverse("enrollments:roster", args=[session.pk]))
++        self.assertContains(response, "par lea", count=25)
+diff --git a/cursus/settings.py b/cursus/settings.py
+index c3f6746..88a5d91 100644
+--- a/cursus/settings.py
++++ b/cursus/settings.py
+@@ -74,6 +74,10 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
+ 
+ LOGIN_URL = "admin:login"
+ 
++# The most rows a file import (or any bulk work started from a page) handles in one request. The host
++# cuts every request at 30 s: a larger file is refused whole. The host may lower it without us.
++CURSUS_IMPORT_MAX_ROWS = int(os.environ.get("CURSUS_IMPORT_MAX_ROWS", "500"))
++
+ # Outside production every e-mail is printed on the console.
+ EMAIL_BACKEND = os.environ.get("CURSUS_EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend")
+ EMAIL_HOST = os.environ.get("CURSUS_SMTP_HOST", "localhost")
+diff --git a/docs/exploitation.md b/docs/exploitation.md
+index e4992c9..e7cbad2 100644
+--- a/docs/exploitation.md
++++ b/docs/exploitation.md
+@@ -7,7 +7,7 @@
+ | CI | SQLite en mémoire | boîte de test de Django | GitHub Actions |
+ | production | PostgreSQL | SMTP du prestataire | la fusion sur `main` |
+ 
+-Variables lues par `cursus/settings.py` : `CURSUS_SECRET_KEY`, `CURSUS_DEBUG`, `CURSUS_ALLOWED_HOSTS`, `CURSUS_DB_HOST`, `CURSUS_DB_NAME`, `CURSUS_DB_USER`, `CURSUS_DB_PASSWORD`, `CURSUS_EMAIL_BACKEND`, `CURSUS_SMTP_HOST`, `CURSUS_SMTP_USER`, `CURSUS_SMTP_PASSWORD`. Leurs valeurs de production vivent dans le coffre de l'hébergeur, jamais dans le dépôt.
++Variables lues par `cursus/settings.py` : `CURSUS_SECRET_KEY`, `CURSUS_DEBUG`, `CURSUS_ALLOWED_HOSTS`, `CURSUS_DB_HOST`, `CURSUS_DB_NAME`, `CURSUS_DB_USER`, `CURSUS_DB_PASSWORD`, `CURSUS_EMAIL_BACKEND`, `CURSUS_SMTP_HOST`, `CURSUS_SMTP_USER`, `CURSUS_SMTP_PASSWORD`, `CURSUS_IMPORT_MAX_ROWS` (nombre maximal de lignes d'un import lancé depuis une page, 500 par défaut ; l'hébergeur coupe toute requête à 30 s et peut le baisser). Leurs valeurs de production vivent dans le coffre de l'hébergeur, jamais dans le dépôt.
+ 
+ ## Déployer
+ La fusion d'une PR sur `main` déclenche le déploiement chez l'hébergeur : installation de `requirements.txt` et du pilote PostgreSQL, `python manage.py migrate`, `collectstatic`, redémarrage. Aucune étape manuelle, aucun retour arrière automatique.
+diff --git a/enrollments/admin.py b/enrollments/admin.py
+index 5db86e5..266c52a 100644
+--- a/enrollments/admin.py
++++ b/enrollments/admin.py
+@@ -10,6 +10,7 @@ class EnrollmentAdmin(admin.ModelAdmin):
+     list_filter = ("status", "session__course")
+     list_select_related = ("session__course",)
+     search_fields = ("full_name", "email")
++    readonly_fields = ("imported_by", "imported_at")
+     actions = ["cancel_selected"]
+ 
+     @admin.action(description="Annuler les inscriptions sélectionnées")
+diff --git a/enrollments/forms.py b/enrollments/forms.py
+index 13b5041..ef14110 100644
+--- a/enrollments/forms.py
++++ b/enrollments/forms.py
+@@ -1,6 +1,76 @@
++import codecs
++import csv
++
+ from django import forms
++from django.conf import settings
++from django.core.exceptions import ValidationError
++from django.core.validators import validate_email
++
++from .services import ImportRow
++
++IMPORT_HEADER = ["email", "full_name"]
++FULL_NAME_MAX_LENGTH = 200
++MAX_REPORTED_ERRORS = 10
+ 
+ 
+ class EnrollmentForm(forms.Form):
+-    full_name = forms.CharField(label="Nom et prénom", max_length=200)
++    full_name = forms.CharField(label="Nom et prénom", max_length=FULL_NAME_MAX_LENGTH)
+     email = forms.EmailField(label="Adresse e-mail")
++
++
++class EnrollmentImportForm(forms.Form):
++    """Reads a UTF-8 CSV file with the header `email,full_name`. The file is accepted whole or
++    refused whole: one bad line, or more lines than `settings.CURSUS_IMPORT_MAX_ROWS`, and nothing
++    is imported. `cleaned_data["file"]` is the list of `ImportRow`."""
++
++    file = forms.FileField(label="Fichier CSV (UTF-8, en-tête email,full_name)")
++
++    def clean_file(self) -> list[ImportRow]:
++        limit = settings.CURSUS_IMPORT_MAX_ROWS
++        # utf-8-sig also reads the byte order mark that spreadsheet programs put in front.
++        lines = codecs.iterdecode(self.cleaned_data["file"], "utf-8-sig")
++        reader = csv.reader(lines)
++        rows, errors, count = [], [], 0
++        try:
++            header = next(reader, None)
++            if header is None or [cell.strip().lower() for cell in header] != IMPORT_HEADER:
++                raise ValidationError("La première ligne doit être l'en-tête « email,full_name ».")
++            for cells in reader:
++                if not any(cell.strip() for cell in cells):
++                    continue
++                count += 1
++                if count > limit:
++                    raise ValidationError(
++                        f"Le fichier dépasse {limit} lignes : rien n'a été importé. Découpez-le en plusieurs fichiers."
++                    )
++                if error := self._check(cells):
++                    errors.append(f"Ligne {reader.line_num} : {error}")
++                    continue
++                rows.append(ImportRow(email=cells[0].strip(), full_name=cells[1].strip()))
++        except UnicodeDecodeError:
++            raise ValidationError("Le fichier n'est pas en UTF-8.")
++        except csv.Error as exc:
++            raise ValidationError(f"Ligne {reader.line_num} : le fichier n'est pas un CSV lisible ({exc}).")
++        if errors:
++            shown = errors[:MAX_REPORTED_ERRORS]
++            if len(errors) > MAX_REPORTED_ERRORS:
++                shown.append(f"… et {len(errors) - MAX_REPORTED_ERRORS} autre(s) ligne(s) en erreur.")
++            raise ValidationError(["Rien n'a été importé."] + shown)
++        if not rows:
++            raise ValidationError("Le fichier ne contient aucune ligne à importer.")
++        return rows
++
++    @staticmethod
++    def _check(cells: list[str]) -> str | None:
++        if len(cells) != len(IMPORT_HEADER):
++            return f"{len(IMPORT_HEADER)} colonnes attendues, {len(cells)} trouvées."
++        email, full_name = (cell.strip() for cell in cells)
++        try:
++            validate_email(email)
++        except ValidationError:
++            return f"adresse e-mail invalide « {email} »."
++        if not full_name:
++            return "nom manquant."
++        if len(full_name) > FULL_NAME_MAX_LENGTH:
++            return f"nom de plus de {FULL_NAME_MAX_LENGTH} caractères."
++        return None
+diff --git a/enrollments/migrations/0003_enrollment_import_trace.py b/enrollments/migrations/0003_enrollment_import_trace.py
+new file mode 100644
+index 0000000..82617fa
+--- /dev/null
++++ b/enrollments/migrations/0003_enrollment_import_trace.py
+@@ -0,0 +1,24 @@
++from django.conf import settings
++from django.db import migrations, models
++import django.db.models.deletion
++
++
++class Migration(migrations.Migration):
++
++    dependencies = [
++        ('enrollments', '0002_one_active_enrollment_per_email'),
++        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
++    ]
++
++    operations = [
++        migrations.AddField(
++            model_name='enrollment',
++            name='imported_at',
++            field=models.DateTimeField(blank=True, null=True, verbose_name='importé le'),
++        ),
++        migrations.AddField(
++            model_name='enrollment',
++            name='imported_by',
++            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL, verbose_name='importé par'),
++        ),
++    ]
+diff --git a/enrollments/models.py b/enrollments/models.py
+index bbded83..9fcb66e 100644
+--- a/enrollments/models.py
++++ b/enrollments/models.py
+@@ -1,3 +1,4 @@
++from django.conf import settings
+ from django.db import models
+ from django.db.models import Q
+ 
+@@ -14,6 +15,17 @@ class Enrollment(models.Model):
+     status = models.CharField("statut", max_length=12, choices=Status.choices)
+     created_at = models.DateTimeField("inscrit le", auto_now_add=True)
+     cancelled_at = models.DateTimeField("annulé le", null=True, blank=True)
++    # Set on an enrollment created by a file import, empty otherwise. `imported_at` stays when the
++    # importing user is deleted, so an imported enrollment remains recognisable.
++    imported_by = models.ForeignKey(
++        settings.AUTH_USER_MODEL,
++        on_delete=models.SET_NULL,
++        null=True,
++        blank=True,
++        related_name="+",
++        verbose_name="importé par",
++    )
++    imported_at = models.DateTimeField("importé le", null=True, blank=True)
+ 
+     class Meta:
+         ordering = ["created_at", "id"]
+diff --git a/enrollments/services.py b/enrollments/services.py
+index 0cd649a..40b0fef 100644
+--- a/enrollments/services.py
++++ b/enrollments/services.py
+@@ -1,7 +1,10 @@
+ """The business rules of an enrollment: seats, waiting list, cancellation. Views and admin actions
+ call these functions; they hold no rule of their own (docs/adr/0001)."""
++from collections.abc import Iterable
++from dataclasses import dataclass
+ from functools import partial
+ 
++from django.conf import settings
+ from django.db import transaction
+ from django.utils import timezone
+ 
+@@ -23,6 +26,26 @@ class SessionClosed(EnrollmentError):
+     pass
+ 
+ 
++class TooManyRows(EnrollmentError):
++    def __init__(self, count: int, limit: int):
++        super().__init__(count, limit)
++        self.count = count
++        self.limit = limit
++
++
++@dataclass(frozen=True)
++class ImportRow:
++    email: str
++    full_name: str
++
++
++@dataclass(frozen=True)
++class ImportResult:
++    enrolled: int  # rows that created an enrollment, the waitlisted ones included
++    waitlisted: int  # of those, the ones past the last seat
++    skipped: int  # rows whose address was already enrolled, before or earlier in the file
++
++
+ def enroll(session: Session, *, email: str, full_name: str) -> Enrollment:
+     """Enrolls one person: confirmed while a seat is left, on the waiting list after that.
+     The e-mail leaves once the transaction has committed."""
+@@ -44,6 +67,53 @@ def enroll(session: Session, *, email: str, full_name: str) -> Enrollment:
+     return enrollment
+ 
+ 
++def import_enrollments(session: Session, rows: Iterable[ImportRow], *, imported_by) -> ImportResult:
++    """Enrolls a list of people at once, as sent by a client company, and records who imported them.
++
++    Seats go in file order, confirmed while one is left, on the waiting list after that. An address
++    already enrolled in the session, or met earlier in the file, is skipped. All or nothing: one
++    transaction, the session locked once, and more than `settings.CURSUS_IMPORT_MAX_ROWS` rows are
++    refused before anything is written.
++
++    Sends no e-mail: bulk work never sends one per row (docs/postmortems/2024-03-confirmations-en-masse.md).
++    If the people must be told, the training department does it itself, in one go."""
++    rows = list(rows)
++    limit = settings.CURSUS_IMPORT_MAX_ROWS
++    if len(rows) > limit:
++        raise TooManyRows(len(rows), limit)
++    now = timezone.now()
++    enrolled = waitlisted = 0
++    with transaction.atomic():
++        # Same lock as enroll(): a web enrollment arriving during the import waits for it.
++        locked = Session.objects.select_for_update().get(pk=session.pk)
++        if locked.has_started:
++            raise SessionClosed(locked.pk)
++        active = locked.enrollments.exclude(status=Enrollment.Status.CANCELLED)
++        known = set(active.values_list("email", flat=True))
++        seats_taken = active.filter(status=Enrollment.Status.CONFIRMED).count()
++        for row in rows:
++            email = row.email.strip().lower()
++            if email in known:
++                continue
++            known.add(email)
++            if seats_taken < locked.capacity:
++                status = Enrollment.Status.CONFIRMED
++                seats_taken += 1
++            else:
++                status = Enrollment.Status.WAITLISTED
++                waitlisted += 1
++            Enrollment.objects.create(
++                session=locked,
++                email=email,
++                full_name=row.full_name.strip(),
++                status=status,
++                imported_by=imported_by,
++                imported_at=now,
++            )
++            enrolled += 1
++    return ImportResult(enrolled=enrolled, waitlisted=waitlisted, skipped=len(rows) - enrolled)
++
++
+ def cancel(enrollment: Enrollment) -> Enrollment | None:
+     """Cancels an enrollment. A freed seat goes to the head of the waiting list: the promoted
+     enrollment is returned, None when nobody was waiting."""
+diff --git a/enrollments/templates/enrollments/import.html b/enrollments/templates/enrollments/import.html
+new file mode 100644
+index 0000000..f13cc11
+--- /dev/null
++++ b/enrollments/templates/enrollments/import.html
+@@ -0,0 +1,32 @@
++{% extends "base.html" %}
++
++{% block title %}Importer des inscrits : {{ session.course.title }}{% endblock %}
++
++{% block content %}
++<h1>Importer des inscrits : {{ session.course.title }}</h1>
++<p>{{ session.starts_at|date:"l j F Y, H:i" }}, {{ session.location }}, {{ session.capacity }} places.</p>
++
++{% if result %}
++<section class="import-result">
++  <h2>Bilan de l'import</h2>
++  <ul>
++    <li>{{ result.enrolled }} ligne{{ result.enrolled|pluralize }} inscrite{{ result.enrolled|pluralize }}{% if result.waitlisted %}, dont {{ result.waitlisted }} sur liste d'attente{% endif %}.</li>
++    <li>{{ result.skipped }} ligne{{ result.skipped|pluralize }} ignorée{{ result.skipped|pluralize }} : adresse déjà inscrite à cette session.</li>
++  </ul>
++  <p>Aucun e-mail n'a été envoyé aux personnes importées.</p>
++</section>
++{% endif %}
++
++<p>
++  Fichier CSV en UTF-8, première ligne <code>email,full_name</code>, puis une personne par ligne.
++  Une adresse déjà inscrite est ignorée. Au plus {{ max_rows }} lignes ; une ligne en erreur et rien n'est importé.
++  Aucun e-mail n'est envoyé.
++</p>
++<form method="post" enctype="multipart/form-data">
++  {% csrf_token %}
++  {{ form.as_p }}
++  <button type="submit">Importer</button>
++</form>
++
++<p><a href="{% url 'enrollments:roster' session.pk %}">Liste des inscrits</a></p>
++{% endblock %}
+diff --git a/enrollments/templates/enrollments/roster.html b/enrollments/templates/enrollments/roster.html
+index ce21529..de10c36 100644
+--- a/enrollments/templates/enrollments/roster.html
++++ b/enrollments/templates/enrollments/roster.html
+@@ -8,7 +8,7 @@
+ 
+ <table>
+   <thead>
+-    <tr><th>Nom</th><th>Adresse e-mail</th><th>Statut</th><th>Inscrit le</th><th></th></tr>
++    <tr><th>Nom</th><th>Adresse e-mail</th><th>Statut</th><th>Inscrit le</th><th>Import</th><th></th></tr>
+   </thead>
+   <tbody>
+     {% for enrollment in enrollments %}
+@@ -17,6 +17,11 @@
+       <td>{{ enrollment.email }}</td>
+       <td>{{ enrollment.get_status_display }}</td>
+       <td>{{ enrollment.created_at|date:"d/m/Y H:i" }}</td>
++      <td>
++        {% if enrollment.imported_at %}
++        Importé le {{ enrollment.imported_at|date:"d/m/Y H:i" }} par {% if enrollment.imported_by %}{{ enrollment.imported_by.get_username }}{% else %}un utilisateur supprimé{% endif %}
++        {% endif %}
++      </td>
+       <td>
+         {% if enrollment.is_active %}
+         <form method="post" action="{% url 'enrollments:cancel' enrollment.pk %}">
+@@ -27,10 +32,12 @@
+       </td>
+     </tr>
+     {% empty %}
+-    <tr><td colspan="5">Aucune inscription.</td></tr>
++    <tr><td colspan="6">Aucune inscription.</td></tr>
+     {% endfor %}
+   </tbody>
+ </table>
+ 
++<p><a href="{% url 'enrollments:import' session.pk %}">Importer des inscrits depuis un fichier CSV</a></p>
++
+ <p><a href="{{ session.get_absolute_url }}">Retour à la session</a></p>
+ {% endblock %}
+diff --git a/enrollments/tests/test_services.py b/enrollments/tests/test_services.py
+index 452014a..a3decea 100644
+--- a/enrollments/tests/test_services.py
++++ b/enrollments/tests/test_services.py
+@@ -1,6 +1,7 @@
++from django.contrib.auth import get_user_model
+ from django.core import mail
+ from django.db import transaction
+-from django.test import TestCase
++from django.test import TestCase, override_settings
+ 
+ from catalog.tests.test_pages import make_session
+ from enrollments import services
+@@ -38,6 +39,71 @@ class EnrollTests(TestCase):
+         self.assertEqual(enroll(make_session(days=20), "ana").status, "confirmed")
+ 
+ 
++def rows(*names):
++    return [services.ImportRow(email=f"{name}@example.test", full_name=name.title()) for name in names]
++
++
++class ImportTests(TestCase):
++    def setUp(self):
++        self.session = make_session(capacity=2)
++        self.staff = get_user_model().objects.create_user("lea", is_staff=True)
++
++    def test_seats_go_in_file_order_then_the_waiting_list(self):
++        result = services.import_enrollments(self.session, rows("ana", "bob", "cleo"), imported_by=self.staff)
++        self.assertEqual(result, services.ImportResult(enrolled=3, waitlisted=1, skipped=0))
++        statuses = dict(self.session.enrollments.values_list("email", "status"))
++        self.assertEqual(statuses["cleo@example.test"], "waitlisted")
++
++    def test_counts_the_seats_already_taken(self):
++        enroll(self.session, "ana")
++        enroll(self.session, "bob")
++        result = services.import_enrollments(self.session, rows("cleo"), imported_by=self.staff)
++        self.assertEqual(result.waitlisted, 1)
++
++    def test_an_address_already_enrolled_is_skipped(self):
++        enroll(self.session, "ana")
++        import_rows = [services.ImportRow(email=" ANA@example.test ", full_name="Ana bis")] + rows("bob")
++        result = services.import_enrollments(self.session, import_rows, imported_by=self.staff)
++        self.assertEqual((result.enrolled, result.skipped), (1, 1))
++        self.assertEqual(self.session.enrollments.get(email="ana@example.test").full_name, "Ana")
++
++    def test_an_address_twice_in_the_file_is_skipped(self):
++        result = services.import_enrollments(self.session, rows("ana", "bob", "ana"), imported_by=self.staff)
++        self.assertEqual((result.enrolled, result.skipped), (2, 1))
++        self.assertEqual(self.session.enrollments.count(), 2)
++
++    def test_a_cancelled_address_is_enrolled_again(self):
++        services.cancel(enroll(self.session, "ana"))
++        result = services.import_enrollments(self.session, rows("ana"), imported_by=self.staff)
++        self.assertEqual(result.enrolled, 1)
++
++    def test_records_who_imported_and_when(self):
++        services.import_enrollments(self.session, rows("ana"), imported_by=self.staff)
++        enrollment = self.session.enrollments.get()
++        self.assertEqual(enrollment.imported_by, self.staff)
++        self.assertIsNotNone(enrollment.imported_at)
++
++    def test_a_web_enrollment_is_not_marked_imported(self):
++        enrollment = enroll(self.session, "ana")
++        self.assertIsNone(enrollment.imported_by)
++        self.assertIsNone(enrollment.imported_at)
++
++    def test_sends_no_email(self):
++        with self.captureOnCommitCallbacks(execute=True):
++            services.import_enrollments(self.session, rows("ana", "bob", "cleo"), imported_by=self.staff)
++        self.assertEqual(mail.outbox, [])
++
++    def test_a_started_session_is_closed(self):
++        with self.assertRaises(services.SessionClosed):
++            services.import_enrollments(make_session(days=-1), rows("ana"), imported_by=self.staff)
++
++    @override_settings(CURSUS_IMPORT_MAX_ROWS=2)
++    def test_more_rows_than_the_limit_imports_nothing(self):
++        with self.assertRaises(services.TooManyRows):
++            services.import_enrollments(self.session, rows("ana", "bob", "cleo"), imported_by=self.staff)
++        self.assertFalse(self.session.enrollments.exists())
++
++
+ class CancelTests(TestCase):
+     def setUp(self):
+         self.session = make_session(capacity=1)
+diff --git a/enrollments/tests/test_views.py b/enrollments/tests/test_views.py
+index 91a4d19..345b2a3 100644
+--- a/enrollments/tests/test_views.py
++++ b/enrollments/tests/test_views.py
+@@ -1,7 +1,9 @@
+ from django.contrib.auth import get_user_model
+ from django.core import mail
+-from django.test import TestCase
++from django.core.files.uploadedfile import SimpleUploadedFile
++from django.test import TestCase, override_settings
+ from django.urls import reverse
++from django.utils import timezone
+ 
+ from catalog.tests.test_pages import fill, make_session
+ from enrollments.models import Enrollment
+@@ -75,8 +77,107 @@ class StaffPagesTests(TestCase):
+         self.assertEqual(self.session.enrollments.get(email="w0@example.test").status, "confirmed")
+         self.assertEqual(mail.outbox[-1].to, ["w0@example.test"])
+ 
++    def test_the_roster_shows_who_imported_an_enrollment(self):
++        self.session.enrollments.filter(email="c0@example.test").update(
++            imported_by=self.staff, imported_at=timezone.now()
++        )
++        self.client.force_login(self.staff)
++        response = self.client.get(self.roster)
++        self.assertContains(response, "par lea", count=1)
++
+     def test_cancelling_is_for_staff_only(self):
+         confirmed = self.session.enrollments.get(status="confirmed")
+         self.client.post(reverse("enrollments:cancel", args=[confirmed.pk]))
+         confirmed.refresh_from_db()
+         self.assertEqual(confirmed.status, "confirmed")
++
++
++def csv_file(*lines, header="email,full_name", encoding="utf-8"):
++    content = "\n".join([header, *lines]) + "\n"
++    return SimpleUploadedFile("inscrits.csv", content.encode(encoding), content_type="text/csv")
++
++
++class ImportViewTests(TestCase):
++    def setUp(self):
++        self.session = make_session(capacity=2)
++        self.url = reverse("enrollments:import", args=[self.session.pk])
++        self.staff = get_user_model().objects.create_user("lea", is_staff=True)
++        self.client.force_login(self.staff)
++
++    def upload(self, file):
++        with self.captureOnCommitCallbacks(execute=True):
++            return self.client.post(self.url, {"file": file})
++
++    def test_is_for_staff_only(self):
++        self.client.logout()
++        self.assertEqual(self.client.get(self.url).status_code, 302)
++        self.client.force_login(get_user_model().objects.create_user("visitor"))
++        self.assertEqual(self.client.get(self.url).status_code, 302)
++        self.client.post(self.url, {"file": csv_file("ana@example.test,Ana Morel")})
++        self.assertFalse(Enrollment.objects.exists())
++
++    def test_get_shows_the_upload_form(self):
++        response = self.client.get(self.url)
++        self.assertContains(response, 'type="file"')
++        self.assertContains(response, 'name="file"')
++        self.assertContains(response, 'enctype="multipart/form-data"')
++
++    def test_imports_and_shows_the_summary(self):
++        fill(self.session, confirmed=1)
++        response = self.upload(
++            csv_file(
++                "ana@example.test,Ana Morel",
++                "c0@example.test,Déjà Inscrit",
++                "ANA@example.test,Ana en double",
++                "bob@example.test,Bob Lenoir",
++            )
++        )
++        self.assertContains(response, "2 lignes inscrites, dont 1 sur liste d'attente")
++        self.assertContains(response, "2 lignes ignorées")
++        self.assertEqual(
++            set(self.session.enrollments.filter(imported_by=self.staff).values_list("email", flat=True)),
++            {"ana@example.test", "bob@example.test"},
++        )
++        self.assertEqual(mail.outbox, [])
++
++    def test_reads_a_byte_order_mark(self):
++        self.upload(csv_file("ana@example.test,Ana Morel", encoding="utf-8-sig"))
++        self.assertTrue(self.session.enrollments.filter(email="ana@example.test").exists())
++
++    def test_a_wrong_header_imports_nothing(self):
++        response = self.upload(csv_file("ana@example.test,Ana Morel", header="mail,nom"))
++        self.assertContains(response, "La première ligne doit être")
++        self.assertFalse(Enrollment.objects.exists())
++
++    def test_one_bad_line_imports_nothing(self):
++        response = self.upload(csv_file("ana@example.test,Ana Morel", "not-an-address,Bob", "cleo@example.test,"))
++        self.assertContains(response, "Ligne 3")
++        self.assertContains(response, "Ligne 4")
++        self.assertFalse(Enrollment.objects.exists())
++
++    def test_a_file_not_in_utf8_imports_nothing(self):
++        response = self.upload(csv_file("ana@example.test,Anaïs Morel", encoding="latin-1"))
++        self.assertContains(response, "pas en UTF-8")
++        self.assertFalse(Enrollment.objects.exists())
++
++    @override_settings(CURSUS_IMPORT_MAX_ROWS=2)
++    def test_a_file_over_the_limit_imports_nothing(self):
++        response = self.upload(csv_file("a@example.test,A", "b@example.test,B", "c@example.test,C"))
++        self.assertContains(response, "dépasse 2 lignes")
++        self.assertFalse(Enrollment.objects.exists())
++
++    @override_settings(CURSUS_IMPORT_MAX_ROWS=2)
++    def test_a_file_at_the_limit_is_imported(self):
++        self.upload(csv_file("a@example.test,A", "b@example.test,B", ""))
++        self.assertEqual(self.session.enrollments.count(), 2)
++
++    def test_a_started_session_imports_nothing(self):
++        url = reverse("enrollments:import", args=[make_session(days=-1).pk])
++        response = self.client.post(url, {"file": csv_file("ana@example.test,Ana Morel")})
++        self.assertContains(response, "closes")
++        self.assertFalse(Enrollment.objects.exists())
++
++    def test_the_roster_shows_the_import(self):
++        self.upload(csv_file("ana@example.test,Ana Morel"))
++        response = self.client.get(reverse("enrollments:roster", args=[self.session.pk]))
++        self.assertContains(response, "par lea")
+diff --git a/enrollments/urls.py b/enrollments/urls.py
+index 6beccca..5cdbdbe 100644
+--- a/enrollments/urls.py
++++ b/enrollments/urls.py
+@@ -7,5 +7,6 @@ app_name = "enrollments"
+ urlpatterns = [
+     path("sessions/<int:pk>/enroll/", views.enroll, name="enroll"),
+     path("sessions/<int:pk>/roster/", views.roster, name="roster"),
++    path("sessions/<int:pk>/import/", views.import_enrollments, name="import"),
+     path("enrollments/<int:pk>/cancel/", views.cancel, name="cancel"),
+ ]
+diff --git a/enrollments/views.py b/enrollments/views.py
+index d8e31d1..6c85ce0 100644
+--- a/enrollments/views.py
++++ b/enrollments/views.py
+@@ -1,3 +1,4 @@
++from django.conf import settings
+ from django.contrib import messages
+ from django.contrib.admin.views.decorators import staff_member_required
+ from django.shortcuts import get_object_or_404, redirect, render
+@@ -6,7 +7,7 @@ from django.views.decorators.http import require_POST
+ from catalog.models import Session
+ 
+ from . import services
+-from .forms import EnrollmentForm
++from .forms import EnrollmentForm, EnrollmentImportForm
+ from .models import Enrollment
+ 
+ 
+@@ -33,7 +34,33 @@ def enroll(request, pk: int):
+ @staff_member_required
+ def roster(request, pk: int):
+     session = get_object_or_404(Session.objects.select_related("course"), pk=pk)
+-    return render(request, "enrollments/roster.html", {"session": session, "enrollments": session.enrollments.all()})
++    enrollments = session.enrollments.select_related("imported_by")
++    return render(request, "enrollments/roster.html", {"session": session, "enrollments": enrollments})
++
++
++@staff_member_required
++def import_enrollments(request, pk: int):
++    """Enrolls the people listed in a CSV file sent by a client company. No e-mail leaves."""
++    session = get_object_or_404(Session.objects.select_related("course"), pk=pk)
++    result = None
++    if request.method == "POST":
++        form = EnrollmentImportForm(request.POST, request.FILES)
++        if form.is_valid():
++            try:
++                result = services.import_enrollments(session, form.cleaned_data["file"], imported_by=request.user)
++            except services.SessionClosed:
++                form.add_error(None, "Les inscriptions à cette session sont closes : rien n'a été importé.")
++            except services.TooManyRows as exc:
++                form.add_error("file", f"Le fichier dépasse {exc.limit} lignes : rien n'a été importé.")
++            else:
++                form = EnrollmentImportForm()
++    else:
++        form = EnrollmentImportForm()
++    return render(
++        request,
++        "enrollments/import.html",
++        {"session": session, "form": form, "result": result, "max_rows": settings.CURSUS_IMPORT_MAX_ROWS},
++    )
+ 
+ 
+ @staff_member_required

@@ -1,0 +1,13 @@
+{
+  "tokens": 85419,
+  "cache_read_tokens": 1526679,
+  "output_tokens": 28734,
+  "turns": 59,
+  "duration_s": 251,
+  "denied": 2,
+  "denied_commands": [
+    "for f in contracts/*/*.json tools/schema.py services/orders/*.py services/billing/*.py services/notifications/*.py shared/*.py CONTRIBUTING.md README.md docs/po",
+    "python3 -m unittest discover 2>&1 | tail -20; python3 tools/check_imports.py; echo \"imports: $?\""
+  ],
+  "error": null
+}
