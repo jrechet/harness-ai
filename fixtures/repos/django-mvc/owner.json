@@ -1,0 +1,253 @@
+{
+  "intro": "Je représente l'équipe qui maintient ce dépôt. Je réponds à vos questions, une par une ; je ne pense pas à tout de moi-même.",
+  "answers": [
+    {
+      "id": "mode",
+      "any_of": [
+        "mode",
+        "délég*",
+        "assistance",
+        "relire",
+        "relit",
+        "relisez",
+        "relecture",
+        "pilot*",
+        "autonom*"
+      ],
+      "answer": "Délégation. On veut confier des tickets entiers et relire la PR à la fin."
+    },
+    {
+      "id": "equipe",
+      "any_of": [
+        "équipe",
+        "combien",
+        "développeu*",
+        "qui travaille",
+        "qui intervient",
+        "responsable formation"
+      ],
+      "answer": "Trois développeurs, dont aucun n'était là au démarrage du projet ; une responsable formation qui se sert de l'admin."
+    },
+    {
+      "id": "ci",
+      "any_of": [
+        "ci",
+        "intégration continue",
+        "bloqu*",
+        "check",
+        "checks",
+        "fusion",
+        "merge",
+        "pipeline",
+        "workflow*",
+        "github actions",
+        "job",
+        "jobs"
+      ],
+      "answer": "GitHub Actions, un seul job, `test`. Il bloque la fusion sur `main`."
+    },
+    {
+      "id": "ci-histoire",
+      "any_of": [
+        "ancienne ci",
+        "ancien* pipeline",
+        "ci a change*",
+        "ci a-t-elle change*",
+        "inventaire",
+        "jenkins",
+        "travis",
+        "gitlab"
+      ],
+      "answer": "Oui, la CI a changé début 2025, avec l'hébergeur. On a repris les tests sur GitHub Actions. Personne n'a fait l'inventaire de ce que l'ancienne vérifiait d'autre."
+    },
+    {
+      "id": "outils",
+      "any_of": [
+        "outils",
+        "outil",
+        "copilot",
+        "cursor",
+        "codex",
+        "quels agents",
+        "assistant*",
+        "ide"
+      ],
+      "answer": "Claude Code pour deux d'entre nous, Copilot pour le troisième."
+    },
+    {
+      "id": "premiere-tache",
+      "any_of": [
+        "première tâche",
+        "premiere tache",
+        "déléguer en premier",
+        "quelle tâche",
+        "quelles tâches",
+        "premier ticket",
+        "quels tickets"
+      ],
+      "answer": "Un traitement de données d'inscription, import ou export, de la vue jusqu'au test."
+    },
+    {
+      "id": "interdits",
+      "any_of": [
+        "interdits",
+        "jamais toucher",
+        "ne doit jamais",
+        "ne doivent jamais",
+        "ne pas faire",
+        "ne doit pas faire",
+        "dangereu*",
+        "risqu*",
+        "secret*",
+        "migration*",
+        "e-mail*",
+        "email*",
+        "données personnelles"
+      ],
+      "answer": "Modifier une migration déjà appliquée ; envoyer un vrai e-mail depuis autre chose que la production ; sortir du serveur des données personnelles d'inscrits."
+    },
+    {
+      "id": "origine",
+      "any_of": [
+        "d'où vien*",
+        "qui a écrit",
+        "écrit par qui",
+        "relu",
+        "historique du fichier",
+        "deux fichiers"
+      ],
+      "answer": "AGENTS.md a été écrit à la main fin 2024 par la développeuse qui a monté le projet. Elle est partie début 2025 et personne ne l'a relu depuis. CLAUDE.md a été recopié de mémoire par l'un de nous quand on a commencé avec Claude Code ; depuis, quand on corrige quelque chose, c'est dans celui-là."
+    },
+    {
+      "id": "retirer",
+      "any_of": [
+        "retirer",
+        "retire*",
+        "supprimer",
+        "supprime*",
+        "enlever",
+        "enlève*",
+        "nettoyer"
+      ],
+      "answer": "Oui. Dis ce que tu retires et pourquoi."
+    },
+    {
+      "id": "python",
+      "any_of": [
+        "3.8",
+        "version de python",
+        "versions de python",
+        "python 3",
+        "py38"
+      ],
+      "answer": "Non, plus en 3.8. Le serveur a été remplacé en février 2025, la production tourne en 3.12."
+    },
+    {
+      "id": "django",
+      "any_of": [
+        "4.2",
+        "lts",
+        "version de django",
+        "django 4*",
+        "django 5*"
+      ],
+      "answer": "Plus depuis le changement d'hébergeur, en février 2025. On suit les versions courantes, 5.1 aujourd'hui."
+    },
+    {
+      "id": "verrou",
+      "any_of": [
+        "verrou*",
+        "select_for_update",
+        "postgres*",
+        "postgresql",
+        "sqlite"
+      ],
+      "answer": "La CI tourne sous SQLite et personne n'a monté de PostgreSQL pour les tests : rien ne vérifie le verrou."
+    },
+    {
+      "id": "attente",
+      "any_of": [
+        "attend*",
+        "un seul fichier",
+        "fichier court",
+        "longueur",
+        "combien de lignes"
+      ],
+      "answer": "Savoir ce qui tient encore dans un fichier écrit avec soin il y a deux ans, et ne garder qu'un seul fichier."
+    },
+    {
+      "id": "oral",
+      "fact": "I5",
+      "any_of": [
+        "nulle part",
+        "non écrit*",
+        "pas écrit*",
+        "n'est écrit",
+        "écrit nulle part",
+        "redi*",
+        "répét*",
+        "à chaque fois",
+        "tacite*",
+        "implicite*",
+        "oral*",
+        "dans la tête",
+        "habitude*",
+        "piège*",
+        "nouveau venu",
+        "nouvel arrivant",
+        "surprend*",
+        "surpris",
+        "oubli*",
+        "autre chose",
+        "autres règles",
+        "autre règle",
+        "d'autres consignes",
+        "à ajouter",
+        "ajouteriez",
+        "corrig* souvent",
+        "erreur* fréquent*",
+        "chaque revue",
+        "en revue de code",
+        "remarque* en revue",
+        "commentaire* de revue",
+        "revien* en revue",
+        "revien* en review",
+        "sans les avoir écrit*",
+        "aucun document",
+        "dans aucun",
+        "commentaire* de pr",
+        "commentaire* de review",
+        "revien* le plus souvent",
+        "nouveau développeur",
+        "nouvelle recrue",
+        "nouveaux arrivants",
+        "sans que la ci",
+        "savoir d'équipe",
+        "savoir tacite",
+        "connaissance* d'équipe",
+        "en relecture",
+        "rate toujours",
+        "ratent toujours",
+        "jamais écrit*",
+        "plafond*",
+        "trente secondes",
+        "30 secondes",
+        "timeout*",
+        "délai* de requête",
+        "coupe* les requêtes",
+        "hébergeur",
+        "volume*",
+        "nombre de lignes",
+        "gros fichier*",
+        "limite* de lignes",
+        "import csv",
+        "import de fichier*",
+        "importer un fichier",
+        "traitement* en masse",
+        "traitement* lancé*"
+      ],
+      "answer": "Une chose qui n'est écrite nulle part : l'hébergeur coupe toute requête à trente secondes. On a convenu avec lui, en février 2025, qu'un traitement lancé depuis une page ne dépasse pas 500 lignes, et que ce plafond se lit dans le réglage Django `CURSUS_IMPORT_MAX_ROWS`, pour qu'il puisse le baisser sans nous. Le réglage n'existe pas encore : aucun traitement de ce genre n'a été écrit. Au-delà du plafond, on refuse le fichier entier."
+    }
+  ],
+  "default": "Regardez dans `docs/`, c'est écrit. L'équipe ne sait rien de plus que ce que disent les post-mortems, l'ADR et la note d'exploitation."
+}
