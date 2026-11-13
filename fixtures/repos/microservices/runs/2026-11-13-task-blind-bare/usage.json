@@ -1,0 +1,13 @@
+{
+  "tokens": 89777,
+  "cache_read_tokens": 2039763,
+  "output_tokens": 30305,
+  "turns": 47,
+  "duration_s": 281,
+  "denied": 2,
+  "denied_commands": [
+    "python3 - <<'EOF'\nimport json, collections\ndef load(p): return json.load(open(p), object_pairs_hook=collections.OrderedDict)\ndef dump(p, d):\n    open(p, \"w\").wr",
+    "python3 -m unittest discover 2>&1 | tail -15; python3 tools/check_imports.py && echo BOUNDARIES OK; awk 'length > 120 {print FILENAME\": \"FNR}' $(git ls-files '*"
+  ],
+  "error": null
+}

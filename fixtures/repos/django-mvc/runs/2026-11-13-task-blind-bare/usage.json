@@ -1,0 +1,12 @@
+{
+  "tokens": 69976,
+  "cache_read_tokens": 892116,
+  "output_tokens": 21698,
+  "turns": 40,
+  "duration_s": 197,
+  "denied": 1,
+  "denied_commands": [
+    "python3 - <<'EOF'\np='enrollments/services.py'\ns=open(p).read()\ns=s.replace('''from functools import partial\n''','''import csv\nimport io\nfrom dataclasses import "
+  ],
+  "error": null
+}
