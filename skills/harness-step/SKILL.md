@@ -78,4 +78,5 @@ Ce qui est posé vieillit : une règle reçoit un garde-fou, un contexte change,
 - Annoncer un palier gagné comme une preuve que les agents travaillent mieux.
 - Faire d'un pas du palier 2 ou 4 une affaire de fichiers : ces paliers se gagnent sur des PR réelles, dans le temps. Poser la section ne suffit pas, et il faut le dire.
 - S'arrêter sur ce qui attend le temps quand l'objectif est plus haut : l'utilisateur attendrait des semaines un garde-fou qu'on peut poser aujourd'hui.
+- Écrire une règle d'arrêt sans la confronter aux tâches déléguées : en délégation, un agent qui s'arrête n'a personne à qui demander, et la tâche ne revient jamais.
 - Créer la section « Tâches déléguées » avant le contrat qu'elle cite.

@@ -47,7 +47,7 @@ Trois choses apprises sur de vrais dépôts :
 | Vérification | Le pas | Coût | Fait quand |
 |---|---|---|---|
 | `L4.mode` | Demander si l'équipe veut passer en délégation. En assistance, ce palier n'est pas un objectif | Une question | Mode délégation |
-| `L4.process` | Trois questions : quand s'arrêter et demander, quand une tâche est finie, quoi faire d'une CI rouge ou d'un test instable. Écrire le bloc « Pas 4 » | Trois questions | La section existe |
+| `L4.process` | Trois questions : quand s'arrêter et demander, quand une tâche est finie, quoi faire d'une CI rouge ou d'un test instable. Confronte chaque cas d'arrêt à la tâche que l'équipe veut déléguer : un cas qu'elle rencontre à chaque fois la rend impossible à déléguer. Fais-le préciser avant de l'écrire, par exemple ajouter une migration ou en modifier une. Écrire le bloc « Pas 4 » | Trois questions, et une de plus si un cas d'arrêt est trop large | La section existe, et la tâche à déléguer peut aller au bout sans buter sur un cas d'arrêt |
 | `L4.contracts` | Demander la première tâche répétitive à confier. Écrire son contrat `.claude/skills/<tâche>/SKILL.md` : étapes, vérifications, critère de fini. Puis seulement la ligne « Tâches déléguées » | Une question, un fichier court | Le contrat existe et il est cité |
 | `L4.clean_prs` | Lancer harness-harvest sur une fenêtre qui contient des PR d'agent. Chaque correction après coup est une règle ou un garde-fou manquant : le pas est d'en traiter une | Des PR à observer | Un harvest sans correction après coup |
 | `L4.cut_the_agent` | Dans le dernier audit, prendre la première étape qui n'existe que dans un prompt et la pousser dans un script ou un workflow | Du code | Le test de l'audit passe |
