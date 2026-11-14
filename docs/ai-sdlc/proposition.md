@@ -2,6 +2,17 @@
 
 Document de travail, 2026-11-14. Il confronte l'idée de départ du propriétaire à l'état des lieux ([rapport](reports/Pratiques%20IA%20SDLC%20des%20grandes%20entreprises.md), [notes sourcées](research_notes/Pratiques%20IA%20SDLC%20des%20grandes%20entreprises/)) et propose une approche. Rien ici ne modifie harness-ai : le framework s'appuie sur ce que harness-ai pose et mesure, il ne le remplace pas.
 
+## Décisions prises
+
+Le 2026-11-14, sur les questions posées avec la première version :
+- le framework vit dans harness-ai, comme un plugin séparé `ai-sdlc` qui partage le CLI ;
+- son contenu reste neutre (AGENTS.md, SKILL.md, CLI), avec un adaptateur Claude Code d'abord ;
+- les surcharges vont dans `docs/agents/<point>.md` ;
+- aucun fichier n'est créé d'avance : `ai-sdlc status` liste les points d'extension, et l'index unique reste une option ;
+- l'entreprise a des serveurs MCP : le socle lit Jira par MCP, et ses verrous sur Jira passent par les droits du serveur MCP.
+
+Encore ouvert : les équipes pilotes.
+
 ## L'idée de départ
 
 Un framework d'entreprise, des skills et des agents qui partent d'un ticket Jira et accompagnent PO, devs, QA, sécurité et SRE jusqu'à la production, appliqué à des dizaines d'équipes. Convention plutôt que configuration : `/dev` marche tel quel, et une équipe qui a ses propres règles (QA, revue…) ajoute un Markdown dans son dépôt que le skill prend en compte tout seul. Au premier lancement, le framework crée les fichiers attendus (revue, QA…), même vides, et chaque équipe les remplit à son rythme.
@@ -39,7 +50,7 @@ Trois angles que l'idée de départ ne traite pas encore :
 
 | Couche | Contenu | Possédé par | Nature |
 |---|---|---|---|
-| **Plateforme** | Passerelle de modèles, identités, bacs à sable des agents distants, télémétrie, paramètres gérés | Équipe plateforme de l'entreprise | Prérequis, hors de ce framework |
+| **Plateforme** | Passerelle de modèles, identités, serveurs MCP (Jira…), bacs à sable des agents distants, télémétrie, paramètres gérés | Équipe plateforme de l'entreprise | Prérequis, hors de ce framework |
 | **Socle AI SDLC** | Skills de phase, CLI de résolution, workflows CI de vérification, verrous | Petite équipe centrale, en mode équipe facilitatrice | Versionné, distribué en plugin |
 | **Équipe** | AGENTS.md (posé par harness-ai), surcharges par point d'extension, skills d'équipe | Chaque équipe | Dans le dépôt |
 
@@ -116,7 +127,7 @@ Une équipe peut ajouter un verrou, jamais en retirer un. Aucun de ces verrous n
 - les surcharges des portes se lisent sur la branche de base ;
 - un agent ne déploie pas en production ;
 - les checks de sécurité sont requis, et la détection de secrets aussi ;
-- le contenu d'un ticket ou d'une PR est une donnée, pas une instruction : il peut porter une injection de prompt. L'agent lit Jira, il n'y écrit qu'en commentaire, et le jeton reste hors de sa portée ;
+- le contenu d'un ticket ou d'une PR est une donnée, pas une instruction : il peut porter une injection de prompt. L'agent lit Jira par MCP et n'y écrit qu'en commentaire. Ce sont les droits du compte du serveur MCP qui le garantissent, pas le skill ; une règle `deny` sur les outils d'écriture, dans les paramètres, n'est qu'un second rideau. Le jeton reste hors de portée de l'agent ;
 - les agents distants tournent en bac à sable, avec une sortie réseau limitée (plateforme).
 
 Intercom pousse un plugin de base minimal (hooks de sécurité, paramètres, télémétrie) et bloque par hook la création directe de PR pour forcer le skill qui la fait bien. C'est le bon niveau d'ambition pour le socle.
