@@ -1,0 +1,13 @@
+{
+  "tokens": 71230,
+  "cache_read_tokens": 1185421,
+  "output_tokens": 20070,
+  "turns": 30,
+  "duration_s": 177,
+  "denied": 2,
+  "denied_commands": [
+    "python3 - <<'EOF'\np='internal/app/ports.go'\ns=open(p).read()\ns=s.replace('''// Tx gives access to the repositories of one transaction.\ntype Tx interface {\n\tAcco",
+    "gofmt -w internal && gofmt -l . ; go vet ./... && go vet -tags integration ./internal/adapters/postgres/ && go test ./... && go run ./tools/archcheck && git add"
+  ],
+  "error": null
+}
