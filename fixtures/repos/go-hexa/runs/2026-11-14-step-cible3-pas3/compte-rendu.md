@@ -1,0 +1,17 @@
+## Compte rendu — harness-step
+
+Deux commandes shell ont été refusées par le système de permissions (un `ls`/`cat` groupé dans le kit et un autre dans le dépôt). J'ai lu les mêmes fichiers avec les outils de lecture, donc rien ne manque à l'audit.
+
+- **Le pas** : j'ai lancé harness-audit sur le dépôt. Le rapport est dans `.harness/audit.md` et ses données dans `.harness/audit.json`. Il trouve **un P1 encore ouvert**, donc la vérification visée reste en échec.
+- **Avant et après** : toujours palier 1 · Cadré (objectif : 3). Le palier 3 reste à **3/4** avant comme après. La ligne « Un harness-audit existe et n'a aucun P1 ouvert » ne passe pas : l'audit existe, et `status` le lit (vue par couche mesurée : 6 éléments mal placés), mais il reste ce P1. Le pas n'est donc pas terminé. Je n'ai pas baissé la priorité pour faire passer la vérification.
+- **Le P1** : `make reset-db` et `make migrate` ne vérifient que la présence de `DATABASE_URL`, pas la base visée (`Makefile:19-26`). L'interdit « base locale seulement » n'est écrit que dans `AGENTS.md:24`, alors qu'il vient de deux jours de données QA perdues sur staging le 3 février 2026. Un agent qui l'ignore peut détruire le schéma de staging.
+- **Ce que ça change pour l'agent** : rien pour l'instant. L'audit dit à l'équipe où les règles ne tiennent que par le texte : 6 fuites au test « coupe l'agent », 5 P2, score 31/100.
+- **Ce qui n'est pas prouvé** : l'audit regarde la forme du dépôt et des workflows. Je n'ai vu aucun garde-fou échouer sur une violation, je n'ai pas consulté l'historique de la CI et je n'ai pas lancé golangci-lint. `go test ./...` passe en local. Les réglages GitHub ne sont pas lisibles depuis le dépôt (protections des environnements, checks requis) et le propriétaire n'a pas répondu sur les environnements. Rien ne prouve encore que les agents travaillent mieux.
+- **Fichiers** : `.harness/audit.md` et `.harness/audit.json` (créés). Je n'ai rien commité.
+- **Hors périmètre, à regarder** : `go.mod` ne déclare aucun pilote `pgx`, alors que `cmd/ledgerd/main.go:40` et les tests d'intégration ouvrent `sql.Open("pgx", …)`. Avec un `DATABASE_URL` défini, le service devrait refuser de démarrer et `make test-integration` ne peut pas tourner. C'est à vérifier sur un vrai environnement.
+- **Questions** (le défaut proposé suit chaque question) :
+  1. Quels hôtes comptent comme « base locale » pour `reset-db` et `migrate` ? Défaut : localhost, 127.0.0.1, ::1 et socket Unix, avec une variable de dérogation explicite.
+  2. Quelles protections ont les environnements GitHub `staging` et `production` ? Défaut : n'en supposer aucune, et faire refuser par `deploy.yml` toute exécution qui n'est pas en simple prévisualisation (`dry_run` à faux) depuis une autre branche que `main`.
+  3. Le job `migrations` est-il obligatoire pour fusionner sur `main` ? Vous n'avez cité que `test` et `arch`. Défaut : non, et il faut le rendre obligatoire.
+  4. Le calcul des frais en entiers doit-il garder l'arrondi actuel ? Défaut : oui, `(cents*15+500)/1000`.
+- **Le pas suivant possible** : traiter le P1, avec une garde dans les deux cibles du Makefile qui refuse une base non locale et dont on a vu le refus. Il est dans l'objectif, et votre réponse à la question 1 suffit pour le faire.

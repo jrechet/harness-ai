@@ -1,0 +1,13 @@
+{
+  "tokens": 141985,
+  "cache_read_tokens": 1194745,
+  "output_tokens": 28066,
+  "turns": 46,
+  "duration_s": 261,
+  "denied": 2,
+  "denied_commands": [
+    "cd /tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-05sieqdw/kit; ls -R skills | head -50; cat skills/harness-step/SKILL.md",
+    "ls -la .harness && for f in .harness/*; do echo \"== $f\"; cat \"$f\"; done; for f in .github/workflows/ci.yml .github/workflows/deploy.yml Makefile .golangci.yml d"
+  ],
+  "error": null
+}
