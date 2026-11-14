@@ -1,0 +1,13 @@
+{
+  "tokens": 47481,
+  "cache_read_tokens": 1010930,
+  "output_tokens": 10622,
+  "turns": 23,
+  "duration_s": 116,
+  "denied": 2,
+  "denied_commands": [
+    "K=/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-67vqjvhi/kit; ls -R $K | head -50; cat $K/skills/harness-step/SKILL.md",
+    "cd /tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-67vqjvhi/kit/cli && python3 harness.py rules ../../repo; grep -n \"rules_guard"
+  ],
+  "error": null
+}

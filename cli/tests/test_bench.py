@@ -435,6 +435,29 @@ class StepPlayTests(BenchCase):
         self.assertIn("ne le dit pas", problems)
         self.assertIn("au-delà du palier visé", problems)
 
+    def test_one_more_guarded_rule_is_a_step_even_if_the_level_does_not_flip(self):
+        start = ("# demo\n\nMode : **délégation**.\n\n## Règles\n"
+                 + "".join(f"- Règle {i}. Pourquoi : incident {i}. (non vérifiée) [2026-01]\n" for i in range(4))
+                 + "\n## Interdits\n- Toucher à tools/.\n" + self.PAS2)
+        write(self.start, "AGENTS.md", start)
+        write(self.fx, "repo/.github/workflows/ci.yml", "on: push\njobs:\n  test:\n    runs-on: x\n    steps:\n      - run: make test\n")
+        write(self.fx, "repo/tools/guard.sh", "exit 0\n")
+
+        def guard_one(workdir):
+            path = os.path.join(workdir, "AGENTS.md")
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text.replace("- Règle 0. Pourquoi : incident 0. (non vérifiée)",
+                                      "- Règle 0. Pourquoi : incident 0. Vérifiée par : `tools/guard.sh`, job `test`."))
+        done = self.step(3, guard_one)
+        self.assertTrue(done["check"]["ok"], done["check"])
+        self.assertEqual(done["check"]["flipped"], [])
+        self.assertEqual(len(done["check"]["gained"]), 1)
+        self.assertTrue(done["check"]["gained"][0].startswith("L3.guarded 0.0 → 0."), done["check"]["gained"])
+        nothing = self.step(3, lambda workdir: None)
+        self.assertFalse(nothing["check"]["ok"])
+
     def test_two_levels_at_once_is_two_steps(self):
         process = "\n## Processus de travail\n- Une tâche est finie quand la CI est verte.\n"
         done = self.step(4, self.append(self.PAS2 + process))
