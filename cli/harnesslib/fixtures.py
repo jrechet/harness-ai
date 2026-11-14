@@ -340,6 +340,18 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
             "score": f"{len(surfaced)}/{total}", "files": sorted(corpus), "ok": not problems}
 
 
+HINT_RE = re.compile(r"[a-z0-9_][a-z0-9_./-]{3,}")
+HINT_STOP = {"true", "false", "null", "none"}
+
+
+def hint_tokens(word: str) -> list[str]:
+    """Les morceaux d'un fait qui suffiraient à le deviner : ses identifiants pris un à un, sauf le fait
+    entier, déjà cherché, et les valeurs que tout fichier JSON contient. `"deprecated": true` donne
+    `deprecated` ; `idempotency-replayed` ne donne rien de plus que lui-même."""
+    low = word.lower()
+    return [t for t in dict.fromkeys(HINT_RE.findall(low)) if t not in HINT_STOP and t != low]
+
+
 INSTRUMENTATION = ["AGENTS.md", "CLAUDE.md", ".claude", ".cursor", ".agents", ".github/copilot-instructions.md", ".harness"]
 
 
@@ -347,7 +359,8 @@ def check_oral_facts(fixture_dir: str, expected: dict) -> list[str]:
     """Un projet type porte au moins un fait écrit nulle part ailleurs que dans ses instructions, ou
     dit par son propriétaire. C'est le seul endroit où un harness peut montrer un gain : un fait rangé
     dans un ADR, un agent soigneux le trouve seul (campagne du 2026-11-11). Pour chaque fait marqué
-    `only_in_instructions` : ses mots ne se lisent dans aucun autre fichier du dépôt, il s'apprend
+    `only_in_instructions` : ses mots ne se lisent dans aucun autre fichier du dépôt, ni aucun de leurs
+    morceaux (`hint_tokens` : un validateur qui liste `deprecated` mène à `"deprecated": true`), il s'apprend
     quelque part (instructions du dépôt ou `owner.md`), un contrôle de tâche l'exerce (`exercises`), et
     une solution tentée échoue à ce contrôle. Une fixture sans tâche n'est pas concernée."""
     tasks_dir = os.path.join(fixture_dir, "tasks")
@@ -381,6 +394,12 @@ def check_oral_facts(fixture_dir: str, expected: dict) -> list[str]:
             where = sorted(p for p, text in elsewhere.items() if word in text)
             if where:
                 problems.append(f"{fact['id']} : « {word} » se lit aussi dans {', '.join(where[:3])} : le fait est découvrable")
+                continue
+            for token in hint_tokens(word):     # un morceau du fait suffit à y mener (2026-11-13)
+                where = sorted(p for p, text in elsewhere.items() if re.search(r"(?<![\w-])" + re.escape(token) + r"(?![\w-])", text))
+                if where:
+                    problems.append(f"{fact['id']} : « {token} », un morceau du fait, se lit dans {', '.join(where[:3])} : "
+                                    "un indice qui y mène, le fait est découvrable")
         if not any(w in instructions or w in owner for w in words):
             problems.append(f"{fact['id']} : aucun de {words} dans les instructions du dépôt ni dans owner.md : nulle part où l'apprendre")
         exercising = [c["id"] for _, c in checks if c.get("exercises") == fact["id"]]

@@ -89,12 +89,19 @@
       },
       {
         "id": "I8",
-        "what": "un champ remplacé reste publié et reçoit l'annotation deprecated, convenu avec les consommateurs externes et écrit nulle part ailleurs",
+        "what": "un champ remplacé reste publié et reçoit l'annotation deprecated, convenu avec les consommateurs externes",
         "any_of": [
           "deprecated"
+        ]
+      },
+      {
+        "id": "I9",
+        "what": "tout changement de contrat s'inscrit dans contracts/CHANGES.md, que suivent les consommateurs externes ; écrit nulle part ailleurs",
+        "any_of": [
+          "changes.md"
         ],
         "only_in_instructions": [
-          "\"deprecated\": true"
+          "contracts/changes.md"
         ]
       }
     ],
@@ -331,6 +338,12 @@
         "id": "I8",
         "any_of": [
           "deprecated"
+        ]
+      },
+      {
+        "id": "I9",
+        "any_of": [
+          "changes.md"
         ]
       }
     ],

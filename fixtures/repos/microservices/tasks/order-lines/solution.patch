@@ -14,6 +14,19 @@ index 74ccaef..af897e3 100644
  | billing | GET | `/invoices/{number}` | lire une facture |
  | notifications | GET | `/outbox` | les messages remis au relais de courrier |
  
+diff --git a/contracts/CHANGES.md b/contracts/CHANGES.md
+new file mode 100644
+index 0000000..509fb91
+--- /dev/null
++++ b/contracts/CHANGES.md
+@@ -0,0 +1,7 @@
++# Changements des contrats
++
++Les consommateurs hors de ce dépôt suivent ce fichier. Une ligne par contrat touché, la plus récente en haut.
++
++- 2026-11-14 · `events/order.created` : ajout de `lines` ; `sku` et `quantity` restent publiés, marqués `deprecated`.
++- 2026-11-14 · `api/order` : ajout de `lines`, en entrée et en sortie ; `sku` et `quantity` restent acceptés et renvoyés.
++- 2026-11-14 · `api/invoice` : ajout de `lines`.
 diff --git a/contracts/api/invoice.json b/contracts/api/invoice.json
 index dc61ce9..f4a9752 100644
 --- a/contracts/api/invoice.json

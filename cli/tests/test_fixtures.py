@@ -514,6 +514,24 @@ class OralFactTests(unittest.TestCase):
         self.put("repo/docs/adr/0004.md", "Nous posons l'en-tête Idempotency-Replayed sur les rejeux.\n")
         self.assertTrue(any("découvrable" in p and "docs/adr/0004.md" in p for p in self.problems()), self.problems())
 
+    def test_a_piece_of_the_fact_that_leads_to_it_is_a_hint(self):
+        # 2026-11-13 : un validateur qui liste `deprecated` parmi ses annotations, et l'agent nu l'a posé seul
+        self.put("owner.md", 'Un champ remplacé reçoit "deprecated": true.\n')
+        self.expected["init"]["must_surface"][1]["only_in_instructions"] = ['"deprecated": true']
+        self.put("repo/tools/schema.py", 'ANNOTATIONS = {"title", "description", "deprecated"}\n')
+        self.assertTrue(any("un morceau du fait" in p and "tools/schema.py" in p for p in self.problems()), self.problems())
+
+    def test_a_piece_inside_a_longer_word_is_no_hint(self):
+        self.put("owner.md", 'Un champ remplacé reçoit "deprecated": true.\n')
+        self.expected["init"]["must_surface"][1]["only_in_instructions"] = ['"deprecated": true']
+        self.put("repo/src/app.py", "def undeprecated_helper():\n    return deprecated_v2\n")
+        self.assertEqual(self.problems(), [])
+
+    def test_the_pieces_of_a_fact(self):
+        self.assertEqual(fixtures.hint_tokens('"deprecated": true'), ["deprecated"])
+        self.assertEqual(fixtures.hint_tokens("idempotency-replayed"), [])
+        self.assertEqual(fixtures.hint_tokens("shared/package.json"), [])
+
     def test_a_fact_in_the_repository_s_own_instructions_is_fine(self):
         self.put("owner.md", "rien\n")
         self.put("repo/services/billing/AGENTS.md", "- Une réponse rejouée porte Idempotency-Replayed.\n")
