@@ -24,7 +24,7 @@ Ce palier se gagne dans le temps : deux vérifications sont des fichiers, deux s
 | `L2.marker_fresh` | Lancer harness-harvest, s'il y a eu des revues depuis le marqueur | Une PR de harvest à relire | Le marqueur a moins de 45 jours |
 | `L2.signal` | Rien à écrire. Le signal vient d'un `rule:` en review ou d'une PR d'agent corrigée. S'il n'y en a pas, le dire : la boucle est posée, elle n'a pas encore tourné | Du temps | Un harvest trouve un signal réel |
 
-Si le marqueur est frais et qu'il n'y a pas de signal, **il n'y a pas de pas** : dis-le et arrête-toi. Inventer une règle pour faire passer la vérification est le contraire du but.
+Si le marqueur est frais et qu'il n'y a pas de signal, **ce palier n'a plus de pas** : il attend. Si l'objectif est plus haut, passe au premier pas du palier 3 ; sinon, dis-le et arrête-toi. Inventer une règle pour faire passer la vérification est le contraire du but.
 
 ## Palier 3 — Vérifié
 

@@ -24,10 +24,14 @@ LEVELS = [
 
 Check = dict[str, Any]
 
+# Ce que seul le temps fait passer : un signal de revue, des PR d'agent observées. Une telle vérification
+# n'arrête pas la montée : le palier suivant, s'il est visé, se travaille sans l'attendre (2026-11-14).
+WAITING = {"L2.signal", "L4.clean_prs"}
+
 
 def _check(cid: str, label: str, passed: bool, value: Any, next_action: str) -> Check:
     return {"id": cid, "label": label, "passed": bool(passed), "value": value,
-            "next_action": None if passed else next_action}
+            "next_action": None if passed else next_action, "waits": not passed and cid in WAITING}
 
 
 def _src(f: dict) -> dict:
@@ -159,8 +163,20 @@ def evaluate(f: dict) -> dict[str, Any]:
                        "checks": checks, "passed_checks": sum(c["passed"] for c in checks), "total_checks": len(checks)})
     next_level = next((l for l in levels if not l["achieved"]), None)
     # Un palier est un endroit où l'on peut rester : au-delà du palier visé, on ne propose rien.
-    pushing = next_level is not None and next_level["in_scope"]
-    next_actions = [c["next_action"] for c in (next_level["checks"] if pushing else []) if not c["passed"]]
+    # Un palier dont il ne manque que ce que le temps apporte ne retient pas les suivants.
+    next_actions: list[str] = []
+    waiting: list[str] = []
+    for l in levels:
+        if l["achieved"] or not l["level"]:
+            continue
+        if not l["in_scope"]:
+            break
+        failing = [c for c in l["checks"] if not c["passed"]]
+        doable = [c for c in failing if not c["waits"]]
+        waiting += [c["id"] for c in failing if c["waits"]]
+        if doable:
+            next_actions = [c["next_action"] for c in doable]
+            break
     return {
         "schema": "harness-state/1",
         "repo": f["repo"],
@@ -171,6 +187,7 @@ def evaluate(f: dict) -> dict[str, Any]:
         "levels": levels,
         "layers": layer_view(f),
         "next_actions": next_actions[:3],
+        "waiting": waiting,
         "dangling": f.get("dangling") or [],
         "facts": f,
     }
@@ -199,7 +216,8 @@ def render_markdown(state: dict) -> str:
         out.append(f"## {mark} Palier {l['level']} — {l['name']} ({l['passed_checks']}/{l['total_checks']})")
         out.append(f"_{l['summary']}_")
         for c in l["checks"]:
-            out.append(f"- [{'x' if c['passed'] else ' '}] {c['label']}" + ("" if c["passed"] else f" → {c['next_action']}"))
+            out.append(f"- [{'x' if c['passed'] else ' '}] {c['label']}"
+                       + ("" if c["passed"] else (" → **en attente** : " if c.get("waits") else " → ") + c["next_action"]))
         out.append("")
     if state.get("dangling"):
         out.append("## Références sans cible")
@@ -219,6 +237,11 @@ def render_markdown(state: dict) -> str:
     if lay.get("hint"):
         out.append(f"- {lay['hint']}")
     out.append("")
+    if state.get("waiting"):
+        out.append("## En attente")
+        out.append(f"{', '.join(state['waiting'])} : seul le temps les fait passer, avec de vraies revues ou de vraies PR. "
+                   "Le palier qui les porte comptera alors ; les paliers visés au-dessus se travaillent sans l'attendre.")
+        out.append("")
     if state["next_actions"]:
         out.append("## Prochaines actions")
         out.extend(f"{i}. {a}" for i, a in enumerate(state["next_actions"], 1))
