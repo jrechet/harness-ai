@@ -343,6 +343,9 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
 # Les vérifications qui ne se gagnent qu'avec le temps : aucun pas ne peut les faire basculer dans une
 # séance ; les voir basculer, c'est un signal inventé.
 WAITS = maturity.WAITING
+# Les vérifications qui se gagnent par parts : une règle gardée par pas, et le palier ne bascule qu'à la
+# moitié. Un pas qui fait monter la part avance, même si rien ne bascule (2026-11-14).
+SHARES = {"L3.guarded", "L3.justified"}
 
 
 def check_step(before: dict, after: dict, expected_init: dict, report: str, changed: list[str]) -> dict[str, Any]:
@@ -356,9 +359,15 @@ def check_step(before: dict, after: dict, expected_init: dict, report: str, chan
     - les faits du pas 1 restent, et aucune référence sans cible n'apparaît."""
     def passed(state: dict) -> dict[str, tuple[int, bool]]:
         return {c["id"]: (l["level"], c["passed"]) for l in state["levels"] for c in l["checks"]}
+
+    def values(state: dict) -> dict[str, Any]:
+        return {c["id"]: c["value"] for l in state["levels"] for c in l["checks"]}
     b, a = passed(before), passed(after)
     target = after["target"]["level"]
     up = sorted(cid for cid in a if a[cid][1] and not b.get(cid, (0, False))[1])
+    vb, va = values(before), values(after)
+    gained = sorted(cid for cid in SHARES if cid in a and not a[cid][1]
+                    and isinstance(va.get(cid), (int, float)) and isinstance(vb.get(cid), (int, float)) and va[cid] > vb[cid])
     down = sorted(cid for cid in a if b.get(cid, (0, False))[1] and not a[cid][1])
     problems: list[str] = []
     files = [f for f in changed if not f.startswith(".harness/")]
@@ -370,7 +379,7 @@ def check_step(before: dict, after: dict, expected_init: dict, report: str, chan
         if "objectif atteint" not in (report or "").lower():
             problems.append("objectif déjà atteint : le compte rendu ne le dit pas")
     else:
-        in_scope = [cid for cid in up if target is None or a[cid][0] <= target]
+        in_scope = [cid for cid in up + gained if target is None or a[cid][0] <= target]
         levels = sorted({a[cid][0] for cid in in_scope})
         open_ = [cid for cid, (lvl, ok) in b.items() if not ok and cid not in WAITS and (target is None or lvl <= target)]
         if not in_scope and open_:
@@ -392,7 +401,8 @@ def check_step(before: dict, after: dict, expected_init: dict, report: str, chan
         if (d["kind"], d["ref"]) not in known:
             problems.append(f"référence sans cible ajoutée : `{d['ref']}` ligne {d['line']}")
     return {"before": before["level"]["reached"], "after": after["level"]["reached"], "target": target,
-            "flipped": up, "problems": problems, "files": files, "ok": not problems}
+            "flipped": up, "gained": [f"{cid} {vb[cid]} → {va[cid]}" for cid in gained],
+            "problems": problems, "files": files, "ok": not problems}
 
 
 HINT_RE = re.compile(r"[a-z0-9_][a-z0-9_./-]{3,}")

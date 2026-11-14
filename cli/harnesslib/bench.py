@@ -492,7 +492,9 @@ def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, 
             fh.write("# Supprimé par les pas, un chemin par ligne.\n" + "\n".join(kept) + "\n")
     note = (f"# Pas de {name} : palier {graded['before']} → {graded['after']}, visé {graded['target']}"
             + (" · conforme" if graded["ok"] else f" · {len(graded['problems'])} écart(s)") + "\n"
-            + f"\nBasculé : {', '.join(graded['flipped']) or 'rien'}. Fichiers : {', '.join(graded['files']) or 'aucun'}.\n"
+            + f"\nBasculé : {', '.join(graded['flipped']) or 'rien'}."
+            + (f" Monté : {', '.join(graded['gained'])}." if graded.get("gained") else "")
+            + f" Fichiers : {', '.join(graded['files']) or 'aucun'}.\n"
             + "".join(f"- {p}\n" for p in graded["problems"]))
     outputs = [("diff.patch", patch_of(workdir)), ("compte-rendu.md", agent.get("report") or ""), ("note.md", note),
                ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")]
