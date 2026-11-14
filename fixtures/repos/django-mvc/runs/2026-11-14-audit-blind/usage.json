@@ -1,0 +1,12 @@
+{
+  "tokens": 141996,
+  "cache_read_tokens": 883043,
+  "output_tokens": 36960,
+  "turns": 34,
+  "duration_s": 337,
+  "denied": 1,
+  "denied_commands": [
+    "K=/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-98numf2m/kit; ls -R $K/skills/harness-audit; cat $K/skills/harness-audit/SKILL"
+  ],
+  "error": null
+}

@@ -1,0 +1,592 @@
+{
+  "audit": {
+    "process": "Contribution assistée par IA à Cursus (PR vers main, CI, déploiement automatique)",
+    "scope": "repo Cursus : AGENTS.md, CLAUDE.md, .github/workflows/ci.yml, tests garde-fous, docs/",
+    "date": "2026-11-14",
+    "health_score": 49,
+    "cut_the_agent_test": {
+      "passed": false,
+      "leaked_steps": 4
+    }
+  },
+  "elements": [
+    {
+      "id": "rule-frozen-migrations",
+      "path": "AGENTS.md:58",
+      "declared_layer": "L4",
+      "actual_layer": "L2",
+      "called_by": [
+        "agents-md",
+        "claude-md"
+      ],
+      "calls": [],
+      "verdict": "PUSH_DOWN",
+      "priority": "P1",
+      "finding": "La règle se dit vérifiée par un job CI `frozen-migrations` qui n'existe pas ; une migration appliquée modifiée passe la CI puis est déployée sans effet en production.",
+      "evidence": [
+        "AGENTS.md:58",
+        "CLAUDE.md:20",
+        ".github/workflows/ci.yml:8-21",
+        "docs/exploitation.md:27",
+        "docs/exploitation.md:16-17"
+      ],
+      "target": "Job `frozen-migrations` dans ci.yml : git diff --diff-filter=MDR entre la base de la PR et HEAD sur */migrations/0*.py, non vide → exit 1.",
+      "check": "Une PR de test qui modifie catalog/migrations/0001_initial.py est rouge ; une PR qui ajoute 0003_*.py est verte."
+    },
+    {
+      "id": "rule-bulk-email",
+      "path": "AGENTS.md:56",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [
+        "agents-md"
+      ],
+      "calls": [
+        "test-services-email"
+      ],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "La partie « pas de signal ni de save() » est gardée par un test ; la partie « un traitement en masse n'envoie jamais un e-mail par ligne » ne l'est pas, et l'action d'admin cancel_selected envoie déjà un e-mail de promotion par ligne.",
+      "evidence": [
+        "AGENTS.md:56",
+        "enrollments/admin.py:15-20",
+        "enrollments/services.py:66",
+        "enrollments/services.py:43",
+        "docs/postmortems/2024-03-confirmations-en-masse.md:17",
+        "docs/postmortems/2024-03-confirmations-en-masse.md:21"
+      ],
+      "target": "Paramètre `notify` (mot-clé) sur services.enroll() et services.cancel() ; l'action d'admin et tout import passent notify=False ; test qui exécute l'action d'admin sur plusieurs lignes et vérifie mail.outbox vide.",
+      "check": "Test de l'action d'admin vert en CI avec mail.outbox == [] ; services.enroll(..., notify=False) n'enregistre aucun callback on_commit."
+    },
+    {
+      "id": "rule-capacity",
+      "path": "AGENTS.md:57",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [
+        "agents-md",
+        "claude-md"
+      ],
+      "calls": [],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "Rien n'empêche de créer une Enrollment confirmée hors de enroll() : le formulaire d'ajout de l'admin le permet, et le verrou n'est jamais testé (SQLite).",
+      "evidence": [
+        "AGENTS.md:57",
+        "enrollments/admin.py:7-8",
+        "docs/postmortems/2024-09-session-surbookee.md:18-19",
+        "cursus/settings.py:51-63"
+      ],
+      "target": "EnrollmentAdmin.has_add_permission → False (ou ajout routé par enroll()) ; test qui parcourt les sources et échoue sur Enrollment.objects.create/bulk_create hors services.py et tests ; job CI PostgreSQL pour le test de concurrence.",
+      "check": "GET /admin/enrollments/enrollment/add/ renvoie 403 en test ; le test de scan échoue si on ajoute Enrollment.objects.create dans une vue."
+    },
+    {
+      "id": "claude-md",
+      "path": "CLAUDE.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": [],
+      "verdict": "MERGE",
+      "priority": "P2",
+      "finding": "Copie résumée d'AGENTS.md qui ne l'inclut pas : Claude ne voit ni les pourquoi ni la règle des traitements en masse, et la ligne 18 la contredit.",
+      "evidence": [
+        "CLAUDE.md:3",
+        "CLAUDE.md:18",
+        "CLAUDE.md:20",
+        "AGENTS.md:56"
+      ],
+      "target": "CLAUDE.md réduit à `@AGENTS.md` plus les seules lignes propres à Claude (ex. CLAUDE.md:21 remonte dans AGENTS.md:60).",
+      "check": "CLAUDE.md fait moins de 10 lignes et commence par @AGENTS.md ; aucune règle n'existe dans un seul des deux fichiers."
+    },
+    {
+      "id": "rule-timezone",
+      "path": "AGENTS.md:61",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [
+        "agents-md",
+        "claude-md"
+      ],
+      "calls": [],
+      "verdict": "PUSH_DOWN",
+      "priority": "P3",
+      "finding": "Règle sans garde-fou ; une date naïve fausse has_started et la clôture des inscriptions d'une à deux heures.",
+      "evidence": [
+        "AGENTS.md:61",
+        "CLAUDE.md:22",
+        "catalog/models.py:58-59"
+      ],
+      "target": "Règle ruff DTZ (flake8-datetimez) dans la CI, ou test qui scanne les sources à la recherche de datetime.now(.",
+      "check": "Un datetime.now() ajouté dans une vue fait échouer la CI."
+    },
+    {
+      "id": "agents-md",
+      "path": "AGENTS.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": [
+        "rule-frozen-migrations",
+        "rule-bulk-email",
+        "rule-capacity",
+        "rule-timezone"
+      ],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Bon fichier, bon périmètre, règles nées d'incidents bien justifiées ; à nettoyer ligne à ligne (3 nuisibles, 8 inutiles, 4 en question).",
+      "evidence": [
+        "AGENTS.md:56-57"
+      ],
+      "target": "Appliquer la section 3c et ajouter une clause de maintenance.",
+      "check": "harness rules ne liste plus de ligne nuisible ; chaque règle obligatoire porte « Vérifiée par » ou est signalée comme fuite."
+    },
+    {
+      "id": "ci-workflow",
+      "path": ".github/workflows/ci.yml",
+      "declared_layer": "L4",
+      "actual_layer": "L4",
+      "called_by": [],
+      "calls": [
+        "test-queries",
+        "test-services-email"
+      ],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Un job bloquant qui garde les migrations oubliées et lance les tests ; c'est là que les nouveaux garde-fous doivent s'ajouter.",
+      "evidence": [
+        ".github/workflows/ci.yml:18-21"
+      ],
+      "target": "Inchangé, plus les jobs des PUSH_DOWN.",
+      "check": "—"
+    },
+    {
+      "id": "test-queries",
+      "path": "catalog/tests/test_queries.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": [
+        "ci-workflow"
+      ],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Garde-fou modèle : né d'un incident, cité, et dit quoi ne pas faire (ne pas changer le nombre attendu).",
+      "evidence": [
+        "catalog/tests/test_queries.py:1-5"
+      ],
+      "target": "Inchangé.",
+      "check": "—"
+    },
+    {
+      "id": "test-services-email",
+      "path": "enrollments/tests/test_services.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": [
+        "ci-workflow"
+      ],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "test_saving_an_enrollment_sends_nothing garde l'absence d'envoi dans un signal ou save().",
+      "evidence": [
+        "enrollments/tests/test_services.py:106-112"
+      ],
+      "target": "Inchangé.",
+      "check": "—"
+    },
+    {
+      "id": "docs-incidents-adr",
+      "path": "docs/postmortems/, docs/adr/",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [
+        "agents-md"
+      ],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Référence chargée à la demande qui porte les pourquoi et liste honnêtement ce qui reste ouvert.",
+      "evidence": [
+        "docs/postmortems/2024-03-confirmations-en-masse.md:19-21",
+        "docs/postmortems/2024-09-session-surbookee.md:17-20"
+      ],
+      "target": "Inchangé.",
+      "check": "—"
+    },
+    {
+      "id": "docs-exploitation",
+      "path": "docs/exploitation.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Décrit exactement la CI réelle et le déploiement ; c'est lui qui contredit AGENTS.md:58.",
+      "evidence": [
+        "docs/exploitation.md:27"
+      ],
+      "target": "Mettre à jour la section CI quand le job frozen-migrations existera.",
+      "check": "—"
+    },
+    {
+      "id": "readme",
+      "path": "README.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "Commandes exactes et alignées sur la CI ; rend redondantes l'arborescence et la présentation d'AGENTS.md.",
+      "evidence": [
+        "README.md:16-20",
+        "README.md:35-41"
+      ],
+      "target": "Inchangé.",
+      "check": "—"
+    }
+  ],
+  "process_leaks": [
+    {
+      "rule": "Ne jamais modifier une migration appliquée",
+      "told_in": "AGENTS.md:58",
+      "if_skipped": "La migration modifiée passe la CI, est fusionnée et la production garde l'ancien schéma sans erreur visible",
+      "belongs_in": "L4",
+      "guard_tool": "Job CI frozen-migrations (git diff --diff-filter=MDR sur */migrations/0*.py)"
+    },
+    {
+      "rule": "Un traitement en masse n'envoie jamais un e-mail par ligne",
+      "told_in": "AGENTS.md:56",
+      "if_skipped": "Rafale d'e-mails, suspension du compte SMTP (incident 2024-03) ; déjà le cas pour l'action d'admin cancel_selected",
+      "belongs_in": "L3",
+      "guard_tool": "Paramètre notify sur les services + test de l'action d'admin sur mail.outbox"
+    },
+    {
+      "rule": "Toute inscription passe par services.enroll()",
+      "told_in": "AGENTS.md:57",
+      "if_skipped": "Surréservation (incident 2024-09) via l'admin, un script ou un bulk_create",
+      "belongs_in": "L3",
+      "guard_tool": "has_add_permission=False sur EnrollmentAdmin + test de scan des sources + job CI PostgreSQL"
+    },
+    {
+      "rule": "timezone.now(), jamais datetime.now()",
+      "told_in": "AGENTS.md:61",
+      "if_skipped": "Dates naïves, clôture des inscriptions décalée",
+      "belongs_in": "L3",
+      "guard_tool": "ruff DTZ dans la CI"
+    }
+  ],
+  "guarded_rules": [
+    {
+      "rule": "Pas d'e-mail dans un signal post_save ni dans save()",
+      "told_in": "AGENTS.md:56",
+      "guarded_by": "enrollments/tests/test_services.py:106-112 (job test de .github/workflows/ci.yml)"
+    },
+    {
+      "rule": "Migration commitée après tout changement de modèle",
+      "told_in": "AGENTS.md:59",
+      "guarded_by": ".github/workflows/ci.yml:18-19"
+    },
+    {
+      "rule": "Pas de requête par ligne dans une page de liste",
+      "told_in": "AGENTS.md:60",
+      "guarded_by": "catalog/tests/test_queries.py (job test de .github/workflows/ci.yml:21)"
+    }
+  ],
+  "removals": [
+    {
+      "path": "AGENTS.md",
+      "line": 30,
+      "text": "python manage.py test --settings=cursus.settings_ci",
+      "reason": "harmful",
+      "evidence": "cursus/settings_ci.py n'existe pas ; la CI lance `python manage.py test` (ci.yml:21)",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 58,
+      "text": "Vérifié par : le job `frozen-migrations` de la CI…",
+      "reason": "harmful",
+      "evidence": "ci.yml n'a qu'un job `test` (ci.yml:8-21, docs/exploitation.md:27) ; la règle reste, seule la mention du garde-fou part tant que le job n'existe pas",
+      "ask_owner": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "line": 20,
+      "text": "la CI le refuse (job `frozen-migrations`)",
+      "reason": "harmful",
+      "evidence": "Même motif que AGENTS.md:58",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 60,
+      "text": "Avant de proposer une PR qui touche une liste, ouvre la page avec django-debug-toolbar et compte les requêtes.",
+      "reason": "harmful",
+      "evidence": "django-debug-toolbar retirée (docs/postmortems/2025-06-liste-des-sessions.md:14, requirements.txt:1) ; remplacée par catalog/tests/test_queries.py",
+      "ask_owner": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "line": 18,
+      "text": "E-mails : toute inscription créée envoie sa confirmation…",
+      "reason": "harmful",
+      "evidence": "Contredit la décision « un traitement en masse n'envoie jamais un e-mail par ligne » (AGENTS.md:56, postmortem 2024-03:17), absente de CLAUDE.md",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 3,
+      "text": "Lis-le en entier avant de répondre.",
+      "reason": "useless",
+      "evidence": "Le fichier est chargé automatiquement par les outils qui le lisent",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 7,
+      "text": "Cursus gère les inscriptions… Django, pages rendues côté serveur…",
+      "reason": "useless",
+      "evidence": "README.md:3 et cursus/settings.py:51-63",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 9,
+      "text": "Arborescence (lignes 9-24)",
+      "reason": "useless",
+      "evidence": "Découvrable dans le dépôt ; déjà dans README.md:35-41",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 36,
+      "text": "Réfléchis étape par étape et annonce ton plan avant d'écrire du code.",
+      "reason": "useless",
+      "evidence": "Comportement par défaut d'un modèle actuel",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 37,
+      "text": "N'invente pas d'API Django…",
+      "reason": "useless",
+      "evidence": "Comportement par défaut ; aucune particularité du dépôt",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 44,
+      "text": "Donne des noms clairs aux variables et aux fonctions.",
+      "reason": "useless",
+      "evidence": "Comportement par défaut",
+      "ask_owner": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "line": 16,
+      "text": "PEP 8, noms clairs, une docstring par fonction publique.",
+      "reason": "useless",
+      "evidence": "Doublon d'AGENTS.md:43-45, disparaît avec le MERGE",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 46,
+      "text": "Pas de code commenté, pas de `print` oublié.",
+      "reason": "useless",
+      "evidence": "Comportement par défaut ; aucun linter ne le vérifie",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 51,
+      "text": "Le code doit tourner sous Python 3.8…",
+      "reason": "outdated",
+      "evidence": "Le code utilise déjà match (enrollments/notifications.py:17) et `Enrollment | None` (enrollments/services.py:47), qui ne s'importent pas sous 3.8 ; CI en 3.12 (ci.yml:15)",
+      "ask_owner": true
+    },
+    {
+      "path": "CLAUDE.md",
+      "line": 17,
+      "text": "Python 3.8 sur le serveur : pas de `match`, pas de `X | Y`.",
+      "reason": "outdated",
+      "evidence": "Même motif que AGENTS.md:51",
+      "ask_owner": true
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 52,
+      "text": "Reste sur les API de Django 4.2 LTS…",
+      "reason": "outdated",
+      "evidence": "requirements.txt:1 exige Django>=5.1,<5.2 (non LTS) ; catalog/models.py:48 utilise CheckConstraint(condition=), API 5.1",
+      "ask_owner": true
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 38,
+      "text": "Donne toujours le fichier complet… on colle ta réponse telle quelle dans l'éditeur.",
+      "reason": "outdated",
+      "evidence": "Contournement d'un usage en chat copié-collé ; les agents qui éditent les fichiers réécriraient des fichiers entiers. Rien dans le dépôt ne dit si l'usage existe encore",
+      "ask_owner": true
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 43,
+      "text": "Respecte PEP 8, lignes de 100 caractères au plus.",
+      "reason": "outdated",
+      "evidence": "Aucun linter ; lignes de plus de 100 caractères dans enrollments/services.py:39, enrollments/views.py:26 et :36, catalog/models.py:38",
+      "ask_owner": true
+    }
+  ],
+  "owner_questions": [
+    "Q1. Le serveur de production est-il encore en Python 3.8 ? Le code actuel ne s'y importe pas (enrollments/services.py:47, enrollments/notifications.py:17). Défaut proposé : non → retirer AGENTS.md:51 et CLAUDE.md:17, écrire la version réelle et aligner python-version de ci.yml dessus. Si oui → P1 : la production ne peut pas démarrer ce code, CI à passer en 3.8.",
+    "Q2. L'hébergeur exige-t-il toujours une version LTS de Django ? requirements.txt:1 fixe 5.1, qui n'est pas LTS. Défaut proposé : retirer AGENTS.md:52, requirements.txt fait foi ; si l'exigence LTS tient, passer requirements.txt sur 5.2 LTS.",
+    "Q3. Quelqu'un utilise-t-il encore un assistant en mode chat dont il colle la réponse ? Défaut proposé : non → retirer AGENTS.md:38.",
+    "Q4. L'action d'admin « Annuler les inscriptions sélectionnées » envoie un e-mail de promotion par inscription libérée (enrollments/admin.py:18-19 → services.py:66). Exception voulue à la décision du postmortem 2024-03:17 ? Défaut proposé : non, l'action enregistre sans prévenir et le service formation notifie.",
+    "Q5. Le staff doit-il pouvoir ajouter une inscription depuis l'admin ? Défaut proposé : non → has_add_permission=False sur EnrollmentAdmin ; si oui, l'ajout passe par services.enroll().",
+    "Q6. La limite de 100 caractères est-elle toujours voulue ? Défaut proposé : oui, avec ruff (line-length = 100) en CI ; sinon retirer la mention de AGENTS.md:43.",
+    "Q7. La protection de branche de main exige-t-elle bien le job test (docs/exploitation.md:27) ? Défaut proposé : oui, à confirmer dans les réglages GitHub, et y ajouter frozen-migrations une fois créé."
+  ],
+  "instruction_files": [
+    {
+      "path": "AGENTS.md",
+      "loaded_lines": 67,
+      "instruction_pct": 55,
+      "reference_pct": 35,
+      "noise_pct": 10,
+      "justified_rules": true,
+      "maintenance_clause": false
+    },
+    {
+      "path": "CLAUDE.md",
+      "loaded_lines": 24,
+      "instruction_pct": 60,
+      "reference_pct": 30,
+      "noise_pct": 10,
+      "justified_rules": false,
+      "maintenance_clause": false
+    }
+  ],
+  "remediation": [
+    {
+      "order": 1,
+      "priority": "P1",
+      "verdict": "PUSH_DOWN",
+      "element": "rule-frozen-migrations",
+      "action": "Ajouter le job frozen-migrations à .github/workflows/ci.yml (checkout fetch-depth 0, git diff --name-only --diff-filter=MDR origin/main...HEAD -- '*/migrations/0*.py', non vide → exit 1) et l'exiger dans la protection de branche.",
+      "depends_on": [],
+      "check": "PR de test modifiant catalog/migrations/0001_initial.py rouge, PR ajoutant une migration verte ; AGENTS.md:58 dit alors vrai.",
+      "needs_human_approval": true
+    },
+    {
+      "order": 2,
+      "priority": "P2",
+      "verdict": "PUSH_DOWN",
+      "element": "rule-capacity",
+      "action": "Fermer l'ajout dans EnrollmentAdmin, ajouter un test de scan des sources contre Enrollment.objects.create/bulk_create hors services.py et tests, puis un job CI PostgreSQL pour un test de concurrence de enroll().",
+      "depends_on": [
+        "Q5"
+      ],
+      "check": "Test 403 sur la page d'ajout ; le scan échoue sur une écriture directe ajoutée ; le job PostgreSQL tourne sur chaque PR.",
+      "needs_human_approval": true
+    },
+    {
+      "order": 3,
+      "priority": "P2",
+      "verdict": "PUSH_DOWN",
+      "element": "rule-bulk-email",
+      "action": "Ajouter notify (mot-clé, True par défaut) à services.enroll() et services.cancel(), le passer à False depuis l'action d'admin, tester l'action sur plusieurs lignes.",
+      "depends_on": [
+        "Q4"
+      ],
+      "check": "Test de l'action d'admin vert avec mail.outbox vide ; AGENTS.md:56 cite ce test.",
+      "needs_human_approval": true
+    },
+    {
+      "order": 4,
+      "priority": "P2",
+      "verdict": "REMOVE",
+      "element": "agents-md",
+      "action": "Retirer les lignes nuisibles : AGENTS.md:30 (remplacée par `python manage.py test`), la seconde phrase de AGENTS.md:60 (remplacée par le pointeur vers test_queries.py et « ne change pas le nombre attendu »), et la mention du job à la ligne 58 si l'ordre 1 n'est pas retenu.",
+      "depends_on": [
+        1
+      ],
+      "check": "Chaque commande d'AGENTS.md s'exécute telle quelle ; aucun outil absent n'est cité.",
+      "needs_human_approval": true
+    },
+    {
+      "order": 5,
+      "priority": "P2",
+      "verdict": "MERGE",
+      "element": "claude-md",
+      "action": "Réduire CLAUDE.md à `@AGENTS.md` plus les lignes propres à Claude ; supprimer CLAUDE.md:18.",
+      "depends_on": [
+        4
+      ],
+      "check": "Aucune règle n'existe dans un seul des deux fichiers ; CLAUDE.md fait moins de 10 lignes.",
+      "needs_human_approval": true
+    },
+    {
+      "order": 6,
+      "priority": "P3",
+      "verdict": "PUSH_DOWN",
+      "element": "rule-timezone",
+      "action": "Ajouter ruff (règles DTZ, et E501 à 100 si Q6 = oui) en CI.",
+      "depends_on": [
+        "Q6"
+      ],
+      "check": "Un datetime.now() ajouté fait échouer la CI.",
+      "needs_human_approval": true
+    },
+    {
+      "order": 7,
+      "priority": "P3",
+      "verdict": "REMOVE",
+      "element": "agents-md",
+      "action": "Retirer les lignes inutiles AGENTS.md:3, 7, 9-24, 36, 37, 44, 46 ; raccourcir AGENTS.md:59-60 à leur ligne « Vérifiée par ».",
+      "depends_on": [
+        5
+      ],
+      "check": "AGENTS.md passe d'environ 67 à environ 40 lignes, les règles 56-57 intactes.",
+      "needs_human_approval": true
+    },
+    {
+      "order": 8,
+      "priority": "P3",
+      "verdict": "REMOVE",
+      "element": "agents-md",
+      "action": "Traiter les lignes périmées AGENTS.md:38, 43, 51, 52 et CLAUDE.md:17 selon les réponses Q1, Q2, Q3, Q6.",
+      "depends_on": [
+        "Q1",
+        "Q2",
+        "Q3",
+        "Q6"
+      ],
+      "check": "Les versions citées dans AGENTS.md correspondent à requirements.txt et à ci.yml.",
+      "needs_human_approval": true
+    },
+    {
+      "order": 9,
+      "priority": "P3",
+      "verdict": "KEEP",
+      "element": "agents-md",
+      "action": "Ajouter une clause de maintenance : une règle s'ajoute dans la PR qui la motive, avec son pourquoi et son garde-fou ou la mention « non vérifiée ».",
+      "depends_on": [
+        7
+      ],
+      "check": "La clause est présente en tête d'AGENTS.md.",
+      "needs_human_approval": false
+    }
+  ],
+  "unverified": [
+    "Les tests n'ont pas été exécutés : Django n'est pas installé dans l'environnement de l'audit.",
+    "La protection de branche de main (job test requis) est affirmée par docs/exploitation.md:27, non visible dans le dépôt.",
+    "Le pipeline de déploiement de l'hébergeur (migrate automatique à la fusion, sans retour arrière, docs/exploitation.md:13) est hors dépôt : ni dry-run ni point d'arrêt vérifiables.",
+    "La version de Python et de Django réellement en production (voir Q1, Q2).",
+    "Les dates des règles : l'historique git n'a qu'un commit d'import (3719e0e), les âges calculés par harness rules sont donc sans valeur ; harness rules déclare un garde-fou pour AGENTS.md:58 sur la foi du texte, alors qu'il n'existe pas."
+  ]
+}

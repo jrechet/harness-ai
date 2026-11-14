@@ -1,0 +1,13 @@
+{
+  "tokens": 142527,
+  "cache_read_tokens": 988530,
+  "output_tokens": 35609,
+  "turns": 38,
+  "duration_s": 317,
+  "denied": 2,
+  "denied_commands": [
+    "cd /tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-q2ollu_2/kit; ls -R; cat skills/harness-audit/SKILL.md",
+    "R=/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-q2ollu_2/repo; for f in .github/workflows/ci.yml .github/CODEOWNERS tools/chec"
+  ],
+  "error": null
+}
