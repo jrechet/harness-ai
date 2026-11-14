@@ -431,6 +431,64 @@ def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runn
             "interview": None if interview is None else {"questions": len(interview.log), "fetched": fetched}}
 
 
+AUDIT_PROMPT = (
+    "Audite l'instrumentation IA de ce dépôt en suivant le skill décrit dans "
+    "{kit}/skills/harness-audit/SKILL.md. Ses fichiers de référence sont dans le même dossier, et le CLI "
+    "qu'il cite est {kit}/cli/harness.py.\n\n"
+    "Le propriétaire du dépôt n'est pas joignable pendant cette séance : ce que lui seul peut trancher va "
+    "dans les questions du rapport.\n\n"
+    "Termine par le rapport que le skill demande."
+)
+
+
+def play_audit(fixture_dir: str, work_root: str, out_dir: str | None = None, runner=run_agent,
+               label: str | None = None, results: str | None = RESULTS, day: str | None = None) -> dict[str, Any]:
+    """L'audit joué à l'aveugle sur le dépôt tel qu'on le trouve, propriétaire injoignable : un audit
+    diagnostique et pose ses questions, il ne tranche pas le périmé. Note par le bloc `audit` ; un audit
+    qui modifie autre chose que `.harness/` est un écart."""
+    work_root = _guard_work_root(work_root)
+    name = os.path.basename(os.path.normpath(fixture_dir))
+    day = day or date.today().isoformat()
+    with open(os.path.join(fixture_dir, "expected.json"), encoding="utf-8") as fh:
+        expected = json.load(fh)
+    parent = tempfile.mkdtemp(prefix="w-", dir=work_root)
+    workdir, kit = os.path.join(parent, "repo"), make_kit(os.path.join(parent, "kit"))
+    prepare(fixture_dir, workdir, "asis" if "asis" in available_arms(fixture_dir) else "bare")
+    tasks = [load_task(fixture_dir, t) for t in list_tasks(fixture_dir)]
+    bash = {rule for t in tasks for rule in t.get("agent_bash", [])} | {f"python3 {kit}/cli/harness.py *"}
+    agent = runner(workdir, AUDIT_PROMPT.format(kit=kit), {"agent_bash": sorted(bash)})
+    audit = facts.load_json(os.path.join(workdir, ".harness", "audit.json"))
+    touched = [f for f in sorted(diff(workdir)) if not f.startswith(".harness/")]
+    if audit is None:
+        graded = {"found": [], "missed": [], "wrong": [], "sane_flagged": [], "score": "0/?", "ok": False,
+                  "global": ["aucun .harness/audit.json lisible"]}
+    else:
+        graded = fixtures.check_audit(audit, expected.get("audit", {}))
+    if touched:
+        graded["global"] = graded.get("global", []) + [f"un audit ne modifie rien, il a touché {', '.join(touched[:5])}"]
+        graded["ok"] = False
+    out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-audit-blind")
+    os.makedirs(out_dir, exist_ok=True)
+    lines = [f"# Audit de {name} : {graded['score']} pièges et retraits trouvés" + (" · conforme" if graded["ok"] else "")]
+    for key, title in (("missed", "Manqués"), ("wrong", "Mauvais verdict"), ("sane_flagged", "Sains signalés"), ("global", "Global")):
+        if graded.get(key):
+            lines += [f"## {title}"] + [f"- {x}" for x in graded[key]]
+    note = "\n".join(lines) + "\n"
+    outputs = [("audit.json", json.dumps(audit, ensure_ascii=False, indent=2) + "\n" if audit is not None else "null\n"),
+               ("compte-rendu.md", agent.get("report") or ""), ("note.md", note), ("diff.patch", patch_of(workdir)),
+               ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")]
+    for rel, text in outputs:
+        with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    if results:
+        record({"date": day, "kind": "audit", "fixture": name, "task": None, "arm": None, "model": label,
+                "skill_rev": _skill_rev(), "score": graded["score"], "ok": graded["ok"], "blind": True,
+                "run": os.path.relpath(out_dir, repo_root()), "note": "agent neutre, propriétaire injoignable"
+                + (f" ; {agent['error']}" if agent.get("error") else "")}, results)
+    return {"workdir": workdir, "out": out_dir, "check": graded, "note": note,
+            "usage": agent.get("usage", {}), "error": agent.get("error")}
+
+
 STEP_PROMPT = (
     "Fais avancer l'instrumentation IA de ce dépôt d'un pas, en suivant le skill décrit dans "
     "{kit}/skills/harness-step/SKILL.md. Ses fichiers de référence sont dans le même dossier, les gabarits "
@@ -684,6 +742,12 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     pi.add_argument("--answers", choices=ANSWER_MODES, default="auto",
                     help="given : réponses d'owner.md données d'avance ; asked : le propriétaire ne répond qu'aux "
                          "questions (owner.json) ; auto : asked si le projet a un owner.json")
+    pa = sub.add_parser("audit", help="joue harness-audit par un agent neutre sur le dépôt tel qu'on le trouve, le note")
+    pa.add_argument("fixture")
+    pa.add_argument("--work-root", required=True, help="dossier temporaire hors de ce dépôt")
+    pa.add_argument("--out", help="où ranger les sorties (défaut : runs/<date>-audit-blind de la fixture)")
+    pa.add_argument("--label", help="étiquette de génération pour le registre")
+    pa.add_argument("--no-record", action="store_true", help="ne pas écrire dans le registre")
     ps = sub.add_parser("step", help="joue un pas de harness-step par un agent neutre, depuis un harness posé")
     ps.add_argument("fixture")
     ps.add_argument("--from", dest="start", required=True, help="le harness de départ, au format overlay/ (runs/<date>-pas1-author, …/overlay)")
@@ -760,6 +824,14 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         print((f"{_thousands(u['tokens'])} tokens neufs, {u.get('turns')} tours, {u.get('duration_s')} s, {u.get('denied')} refus · " if u else "")
               + f"changé : {', '.join(done['changed']) or 'rien'}\nsorties : {done['out']}"
               + (f"\nerreur : {done['error']}" if done["error"] else ""))
+        return 0 if done["check"]["ok"] else 1
+    if cmd == "audit":
+        done = play_audit(resolve(args.fixture), args.work_root, args.out, label=args.label,
+                          results=None if args.no_record else RESULTS)
+        u = done["usage"]
+        sys.stdout.write(done["note"])
+        print((f"{_thousands(u['tokens'])} tokens neufs, {u.get('turns')} tours, {u.get('duration_s')} s, {u.get('denied')} refus\n" if u else "")
+              + f"sorties : {done['out']}" + (f"\nerreur : {done['error']}" if done["error"] else ""))
         return 0 if done["check"]["ok"] else 1
     if cmd == "step":
         done = play_step(resolve(args.fixture), args.work_root, args.start, args.target, args.out, label=args.label,

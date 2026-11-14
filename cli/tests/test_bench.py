@@ -382,6 +382,50 @@ class InitPlayTests(BenchCase):
         self.assertEqual(bench.load_results(self.results)[-1]["note"], "harness produit par le pas 1 à l'aveugle")
 
 
+class AuditPlayTests(BenchCase):
+    """`bench audit` : l'audit joué sur le dépôt tel qu'on le trouve, noté par le bloc `audit`."""
+
+    def setUp(self):
+        super().setUp()
+        write(self.fx, "expected.json", json.dumps({"fixture": "demo", "status": {"level_reached": 0},
+                                                     "audit": {"removals": [{"id": "N1", "any_of": ["étape par étape"], "reasons": ["useless"]}]}}))
+        self.results = os.path.join(self.tmp.name, "results.jsonl")
+
+    def audit(self, act):
+        def fake_agent(workdir, prompt, spec):
+            self.prompt = prompt
+            act(workdir)
+            return {"report": "Rapport.", "error": None, "usage": {"tokens": 9}}
+        return bench.play_audit(self.fx, os.path.join(self.tmp.name, "scratch"), runner=fake_agent,
+                                results=self.results, day="2026-01-02", out_dir=os.path.join(self.tmp.name, "out"))
+
+    def write_audit(self, removals):
+        def act(workdir):
+            write(workdir, ".harness/audit.json", json.dumps({"audit": {"cut_the_agent_test": {"passed": True}},
+                                                              "elements": [], "removals": removals}))
+        return act
+
+    def test_a_good_audit_is_graded_and_filed(self):
+        done = self.audit(self.write_audit([{"text": "Réfléchis étape par étape", "reason": "useless"}]))
+        self.assertTrue(done["check"]["ok"], done["check"])
+        self.assertIn("harness-audit/SKILL.md", self.prompt)
+        self.assertIn("pas joignable", self.prompt)
+        self.assertTrue(os.path.isfile(os.path.join(done["out"], "audit.json")))
+        self.assertEqual(bench.load_results(self.results)[-1]["kind"], "audit")
+
+    def test_an_audit_that_edits_the_repository_is_reported(self):
+        def act(workdir):
+            self.write_audit([{"text": "Réfléchis étape par étape", "reason": "useless"}])(workdir)
+            write(workdir, "AGENTS.md", "# réécrit\n")
+        done = self.audit(act)
+        self.assertFalse(done["check"]["ok"])
+        self.assertTrue(any("ne modifie rien" in g for g in done["check"]["global"]))
+
+    def test_no_audit_file_is_reported(self):
+        done = self.audit(lambda workdir: None)
+        self.assertFalse(done["check"]["ok"])
+
+
 class StepPlayTests(BenchCase):
     """`bench step` : un pas de harness-step, noté par l'état mesuré avant et après."""
 
