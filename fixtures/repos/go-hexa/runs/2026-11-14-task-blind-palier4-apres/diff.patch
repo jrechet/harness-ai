@@ -1,0 +1,590 @@
+diff --git a/internal/adapters/httpapi/server.go b/internal/adapters/httpapi/server.go
+index 7756c2e..1bf9da1 100644
+--- a/internal/adapters/httpapi/server.go
++++ b/internal/adapters/httpapi/server.go
+@@ -28,8 +28,9 @@ func (s *Server) routes() []route {
+ 		{"GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }},
+ 		{"POST /accounts", s.openAccount},
+ 		{"GET /accounts/{id}", s.getAccount},
++		{"POST /accounts/{id}/deposits", s.createDeposit},
+ 		{"POST /transfers", s.createTransfer},
+-		{"GET /transfers/quote", s.quote},	}
++		{"GET /transfers/quote", s.quote}}
+ }
+ 
+ func (s *Server) Handler() http.Handler {
+@@ -78,6 +79,31 @@ func (s *Server) getAccount(w http.ResponseWriter, r *http.Request) {
+ 	writeJSON(w, http.StatusOK, toAccountBody(account))
+ }
+ 
++func (s *Server) createDeposit(w http.ResponseWriter, r *http.Request) {
++	var body struct {
++		AmountCents int64  `json:"amount_cents"`
++		Currency    string `json:"currency"`
++	}
++	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
++		writeError(w, http.StatusBadRequest, "invalid_body", "the body is not valid JSON")
++		return
++	}
++	result, err := s.svc.Deposit(r.Context(), app.DepositCommand{
++		IdempotencyKey: r.Header.Get("Idempotency-Key"),
++		AccountID:      r.PathValue("id"),
++		AmountCents:    body.AmountCents,
++		Currency:       body.Currency,
++	})
++	if err != nil {
++		writeDomainError(w, err)
++		return
++	}
++	if result.Replayed {
++		w.Header().Set("Idempotency-Replayed", "true")
++	}
++	writeJSON(w, http.StatusCreated, toAccountBody(result.Account))
++}
++
+ func (s *Server) createTransfer(w http.ResponseWriter, r *http.Request) {
+ 	var body struct {
+ 		From        string `json:"from"`
+diff --git a/internal/adapters/httpapi/server_test.go b/internal/adapters/httpapi/server_test.go
+index 321c308..3ee61cc 100644
+--- a/internal/adapters/httpapi/server_test.go
++++ b/internal/adapters/httpapi/server_test.go
+@@ -90,6 +90,68 @@ func TestErrorsMapToStatusCodes(t *testing.T) {
+ 	}
+ }
+ 
++const depositBody = `{"amount_cents":500,"currency":"EUR"}`
++
++func TestDepositReturnsTheUpdatedAccount(t *testing.T) {
++	h := newServer(t)
++	rec := post(h, "/accounts/alice/deposits", "d1", depositBody)
++	if rec.Code != http.StatusCreated {
++		t.Fatalf("got %d %s", rec.Code, rec.Body)
++	}
++	if rec.Header().Get("Idempotency-Replayed") != "" {
++		t.Fatal("a first deposit is marked as replayed")
++	}
++	get := httptest.NewRecorder()
++	h.ServeHTTP(get, httptest.NewRequest(http.MethodGet, "/accounts/alice", nil))
++	if rec.Body.String() != get.Body.String() {
++		t.Fatalf("deposit body %s differs from GET /accounts/alice %s", rec.Body, get.Body)
++	}
++	if !strings.Contains(rec.Body.String(), `"balance_cents":1500`) {
++		t.Fatalf("got %s", rec.Body)
++	}
++}
++
++func TestDepositReplayIsMarkedAndCreditsOnce(t *testing.T) {
++	h := newServer(t)
++	first, second := post(h, "/accounts/alice/deposits", "d1", depositBody), post(h, "/accounts/alice/deposits", "d1", depositBody)
++	if first.Code != http.StatusCreated || second.Code != http.StatusCreated {
++		t.Fatalf("got %d then %d", first.Code, second.Code)
++	}
++	if got := second.Header().Get("Idempotency-Replayed"); got != "true" {
++		t.Fatalf("Idempotency-Replayed = %q, want true", got)
++	}
++	if !strings.Contains(second.Body.String(), `"balance_cents":1500`) {
++		t.Fatalf("alice was credited more than once: %s", second.Body)
++	}
++}
++
++func TestDepositErrorsMapToStatusCodes(t *testing.T) {
++	h := newServer(t)
++	if rec := post(h, "/accounts/alice/deposits", "d1", depositBody); rec.Code != http.StatusCreated {
++		t.Fatalf("setup: got %d %s", rec.Code, rec.Body)
++	}
++	cases := map[string]struct {
++		path, key, body string
++		want            int
++		code            string
++	}{
++		"missing key":     {"/accounts/alice/deposits", "", depositBody, http.StatusBadRequest, "idempotency_key_required"},
++		"unknown account": {"/accounts/nobody/deposits", "d2", depositBody, http.StatusNotFound, "account_not_found"},
++		"zero amount":     {"/accounts/alice/deposits", "d3", `{"amount_cents":0,"currency":"EUR"}`, http.StatusUnprocessableEntity, "rejected"},
++		"other currency":  {"/accounts/alice/deposits", "d4", `{"amount_cents":500,"currency":"USD"}`, http.StatusUnprocessableEntity, "rejected"},
++		"key conflict":    {"/accounts/alice/deposits", "d1", `{"amount_cents":501,"currency":"EUR"}`, http.StatusConflict, "idempotency_conflict"},
++		"broken json":     {"/accounts/alice/deposits", "d5", `{`, http.StatusBadRequest, "invalid_body"},
++	}
++	for name, c := range cases {
++		t.Run(name, func(t *testing.T) {
++			rec := post(h, c.path, c.key, c.body)
++			if rec.Code != c.want || !strings.Contains(rec.Body.String(), c.code) {
++				t.Fatalf("got %d %s, want %d %s", rec.Code, rec.Body, c.want, c.code)
++			}
++		})
++	}
++}
++
+ func TestOpenAccountAndQuote(t *testing.T) {
+ 	h := newServer(t)
+ 	if rec := post(h, "/accounts", "", `{"owner":"carol","currency":"EUR"}`); rec.Code != http.StatusCreated {
+diff --git a/internal/adapters/memory/store.go b/internal/adapters/memory/store.go
+index bfcf6c8..109795c 100644
+--- a/internal/adapters/memory/store.go
++++ b/internal/adapters/memory/store.go
+@@ -16,10 +16,15 @@ type Store struct {
+ 	mu        sync.Mutex
+ 	accounts  map[domain.AccountID]domain.Account
+ 	transfers map[string]domain.Transfer // by idempotency key
++	deposits  map[string]domain.Deposit  // by idempotency key
+ }
+ 
+ func NewStore() *Store {
+-	return &Store{accounts: map[domain.AccountID]domain.Account{}, transfers: map[string]domain.Transfer{}}
++	return &Store{
++		accounts:  map[domain.AccountID]domain.Account{},
++		transfers: map[string]domain.Transfer{},
++		deposits:  map[string]domain.Deposit{},
++	}
+ }
+ 
+ // Seed puts accounts in the store, bypassing the use cases. Tests only.
+@@ -34,21 +39,23 @@ func (s *Store) Seed(accounts ...domain.Account) {
+ func (s *Store) Do(_ context.Context, fn func(tx app.Tx) error) error {
+ 	s.mu.Lock()
+ 	defer s.mu.Unlock()
+-	work := &tx{accounts: maps.Clone(s.accounts), transfers: maps.Clone(s.transfers)}
++	work := &tx{accounts: maps.Clone(s.accounts), transfers: maps.Clone(s.transfers), deposits: maps.Clone(s.deposits)}
+ 	if err := fn(work); err != nil {
+ 		return err
+ 	}
+-	s.accounts, s.transfers = work.accounts, work.transfers
++	s.accounts, s.transfers, s.deposits = work.accounts, work.transfers, work.deposits
+ 	return nil
+ }
+ 
+ type tx struct {
+ 	accounts  map[domain.AccountID]domain.Account
+ 	transfers map[string]domain.Transfer
++	deposits  map[string]domain.Deposit
+ }
+ 
+ func (t *tx) Accounts() app.AccountRepository   { return accountRepo{t} }
+ func (t *tx) Transfers() app.TransferRepository { return transferRepo{t} }
++func (t *tx) Deposits() app.DepositRepository   { return depositRepo{t} }
+ 
+ type accountRepo struct{ tx *tx }
+ 
+@@ -79,3 +86,18 @@ func (r transferRepo) Save(_ context.Context, t *domain.Transfer) error {
+ 	r.tx.transfers[t.IdempotencyKey] = *t
+ 	return nil
+ }
++
++type depositRepo struct{ tx *tx }
++
++func (r depositRepo) FindByIdempotencyKey(_ context.Context, key string) (*domain.Deposit, error) {
++	d, ok := r.tx.deposits[key]
++	if !ok {
++		return nil, nil
++	}
++	return &d, nil
++}
++
++func (r depositRepo) Save(_ context.Context, d *domain.Deposit) error {
++	r.tx.deposits[d.IdempotencyKey] = *d
++	return nil
++}
+diff --git a/internal/adapters/postgres/store.go b/internal/adapters/postgres/store.go
+index 8c55d89..408f10c 100644
+--- a/internal/adapters/postgres/store.go
++++ b/internal/adapters/postgres/store.go
+@@ -30,6 +30,7 @@ type tx struct{ sql *sql.Tx }
+ 
+ func (t *tx) Accounts() app.AccountRepository   { return accountRepo{t.sql} }
+ func (t *tx) Transfers() app.TransferRepository { return transferRepo{t.sql} }
++func (t *tx) Deposits() app.DepositRepository   { return depositRepo{t.sql} }
+ 
+ type accountRepo struct{ sql *sql.Tx }
+ 
+@@ -96,3 +97,37 @@ func (r transferRepo) Save(ctx context.Context, t *domain.Transfer) error {
+ 		string(t.ID), string(t.From), string(t.To), t.Amount.Cents(), t.Amount.Currency(), t.IdempotencyKey, t.CreatedAt)
+ 	return err
+ }
++
++type depositRepo struct{ sql *sql.Tx }
++
++func (r depositRepo) FindByIdempotencyKey(ctx context.Context, key string) (*domain.Deposit, error) {
++	var (
++		d           domain.Deposit
++		id, account string
++		cents       int64
++		currency    string
++	)
++	row := r.sql.QueryRowContext(ctx,
++		`SELECT id, account_id, amount_cents, currency, created_at
++		 FROM deposits WHERE idempotency_key = $1`, key)
++	if err := row.Scan(&id, &account, &cents, &currency, &d.CreatedAt); err != nil {
++		if errors.Is(err, sql.ErrNoRows) {
++			return nil, nil
++		}
++		return nil, err
++	}
++	amount, err := domain.NewMoney(cents, currency)
++	if err != nil {
++		return nil, err
++	}
++	d.ID, d.Account, d.Amount, d.IdempotencyKey = domain.DepositID(id), domain.AccountID(account), amount, key
++	return &d, nil
++}
++
++func (r depositRepo) Save(ctx context.Context, d *domain.Deposit) error {
++	_, err := r.sql.ExecContext(ctx,
++		`INSERT INTO deposits (id, account_id, amount_cents, currency, idempotency_key, created_at)
++		 VALUES ($1, $2, $3, $4, $5, $6)`,
++		string(d.ID), string(d.Account), d.Amount.Cents(), d.Amount.Currency(), d.IdempotencyKey, d.CreatedAt)
++	return err
++}
+diff --git a/internal/adapters/postgres/store_integration_test.go b/internal/adapters/postgres/store_integration_test.go
+index ed39d7d..18a08ac 100644
+--- a/internal/adapters/postgres/store_integration_test.go
++++ b/internal/adapters/postgres/store_integration_test.go
+@@ -7,6 +7,7 @@ import (
+ 	"database/sql"
+ 	"os"
+ 	"testing"
++	"time"
+ 
+ 	"example.test/ledger/internal/app"
+ 	"example.test/ledger/internal/domain"
+@@ -26,3 +27,45 @@ func TestAccountRoundTrip(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func TestDepositRoundTrip(t *testing.T) {
++	ctx := context.Background()
++	db, err := sql.Open("pgx", os.Getenv("DATABASE_URL"))
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer db.Close()
++	store := NewStore(db)
++	a, _ := domain.OpenAccount("it-dep-1", "integration", "EUR")
++	amount, _ := domain.NewMoney(500, "EUR")
++	want := &domain.Deposit{ID: "it-dep-1", Account: a.ID, Amount: amount, IdempotencyKey: "it-dep-key-1", CreatedAt: time.Now().UTC().Truncate(time.Microsecond)}
++	err = store.Do(ctx, func(tx app.Tx) error {
++		if err := tx.Accounts().Save(ctx, a); err != nil {
++			return err
++		}
++		return tx.Deposits().Save(ctx, want)
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	var got *domain.Deposit
++	err = store.Do(ctx, func(tx app.Tx) error {
++		got, err = tx.Deposits().FindByIdempotencyKey(ctx, want.IdempotencyKey)
++		return err
++	})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if got == nil || got.ID != want.ID || got.Account != want.Account || got.Amount != want.Amount || !got.CreatedAt.Equal(want.CreatedAt) {
++		t.Fatalf("got %+v, want %+v", got, want)
++	}
++	// Last safety net of ADR 0003: the database refuses a second deposit with the same key.
++	err = store.Do(ctx, func(tx app.Tx) error {
++		dup := *want
++		dup.ID = "it-dep-2"
++		return tx.Deposits().Save(ctx, &dup)
++	})
++	if err == nil {
++		t.Fatal("a second deposit with the same idempotency key was accepted")
++	}
++}
+diff --git a/internal/app/ports.go b/internal/app/ports.go
+index a7d639f..f3e957a 100644
+--- a/internal/app/ports.go
++++ b/internal/app/ports.go
+@@ -23,10 +23,18 @@ type TransferRepository interface {
+ 	Save(ctx context.Context, t *domain.Transfer) error
+ }
+ 
++// DepositRepository stores deposits.
++type DepositRepository interface {
++	// FindByIdempotencyKey returns nil, nil when no deposit carries the key.
++	FindByIdempotencyKey(ctx context.Context, key string) (*domain.Deposit, error)
++	Save(ctx context.Context, d *domain.Deposit) error
++}
++
+ // Tx gives access to the repositories of one transaction.
+ type Tx interface {
+ 	Accounts() AccountRepository
+ 	Transfers() TransferRepository
++	Deposits() DepositRepository
+ }
+ 
+ // UnitOfWork runs fn in one transaction: everything it wrote is committed
+diff --git a/internal/app/service.go b/internal/app/service.go
+index 8f7d50c..21faf3c 100644
+--- a/internal/app/service.go
++++ b/internal/app/service.go
+@@ -120,3 +120,73 @@ func (s *Service) Transfer(ctx context.Context, cmd TransferCommand) (*domain.Tr
+ func sameRequest(t *domain.Transfer, cmd TransferCommand, amount domain.Money) bool {
+ 	return string(t.From) == cmd.From && string(t.To) == cmd.To && t.Amount == amount
+ }
++
++// DepositCommand is the input of Deposit.
++type DepositCommand struct {
++	IdempotencyKey string
++	AccountID      string
++	AmountCents    int64
++	Currency       string
++}
++
++// DepositResult is the account after the deposit. Replayed tells the caller
++// that the key had already served this very request and nothing was written.
++type DepositResult struct {
++	Account  *domain.Account
++	Replayed bool
++}
++
++// Deposit credits an account with money from outside the ledger, once per
++// idempotency key. A replay of the same request credits nothing and returns the
++// account as it is now; the same key with another request is a conflict.
++func (s *Service) Deposit(ctx context.Context, cmd DepositCommand) (*DepositResult, error) {
++	if cmd.IdempotencyKey == "" {
++		return nil, ErrMissingIdempotencyKey
++	}
++	amount, err := domain.NewMoney(cmd.AmountCents, cmd.Currency)
++	if err != nil {
++		return nil, err
++	}
++	var result *DepositResult
++	err = s.uow.Do(ctx, func(tx Tx) error {
++		// The lookup and the write share one transaction, as in Transfer
++		// (docs/postmortems/2026-04-double-debit.md).
++		previous, err := tx.Deposits().FindByIdempotencyKey(ctx, cmd.IdempotencyKey)
++		if err != nil {
++			return err
++		}
++		if previous != nil && (string(previous.Account) != cmd.AccountID || previous.Amount != amount) {
++			return ErrIdempotencyConflict
++		}
++		account, err := tx.Accounts().Get(ctx, domain.AccountID(cmd.AccountID))
++		if err != nil {
++			return err
++		}
++		if previous != nil {
++			result = &DepositResult{Account: account, Replayed: true}
++			return nil
++		}
++		if err := domain.Receive(account, amount); err != nil {
++			return err
++		}
++		deposit := &domain.Deposit{
++			ID:             domain.DepositID(s.ids.NewID()),
++			Account:        account.ID,
++			Amount:         amount,
++			IdempotencyKey: cmd.IdempotencyKey,
++			CreatedAt:      s.clock.Now(),
++		}
++		if err := tx.Accounts().Save(ctx, account); err != nil {
++			return err
++		}
++		if err := tx.Deposits().Save(ctx, deposit); err != nil {
++			return err
++		}
++		result = &DepositResult{Account: account}
++		return nil
++	})
++	if err != nil {
++		return nil, err
++	}
++	return result, nil
++}
+diff --git a/internal/app/service_test.go b/internal/app/service_test.go
+index bbd7614..8b7ad0c 100644
+--- a/internal/app/service_test.go
++++ b/internal/app/service_test.go
+@@ -100,6 +100,85 @@ func TestTransferFromUnknownAccount(t *testing.T) {
+ 	}
+ }
+ 
++func TestDepositCreditsTheAccount(t *testing.T) {
++	svc, _ := newService(t, map[string]int64{"alice": 1000})
++	res, err := svc.Deposit(context.Background(), app.DepositCommand{IdempotencyKey: "d1", AccountID: "alice", AmountCents: 500, Currency: "EUR"})
++	if err != nil {
++		t.Fatal(err)
++	}
++	if res.Replayed || res.Account.Balance.Cents() != 1500 {
++		t.Fatalf("got replayed=%v balance=%s", res.Replayed, res.Account.Balance)
++	}
++	if got := balance(t, svc, "alice"); got != 1500 {
++		t.Fatalf("alice has %d cents, want 1500", got)
++	}
++}
++
++func TestReplayedDepositCreditsOnce(t *testing.T) {
++	svc, _ := newService(t, map[string]int64{"alice": 1000})
++	cmd := app.DepositCommand{IdempotencyKey: "d1", AccountID: "alice", AmountCents: 500, Currency: "EUR"}
++	if _, err := svc.Deposit(context.Background(), cmd); err != nil {
++		t.Fatal(err)
++	}
++	res, err := svc.Deposit(context.Background(), cmd)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !res.Replayed {
++		t.Fatal("the second call was not reported as a replay")
++	}
++	if got := balance(t, svc, "alice"); got != 1500 {
++		t.Fatalf("alice has %d cents, want 1500", got)
++	}
++}
++
++func TestDepositErrors(t *testing.T) {
++	cases := map[string]struct {
++		cmd  app.DepositCommand
++		want error
++	}{
++		"missing key":      {app.DepositCommand{AccountID: "alice", AmountCents: 500, Currency: "EUR"}, app.ErrMissingIdempotencyKey},
++		"unknown account":  {app.DepositCommand{IdempotencyKey: "d1", AccountID: "nobody", AmountCents: 500, Currency: "EUR"}, domain.ErrAccountNotFound},
++		"zero amount":      {app.DepositCommand{IdempotencyKey: "d1", AccountID: "alice", AmountCents: 0, Currency: "EUR"}, domain.ErrZeroAmount},
++		"negative amount":  {app.DepositCommand{IdempotencyKey: "d1", AccountID: "alice", AmountCents: -1, Currency: "EUR"}, domain.ErrNegativeAmount},
++		"other currency":   {app.DepositCommand{IdempotencyKey: "d1", AccountID: "alice", AmountCents: 500, Currency: "USD"}, domain.ErrCurrencyMismatch},
++		"unknown currency": {app.DepositCommand{IdempotencyKey: "d1", AccountID: "alice", AmountCents: 500, Currency: "XXX"}, domain.ErrUnknownCurrency},
++	}
++	for name, c := range cases {
++		t.Run(name, func(t *testing.T) {
++			svc, _ := newService(t, map[string]int64{"alice": 1000})
++			if _, err := svc.Deposit(context.Background(), c.cmd); !errors.Is(err, c.want) {
++				t.Fatalf("got %v, want %v", err, c.want)
++			}
++			if got := balance(t, svc, "alice"); got != 1000 {
++				t.Fatalf("a failed deposit changed the balance: %d", got)
++			}
++		})
++	}
++}
++
++func TestSameDepositKeyWithAnotherRequestIsAConflict(t *testing.T) {
++	cases := map[string]app.DepositCommand{
++		"other amount":  {IdempotencyKey: "d1", AccountID: "alice", AmountCents: 501, Currency: "EUR"},
++		"other account": {IdempotencyKey: "d1", AccountID: "bob", AmountCents: 500, Currency: "EUR"},
++	}
++	for name, second := range cases {
++		t.Run(name, func(t *testing.T) {
++			svc, _ := newService(t, map[string]int64{"alice": 1000, "bob": 0})
++			first := app.DepositCommand{IdempotencyKey: "d1", AccountID: "alice", AmountCents: 500, Currency: "EUR"}
++			if _, err := svc.Deposit(context.Background(), first); err != nil {
++				t.Fatal(err)
++			}
++			if _, err := svc.Deposit(context.Background(), second); !errors.Is(err, app.ErrIdempotencyConflict) {
++				t.Fatalf("got %v", err)
++			}
++			if balance(t, svc, "alice") != 1500 || balance(t, svc, "bob") != 0 {
++				t.Fatal("a conflicting deposit changed a balance")
++			}
++		})
++	}
++}
++
+ func TestQuoteRoundsTheFeeToTheCent(t *testing.T) {
+ 	svc, _ := newService(t, nil)
+ 	fee, err := svc.Quote(1000, "EUR")
+diff --git a/internal/domain/deposit.go b/internal/domain/deposit.go
+new file mode 100644
+index 0000000..8c1b0c7
+--- /dev/null
++++ b/internal/domain/deposit.go
+@@ -0,0 +1,31 @@
++package domain
++
++import "time"
++
++// DepositID identifies a deposit.
++type DepositID string
++
++// Deposit is the record of money that entered the ledger from outside,
++// credited to one account.
++type Deposit struct {
++	ID             DepositID
++	Account        AccountID
++	Amount         Money
++	IdempotencyKey string
++	CreatedAt      time.Time
++}
++
++// Receive credits an account with money coming from outside the ledger, or
++// changes nothing. Every check happens before the balance is touched.
++func Receive(to *Account, amount Money) error {
++	if amount.IsZero() {
++		return ErrZeroAmount
++	}
++	if to.Frozen {
++		return ErrAccountFrozen
++	}
++	if amount.Currency() != to.Balance.Currency() {
++		return ErrCurrencyMismatch
++	}
++	return to.Credit(amount)
++}
+diff --git a/internal/domain/deposit_test.go b/internal/domain/deposit_test.go
+new file mode 100644
+index 0000000..ee3959a
+--- /dev/null
++++ b/internal/domain/deposit_test.go
+@@ -0,0 +1,44 @@
++package domain
++
++import (
++	"errors"
++	"testing"
++)
++
++func TestReceiveCreditsTheAccount(t *testing.T) {
++	to := account(t, "a", 1000, "EUR")
++	amount, _ := NewMoney(500, "EUR")
++	if err := Receive(to, amount); err != nil {
++		t.Fatal(err)
++	}
++	if to.Balance.Cents() != 1500 {
++		t.Fatalf("balance: %s", to.Balance)
++	}
++}
++
++func TestReceiveChangesNothingWhenItFails(t *testing.T) {
++	eur, _ := NewMoney(500, "EUR")
++	usd, _ := NewMoney(500, "USD")
++	frozen := account(t, "a", 1000, "EUR")
++	frozen.Frozen = true
++	cases := map[string]struct {
++		to     *Account
++		amount Money
++		want   error
++	}{
++		"zero amount":    {account(t, "a", 1000, "EUR"), Zero("EUR"), ErrZeroAmount},
++		"other currency": {account(t, "a", 1000, "EUR"), usd, ErrCurrencyMismatch},
++		"frozen account": {frozen, eur, ErrAccountFrozen},
++	}
++	for name, c := range cases {
++		t.Run(name, func(t *testing.T) {
++			before := c.to.Balance
++			if err := Receive(c.to, c.amount); !errors.Is(err, c.want) {
++				t.Fatalf("got %v, want %v", err, c.want)
++			}
++			if c.to.Balance != before {
++				t.Fatal("a failed deposit changed the balance")
++			}
++		})
++	}
++}
+diff --git a/migrations/0004_deposits.sql b/migrations/0004_deposits.sql
+new file mode 100644
+index 0000000..2fd87d7
+--- /dev/null
++++ b/migrations/0004_deposits.sql
+@@ -0,0 +1,12 @@
++-- Crédits venus de l'extérieur du ledger (POST /accounts/{id}/deposits).
++CREATE TABLE IF NOT EXISTS deposits (
++    id              TEXT PRIMARY KEY,
++    account_id      TEXT        NOT NULL REFERENCES accounts (id),
++    amount_cents    BIGINT      NOT NULL CHECK (amount_cents > 0),
++    currency        CHAR(3)     NOT NULL,
++    idempotency_key TEXT        NOT NULL,
++    created_at      TIMESTAMPTZ NOT NULL
++);
++
++-- Dernier filet de l'idempotence (ADR 0003) : la base refuse deux dépôts portant la même clé.
++CREATE UNIQUE INDEX IF NOT EXISTS deposits_idempotency_key_uniq ON deposits (idempotency_key);
