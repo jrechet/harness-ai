@@ -1,0 +1,17 @@
+Les commandes peuvent maintenant avoir plusieurs articles, et la facture les détaille. Tout est dans un commit sur la branche `feat/commande-multi-lignes`, mais **la PR n'est pas ouverte** : le dépôt n'a aucun remote, je n'ai donc pas pu pousser. La description de PR est prête dans `/tmp/claude-0/-tmp-claude-0--home-user-c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b-scratchpad-banc-w-3eci6sce-repo/181bc0cc-0ca6-479c-ae83-75587304d294/scratchpad/PR.md`.
+
+Les 73 tests passent (`python3 -m unittest discover`) et `tools/check_imports.py` ne signale rien. Aucun garde-fou n'a été affaibli : le bus livre toujours chaque événement deux fois et `tools/schema.py` n'a pas changé.
+
+**Ce que fait le changement**
+- **Prise de commande** : `POST /orders` accepte `lines` (au moins une ligne) et calcule le total en additionnant les lignes aux prix du catalogue. Une quantité nulle ou un article inconnu donne `422`, et le message dit quelle ligne pose problème (`lines[1].sku: unknown article`). L'ancienne forme `sku` + `quantity` est toujours acceptée et donne une commande d'une ligne ; envoyer les deux formes à la fois donne `422`.
+- **Commande et événement** : `GET /orders/{id}` et `order.created` portent `lines`, avec `sku`, `quantity` et `unit_price_cents` pour chaque ligne.
+- **Facture** : `billing` reprend les lignes depuis l'événement, sans importer le catalogue de `orders`. `GET /invoices?order_id=…` renvoie `lines` avec `amount_cents` en plus. Une facture émise reste non modifiable, lignes comprises.
+- **E-mail de confirmation** : `notifications` liste maintenant toutes les lignes (« 2 × TSHIRT-M, 3 × MUG, total 68,30 € »). Sans ce changement, il n'aurait affiché que le premier article.
+- **Contrats** : je n'ai fait qu'ajouter `lines` à `api/order`, `events/order.created` et `api/invoice`. Les trois changements sont inscrits, datés, dans `contracts/CHANGES.md`, que j'ai créé. L'événement `invoice.issued` ne change pas. J'ai aussi mis à jour l'exemple du README.
+- **Déploiement** : `billing` et `notifications` savent encore lire un `order.created` sans `lines`, comme ceux déjà dans le broker au moment du déploiement. Les services peuvent donc être déployés dans n'importe quel ordre.
+
+**À trancher avant de fusionner** : comme on ne retire rien d'un contrat, les champs `sku` et `quantity` en tête de commande restent publiés. Ils sont marqués `"deprecated": true` mais, pour une commande de plusieurs lignes, ils ne portent que la première ligne. Un consommateur extérieur qui les lit encore, comme l'export comptable `comptoir-export`, ne verrait qu'un seul article. Le total, lui, reste juste. Aucune valeur unique ne peut décrire honnêtement plusieurs articles. Je recommande de prévenir ces consommateurs avant d'ouvrir les commandes à plusieurs articles aux clients.
+
+**En plus de la demande** : les tests de `billing` et `notifications` vérifient maintenant que les événements qu'ils fabriquent à la main respectent les schémas de `contracts/`. Cela comble une partie du problème relevé dans le postmortem de mai.
+
+Deux commandes groupées ont été bloquées : elles demandaient une autorisation, et aucune n'est possible dans cette session. Je les ai relancées une par une et elles sont passées.

@@ -1,0 +1,15 @@
+{
+  "tokens": 122818,
+  "cache_read_tokens": 1821215,
+  "output_tokens": 27875,
+  "turns": 45,
+  "duration_s": 248,
+  "denied": 4,
+  "denied_commands": [
+    "for f in services/orders/*.py services/billing/*.py services/notifications/*.py contracts/*/*.json tools/schema.py; do echo \"=== $f\"; cat $f; done",
+    "python3 - <<'EOF'\np='services/billing/test_contract.py'\ns=open(p).read()\ns=s.replace('''    def test_a_field_published_without_being_declared_would_fail(self):'",
+    "python3 -c '\nimport json\nfrom shared.bus import InMemoryBus\nfrom services.orders.app import create_app as o\nfrom services.billing.app import create_app as b\nfro",
+    "PYTHONPATH=. python3 /tmp/claude-0/-tmp-claude-0--home-user-c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b-scratchpad-banc-w-7ump7efc-repo/87aa254d-f787-4cc4-8fe3-c708172"
+  ],
+  "error": null
+}
