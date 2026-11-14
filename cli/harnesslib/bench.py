@@ -463,7 +463,7 @@ def play_audit(fixture_dir: str, work_root: str, out_dir: str | None = None, run
         graded = {"found": [], "missed": [], "wrong": [], "sane_flagged": [], "score": "0/?", "ok": False,
                   "global": ["aucun .harness/audit.json lisible"]}
     else:
-        graded = fixtures.check_audit(audit, expected.get("audit", {}))
+        graded = fixtures.check_audit(audit, expected.get("audit", {}), repo=os.path.join(fixture_dir, "repo"))
     if touched:
         graded["global"] = graded.get("global", []) + [f"un audit ne modifie rien, il a touché {', '.join(touched[:5])}"]
         graded["ok"] = False

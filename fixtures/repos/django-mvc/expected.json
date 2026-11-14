@@ -139,9 +139,14 @@
     "only_level_material": true,
     "never_guarded": [
       {
-        "what": "e-mails en masse : seule la revue",
+        "what": "e-mails en masse, un par ligne : seule la revue ; la moitié post_save de la règle est gardée par enrollments/tests/test_services.py, test_saving_an_enrollment_sends_nothing",
         "rule_keywords": [
-          "post_save"
+          "masse",
+          "par ligne",
+          "bulk"
+        ],
+        "rule_all_of": [
+          "mail"
         ]
       },
       {
@@ -362,9 +367,14 @@
     ],
     "never_guarded": [
       {
-        "what": "e-mails en masse : seule la revue",
+        "what": "e-mails en masse, un par ligne : seule la revue ; la moitié post_save de la règle est gardée par enrollments/tests/test_services.py, test_saving_an_enrollment_sends_nothing",
         "rule_keywords": [
-          "post_save"
+          "masse",
+          "par ligne",
+          "bulk"
+        ],
+        "rule_all_of": [
+          "mail"
         ]
       },
       {

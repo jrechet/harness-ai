@@ -66,8 +66,22 @@ def _matches(rule: str, spec: dict) -> bool:
     return (not any_of or any(k in rule for k in any_of)) and all(k in rule for k in all_of) and bool(any_of or all_of)
 
 
-def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
-    """Score d'un audit contre les pièges attendus : trouvés, manqués, faux, sains signalés."""
+def _cited_line(repo: str | None, path: Any, line: Any) -> str:
+    """La ligne entière qu'un retrait désigne par `path` et `line`, lue dans le dépôt audité. Le gabarit
+    du rapport permet d'abréger la citation : le texte cité seul ne suffit pas à reconnaître la ligne
+    (2026-11-14, la limite de 64 Ko citée par son seul « Pourquoi »)."""
+    if not repo or not isinstance(path, str) or not isinstance(line, int) or line < 1:
+        return ""
+    target = os.path.normpath(os.path.join(repo, path.split(":", 1)[0]))
+    if not target.startswith(os.path.abspath(repo) + os.sep):
+        return ""
+    lines = (facts._read(target) or "").splitlines()
+    return lines[line - 1] if line <= len(lines) else ""
+
+
+def check_audit(audit: dict, expected: dict, repo: str | None = None) -> dict[str, Any]:
+    """Score d'un audit contre les pièges attendus : trouvés, manqués, faux, sains signalés. `repo`, le
+    dépôt audité, sert à relire en entier une ligne retirée que l'audit cite abrégée."""
     found, missed, wrong = [], [], []
     leaks = [json.dumps(l, ensure_ascii=False).lower() for l in audit.get("process_leaks") or []]
     leaks_text = " ".join(leaks)
@@ -154,7 +168,8 @@ def check_audit(audit: dict, expected: dict) -> dict[str, Any]:
             sane_flagged.append(f"process_leaks contient « {k} » : une convention de style n'est pas une fuite de processus")
     # Retraits : les lignes d'instructions que l'audit propose d'enlever, avec leur motif.
     removals = audit.get("removals") or []
-    removal_text = lambda r: " ".join(str(r.get(k) or "") for k in ("text", "path")).lower()  # noqa: E731
+    removal_text = lambda r: " ".join([str(r.get(k) or "") for k in ("text", "path")]  # noqa: E731
+                                      + [_cited_line(repo, r.get("path"), r.get("line"))]).lower()
     for want in expected.get("removals", []):
         hits = [r for r in removals if any(k.lower() in removal_text(r) for k in want["any_of"])]
         good = [r for r in hits if r.get("reason") in want["reasons"]]
@@ -573,7 +588,7 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
     if args.audit:
         with open(args.audit, encoding="utf-8") as fh:
             audit = json.load(fh)
-        result = check_audit(audit, expected.get("audit", {}))
+        result = check_audit(audit, expected.get("audit", {}), repo=os.path.join(fixture_dir, "repo"))
         print(f"## audit : {result['score']} pièges et retraits trouvés" + (" · conforme" if result["ok"] else ""))
         for key, title in (("missed", "Manqués"), ("wrong", "Mauvais verdict"), ("sane_flagged", "Sains signalés"),
                            ("global", "Global")):

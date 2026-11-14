@@ -459,6 +459,19 @@ class RemovalGraderTests(unittest.TestCase):
         result = fixtures.check_audit(self.removals(N4={"path": "apps/web/CLAUDE.md", "text": "IE11", "reason": "outdated"}), self.expected)
         self.assertTrue(any("question au propriétaire" in w for w in result["wrong"]), result)
 
+    def test_a_removal_cited_by_part_of_its_line_is_recognised_from_its_location(self):
+        # 2026-11-14 : la limite de 64 Ko retirée, citée par son seul « Pourquoi », manquée par le noteur
+        import tempfile
+        with tempfile.TemporaryDirectory() as repo:
+            with open(os.path.join(repo, "AGENTS.md"), "w", encoding="utf-8") as fh:
+                fh.write("# x\n- Un événement pèse moins de 64 Ko. Pourquoi : le plan mutualisé coupe la connexion.\n")
+            removal = {"path": "AGENTS.md", "line": 2, "text": "Pourquoi : le plan mutualisé coupe la connexion", "reason": "outdated", "ask_owner": True}
+            expected = {"removals": [{"id": "N2", "any_of": ["64 ko"], "reasons": ["outdated"], "ask_owner": True}]}
+            self.assertEqual(fixtures.check_audit({"removals": [removal]}, expected)["found"], [])
+            self.assertEqual(fixtures.check_audit({"removals": [removal]}, expected, repo=repo)["found"], ["N2"])
+            outside = dict(removal, path="../AGENTS.md")
+            self.assertEqual(fixtures.check_audit({"removals": [outside]}, expected, repo=repo)["found"], [])
+
     def test_removing_a_line_worth_keeping_is_penalised(self):
         gold = {"path": "CLAUDE.md", "line": 103, "text": "when you change anything in `packages/shared`, run npm run test:web", "reason": "useless"}
         result = fixtures.check_audit(self.removals(GOLD=gold), self.expected)
