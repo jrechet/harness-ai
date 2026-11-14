@@ -1,0 +1,12 @@
+{
+  "tokens": 54245,
+  "cache_read_tokens": 732665,
+  "output_tokens": 8400,
+  "turns": 26,
+  "duration_s": 85,
+  "denied": 1,
+  "denied_commands": [
+    "cd /tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-o2m_hvg9/kit/skills/harness-step && ls -la . ../harness-init/references; cat "
+  ],
+  "error": null
+}
