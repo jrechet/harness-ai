@@ -1,0 +1,10 @@
+{
+  "tokens": 29698,
+  "cache_read_tokens": 190474,
+  "output_tokens": 3118,
+  "turns": 5,
+  "duration_s": 32,
+  "denied": 0,
+  "denied_commands": [],
+  "error": null
+}
