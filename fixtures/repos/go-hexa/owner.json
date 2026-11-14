@@ -69,7 +69,11 @@
         "quelle tâche",
         "quelles tâches",
         "premier ticket",
-        "quels tickets"
+        "quels tickets",
+        "répétitive*",
+        "tâche* à confier",
+        "confier en premier",
+        "contrat de tâche"
       ],
       "answer": "Ajouter un endpoint à partir d'un cas d'usage, du handler jusqu'au test."
     },
@@ -132,6 +136,45 @@
       "answer": "Un fichier court. On a déjà un CONTRIBUTING que personne ne lit, on ne veut pas d'un second."
     },
     {
+      "id": "arret",
+      "any_of": [
+        "s'arrêter",
+        "s'arrete",
+        "arrêter et demander",
+        "quand demander",
+        "demander avant",
+        "poser la question",
+        "hésit*",
+        "s'arrête*"
+      ],
+      "answer": "Il s'arrête et demande avant de toucher à une migration, au schéma d'un contrat d'API ou à `deploy.yml`, et quand le ticket est ambigu sur un montant ou un arrondi. Le reste, il tranche et l'écrit dans la PR."
+    },
+    {
+      "id": "fini",
+      "any_of": [
+        "fini",
+        "finie",
+        "terminé*",
+        "definition of done",
+        "critère* de fin",
+        "critère* de fini"
+      ],
+      "answer": "Une tâche est finie quand `make test` et `make arch` passent, qu'un test couvre le changement, et que la PR dit pourquoi en deux lignes."
+    },
+    {
+      "id": "ci-rouge",
+      "any_of": [
+        "ci rouge",
+        "ci est rouge",
+        "rouge",
+        "instable*",
+        "flaky",
+        "test qui échoue",
+        "échec de la ci"
+      ],
+      "answer": "CI rouge à cause de son diff : il corrige. Rouge pour une cause étrangère : il le signale dans la PR et n'y touche pas. Un test instable : il relance une fois, puis ouvre une issue ; il ne le désactive jamais."
+    },
+    {
       "id": "oral",
       "fact": "I6",
       "any_of": [
@@ -141,7 +184,6 @@
         "n'est écrit",
         "écrit nulle part",
         "redi*",
-        "répét*",
         "à chaque fois",
         "tacite*",
         "implicite*",
@@ -189,7 +231,11 @@
         "en relecture",
         "rate toujours",
         "ratent toujours",
-        "jamais écrit*"
+        "jamais écrit*",
+        "répétez",
+        "répète*",
+        "répéter",
+        "répétées"
       ],
       "answer": "Une chose qui n'est écrite nulle part, et qu'on redit à chaque revue : quand un endpoint rejoue une requête déjà traitée, sa réponse porte l'en-tête `Idempotency-Replayed: true`. L'application mobile s'en sert depuis juin 2026 pour ne pas afficher deux fois la confirmation. `POST /transfers` ne le fait pas encore, c'est au backlog ; tout nouvel endpoint d'écriture doit le faire."
     }

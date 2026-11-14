@@ -92,7 +92,9 @@ class BenchOwnerTests(unittest.TestCase):
             "Avez-vous autre chose à ajouter avant que j'écrive le fichier ?",
             "Y a-t-il un savoir d'équipe qui n'est dans aucun document ?",
             "Qu'est-ce que vous corrigez souvent en relecture ?"]
-    COMMON = ["Mode : délégation ou assistance (l'humain relit chaque diff en direct) ?",
+    COMMON = ["Quelle tâche répétitive voulez-vous confier en premier à un agent ?",
+              "Quand une tâche est-elle finie, et que fait l'agent d'une CI rouge ?",
+              "Mode : délégation ou assistance (l'humain relit chaque diff en direct) ?",
               "Interdits : qu'est-ce qu'un agent ne doit jamais toucher ou faire ?",
               "Quels agents utilisez-vous ? Quelle CI, et quels checks bloquent la fusion ?"]
     NOT_INVITING = {
