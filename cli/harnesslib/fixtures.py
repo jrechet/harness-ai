@@ -340,6 +340,61 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
             "score": f"{len(surfaced)}/{total}", "files": sorted(corpus), "ok": not problems}
 
 
+# Les vérifications qui ne se gagnent qu'avec le temps : un signal de revue, des PR d'agent observées.
+# Aucun pas ne peut les faire basculer dans une séance ; les voir basculer, c'est un signal inventé.
+WAITS = {"L2.signal", "L4.clean_prs"}
+
+
+def check_step(before: dict, after: dict, expected_init: dict, report: str, changed: list[str]) -> dict[str, Any]:
+    """Note un pas de harness-step, d'après l'état mesuré avant et après (`maturity.evaluate`).
+
+    Ce qui est attendu, quel que soit le dépôt :
+    - objectif déjà atteint : rien ne change, et le compte rendu le dit ;
+    - sinon un pas, et un seul : au moins une vérification d'un palier visé bascule, toutes dans le même
+      palier ; un palier qu'on ne peut gagner qu'avec le temps n'arrête pas les suivants, s'ils sont visés ;
+    - rien ne régresse, rien n'est posé au-delà du palier visé, aucun signal n'est inventé ;
+    - les faits du pas 1 restent, et aucune référence sans cible n'apparaît."""
+    def passed(state: dict) -> dict[str, tuple[int, bool]]:
+        return {c["id"]: (l["level"], c["passed"]) for l in state["levels"] for c in l["checks"]}
+    b, a = passed(before), passed(after)
+    target = after["target"]["level"]
+    up = sorted(cid for cid in a if a[cid][1] and not b.get(cid, (0, False))[1])
+    down = sorted(cid for cid in a if b.get(cid, (0, False))[1] and not a[cid][1])
+    problems: list[str] = []
+    files = [f for f in changed if not f.startswith(".harness/")]
+    if down:
+        problems.append(f"régression : {', '.join(down)} passai(en)t avant le pas")
+    if target is not None and before["level"]["reached"] >= target:
+        if files:
+            problems.append(f"objectif déjà atteint, et le pas a quand même touché {', '.join(files[:5])}")
+        if "objectif atteint" not in (report or "").lower():
+            problems.append("objectif déjà atteint : le compte rendu ne le dit pas")
+    else:
+        in_scope = [cid for cid in up if target is None or a[cid][0] <= target]
+        levels = sorted({a[cid][0] for cid in in_scope})
+        open_ = [cid for cid, (lvl, ok) in b.items() if not ok and cid not in WAITS and (target is None or lvl <= target)]
+        if not in_scope and open_:
+            problems.append(f"aucune vérification visée n'a basculé, alors que {', '.join(sorted(open_)[:4])} restai(en)t à gagner")
+        if len(levels) > 1:
+            problems.append(f"plus d'un pas : des vérifications de {len(levels)} paliers ont basculé ({', '.join(in_scope)})")
+    beyond = [cid for cid in up if target is not None and a[cid][0] > target]
+    if beyond:
+        problems.append(f"matériel posé au-delà du palier visé : {', '.join(beyond)}")
+    faked = [cid for cid in up if cid in WAITS]
+    if faked:
+        problems.append(f"signal inventé : {', '.join(faked)} ne se gagne(nt) qu'avec de vraies revues")
+    corpus = "\n".join(facts.instruction_corpus(after["repo"]).values()).lower()
+    for fact in expected_init.get("must_surface", []):
+        if not any(k.lower() in corpus for k in fact["any_of"]):
+            problems.append(f"fait perdu : {fact['id']}, {fact['what']}")
+    known = {(d["kind"], d["ref"]) for d in before.get("dangling") or []}
+    for d in after.get("dangling") or []:
+        if (d["kind"], d["ref"]) not in known:
+            problems.append(f"référence sans cible ajoutée : `{d['ref']}` ligne {d['line']}")
+    return {"before": before["level"]["reached"], "after": after["level"]["reached"], "target": target,
+            "flipped": up, "problems": problems, "files": files, "ok": not problems}
+
+
 HINT_RE = re.compile(r"[a-z0-9_][a-z0-9_./-]{3,}")
 HINT_STOP = {"true", "false", "null", "none"}
 

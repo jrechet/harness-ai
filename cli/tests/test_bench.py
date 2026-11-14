@@ -382,6 +382,77 @@ class InitPlayTests(BenchCase):
         self.assertEqual(bench.load_results(self.results)[-1]["note"], "harness produit par le pas 1 à l'aveugle")
 
 
+class StepPlayTests(BenchCase):
+    """`bench step` : un pas de harness-step, noté par l'état mesuré avant et après."""
+
+    START = ("# demo\n\nMode : **délégation**.\n\n## Règles\n- Pas d'eval. Pourquoi : incident. (non vérifiée) [2026-01]\n\n"
+             "## Interdits\n- Toucher à tools/.\n")
+    PAS2 = ("\n## Maintenance de ce fichier\n- Un commentaire de review qui commence par `rule:` est une règle candidate.\n"
+            "<!-- harvest: last=2026-01-02 ref=init -->\n")
+
+    def setUp(self):
+        super().setUp()
+        write(self.fx, "owner.md", "# Propriétaire fictif\n\n## Réponses\n1. **Mode** : délégation.\n")
+        self.start = os.path.join(self.tmp.name, "start")
+        write(self.start, "AGENTS.md", self.START)
+        write(self.start, "CLAUDE.md", "@AGENTS.md\n")
+        self.results = os.path.join(self.tmp.name, "results.jsonl")
+        self.work_root = os.path.join(self.tmp.name, "scratch")
+
+    def step(self, target, act, report="Pas fait."):
+        def fake_agent(workdir, prompt, spec):
+            self.prompt = prompt
+            act(workdir)
+            return {"report": report, "error": None, "usage": {"tokens": 7}}
+        return bench.play_step(self.fx, self.work_root, self.start, target, runner=fake_agent, label="génération test",
+                               results=self.results, day="2026-01-02", out_dir=os.path.join(self.tmp.name, "out"))
+
+    def append(self, text):
+        def act(workdir):
+            with open(os.path.join(workdir, "AGENTS.md"), "a", encoding="utf-8") as fh:
+                fh.write(text)
+        return act
+
+    def test_the_level_two_files_are_one_step(self):
+        done = self.step(2, self.append(self.PAS2))
+        self.assertTrue(done["check"]["ok"], done["check"])
+        self.assertIn("L2.maintenance", done["check"]["flipped"])
+        self.assertIn("harness-step/SKILL.md", self.prompt)
+        with open(os.path.join(done["out"], "overlay", "AGENTS.md"), encoding="utf-8") as fh:
+            self.assertIn("rule:", fh.read())
+        self.assertEqual(bench.load_results(self.results)[-1]["kind"], "step")
+
+    def test_no_step_when_one_was_possible_is_reported(self):
+        done = self.step(2, lambda workdir: None, report="Il n'y a pas de pas.")
+        self.assertTrue(any("aucune vérification visée n'a basculé" in p for p in done["check"]["problems"]), done["check"])
+
+    def test_a_reached_target_changes_nothing_and_says_so(self):
+        done = self.step(1, lambda workdir: None, report="Objectif atteint : palier 1.")
+        self.assertTrue(done["check"]["ok"], done["check"])
+        done = self.step(1, self.append(self.PAS2), report="J'ai posé la suite.")
+        problems = " ".join(done["check"]["problems"])
+        self.assertIn("objectif déjà atteint", problems)
+        self.assertIn("ne le dit pas", problems)
+        self.assertIn("au-delà du palier visé", problems)
+
+    def test_two_levels_at_once_is_two_steps(self):
+        process = "\n## Processus de travail\n- Une tâche est finie quand la CI est verte.\n"
+        done = self.step(4, self.append(self.PAS2 + process))
+        self.assertTrue(any("plus d'un pas" in p for p in done["check"]["problems"]), done["check"])
+
+    def test_a_lost_rule_and_a_dangling_reference_are_reported(self):
+        def act(workdir):
+            with open(os.path.join(workdir, "AGENTS.md"), "w", encoding="utf-8") as fh:
+                fh.write(self.START.replace("- Toucher à tools/.\n", "") + self.PAS2
+                         + "\n## Tâches déléguées\n- `release` (`.claude/skills/release`)\n")
+        fx_expected = {"init": {"must_surface": [{"id": "I1", "what": "tools/ intouchable", "any_of": ["tools/"]}]}}
+        with open(os.path.join(self.fx, "expected.json"), "w", encoding="utf-8") as fh:
+            json.dump(fx_expected, fh)
+        problems = " ".join(self.step(2, act)["check"]["problems"])
+        self.assertIn("fait perdu : I1", problems)
+        self.assertIn("référence sans cible ajoutée", problems)
+
+
 class AskedOwnerTests(BenchCase):
     """`bench init --answers asked` : le propriétaire ne répond qu'à ce qu'on lui demande."""
 
