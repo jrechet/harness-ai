@@ -502,6 +502,14 @@ class StepPlayTests(BenchCase):
         nothing = self.step(3, lambda workdir: None)
         self.assertFalse(nothing["check"]["ok"])
 
+    def test_the_audit_a_step_writes_is_kept_for_the_next_step(self):
+        def act(workdir):
+            write(workdir, ".harness/audit.json", json.dumps({"audit": {"date": "2026-01-02"}, "elements": []}))
+            write(workdir, ".harness/state.json", "{}")
+        done = self.step(3, act)
+        overlay = os.path.join(done["out"], "overlay", ".harness")
+        self.assertEqual(sorted(os.listdir(overlay)), ["audit.json"])
+
     def test_two_levels_at_once_is_two_steps(self):
         process = "\n## Processus de travail\n- Une tâche est finie quand la CI est verte.\n"
         done = self.step(4, self.append(self.PAS2 + process))

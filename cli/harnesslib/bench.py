@@ -38,6 +38,7 @@ ARMS = ("bare", "asis", "harness")
 COST = {"audit": 130_000, "init": 130_000, "task": 75_000, "step": 90_000}
 RESULTS = os.path.join(os.path.dirname(fixtures.FIXTURES_ROOT), "results.jsonl")
 OVERLAY_SKIP = {"RUN.md", "README.md", "REMOVE.txt"}   # ce qui décrit une exécution n'est pas du harness
+OVERLAY_HARNESS_KEPT = {".harness/audit.json", ".harness/harvest.json"}   # ce qu'un pas suivant doit retrouver
 OVERLAY_REMOVE = "REMOVE.txt"                    # un chemin par ligne : ce que le pas a supprimé du dépôt
 GIT_ENV = {"GIT_AUTHOR_NAME": "owner", "GIT_AUTHOR_EMAIL": "owner@example.test",
            "GIT_COMMITTER_NAME": "owner", "GIT_COMMITTER_EMAIL": "owner@example.test"}
@@ -341,7 +342,7 @@ def export_overlay(workdir: str, dest: str) -> list[str]:
     les fichiers ajoutés ou modifiés, et `REMOVE.txt` pour ceux qu'il a supprimés."""
     removed, kept = [], []
     for rel in sorted(diff(workdir)):
-        if rel.startswith(".harness/"):
+        if rel.startswith(".harness/") and rel not in OVERLAY_HARNESS_KEPT:
             continue
         source = os.path.join(workdir, rel)
         if os.path.isfile(source):
