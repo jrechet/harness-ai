@@ -132,6 +132,32 @@ class TargetLevelTests(TempRepo):
         self.assertTrue(s["next_actions"])
         self.assertEqual([l["in_scope"] for l in s["levels"]], [True, True, True, False, False])
 
+    def test_a_level_that_only_waits_for_time_does_not_hold_back_the_next_one(self):
+        # 2026-11-14 : visé 3, palier 2 posé sans signal de revue ; le pas s'arrêtait, aucun garde-fou posé
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1 + "\n## Maintenance de ce fichier\n"
+              "- Un commentaire de review qui commence par `rule:` est une règle candidate.\n"
+              f"<!-- harvest: last={TODAY.isoformat()} ref=init -->\n")
+        write(self.repo, ".github/workflows/ci.yml", "on: push\njobs:\n  test:\n    runs-on: x\n    steps:\n      - run: make test\n")
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 3}))
+        s = self.state()
+        self.assertEqual(s["level"]["reached"], 1)            # le palier reste honnête
+        self.assertEqual(s["waiting"], ["L2.signal"])
+        self.assertTrue(s["next_actions"])
+        self.assertTrue(all("harvest" not in a.lower() and "rule:" not in a for a in s["next_actions"]), s["next_actions"])
+        self.assertTrue(self.check(s, "L2.signal")["waits"])
+        md = maturity.render_markdown(s)
+        self.assertIn("## En attente", md)
+        self.assertIn("**en attente**", md)
+
+    def test_waiting_stops_at_the_target(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1 + "\n## Maintenance de ce fichier\n"
+              "- Un commentaire de review qui commence par `rule:` est une règle candidate.\n"
+              f"<!-- harvest: last={TODAY.isoformat()} ref=init -->\n")
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 2}))
+        s = self.state()
+        self.assertEqual(s["waiting"], ["L2.signal"])
+        self.assertEqual(s["next_actions"], [])
+
     def test_invalid_target_is_ignored(self):
         write(self.repo, ".harness/config.json", json.dumps({"target_level": 9}))
         self.assertIsNone(self.state()["target"]["level"])

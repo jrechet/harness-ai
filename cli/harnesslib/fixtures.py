@@ -340,9 +340,9 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
             "score": f"{len(surfaced)}/{total}", "files": sorted(corpus), "ok": not problems}
 
 
-# Les vérifications qui ne se gagnent qu'avec le temps : un signal de revue, des PR d'agent observées.
-# Aucun pas ne peut les faire basculer dans une séance ; les voir basculer, c'est un signal inventé.
-WAITS = {"L2.signal", "L4.clean_prs"}
+# Les vérifications qui ne se gagnent qu'avec le temps : aucun pas ne peut les faire basculer dans une
+# séance ; les voir basculer, c'est un signal inventé.
+WAITS = maturity.WAITING
 
 
 def check_step(before: dict, after: dict, expected_init: dict, report: str, changed: list[str]) -> dict[str, Any]:

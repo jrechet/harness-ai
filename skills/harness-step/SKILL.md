@@ -35,7 +35,7 @@ Si un palier est déjà visé, ne repose pas la question.
 Si `status` dit « objectif atteint », réponds-le en une phrase. Ne propose pas le palier suivant. La seule chose qu'on rappelle : ce qui est posé s'entretient, voir « Quand il n'y a plus de pas ».
 
 ### 4. Choisir le pas
-Le pas est la **première vérification en échec** du premier palier non atteint, dans l'ordre de `status`. `references/pas.md` dit, pour chaque vérification, ce qu'est le pas, ce qu'il coûte et à quoi on reconnaît qu'il est fait. Une « référence sans cible » signalée par `status` passe avant tout : c'est une promesse non tenue de ce qui est déjà posé.
+Le pas est la **première vérification en échec** du premier palier non atteint, dans l'ordre de `status`. Une vérification que seul le temps fait passer, un signal de revue ou des PR d'agent observées, `status` la marque « en attente » : elle n'arrête pas la montée. Si un palier plus haut est visé, le pas est le premier des siens, et le palier en attente comptera quand le temps aura fait son œuvre. `references/pas.md` dit, pour chaque vérification, ce qu'est le pas, ce qu'il coûte et à quoi on reconnaît qu'il est fait. Une « référence sans cible » signalée par `status` passe avant tout : c'est une promesse non tenue de ce qui est déjà posé.
 
 Au palier 0, le pas est harness-init : passe-lui la main.
 
@@ -77,4 +77,5 @@ Ce qui est posé vieillit : une règle reçoit un garde-fou, un contexte change,
 - Proposer le palier suivant à quelqu'un qui a dit où il s'arrêtait.
 - Annoncer un palier gagné comme une preuve que les agents travaillent mieux.
 - Faire d'un pas du palier 2 ou 4 une affaire de fichiers : ces paliers se gagnent sur des PR réelles, dans le temps. Poser la section ne suffit pas, et il faut le dire.
+- S'arrêter sur ce qui attend le temps quand l'objectif est plus haut : l'utilisateur attendrait des semaines un garde-fou qu'on peut poser aujourd'hui.
 - Créer la section « Tâches déléguées » avant le contrat qu'elle cite.
