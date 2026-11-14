@@ -175,6 +175,21 @@
       "answer": "CI rouge à cause de son diff : il corrige. Rouge pour une cause étrangère : il le signale dans la PR et n'y touche pas. Un test instable : il relance une fois, puis ouvre une issue ; il ne le désactive jamais."
     },
     {
+      "id": "migration-nouvelle",
+      "any_of": [
+        "nouvelle migration",
+        "ajouter une migration",
+        "ajouter une nouvelle migration",
+        "créer une migration",
+        "nouveau fichier de migration",
+        "migration au numéro suivant",
+        "ajout d'une migration",
+        "ajouter ou modifier",
+        "ajout ou modification"
+      ],
+      "answer": "Ajouter une migration au numéro suivant, c'est le chemin normal : pas besoin de demander. Ce qui demande mon accord, c'est modifier une migration existante, ou une migration qui supprime ou réécrit des données."
+    },
+    {
       "id": "oral",
       "fact": "I6",
       "any_of": [
