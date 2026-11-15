@@ -66,6 +66,7 @@ Même déroulé, avec `current` renseigné pour chaque morceau. Ce skill revoit 
 
 ## Pièges fréquents
 - **Confondre limite et règle.** « Ne jamais pousser sur main » borne une action de l'agent (`limit`). « Pas de secret dans le code » exige quelque chose du résultat (`rule`). Une pré-condition (« ne commence pas si… », « refuse sans… ») est une règle, même sans gravité : `incident=forget` lui donne sa vérification. Ne la range pas en limite pour obtenir un verrou.
+- **Un calcul dont l'erreur est un incident.** La grille ne demande pas la gravité d'un calcul : elle le place là où il tourne. Si une erreur de ce calcul est un incident, coupe en deux morceaux : le calcul, et la règle qui vérifie son résultat (« la version publiée suit les commits »), qui passe par `incident`.
 - **Répondre selon l'effort.** `bypass_rule=agent` pour éviter de toucher la CI, c'est répondre à la mauvaise question : elle porte sur ce qu'un contournement coûterait.
 - **Tout pousser en code.** Si un programme ne peut pas le vérifier avec la même réponse à chaque fois, `checkable` vaut `no` : un jugement codé en dur devient rigide, et l'équipe le contourne.
 - **Un sous-agent pour faire propre.** Sans contexte à part, regard indépendant, droits différents ou parallélisme, c'est un skill, ou le jugement de la session.

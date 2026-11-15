@@ -220,7 +220,7 @@
     "hook_check": {
       "name": "Vérification lancée par un hook",
       "layer": "L3",
-      "where": "Une sous-commande CLI, un linter ou un test, appelé par un hook de l'agent (après édition, ou à l'arrêt) ; il échoue avec un message qui dit quoi corriger.",
+      "where": "Une sous-commande CLI, un linter ou un test, appelé par un hook de l'agent : avant l'outil ou la commande qu'il conditionne, après une édition, ou à l'arrêt. Il échoue avec un message qui dit quoi corriger.",
       "why": "L'agent ne peut pas l'oublier. Un humain peut le sauter : c'est acceptable ici, puisque seul l'oubli de l'agent est en jeu."
     },
     "ci_check": {
