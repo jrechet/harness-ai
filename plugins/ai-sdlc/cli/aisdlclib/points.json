@@ -1,0 +1,21 @@
+{
+  "override_dir": "docs/agents",
+  "budget_lines": 40,
+  "phases": {
+    "ticket": {"min_level": 1},
+    "dev": {"min_level": 1},
+    "review": {"min_level": 1},
+    "qa": {"min_level": 3},
+    "secu": {"min_level": 1},
+    "ship": {"min_level": 3}
+  },
+  "points": {
+    "definition-de-pret": {"read_by": ["ticket"], "replaceable": true, "branch": "current", "default": null},
+    "definition-de-fini": {"read_by": ["dev", "review"], "replaceable": true, "branch": "base", "default": "points/definition-de-fini.md"},
+    "revue": {"read_by": ["review"], "replaceable": false, "branch": "base", "default": "points/revue.md"},
+    "qa": {"read_by": ["qa"], "replaceable": true, "branch": "base", "default": null},
+    "securite": {"read_by": ["secu", "review"], "replaceable": false, "branch": "base", "default": null},
+    "zones-sensibles": {"read_by": ["dev", "review"], "replaceable": false, "branch": "base", "default": null},
+    "livraison": {"read_by": ["ship"], "replaceable": true, "branch": "base", "default": null}
+  }
+}
