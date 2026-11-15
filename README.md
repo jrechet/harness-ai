@@ -167,3 +167,7 @@ Les deux suites passent sur un clone neuf, de Python 3.10 à 3.14. Les règles d
 | `app/` | La page de suivi servie par `harness serve` |
 | `docs/` | Ce que le dépôt sait faire ([capacites.md](docs/capacites.md)), le modèle de maturité, l'étude et un [cours interactif](docs/ai-sdlc/cours/index.html) |
 | `.harness/` | L'état mesuré de ce dépôt par lui-même |
+
+## Licence
+
+MIT, voir [LICENSE](LICENSE).

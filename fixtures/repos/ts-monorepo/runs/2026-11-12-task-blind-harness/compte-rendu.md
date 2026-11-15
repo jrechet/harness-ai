@@ -31,4 +31,4 @@ Tous les tests et contrôles passent : les trois `test:*` (shared 7, api 7, web 
 >
 > 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 >
-> https://claude.ai/code/session_01FhhxJKon6x1VHfFu45EXyd
+> (lien de session privée retiré)
