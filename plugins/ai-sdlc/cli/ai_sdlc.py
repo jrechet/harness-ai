@@ -4,6 +4,8 @@
   ai_sdlc.py context <phase> [repo] [--base REF]   le socle et les ajouts de l'équipe, avec leur provenance
   ai_sdlc.py status [repo] [--base REF]            les points d'extension : convention, surchargé, invalide
   ai_sdlc.py review render <revue.json> [repo] [--base REF]   la revue rendue, si chaque constat cite le diff
+  ai_sdlc.py size [repo] [--base REF] [--paths P…]  la taille du changement et le chemin qu'elle impose
+  ai_sdlc.py dev body <corps.json> [repo] [--base REF]        le corps de la PR, s'il est complet pour sa taille
   ai_sdlc.py fixture init <fixture> <dest>         monte une PR piégée de fixtures/review en dépôt git
   ai_sdlc.py fixture grade <revue.json> --expected <expected.json>   note une revue contre son corrigé
 
@@ -22,7 +24,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import context, points, review  # noqa: E402
+from aisdlclib import context, dev, points, review, size  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -37,7 +39,13 @@ def build_parser() -> argparse.ArgumentParser:
     rev = sub.add_parser("review", help="le résultat d'une revue").add_subparsers(dest="action", required=True)
     render = rev.add_parser("render", help="valide la revue et la rend en commentaires")
     render.add_argument("file")
-    for sp in (ctx, status, render):
+    sized = sub.add_parser("size", help="la taille du changement")
+    sized.add_argument("--paths", nargs="+", metavar="CHEMIN",
+                       help="avant le code : les chemins que le changement prévoit de toucher")
+    body = sub.add_parser("dev", help="ce que /dev garantit").add_subparsers(dest="action", required=True)
+    body = body.add_parser("body", help="valide et rend le corps de la PR")
+    body.add_argument("file")
+    for sp in (ctx, status, render, sized, body):
         sp.add_argument("repo", nargs="?", default=".")
         sp.add_argument("--base", default="origin/HEAD", help="branche de base (défaut : origin/HEAD)")
         sp.add_argument("--format", choices=["md", "json"], default="md")
@@ -69,6 +77,12 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "fixture":
             data, text, code = _fixture(args)
+        elif args.command == "size":
+            data = size.classify(table, args.repo, args.base, args.paths)
+            text = size.render_md(data)
+        elif args.command == "dev":
+            content, sized = dev.checked(table, review.load(args.file), args.repo, args.base)
+            data, text = {"body": content, "size": sized}, dev.render_md(content, sized)
         elif args.command == "review":
             data = review.checked(args.file, args.repo, args.base)
             text = review.render_md(data)

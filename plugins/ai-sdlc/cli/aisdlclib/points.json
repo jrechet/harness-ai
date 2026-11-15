@@ -1,6 +1,8 @@
 {
   "override_dir": "docs/agents",
   "budget_lines": 40,
+  "plans_dir": "docs/plans",
+  "sizes": {"XS": {"files": 2, "lines": 10}, "S-M": {"files": 20, "lines": 400}},
   "phases": {
     "ticket": {"min_level": 1},
     "dev": {"min_level": 1},
@@ -15,7 +17,7 @@
     "revue": {"read_by": ["review"], "replaceable": false, "branch": "base", "default": "points/revue.md"},
     "qa": {"read_by": ["qa"], "replaceable": true, "branch": "base", "default": null},
     "securite": {"read_by": ["secu", "review"], "replaceable": false, "branch": "base", "default": null},
-    "zones-sensibles": {"read_by": ["dev", "review"], "replaceable": false, "branch": "base", "default": null},
+    "zones-sensibles": {"read_by": ["dev", "review"], "replaceable": false, "branch": "base", "default": "points/zones-sensibles.md"},
     "livraison": {"read_by": ["ship"], "replaceable": true, "branch": "base", "default": null}
   }
 }

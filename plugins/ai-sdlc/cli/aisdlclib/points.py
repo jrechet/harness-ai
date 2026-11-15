@@ -32,6 +32,12 @@ def validate(table: dict[str, Any]) -> list[str]:
     errors = []
     if not isinstance(table.get("budget_lines"), int) or table["budget_lines"] < 1:
         errors.append("budget_lines : attendu un entier positif")
+    sizes = table.get("sizes", {})
+    if list(sizes) != ["XS", "S-M"] or not all(
+            type(sizes[n].get(k)) is int and sizes[n][k] > 0 for n in sizes for k in ("files", "lines")):
+        errors.append("sizes : XS puis S-M, chacun avec files et lines entiers positifs")
+    if not isinstance(table.get("plans_dir"), str) or not table["plans_dir"]:
+        errors.append("plans_dir : le dossier des plans écrits")
     phases = table.get("phases", {})
     for name, point in table.get("points", {}).items():
         if not isinstance(point.get("replaceable"), bool):
