@@ -18,15 +18,15 @@ Trois règles qui ne se négocient pas :
 Reformule ce que l'utilisateur veut obtenir, pas l'artefact qu'il a nommé : « un skill de release » est une forme, « que chaque release soit taguée, publiée et annoncée sans oubli » est le besoin. En revue, lis l'artefact en entier (skill, agent, consigne, hook) : ses phrases et ses étapes sont les morceaux.
 
 ### 2. Découper
-`python3 cli/harness.py place grid` (CLI du dépôt harness-ai) donne les natures et leurs définitions. Découpe le besoin en morceaux d'une seule nature. Signes d'un morceau à couper : « et vérifier que », « sans jamais », une étape suivie d'une condition. Une procédure qui contient une étape obligatoire donne deux morceaux : la procédure, et la règle ou le calcul qu'elle appelle.
+`python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place grid` donne les natures et leurs définitions. Découpe le besoin en morceaux d'une seule nature. Signes d'un morceau à couper : « et vérifier que », « sans jamais », une étape suivie d'une condition. Une procédure qui contient une étape obligatoire donne deux morceaux : la procédure, et la règle ou le calcul qu'elle appelle.
 
 ### 3. Répondre aux questions
-Pour chaque morceau, réponds aux questions de la grille à partir de la conversation et du dépôt. Lis ce qui répond sans demander : la forge et sa CI, `.claude/settings.json`, les serveurs MCP déclarés, `.harness/state.json` s'il existe. `python3 cli/harness.py place one <question=réponse>…` dit quelle question manque encore pour un morceau.
+Pour chaque morceau, réponds aux questions de la grille à partir de la conversation et du dépôt. Lis ce qui répond sans demander : la forge et sa CI, `.claude/settings.json`, les serveurs MCP déclarés, `.harness/state.json` s'il existe. `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place one <question=réponse>…` dit quelle question manque encore pour un morceau.
 
 Ne demande à l'utilisateur que ce qui est une décision, pas un fait. En pratique, presque toujours deux questions : ce que ça coûte quand ce n'est pas respecté (`incident`), et qui ne doit pas pouvoir passer outre (`bypass_limit`, `bypass_rule`). Pose-les toutes en une fois, une ligne par morceau, avec ta proposition.
 
 ### 4. Le plan
-Écris les morceaux dans un fichier JSON hors du dépôt, puis lance `python3 cli/harness.py place plan <fichier>` et montre le plan tel quel :
+Écris les morceaux dans un fichier JSON hors du dépôt, puis lance `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place plan <fichier>` et montre le plan tel quel :
 
 ```json
 [{"piece": "Ne jamais pousser sur main", "answers": {"nature": "limit", "bypass_limit": "dev"}, "current": "agents_md"}]
@@ -34,7 +34,7 @@ Ne demande à l'utilisateur que ce qui est une décision, pas un fait. En pratiq
 
 `current` ne sert qu'en revue : c'est l'identifiant de la destination où le morceau vit aujourd'hui (`place grid` les liste). Un morceau qui n'existe pas encore n'a pas de `current`. Le plan rend alors un verdict : KEEP, PUSH_DOWN, PROMOTE, MOVE (même couche, autre endroit) ou REMOVE. Pas de verdict tant qu'une réponse manque.
 
-Pour un état des lieux à lire ou à partager, `python3 cli/harness.py report from-place <fichier> --kind skill --name <nom> -o <rapport.html>` écrit la même chose en une page : sur quoi porte l'évaluation, attendu, observé, conseillé. En revue, chaque morceau porte alors `"evidence": ["chemin:ligne"]` : un écart sans preuve est refusé. Écris la page hors du dépôt, sauf si l'utilisateur la veut dedans.
+Pour un état des lieux à lire ou à partager, `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" report from-place <fichier> --kind skill --name <nom> -o <rapport.html>` écrit la même chose en une page : sur quoi porte l'évaluation, attendu, observé, conseillé. En revue, chaque morceau porte alors `"evidence": ["chemin:ligne"]` : un écart sans preuve est refusé. Écris la page hors du dépôt, sauf si l'utilisateur la veut dedans.
 
 Code 3 : une réponse manque, retourne à l'étape 3. Code 2 : saisie invalide, corrige-la. Sous le plan, une ligne par morceau que tu n'as pas pu placer, avec la raison.
 

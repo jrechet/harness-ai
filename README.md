@@ -1,182 +1,172 @@
 # harness-ai
 
-Skills Claude Code pour concevoir, auditer et fiabiliser des **harness agentiques** : l'ensemble agents + skills + scripts + CLI + workflows qui pilote un processus (release, deploy, migration…) ou qui instrumente un dépôt (AGENTS.md, CLAUDE.md, linters, tests d'architecture).
+> **In short (English).** A toolkit for making a repository work well with AI coding agents: a Python CLI that measures what is in place, and Claude Code skills that put it in place one step at a time. Everything here, from the CLI output to the skills, is written in French.
 
-## Le principe : quatre couches
+Des skills Claude Code et un CLI Python pour instrumenter un dépôt pour les agents IA : un `AGENTS.md` court qui ne dit que l'utile, des règles tenues par des outils plutôt que par des phrases, et de quoi mesurer où l'on en est.
+
+L'idée directrice tient en une ligne : **le prompt explique, le code vérifie, le pipeline exécute.** Ce qui doit être garanti ne s'écrit pas dans un prompt.
+
+## Essayer en deux minutes, sans Claude Code
+
+Il faut Python 3.10 ou plus et git. Rien à installer : le CLI n'utilise que la bibliothèque standard.
+
+```bash
+git clone https://github.com/jrechet/harness-ai.git
+```
+
+```bash
+python3 harness-ai/cli/harness.py status /chemin/de/ton/depot
+```
+
+`status` dit à quel palier est ton dépôt, de 0 (rien) à 4 (délégué), ce qui est acquis et la prochaine action. Il écrit `.harness/state.json` dans ton dépôt. Puis, au choix :
+
+```bash
+python3 harness-ai/cli/harness.py commands /chemin/de/ton/depot
+```
+
+```bash
+python3 harness-ai/cli/harness.py medals /chemin/de/ton/depot --page medailles.html
+```
+
+`commands` liste les commandes que ta CI lance et qu'un agent ne devinerait pas (« `make it`, pas `mvn verify` »). `medals` rend le même niveau en médaille, avec les succès débloqués, et écrit une page à ouvrir dans un navigateur ([exemple](docs/exemples/medailles.html), figé au 2026-11-15).
+
+## Ce que tu peux faire aujourd'hui
+
+Trois niveaux de confiance, toujours les mêmes mots : **éprouvé** (lancé sur un clone neuf, tests à l'appui), **mesuré** (un agent sans le corrigé l'a joué, et un programme a noté le résultat), **écrit** (le skill existe, personne ne l'a encore joué de bout en bout).
+
+### Avec le CLI seul
+
+| Tu veux… | Commande | État |
+|---|---|---|
+| Savoir où en est ton dépôt | `harness.py status <repo>` | éprouvé |
+| Dire à quel palier tu t'arrêtes | `harness.py target <palier> <repo>` | éprouvé |
+| Voir chaque règle, son âge, son garde-fou | `harness.py rules <repo>` | éprouvé |
+| Trouver les commandes qu'un agent ne devine pas | `harness.py commands <repo>` | éprouvé |
+| Savoir ce qui a vieilli : un skill qui cite un fichier disparu, un harvest en retard | `harness.py fresh <repo>` | éprouvé |
+| Voir ton niveau en médaille, avec les succès et les prochaines étapes | `harness.py medals <repo> [--write] [--page F]` | éprouvé |
+| Savoir où ranger un morceau de skill ou d'agent : AGENTS.md, CLI, hook, permission, CI… | `harness.py place grid`, `place one`, `place plan <morceaux.json>` | éprouvé |
+| Écrire un état des lieux en une page HTML | `harness.py report build <rapport.json> -o <page.html>` | éprouvé |
+| Suivre la progression dans une page locale | `harness.py serve <repo>` | éprouvé, rendu non revu |
+
+`<repo>` est le chemin de ton dépôt ; sans lui, c'est le dossier courant. Les exemples d'entrée sont dans [docs/exemples/](docs/exemples/) : `rapport.json` pour `report build`, `morceaux.json` pour `place plan` et `report from-place`.
+
+### Avec Claude Code
+
+| Tu veux… | Skill | État |
+|---|---|---|
+| Poser un premier `AGENTS.md` court, ou nettoyer celui que tu as | `harness-init` | mesuré sur quatre projets types |
+| Avancer d'un palier, et t'arrêter | `harness-step` | mesuré sur un projet |
+| Auditer ton harness et retirer ce qui ne sert plus | `harness-audit` | mesuré une fois sur deux projets |
+| Créer ou revoir un skill, un agent, une règle, en mettant chaque morceau à sa place | `harness-design` | mesuré : 12 pièges sur 12 sur un cas tenu à l'écart |
+| Demander « pourquoi ce niveau ? » | `harness-medals` | écrit |
+| Tirer des règles de ce qui s'est passé dans tes PR | `harness-harvest` | écrit, jamais joué |
+| Faire relire une PR : peu de commentaires, chacun sur une ligne du diff | `review` (plugin `ai-sdlc`) | mesuré une fois : 6 pièges sur 6 |
+| Faire développer un ticket jusqu'à la PR, sur le chemin de sa taille | `dev` (plugin `ai-sdlc`) | mesuré une fois : deux tickets conformes |
+
+Une mesure est un tirage, pas une moyenne, et les cas d'essai ont été écrits par le modèle qu'on évalue dessus : ils sont plus faciles qu'un vrai dépôt. Le détail est dans [docs/capacites.md](docs/capacites.md) et [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
+
+### Ce qui n'existe pas encore
+
+- Les phases `ticket`, `qa`, `secu`, `ship` et `run` du plugin `ai-sdlc` : prévues, pas écrites.
+- La preuve d'un gain sur un vrai dépôt. Ce que le projet mesure, c'est que ses mécanismes fonctionnent sur des projets types.
+- Une CI pour ce dépôt : ses tests se lancent à la main.
+- Une version anglaise.
+
+## Installer les skills dans Claude Code
+
+```
+/plugin marketplace add jrechet/harness-ai
+/plugin install harness-ai@harness-ai
+/plugin install ai-sdlc@harness-ai
+```
+
+Un skill se déclenche sur sa description (« audite mon AGENTS.md », « relis cette PR ») ou par son nom : `/harness-ai:harness-init`, `/ai-sdlc:review`.
+
+**Ce qui est vérifié, et ce qui ne l'est pas.** Les deux manifestes passent `claude plugin validate`. Les skills appellent leur CLI par `${CLAUDE_PLUGIN_ROOT}`, que Claude Code remplace par le dossier d'installation du plugin. L'installation depuis la marketplace elle-même n'a pas encore été essayée de bout en bout : si un skill ne trouve pas son CLI, lance la commande à la main depuis ton clone, comme plus haut, et ouvre une issue.
+
+Pour essayer sans installer : `claude --plugin-dir /chemin/vers/harness-ai`.
+
+## Les idées derrière
+
+### Quatre couches
 
 Chaque responsabilité d'un harness a un étage naturel. La plupart des problèmes de fiabilité viennent d'une responsabilité posée au mauvais étage.
 
 | Couche | Rôle | Porté par |
 |---|---|---|
-| **L1 Jugement** | Décider entre des options ouvertes, dialoguer avec l'humain | Agent (prompt, sous-agents) |
+| **L1 Jugement** | Décider entre des options ouvertes, dialoguer avec l'humain | L'agent, ses sous-agents |
 | **L2 Procédure** | Raconter l'ordre, quand appeler quoi, comment lire un retour | Skills, AGENTS.md |
-| **L3 Logique locale** | Garantir : pré-conditions, calculs, idempotence | CLI testé, linters, ArchUnit, scripts de check |
-| **L4 Exécution distante** | Agir avec des droits sur des ressources partagées | GitHub Actions, pipeline |
+| **L3 Logique locale** | Garantir : pré-conditions, calculs, idempotence | CLI testé, linters, tests d'architecture |
+| **L4 Exécution distante** | Agir avec des droits sur des ressources partagées | CI, pipeline |
 
-Règle de lecture : **le prompt explique, le code vérifie, le pipeline exécute.**
-Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pressé ? Si oui, l'agent est un accélérateur. Si non, du processus a fui dans les prompts.
+Le test : si on coupe L1 et L2, est-ce que L3 et L4 suffisent à un humain pressé ? Si oui, l'agent est un accélérateur. Si non, du processus a fui dans les prompts.
 
-## Skills
+### Cinq paliers, et le droit de s'arrêter
 
-| Skill | Rôle |
-|---|---|
-| [`harness-init`](skills/harness-init/SKILL.md) | Le pas 1. Trois questions, une reconnaissance, puis un AGENTS.md court comme source unique : mode, règles justifiées et datées, Interdits, stubs CLAUDE.md / Copilot / Cursor. Sur un dépôt déjà instrumenté, il retire ce qui ne sert plus. Il pose le palier 1 et s'arrête. |
-| [`harness-step`](skills/harness-step/SKILL.md) | Un pas à la fois. Lit l'état mesuré, demande une fois jusqu'où tu veux aller, fait le plus petit pas vers ce palier, montre l'avant et l'après, et s'arrête. Au-delà du palier visé il ne propose rien. |
-| [`harness-harvest`](skills/harness-harvest/SKILL.md) | Fait évoluer AGENTS.md et les contrats à partir de l'activité depuis le dernier harvest : `rule:`, corrections après coup sur PRs d'agent, checks ignorés, règles orphelines, tâches récurrentes. Un catalogue de signaux indépendant de la source, GitHub en premier adaptateur, une PR dédiée avec un commit par candidat. |
-| [`harness-audit`](skills/harness-audit/SKILL.md) | Audite un harness ou un AGENTS.md/CLAUDE.md, classe chaque élément dans la grille L1–L4, rend un verdict par élément (KEEP / INLINE / PUSH_DOWN / PROMOTE / MERGE / SPLIT / BLOCK / REMOVE) et un plan de remédiation. Sa revue de pertinence dit quelles lignes ne changent plus ce que fait l'agent : inutiles, nuisibles, ou périmées, ces dernières posées en question au propriétaire. Rapport à format fixe (Markdown + JSON) défini dans `references/report-template.md`. |
-| [`harness-design`](skills/harness-design/SKILL.md) | Pour créer ou revoir un skill, un agent, un outil ou une règle. Découpe la demande en morceaux et dit où va chacun — AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, check CI, paramètre géré, ou rien — avec la raison. La place vient de `harness place`, une grille de questions fermées : mêmes réponses, même destination. Montre le plan, pose les fichiers sur accord, et s'arrête. |
+| Palier | Médaille | Ce que ça veut dire |
+|---|---|---|
+| 0 Rien | aucune | L'agent part de zéro à chaque session |
+| 1 Cadré | bronze | Un `AGENTS.md` court, un mode, des interdits |
+| 2 Bouclé | argent | Les incidents deviennent des règles |
+| 3 Vérifié | or | Les règles obligatoires sont tenues par des outils |
+| 4 Délégué | platine | Des tâches entières reviennent propres |
 
-## Ce qui a vieilli
+Un palier est un endroit où l'on peut rester. Tu dis lequel tu vises (`harness target`), et au-delà l'outil ne propose rien. Le palier mesure la forme du harness, pas le travail des agents. Modèle et seuils : [docs/maturity.md](docs/maturity.md).
 
-`harness fresh` lutte contre l'obsolescence du harness lui-même. Il confronte les skills et les agents du dépôt à l'historique git : celui qui cite un fichier renommé ou supprimé est **cassé**, celui dont les fichiers cités ont changé depuis sa dernière relecture est **à revoir**, comme celui que personne n'a touché depuis six mois ou qui nomme un modèle. Il y ajoute les signaux des règles : harvest ou audit en retard, garde-fou disparu, règle de plus d'un an sans garde-fou. Un chemin que git n'a jamais connu n'est pas jugé, parce qu'un skill parle souvent des fichiers d'un autre dépôt.
+### Le parcours type
 
-```bash
-python3 cli/harness.py fresh .            # le détail, et quoi faire
-python3 cli/harness.py fresh . --strict   # sort en 1 si quelque chose est cassé : pour un job planifié
-```
-
-En hook de début de session (`--hook`), il ne dit rien tant que rien n'est cassé ni en retard, et trois lignes sinon :
-
-```json
-{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/cli/harness.py\" fresh \"$CLAUDE_PROJECT_DIR\" --hook"}]}]}}
-```
-
-## Médailles et succès
-
-`harness medals` dit le niveau d'un dépôt ou d'une marketplace de plugins en médaille (bronze, argent, or, platine), avec les succès débloqués, pourquoi on en est là, et les prochaines étapes. Rien n'y est noté par un modèle : pour un dépôt, la médaille est le palier de `harness status`, et chaque vérification passée est un succès. `--write` tient `.harness/medals.json`, qui garde la date de chaque succès et dit quand l'un d'eux est perdu. `--page` écrit une page interactive en un seul fichier ([exemple](docs/exemples/medailles.html), figé au 2026-11-15). Le skill [`harness-medals`](skills/harness-medals/SKILL.md) répond à « pourquoi ce niveau ? ».
-
-```bash
-python3 cli/harness.py medals . --write --page medailles.html
-python3 cli/harness.py medals . --kind marketplace
-```
-
-## Où on en est
-
-[docs/capacites.md](docs/capacites.md) liste ce que le dépôt sait faire et tient le plan d'avancement. Un hook de fin de tour (`harness progress check`, dans `.claude/settings.json`) renvoie l'agent le mettre à jour tant que le dépôt change sans lui.
-
-## Ce qui manque à un AGENTS.md
-
-`harness commands` cherche ce qu'un AGENTS.md devrait dire et que personne n'a pensé à écrire : les commandes que la CI lance et que le dépôt ne laisse pas deviner (« `make it`, pas `mvn verify` »). Il rend des candidates avec leur source ; harness-init les confirme en les exécutant, harness-audit les pose en questions au propriétaire.
-
-## Un rapport, toujours au même format
-
-`harness report` écrit un état des lieux en une page HTML, qu'il porte sur un dépôt, un harness, un agent, un skill, un plugin ou une règle. Chaque constat a quatre colonnes — sur quoi porte l'évaluation, ce qui est attendu, ce qui est observé, ce qui est conseillé — un statut (bloquant, écart, à créer, non évalué, conforme) et sa preuve. Le skill ou l'agent remplit les données ; le code les valide et écrit la page : un écart sans preuve est refusé, et les mêmes données donnent le même fichier. La page est un seul fichier sans ressource externe, lisible sans JavaScript, en clair comme en sombre, et elle embarque ses données pour qu'un outil les relise.
-
-```bash
-python3 cli/harness.py report build rapport.json -o rapport.html
-python3 cli/harness.py report from-place morceaux.json --kind skill --name release -o rapport.html
-```
+1. `harness-init` pose le palier 1. On peut s'arrêter là.
+2. `harness-step` fait un pas vers le palier visé : la boucle de retour `rule:` en revue, un garde-fou par règle, puis le processus de travail.
+3. `harness-harvest` transforme ce qui s'est passé dans les PR en propositions de règles.
+4. `harness-audit` relit quand le modèle change ou tous les six mois, et `harness fresh` dit entre-temps ce qui a vieilli.
 
 ## Le plugin ai-sdlc
 
-Un second plugin, dans `plugins/ai-sdlc/`, outille les phases du cycle de développement : un socle commun que chaque équipe complète dans son dépôt. Il est autonome et porte son propre CLI ; de harness-ai, il lit seulement `.harness/state.json`, pour dire si le palier d'une phase est atteint. Sa conception est dans [docs/ai-sdlc/proposition.md](docs/ai-sdlc/proposition.md).
+Un second plugin, dans [plugins/ai-sdlc/](plugins/ai-sdlc/), outille les phases du cycle de développement : un socle commun que chaque équipe complète dans son dépôt, par un fichier `docs/agents/<point>.md`. Ces ajouts se lisent sur la branche cible, pas dans la PR : une PR ne peut pas alléger sa propre revue. Sa conception est dans [docs/ai-sdlc/proposition.md](docs/ai-sdlc/proposition.md).
 
-| Pièce | Rôle |
+Son CLI se lance aussi à la main. Sur un dépôt sans dépôt distant, donne la branche cible avec `--base` :
+
+```bash
+python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /chemin/de/ton/depot --base main
+```
+
+| Commande | Rôle |
 |---|---|
-| [`dev`](plugins/ai-sdlc/skills/dev/SKILL.md) | Développe un ticket jusqu'à la PR, sur le chemin que sa taille impose. Ne fusionne jamais. Mesuré une fois : deux tickets conformes. |
-| [`review`](plugins/ai-sdlc/skills/review/SKILL.md) | Relit une PR avec la checklist du socle et celle de l'équipe. Peu de commentaires, chacun prouvé. Ne fait que commenter. |
-| `ai_sdlc.py context <phase>` | Assemble le socle et les ajouts de l'équipe (`docs/agents/<point>.md`), avec leur provenance. Une surcharge de porte se lit sur la branche de base ; une surcharge invalide arrête tout. |
-| `ai_sdlc.py status` | Liste les points d'extension : convention du framework, surchargé, ou invalide. Aucun fichier n'est créé d'avance. |
-| `ai_sdlc.py size` | Calcule la taille du changement (XS, S-M, L) par règles : fichiers, lignes, zones sensibles du socle et de l'équipe lues sur la branche de base. |
-| `ai_sdlc.py dev body` | Rend le corps de la PR, et le refuse s'il est incomplet pour sa taille : plan absent, plan de taille L non commité, rien de dit sur ce qui est vérifié. |
-| `ai_sdlc.py review render` | Rend la revue en commentaires, et la refuse si un constat ne cite pas une ligne du diff. |
+| `status` | Les sept points d'extension : convention du socle, surchargé, ou invalide |
+| `context <phase>` | Le socle et les ajouts de l'équipe, avec leur provenance |
+| `size [--paths …]` | La taille d'un changement (XS, S-M, L) par règles : fichiers, lignes, zones sensibles |
+| `dev body <corps.json>` | Le corps d'une PR, refusé s'il est incomplet pour sa taille |
+| `review render <revue.json>` | Une revue en commentaires, refusée si un constat ne cite pas une ligne du diff |
 
-Le skill `review` se mesure sur une PR piégée, dans [fixtures/review/](fixtures/review/README.md). Le skill `dev` se mesure sur des tickets, dans [fixtures/dev/](fixtures/dev/README.md) : le noteur lit le dépôt que l'agent laisse, pas ce qu'il en dit.
+## Ce que ce dépôt fait quand tu l'ouvres avec Claude Code
 
-```
-/plugin install ai-sdlc@harness-ai
-```
+Son `.claude/settings.json` déclare trois hooks, qui lancent `cli/harness.py` : un rappel à chaque message, une vérification de fin de tour qui demande de tenir [docs/capacites.md](docs/capacites.md) à jour, et un contrôle de fraîcheur en début de session. Ils lisent le dépôt et git, n'écrivent rien et n'appellent aucun réseau. Ce sont les règles de travail de ce dépôt, pas une fonction pour le tien. Lis le fichier avant d'accepter la confiance du dossier.
 
-## Progression mesurée
+`harness serve` écoute sur `127.0.0.1:8787`, sans authentification : ne le lance pas avec `--host 0.0.0.0`. Si le port est pris, donne `--port`.
 
-`harness status` calcule le palier de maturité du repo à partir de faits (fichiers, règles, dernier audit, dernier harvest) et écrit `.harness/state.json`. Cinq paliers : Rien, Cadré, Bouclé, Vérifié, Délégué. Un palier est un endroit où l'on peut rester : tu déclares celui que tu vises, et au-delà l'état ne propose rien. Modèle et seuils dans [docs/maturity.md](docs/maturity.md).
+## Contribuer et vérifier
 
 ```bash
-python3 cli/harness.py status <chemin-du-repo>
-python3 cli/harness.py target 1 <chemin-du-repo>    # « je m'arrête au palier 1 »
-python3 cli/harness.py rules <chemin-du-repo>       # les règles, leur âge, leur garde-fou
+python3 -m unittest discover -s cli/tests
 ```
-
-Le palier mesure la forme du harness, pas le travail des agents. La preuve que les agents travaillent mieux vient des PR réelles, d'un harvest à l'autre, et du banc avant et après sur les projets types (`fixtures/README.md`).
-
-### Voir la progression
 
 ```bash
-python3 cli/harness.py serve <chemin-du-repo>
+python3 -m unittest discover -s plugins/ai-sdlc/cli/tests
 ```
 
-Ouvre http://127.0.0.1:8787 : une application Vue locale, sans build ni dépendance, qui lit l'état courant et l'historique des `state.json` commités. Paliers avec leurs vérifications, prochaines actions, faits mesurés, courbe de progression, couches L1 à L4 depuis le dernier audit. L'application n'affiche que ce que le CLI mesure.
+Les deux suites passent sur un clone neuf, de Python 3.10 à 3.14. Les règles du dépôt sont dans [AGENTS.md](AGENTS.md). Les skills se mesurent sur des projets types et des cas piégés, dans [fixtures/](fixtures/README.md) : un agent qui n'a jamais vu le corrigé joue le skill, et un programme note ce qu'il laisse.
 
-## Parcours
+## Où trouver quoi
 
-1. `harness-init` pose le palier 1 : un fichier court, un mode, des interdits. On peut s'arrêter là.
-2. `harness-step`, quand tu veux aller plus loin, fait un pas vers le palier que tu vises et s'arrête : la boucle de retour `rule:` (palier 2), un garde-fou par règle (palier 3), le processus de travail et un contrat de tâche (palier 4).
-3. `harness-harvest` collecte les signaux depuis le dernier harvest et ouvre une PR de proposition : push-down en CI, ajout, raccourcissement, retrait, nouveau contrat.
-4. `harness-audit` relit quand le modèle change ou tous les six mois : règles racontées sans garde-fou, et lignes qui ne servent plus.
-
-## Installation
-
-### Comme plugin (recommandé)
-
-Dans Claude Code :
-
-```
-/plugin marketplace add jrechet/harness-ai
-/plugin install harness-ai@harness-ai
-```
-
-### À la main
-
-Copier un dossier de `skills/` dans `~/.claude/skills/` (global) ou dans `.claude/skills/` d'un repo (versionné avec l'équipe) :
-
-```bash
-git clone https://github.com/jrechet/harness-ai.git
-cp -r harness-ai/skills/harness-audit ~/.claude/skills/
-```
-
-## Utilisation
-
-Les skills se déclenchent sur leur description (« audite mes skills », « remets à plat mon AGENTS.md », « est-ce qu'on peut couper l'agent ? ») ou explicitement :
-
-```
-/harness-audit
-```
-
-## Structure du dépôt
-
-```
-harness-ai/
-├── .claude-plugin/
-│   ├── plugin.json          # manifeste du plugin
-│   └── marketplace.json     # pour /plugin marketplace add
-├── app/                     # application de suivi (Vue 3 vendorisé, sans build), servie par `harness serve`
-├── cli/
-│   ├── harness.py           # point d'entrée : status, target, rules, harvest github, fixture, bench, serve, place, report
-│   ├── harnesslib/          # facts, maturity, status, rules, github, fixtures, bench, serve, place, report (stdlib uniquement)
-│   │   ├── placement.json   # la grille de placement : questions fermées et destinations
-│   │   └── report_template.html # le gabarit du rapport d'état des lieux
-│   └── tests/               # python3 -m unittest discover -s cli/tests
-├── fixtures/                # fixtures d'audit, projets types avec leurs tâches, registre des résultats
-├── docs/
-│   ├── cahier-des-charges.md # ce que harness-ai doit tenir, et où on en est
-│   └── maturity.md          # le modèle de maturité et ses seuils
-├── skills/
-│   ├── harness-audit/
-│   ├── harness-init/
-│   ├── harness-step/
-│   ├── harness-harvest/
-│   ├── harness-design/
-│   └── <nom-du-skill>/
-│       ├── SKILL.md         # instructions chargées par l'agent
-│       └── references/      # fichiers lus à la demande (templates, grilles)
-├── .claude/skills/harness-stress/   # skill de mainteneur : met les skills à l'épreuve sur fixtures/, à la demande
-└── README.md
-```
-
-Conventions :
-- un `SKILL.md` reste court (procédure, vocabulaire, cas d'abandon) ; la référence longue va dans `references/` ;
-- tout ce qui doit être **garanti** va dans `cli/`, pas dans le texte des skills ; les skills appellent le CLI ;
-- chaque skill produit un format de sortie stable pour pouvoir comparer deux exécutions.
+| Dossier | Contenu |
+|---|---|
+| `cli/` | Le CLI `harness.py` et ses tests |
+| `skills/` | Les six skills du plugin `harness-ai` |
+| `plugins/ai-sdlc/` | Le second plugin : skills `dev` et `review`, son CLI |
+| `fixtures/` | Projets types, cas piégés, corrigés, exécutions rangées |
+| `app/` | La page de suivi servie par `harness serve` |
+| `docs/` | Ce que le dépôt sait faire ([capacites.md](docs/capacites.md)), le modèle de maturité, l'étude et un [cours interactif](docs/ai-sdlc/cours/index.html) |
+| `.harness/` | L'état mesuré de ce dépôt par lui-même |
 
 ## Licence
 

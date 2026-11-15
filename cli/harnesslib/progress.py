@@ -17,7 +17,7 @@ from typing import Any
 DOC = "docs/capacites.md"
 HEADING = "## Plan d'avancement"
 STATES = ("fait", "en cours", "à faire", "en attente", "écarté")
-REMINDER = (f"Rappel du dépôt : toute demande nouvelle ou correction du propriétaire, et tout travail fini ou commencé, "
+REMINDER = (f"Rappel du dépôt : toute demande nouvelle ou correction de qui pilote la session, et tout travail fini ou commencé, "
             f"s'inscrit dans {DOC} (section « Plan d'avancement » : une ligne par sujet, état parmi "
             f"{', '.join(STATES)}), dans le même changement.")
 _DATE = re.compile(r"^Dernière mise à jour : (\d{4}-\d{2}-\d{2})\b", re.MULTILINE)
@@ -92,6 +92,8 @@ def check(repo: str, doc: str = DOC, base: str = "origin/main") -> list[str]:
         return [f"{doc} est introuvable : c'est le document qui dit ce que le dépôt sait faire et où il en est"]
     errors = [f"{doc} : {e}" for e in parse(text)[1]]
     changed = changed_paths(repo, base)
+    if changed is not None:  # l'état mesuré (.harness/) est une sortie de commande, pas un travail à inscrire
+        changed = {p for p in changed if not p.startswith(".harness/")}
     if changed is not None and changed - {doc} and doc not in changed:
         sample = ", ".join(sorted(changed - {doc})[:4])
         errors.append(f"le dépôt change ({sample}{'…' if len(changed) > 5 else ''}) et {doc} ne bouge pas : inscris "
