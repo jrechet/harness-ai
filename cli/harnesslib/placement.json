@@ -48,6 +48,7 @@
       "options": {
         "agent": {"label": "L'agent seul : il doit s'en apercevoir avant de rendre la main.", "place": "hook_check"},
         "dev": {"label": "Personne dans le dépôt : rien ne fusionne sans.", "place": "ci_check"},
+        "release": {"label": "Personne dans le dépôt, et c'est à la livraison que ça compte : rien ne se publie ni ne se déploie sans.", "place": "release_gate"},
         "team": {"label": "Aucune équipe : l'organisation l'impose à tous les dépôts.", "place": "org_check"}
       }
     },
@@ -125,6 +126,13 @@
       "where": "Une sous-commande CLI, un linter ou un test d'architecture, rendu obligatoire par la protection de branche ; AGENTS.md peut le citer en une ligne avec « Vérifiée par ».",
       "why": "Seul un check requis empêche la fusion, quels que soient l'outil et la personne. Un job en continue-on-error, un filtre de chemins qui ne le déclenche pas ou un hook local ne garantissent rien.",
       "also": "Le même check lancé par un hook, pour que l'agent le voie avant d'ouvrir la PR."
+    },
+    "release_gate": {
+      "name": "Étape bloquante du workflow de livraison",
+      "layer": "L3 + L4",
+      "where": "Une étape du workflow de livraison qui appelle la vérification (sous-commande CLI, script) et échoue avant la première action irréversible.",
+      "why": "Ce qui se juge à la publication ne se voit pas à la fusion : une entrée de changelog, une version, un artefact signé. Le workflow de livraison est le seul passage obligé.",
+      "also": "La même vérification en check de PR, quand elle peut déjà se faire à la fusion."
     },
     "org_check": {
       "name": "Check imposé par l'organisation",

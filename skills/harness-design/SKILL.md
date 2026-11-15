@@ -49,6 +49,7 @@ Demande l'accord sur le plan, puis pose pour chaque morceau le plus petit fichie
 | Permission | La règle `deny` ou `ask` dans `.claude/settings.json` |
 | Serveur MCP | Sa déclaration, et les droits à demander pour le compte du serveur |
 | Workflow de livraison | Le workflow avec son mode plan (dry-run), et la sous-commande qui le déclenche. L'environnement protégé et ses secrets se règlent sur la forge : écris le réglage, ne le fais pas |
+| Étape bloquante du workflow de livraison | L'étape dans le workflow, avant la première action irréversible, et la commande qu'elle appelle avec son test |
 | Protection côté serveur, paramètres gérés, check d'organisation | Rien dans le dépôt ne suffit. Écris le réglage à faire et qui peut le faire (administrateur de la forge, équipe plateforme). Ne le fais pas toi-même |
 | Une ligne dans AGENTS.md | Au format de harness-init : la règle, `Pourquoi : …`, `Vérifiée par : <chemin>` ou `(non vérifiée)`, `[AAAA-MM]` |
 | AGENTS.md du dossier | La même ligne, dans l'AGENTS.md du dossier concerné |
@@ -68,6 +69,6 @@ Même déroulé, avec `current` renseigné pour chaque morceau. Ce skill revoit 
 - **Répondre selon l'effort.** `bypass_rule=agent` pour éviter de toucher la CI, c'est répondre à la mauvaise question : elle porte sur ce qu'un contournement coûterait.
 - **Tout pousser en code.** Si un programme ne peut pas le vérifier avec la même réponse à chaque fois, `checkable` vaut `no` : un jugement codé en dur devient rigide, et l'équipe le contourne.
 - **Un sous-agent pour faire propre.** Sans contexte à part, regard indépendant, droits différents ou parallélisme, c'est un skill, ou le jugement de la session.
-- **Se tromper de `current` en revue.** `current` dit où le morceau est tenu aujourd'hui, pas dans quel fichier la phrase est écrite. Un choix que le skill laisse à l'agent a pour `current` `session`. Une règle d'AGENTS.md qui cite un check CI existant et bloquant a pour `current` `ci_check` : ouvre le workflow pour le vérifier. Si tu ne peux pas l'ouvrir, ne tranche pas : demande, ou laisse le morceau hors du plan et dis-le dessous.
+- **Se tromper de `current` en revue.** `current` dit où le morceau est tenu aujourd'hui, pas dans quel fichier la phrase est écrite. Un choix que le skill laisse à l'agent a pour `current` `session`. Une règle d'AGENTS.md qui cite un check CI existant et bloquant a pour `current` `ci_check` : ouvre le workflow pour le vérifier. Si tu ne peux pas l'ouvrir, ne tranche pas : demande, ou laisse le morceau hors du plan et dis-le dessous. Qu'un check soit *requis* ne se lit pas dans le dépôt : c'est un réglage de la forge (protection de branche, ruleset). Si tu y as accès, lis-le ; sinon garde `ci_check` et écris sous le plan « à confirmer : le check est-il requis ? ».
 - **Demander au plan ce qu'il ne dit pas.** Le plan place, il ne réécrit pas. Une étape à reformuler, un outil qui manque à un sous-agent, une phrase fausse : une ligne chacune sous le plan, pas un morceau.
 - **Écrire ce que l'agent trouve seul.** Commandes du manifeste, arborescence : `scope=discoverable`, rien à écrire.

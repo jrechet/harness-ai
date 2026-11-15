@@ -21,3 +21,4 @@ Le noteur est généreux sur la destination (plusieurs sont acceptées), strict 
 ## Révisions
 
 - 2026-11-15, après la première exécution à l'aveugle (`runs/2026-11-15-blind`) : S1 (« taguer et pousser », ligne 15) est retiré, c'est une livraison dans la grille de harness-audit et non un élément sain ; le workflow que cite `AGENTS.md:7` est ajouté à `artifact/`, sans lui S4 n'était pas vérifiable ; le noteur distingue par leur nature deux morceaux tirés d'une même ligne. Les exécutions d'avant cette date ne se comparent pas à celles d'après.
+- 2026-11-15, après la seconde exécution (`runs/2026-11-15-blind-2`) : la grille reçoit la destination `release_gate` (« rien ne se publie sans »), que T3 accepte désormais. Aucune exécution rangée ne change de note : les deux passaient déjà T3.
