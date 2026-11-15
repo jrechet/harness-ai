@@ -260,12 +260,15 @@ def _run(dest: str, *args: str) -> None:
 
 
 def init_fixture(fixture_dir: str, dest: str) -> dict[str, str]:
-    """Monte la fixture en dépôt git : `base/` commité sur main, puis `pr/` par-dessus sur sa branche."""
-    spec = load(os.path.join(fixture_dir, "pr.json"))
+    """Monte la fixture en dépôt git : `base/` commité sur main, puis, si elle porte une PR (`pr.json`),
+    `pr/` par-dessus sur sa branche. Sans PR, le dépôt s'arrête à main : c'est une fixture de `/dev`."""
+    has_pr = os.path.exists(os.path.join(fixture_dir, "pr.json"))
+    spec = load(os.path.join(fixture_dir, "pr.json")) if has_pr else {}
     if os.path.exists(dest) and (not os.path.isdir(dest) or os.listdir(dest)):
         raise Refused(f"{dest} existe et n'est pas vide : donne un dossier neuf")
     try:
-        branch, message = spec["branch"], f"{spec['title']}\n\n{spec['body']}"
+        branch = spec["branch"] if has_pr else None
+        message = f"{spec['title']}\n\n{spec['body']}" if has_pr else ""
         removed = spec.get("removed", [])
         if any(not isinstance(r, str) or r.startswith("/") or ".." in r.split("/") for r in removed):
             raise Refused(f"fixture {fixture_dir} : removed ne cite que des chemins relatifs au dépôt")
@@ -273,6 +276,8 @@ def init_fixture(fixture_dir: str, dest: str) -> dict[str, str]:
         _run(dest, "init", "-q", "-b", "main", "--template=")
         _run(dest, "add", "-A")
         _run(dest, "commit", "-q", "--no-verify", "-m", "base")
+        if not has_pr:
+            return {"repo": dest, "base": "main", "branch": "main"}
         _run(dest, "checkout", "-q", "-b", branch)
         shutil.copytree(os.path.join(fixture_dir, "pr"), dest, symlinks=True, dirs_exist_ok=True)
         for rel in removed:

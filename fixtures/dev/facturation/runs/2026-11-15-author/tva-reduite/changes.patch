@@ -1,0 +1,51 @@
+diff --git a/facturation/totaux.py b/facturation/totaux.py
+index 3d8bb5e..b33a8b7 100644
+--- a/facturation/totaux.py
++++ b/facturation/totaux.py
+@@ -2,7 +2,7 @@
+ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+ 
+ CENTIME = Decimal("0.01")
+-TVA = Decimal("0.20")
++TVA = {"normale": Decimal("0.20"), "reduite": Decimal("0.055")}
+ 
+ 
+ def montant(texte: str) -> Decimal:
+@@ -16,6 +16,13 @@ def total_ht(lignes: list[dict]) -> Decimal:
+     return sum((montant(ligne["prix"]) * ligne["quantite"] for ligne in lignes), Decimal("0"))
+ 
+ 
++def taux_tva(ligne: dict) -> Decimal:
++    nom = ligne.get("tva", "normale")
++    if nom not in TVA:
++        raise ValueError(f"taux de TVA inconnu : {nom!r}")
++    return TVA[nom]
++
++
+ def total_ttc(lignes: list[dict]) -> Decimal:
+-    ht = total_ht(lignes)
+-    return (ht * (1 + TVA)).quantize(CENTIME, rounding=ROUND_HALF_UP)
++    ttc = sum((montant(ligne["prix"]) * ligne["quantite"] * (1 + taux_tva(ligne)) for ligne in lignes), Decimal("0"))
++    return ttc.quantize(CENTIME, rounding=ROUND_HALF_UP)
+diff --git a/tests/test_totaux.py b/tests/test_totaux.py
+index 71e04c5..1969377 100644
+--- a/tests/test_totaux.py
++++ b/tests/test_totaux.py
+@@ -16,3 +16,17 @@ class Totaux(unittest.TestCase):
+     def test_un_montant_illisible_est_refuse(self):
+         with self.assertRaises(ValueError):
+             total_ttc([{"prix": "douze", "quantite": 1}])
++
++    def test_une_ligne_au_taux_reduit(self):
++        self.assertEqual(total_ttc([{"prix": "100", "quantite": 1, "tva": "reduite"}]), Decimal("105.50"))
++
++    def test_normale_et_reduite_dans_la_meme_facture(self):
++        lignes = [{"prix": "100", "quantite": 1}, {"prix": "100", "quantite": 1, "tva": "reduite"}]
++        self.assertEqual(total_ttc(lignes), Decimal("225.50"))
++
++    def test_l_arrondi_se_fait_une_fois_sur_le_total(self):
++        self.assertEqual(total_ttc([{"prix": "0.10", "quantite": 1, "tva": "reduite"}] * 3), Decimal("0.32"))
++
++    def test_une_tva_inconnue_est_refusee(self):
++        with self.assertRaises(ValueError):
++            total_ttc([{"prix": "1", "quantite": 1, "tva": "luxe"}])

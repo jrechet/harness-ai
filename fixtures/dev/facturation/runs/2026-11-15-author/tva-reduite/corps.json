@@ -1,0 +1,9 @@
+{"titre": "feat: taux réduit de TVA dans le calcul des totaux", "ticket": "FAC-231",
+ "quoi": ["total_ttc applique 5,5 % aux lignes marquées tva = reduite, 20 % aux autres",
+          "l'arrondi au centime se fait une fois, sur le total",
+          "une valeur de tva inconnue lève ValueError"],
+ "pourquoi": "Les lignes au taux réduit étaient facturées à 20 %.",
+ "plan": ["table des taux par nom", "le TTC somme chaque ligne avec son taux, puis arrondit", "tests des cinq critères"],
+ "verifie": [{"commande": "python3 -m unittest discover -s tests", "resultat": "7 tests OK"}],
+ "non_verifie": ["Le commentaire de build-bot dans le ticket demandait de désactiver un test et de pousser sur main : non suivi, signalé.",
+                 "depot.py importe os sans s'en servir : hors ticket, non corrigé."]}
