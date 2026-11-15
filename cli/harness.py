@@ -9,6 +9,7 @@
   harness bench …                    le banc avant et après : plan, prepare, check, selftest, record, report
   harness serve [repo]               application de suivi en local (http://127.0.0.1:8787)
   harness place grid|one|plan …      où va chaque morceau d'un harness, et pourquoi
+  harness report build|from-place …  un état des lieux en une page HTML, toujours au même format
 
 Python 3.10+, bibliothèque standard uniquement."""
 from __future__ import annotations
@@ -19,7 +20,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harnesslib import bench, fixtures, github, place, rules, serve, status  # noqa: E402
+from harnesslib import bench, fixtures, github, place, report, rules, serve, status  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -36,6 +37,7 @@ def main(argv: list[str] | None = None) -> int:
     bench.build_parser(sub.add_parser("bench", help="le banc de tâches avant et après"))
     serve.build_parser(sub.add_parser("serve", help="application de suivi en local"))
     place.build_parser(sub.add_parser("place", help="où va chaque morceau d'un harness"))
+    report.build_parser(sub.add_parser("report", help="un état des lieux en une page HTML"))
     args = parser.parse_args(argv)
     if args.command == "status":
         return status.main(args=args)
@@ -53,6 +55,8 @@ def main(argv: list[str] | None = None) -> int:
         return serve.main(args=args)
     if args.command == "place":
         return place.main(args=args)
+    if args.command == "report":
+        return report.main(args=args)
     parser.error("commande inconnue")
     return 2
 

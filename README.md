@@ -26,6 +26,15 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 | [`harness-audit`](skills/harness-audit/SKILL.md) | Audite un harness ou un AGENTS.md/CLAUDE.md, classe chaque élément dans la grille L1–L4, rend un verdict par élément (KEEP / INLINE / PUSH_DOWN / PROMOTE / MERGE / SPLIT / BLOCK / REMOVE) et un plan de remédiation. Sa revue de pertinence dit quelles lignes ne changent plus ce que fait l'agent : inutiles, nuisibles, ou périmées, ces dernières posées en question au propriétaire. Rapport à format fixe (Markdown + JSON) défini dans `references/report-template.md`. |
 | [`harness-design`](skills/harness-design/SKILL.md) | Pour créer ou revoir un skill, un agent, un outil ou une règle. Découpe la demande en morceaux et dit où va chacun — AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, check CI, paramètre géré, ou rien — avec la raison. La place vient de `harness place`, une grille de questions fermées : mêmes réponses, même destination. Montre le plan, pose les fichiers sur accord, et s'arrête. |
 
+## Un rapport, toujours au même format
+
+`harness report` écrit un état des lieux en une page HTML, qu'il porte sur un dépôt, un harness, un agent, un skill, un plugin ou une règle. Chaque constat a quatre colonnes — sur quoi porte l'évaluation, ce qui est attendu, ce qui est observé, ce qui est conseillé — un statut (bloquant, écart, à créer, non évalué, conforme) et sa preuve. Le skill ou l'agent remplit les données ; le code les valide et écrit la page : un écart sans preuve est refusé, et les mêmes données donnent le même fichier. La page est un seul fichier sans ressource externe, lisible sans JavaScript, en clair comme en sombre, et elle embarque ses données pour qu'un outil les relise.
+
+```bash
+python3 cli/harness.py report build rapport.json -o rapport.html
+python3 cli/harness.py report from-place morceaux.json --kind skill --name release -o rapport.html
+```
+
 ## Progression mesurée
 
 `harness status` calcule le palier de maturité du repo à partir de faits (fichiers, règles, dernier audit, dernier harvest) et écrit `.harness/state.json`. Cinq paliers : Rien, Cadré, Bouclé, Vérifié, Délégué. Un palier est un endroit où l'on peut rester : tu déclares celui que tu vises, et au-delà l'état ne propose rien. Modèle et seuils dans [docs/maturity.md](docs/maturity.md).
@@ -90,9 +99,10 @@ harness-ai/
 │   └── marketplace.json     # pour /plugin marketplace add
 ├── app/                     # application de suivi (Vue 3 vendorisé, sans build), servie par `harness serve`
 ├── cli/
-│   ├── harness.py           # point d'entrée : status, target, rules, harvest github, fixture, bench, serve, place
-│   ├── harnesslib/          # facts, maturity, status, rules, github, fixtures, bench, serve, place (stdlib uniquement)
-│   │   └── placement.json   # la grille de placement : questions fermées et destinations
+│   ├── harness.py           # point d'entrée : status, target, rules, harvest github, fixture, bench, serve, place, report
+│   ├── harnesslib/          # facts, maturity, status, rules, github, fixtures, bench, serve, place, report (stdlib uniquement)
+│   │   ├── placement.json   # la grille de placement : questions fermées et destinations
+│   │   └── report_template.html # le gabarit du rapport d'état des lieux
 │   └── tests/               # python3 -m unittest discover -s cli/tests
 ├── fixtures/                # fixtures d'audit, projets types avec leurs tâches, registre des résultats
 ├── docs/
