@@ -5,7 +5,7 @@ description: Pose le premier palier de l'instrumentation IA d'un dépôt — un 
 
 # Harness init — le pas 1
 
-Un AGENTS.md généré par scan du repo (arborescence, commandes de build, conventions de nommage) est du bruit : l'agent découvre tout ça seul en lisant le code. Les règles utiles naissent d'incidents, pas d'un scan. Ce skill pose donc **peu** : un fichier court qui ne dit que le non-découvrable, et un mode explicite.
+Un AGENTS.md généré par scan du repo (arborescence, commandes de build, conventions de nommage) est du bruit : l'agent découvre tout ça seul en lisant le code. Une commande ne mérite sa ligne que si elle surprend : celle que le dépôt laisse deviner n'est pas celle qu'il faut lancer. Les règles utiles naissent d'incidents, pas d'un scan. Ce skill pose donc **peu** : un fichier court qui ne dit que le non-découvrable, et un mode explicite.
 
 Il pose le palier 1, « Cadré », et rien d'autre. Un palier est un endroit où l'on peut rester : ce qui est écrit ici doit tenir debout sans le pas suivant. Pas de section Maintenance, pas de marqueur de harvest, pas de Processus de travail, pas de contrat de tâche : ce sont les pas 2 et 4, que harness-step propose quand l'utilisateur veut aller plus loin. Un fichier qui cite un contrat qui n'existe pas encore promet ce qu'il ne tient pas.
 
@@ -29,6 +29,7 @@ Si le propriétaire ne sait pas (« je ne l'ai jamais relu »), ne comble pas à
 - **La bonne branche et les fichiers de dossier.** Lis les fichiers d'instructions sur la branche que la PR visera. Cherche les `CLAUDE.md` et `AGENTS.md` de sous-dossiers (`find . -name CLAUDE.md -o -name AGENTS.md`) : ils sont chargés à la demande, c'est là que va ce qui ne concerne qu'eux. Ils se nettoient comme la racine.
 - **Secrets.** Cherche clés d'API, mots de passe, tokens (`grep -rnE "apiKey=|api_key|token|password|secret|Bearer |sk_"` sur les fichiers d'instructions, la config et ce qu'ils incluent). Un secret trouvé ne se recopie jamais : dis dans le compte rendu où il est, qu'il reste dans l'historique git et doit être régénéré, et ajoute l'Interdit correspondant.
 - **Commandes réelles** : repère build, test, lint, et **exécute-les**. Une commande qui échoue ou n'existe pas ne va pas dans le fichier ; elle va dans « non confirmé » du compte rendu.
+- **Commandes qui surprennent.** `python3 cli/harness.py commands <repo>` compare ce que la CI lance à ce que l'écosystème laisse deviner : une enveloppe (`make it` là où on attendrait `mvn verify`), des options qui changent ce qui tourne, une cible que la CI ne lance pas. Chaque candidate non écrite s'exécute pour être confirmée, puis va dans le tableau « ce qui change → ce qu'on lance », avec la commande évidente qu'elle remplace si elle n'est pas équivalente (« `make it`, pas `mvn verify` »). Une candidate de livraison ne s'exécute jamais : c'est une question au propriétaire, pour un Interdit. Une commande évidente que la CI lance telle quelle n'a pas besoin de ligne.
 - **Garde-fous, et s'ils bloquent.** Pour chaque linter, test d'architecture, script de check : note son chemin, ce qu'il vérifie, et lis la CI pour voir s'il **bloque**. Un job en `continue-on-error`, un filtre de chemins qui ne le déclenche pas, un hook local, un job cité par un document mais absent du workflow : ce garde-fou ne garantit rien. Des tests qui n'affirment rien non plus.
 
 Test pour chaque phrase candidate : *si je l'enlève, l'agent fait-il quelque chose de différent ?* Si non, elle ne va pas dans le fichier.
@@ -51,7 +52,7 @@ Toujours le même format :
 - **Retiré**, par motif, une ligne chacun avec la raison.
 - **Secrets** trouvés et ce qu'il reste à faire.
 - **Règles écrites**, avec leur statut (vérifiée par quoi, ou non vérifiée) et leur date.
-- **Commandes** confirmées et non confirmées.
+- **Commandes** confirmées et non confirmées, et les candidates de `harness commands` que tu n'as pas retenues, avec la raison.
 - **Questions** au propriétaire, numérotées, avec le défaut proposé : les lignes périmées à confirmer, ce que tu as observé sans pouvoir l'expliquer.
 - **Le pas suivant possible**, en une ligne, sans le faire. C'est à l'utilisateur de dire s'il veut aller plus loin (`harness target`), et à harness-step de le mener.
 

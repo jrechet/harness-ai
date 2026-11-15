@@ -28,6 +28,8 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 
 ## Un rapport, toujours au même format
 
+`harness commands` cherche ce qu'un AGENTS.md devrait dire et que personne n'a pensé à écrire : les commandes que la CI lance et que le dépôt ne laisse pas deviner (« `make it`, pas `mvn verify` »). Il rend des candidates avec leur source ; harness-init les confirme en les exécutant, harness-audit les pose en questions au propriétaire.
+
 `harness report` écrit un état des lieux en une page HTML, qu'il porte sur un dépôt, un harness, un agent, un skill, un plugin ou une règle. Chaque constat a quatre colonnes — sur quoi porte l'évaluation, ce qui est attendu, ce qui est observé, ce qui est conseillé — un statut (bloquant, écart, à créer, non évalué, conforme) et sa preuve. Le skill ou l'agent remplit les données ; le code les valide et écrit la page : un écart sans preuve est refusé, et les mêmes données donnent le même fichier. La page est un seul fichier sans ressource externe, lisible sans JavaScript, en clair comme en sombre, et elle embarque ses données pour qu'un outil les relise.
 
 ```bash
