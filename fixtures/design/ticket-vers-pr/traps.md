@@ -20,3 +20,7 @@ Une demande de création : douze besoins, un par ligne, de natures différentes.
 | C12 | 16 | Convention du dossier migrations | AGENTS.md du dossier ; celui de la racine est accepté. Le piège : en faire un verrou, alors que le propriétaire dit que ce n'est pas un incident |
 
 `request.md` et `artifact/` se donnent à l'agent évalué ; `traps.md`, `expected.json` et `runs/` jamais. `runs/2026-11-15-author/` est le plan de l'auteur : une base de régression, pas une mesure.
+
+## Journal
+
+- 2026-11-15 : la grille a reçu `incident=forget` d'après `release-skill` (T7, `runs/2026-11-15-blind-3`), pas d'après cette fixture. Le plan de l'auteur, qui répondait `incident=yes` contre le propriétaire, passe désormais C2 par ce chemin. Le corrigé n'a pas changé.

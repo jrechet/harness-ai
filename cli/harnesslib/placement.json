@@ -4,79 +4,182 @@
     "nature": {
       "text": "Que fait ce morceau ?",
       "options": {
-        "action": {"label": "Il agit avec des droits : il lit ou écrit dans un système externe (Jira, une API), ou il livre (build, tag, publication, déploiement).", "ask": "access"},
-        "limit": {"label": "Il borne ce que l'agent a le droit de faire : outils, commandes, fichiers, réseau, secrets.", "ask": "bypass_limit"},
-        "rule": {"label": "Il exige quelque chose du résultat : « toute route a un test », « pas de secret dans le code ».", "ask": "incident"},
-        "compute": {"label": "Il produit un résultat entièrement déterminé par ses entrées : version suivante, fichiers touchés, faits collectés.", "ask": "when"},
-        "judgment": {"label": "Il choisit, interprète, rédige ou dialogue : aucune réponse n'est juste d'avance.", "ask": "isolation"},
-        "procedure": {"label": "Il enchaîne des étapes pour un type de tâche.", "place": "skill"},
-        "knowledge": {"label": "C'est un fait ou une convention que l'agent doit connaître.", "ask": "scope"}
+        "action": {
+          "label": "Il agit avec des droits : il lit ou écrit dans un système externe (Jira, une API), ou il livre (build, tag, publication, déploiement).",
+          "ask": "access"
+        },
+        "limit": {
+          "label": "Il borne ce que l'agent a le droit de faire : outils, commandes, fichiers, réseau, secrets.",
+          "ask": "bypass_limit"
+        },
+        "rule": {
+          "label": "Il exige quelque chose du résultat : « toute route a un test », « pas de secret dans le code ».",
+          "ask": "incident"
+        },
+        "compute": {
+          "label": "Il produit un résultat entièrement déterminé par ses entrées : version suivante, fichiers touchés, faits collectés.",
+          "ask": "when"
+        },
+        "judgment": {
+          "label": "Il choisit, interprète, rédige ou dialogue : aucune réponse n'est juste d'avance.",
+          "ask": "isolation"
+        },
+        "procedure": {
+          "label": "Il enchaîne des étapes pour un type de tâche.",
+          "place": "skill"
+        },
+        "knowledge": {
+          "label": "C'est un fait ou une convention que l'agent doit connaître.",
+          "ask": "scope"
+        }
       }
     },
     "access": {
       "text": "Que fait-il avec ces droits ?",
       "options": {
-        "consult": {"label": "L'agent lit un système externe pendant son travail : ticket, page de documentation, API interne.", "place": "mcp"},
-        "write": {"label": "L'agent écrit dans un système externe pendant son travail : commenter un ticket, poster un message, créer une page.", "place": "mcp"},
-        "deliver": {"label": "Il construit, étiquette, publie ou déploie : une ressource partagée change.", "place": "pipeline"}
+        "consult": {
+          "label": "L'agent lit un système externe pendant son travail : ticket, page de documentation, API interne.",
+          "place": "mcp"
+        },
+        "write": {
+          "label": "L'agent écrit dans un système externe pendant son travail : commenter un ticket, poster un message, créer une page.",
+          "place": "mcp"
+        },
+        "deliver": {
+          "label": "Il construit, étiquette, publie ou déploie : une ressource partagée change.",
+          "place": "pipeline"
+        }
       }
     },
     "bypass_limit": {
       "text": "Qui ne doit pas pouvoir passer outre ?",
       "options": {
-        "agent": {"label": "L'agent seul : un développeur peut le faire à la main sans que ce soit un incident.", "place": "permission"},
-        "dev": {"label": "Personne dans le dépôt, développeur compris.", "place": "server_protection"},
-        "team": {"label": "Aucune équipe : l'organisation l'impose à tous les dépôts.", "place": "managed"}
+        "agent": {
+          "label": "L'agent seul : un développeur peut le faire à la main sans que ce soit un incident.",
+          "place": "permission"
+        },
+        "dev": {
+          "label": "Personne dans le dépôt, développeur compris.",
+          "place": "server_protection"
+        },
+        "team": {
+          "label": "Aucune équipe : l'organisation l'impose à tous les dépôts.",
+          "place": "managed"
+        }
       }
     },
     "incident": {
-      "text": "Si le résultat ne le respecte pas, est-ce un incident (bug livré, faille, non-conformité) ?",
+      "text": "Si le résultat ne le respecte pas, qu'est-ce que ça coûte ?",
       "options": {
-        "yes": {"label": "Oui.", "ask": "checkable"},
-        "no": {"label": "Non : c'est une préférence, un style.", "ask": "scope"}
+        "yes": {
+          "label": "Un incident : bug livré, faille, non-conformité.",
+          "ask": "checkable"
+        },
+        "forget": {
+          "label": "Du temps perdu, pas un incident ; mais ça ne doit pas pouvoir être oublié.",
+          "ask": "checkable"
+        },
+        "no": {
+          "label": "Rien de mesurable : c'est une préférence, un style.",
+          "ask": "scope"
+        }
       }
     },
     "checkable": {
       "text": "Un programme peut-il le vérifier, avec la même réponse à chaque fois ?",
       "options": {
-        "yes": {"label": "Oui : un test, un linter, une commande qui échoue.", "ask": "bypass_rule"},
-        "no": {"label": "Non : il faut juger.", "place": "judge"}
+        "yes": {
+          "label": "Oui : un test, un linter, une commande qui échoue.",
+          "ask": "bypass_rule"
+        },
+        "no": {
+          "label": "Non : il faut juger.",
+          "place": "judge"
+        }
       }
     },
     "bypass_rule": {
       "text": "Qui ne doit pas pouvoir livrer sans le respecter ?",
       "options": {
-        "agent": {"label": "L'agent seul : il doit s'en apercevoir avant de rendre la main.", "place": "hook_check"},
-        "dev": {"label": "Personne dans le dépôt : rien ne fusionne sans.", "place": "ci_check"},
-        "release": {"label": "Personne dans le dépôt, et c'est à la livraison que ça compte : rien ne se publie ni ne se déploie sans.", "place": "release_gate"},
-        "team": {"label": "Aucune équipe : l'organisation l'impose à tous les dépôts.", "place": "org_check"}
+        "agent": {
+          "label": "L'agent seul : il doit s'en apercevoir avant de rendre la main.",
+          "place": "hook_check"
+        },
+        "dev": {
+          "label": "Personne dans le dépôt : rien ne fusionne sans.",
+          "place": "ci_check"
+        },
+        "release": {
+          "label": "Personne dans le dépôt, et c'est à la livraison que ça compte : rien ne se publie ni ne se déploie sans.",
+          "place": "release_gate"
+        },
+        "team": {
+          "label": "Aucune équipe : l'organisation l'impose à tous les dépôts.",
+          "place": "org_check"
+        }
       }
     },
     "when": {
       "text": "Quand doit-il tourner ?",
       "options": {
-        "on_demand": {"label": "Quand l'agent ou un humain en a besoin.", "place": "cli"},
-        "agent_loop": {"label": "À un moment fixe du travail de l'agent : avant un outil, après une édition, à l'arrêt.", "place": "hook_compute"},
-        "repo_event": {"label": "À un événement du dépôt : PR, push, planification.", "place": "workflow"}
+        "on_demand": {
+          "label": "Quand l'agent ou un humain en a besoin.",
+          "place": "cli"
+        },
+        "agent_loop": {
+          "label": "À un moment fixe du travail de l'agent : avant un outil, après une édition, à l'arrêt.",
+          "place": "hook_compute"
+        },
+        "repo_event": {
+          "label": "À un événement du dépôt : PR, push, planification.",
+          "place": "workflow"
+        }
       }
     },
     "isolation": {
       "text": "Ce travail a-t-il besoin d'être séparé de la session ?",
       "options": {
-        "none": {"label": "Non : il s'appuie sur ce que la session sait déjà.", "place": "session"},
-        "context": {"label": "Il lit beaucoup (exploration, logs) et encombrerait le contexte de la session.", "place": "subagent"},
-        "independence": {"label": "Il doit juger sans le biais de l'auteur : revue, évaluation.", "place": "subagent"},
-        "rights": {"label": "Il lui faut d'autres droits que la session, en général moins : lecture seule.", "place": "subagent"},
-        "parallel": {"label": "Plusieurs parties indépendantes peuvent avancer en même temps.", "place": "subagent"}
+        "none": {
+          "label": "Non : il s'appuie sur ce que la session sait déjà.",
+          "place": "session"
+        },
+        "context": {
+          "label": "Il lit beaucoup (exploration, logs) et encombrerait le contexte de la session.",
+          "place": "subagent"
+        },
+        "independence": {
+          "label": "Il doit juger sans le biais de l'auteur : revue, évaluation.",
+          "place": "subagent"
+        },
+        "rights": {
+          "label": "Il lui faut d'autres droits que la session, en général moins : lecture seule.",
+          "place": "subagent"
+        },
+        "parallel": {
+          "label": "Plusieurs parties indépendantes peuvent avancer en même temps.",
+          "place": "subagent"
+        }
       }
     },
     "scope": {
       "text": "Quand l'agent en a-t-il besoin ?",
       "options": {
-        "always": {"label": "À chaque tâche dans ce dépôt, et il ne peut pas le trouver seul.", "place": "agents_md"},
-        "zone": {"label": "Seulement quand il travaille dans un dossier ou sur un type de fichier.", "place": "agents_md_zone"},
-        "reference": {"label": "De temps en temps, pour une question précise.", "place": "doc"},
-        "discoverable": {"label": "Jamais besoin de le lui dire : il le trouve en lisant le dépôt (manifeste, Makefile, arborescence).", "place": "nothing"}
+        "always": {
+          "label": "À chaque tâche dans ce dépôt, et il ne peut pas le trouver seul.",
+          "place": "agents_md"
+        },
+        "zone": {
+          "label": "Seulement quand il travaille dans un dossier ou sur un type de fichier.",
+          "place": "agents_md_zone"
+        },
+        "reference": {
+          "label": "De temps en temps, pour une question précise.",
+          "place": "doc"
+        },
+        "discoverable": {
+          "label": "Jamais besoin de le lui dire : il le trouve en lisant le dépôt (manifeste, Makefile, arborescence).",
+          "place": "nothing"
+        }
       }
     }
   },
