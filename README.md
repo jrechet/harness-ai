@@ -24,6 +24,7 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 | [`harness-step`](skills/harness-step/SKILL.md) | Un pas à la fois. Lit l'état mesuré, demande une fois jusqu'où tu veux aller, fait le plus petit pas vers ce palier, montre l'avant et l'après, et s'arrête. Au-delà du palier visé il ne propose rien. |
 | [`harness-harvest`](skills/harness-harvest/SKILL.md) | Fait évoluer AGENTS.md et les contrats à partir de l'activité depuis le dernier harvest : `rule:`, corrections après coup sur PRs d'agent, checks ignorés, règles orphelines, tâches récurrentes. Un catalogue de signaux indépendant de la source, GitHub en premier adaptateur, une PR dédiée avec un commit par candidat. |
 | [`harness-audit`](skills/harness-audit/SKILL.md) | Audite un harness ou un AGENTS.md/CLAUDE.md, classe chaque élément dans la grille L1–L4, rend un verdict par élément (KEEP / INLINE / PUSH_DOWN / PROMOTE / MERGE / SPLIT / BLOCK / REMOVE) et un plan de remédiation. Sa revue de pertinence dit quelles lignes ne changent plus ce que fait l'agent : inutiles, nuisibles, ou périmées, ces dernières posées en question au propriétaire. Rapport à format fixe (Markdown + JSON) défini dans `references/report-template.md`. |
+| [`harness-design`](skills/harness-design/SKILL.md) | Pour créer ou revoir un skill, un agent, un outil ou une règle. Découpe la demande en morceaux et dit où va chacun — AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, check CI, paramètre géré, ou rien — avec la raison. La place vient de `harness place`, une grille de questions fermées : mêmes réponses, même destination. Montre le plan, pose les fichiers sur accord, et s'arrête. |
 
 ## Progression mesurée
 
@@ -89,8 +90,9 @@ harness-ai/
 │   └── marketplace.json     # pour /plugin marketplace add
 ├── app/                     # application de suivi (Vue 3 vendorisé, sans build), servie par `harness serve`
 ├── cli/
-│   ├── harness.py           # point d'entrée : status, target, rules, harvest github, fixture, bench, serve
-│   ├── harnesslib/          # facts, maturity, status, rules, github, fixtures, bench, serve (stdlib uniquement)
+│   ├── harness.py           # point d'entrée : status, target, rules, harvest github, fixture, bench, serve, place
+│   ├── harnesslib/          # facts, maturity, status, rules, github, fixtures, bench, serve, place (stdlib uniquement)
+│   │   └── placement.json   # la grille de placement : questions fermées et destinations
 │   └── tests/               # python3 -m unittest discover -s cli/tests
 ├── fixtures/                # fixtures d'audit, projets types avec leurs tâches, registre des résultats
 ├── docs/
@@ -101,6 +103,7 @@ harness-ai/
 │   ├── harness-init/
 │   ├── harness-step/
 │   ├── harness-harvest/
+│   ├── harness-design/
 │   └── <nom-du-skill>/
 │       ├── SKILL.md         # instructions chargées par l'agent
 │       └── references/      # fichiers lus à la demande (templates, grilles)

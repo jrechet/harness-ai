@@ -1,0 +1,201 @@
+{
+  "root": "nature",
+  "questions": {
+    "nature": {
+      "text": "Que fait ce morceau ?",
+      "options": {
+        "action": {"label": "Il agit avec des droits : il lit ou écrit dans un système externe (Jira, une API), ou il livre (build, tag, publication, déploiement).", "ask": "access"},
+        "limit": {"label": "Il borne ce que l'agent a le droit de faire : outils, commandes, fichiers, réseau, secrets.", "ask": "bypass_limit"},
+        "rule": {"label": "Il exige quelque chose du résultat : « toute route a un test », « pas de secret dans le code ».", "ask": "incident"},
+        "compute": {"label": "Il produit un résultat entièrement déterminé par ses entrées : version suivante, fichiers touchés, faits collectés.", "ask": "when"},
+        "judgment": {"label": "Il choisit, interprète, rédige ou dialogue : aucune réponse n'est juste d'avance.", "ask": "isolation"},
+        "procedure": {"label": "Il enchaîne des étapes pour un type de tâche.", "place": "skill"},
+        "knowledge": {"label": "C'est un fait ou une convention que l'agent doit connaître.", "ask": "scope"}
+      }
+    },
+    "access": {
+      "text": "Que fait-il avec ces droits ?",
+      "options": {
+        "consult": {"label": "L'agent lit ou commente un système externe pendant son travail : ticket, page de documentation, API interne.", "place": "mcp"},
+        "deliver": {"label": "Il construit, étiquette, publie ou déploie : une ressource partagée change.", "place": "pipeline"}
+      }
+    },
+    "bypass_limit": {
+      "text": "Qui ne doit pas pouvoir passer outre ?",
+      "options": {
+        "agent": {"label": "L'agent seul : un développeur peut le faire à la main sans que ce soit un incident.", "place": "permission"},
+        "dev": {"label": "Personne dans le dépôt, développeur compris.", "place": "server_protection"},
+        "team": {"label": "Aucune équipe : l'organisation l'impose à tous les dépôts.", "place": "managed"}
+      }
+    },
+    "incident": {
+      "text": "Si le résultat ne le respecte pas, est-ce un incident (bug livré, faille, non-conformité) ?",
+      "options": {
+        "yes": {"label": "Oui.", "ask": "checkable"},
+        "no": {"label": "Non : c'est une préférence, un style.", "ask": "scope"}
+      }
+    },
+    "checkable": {
+      "text": "Un programme peut-il le vérifier, avec la même réponse à chaque fois ?",
+      "options": {
+        "yes": {"label": "Oui : un test, un linter, une commande qui échoue.", "ask": "bypass_rule"},
+        "no": {"label": "Non : il faut juger.", "place": "judge"}
+      }
+    },
+    "bypass_rule": {
+      "text": "Qui ne doit pas pouvoir livrer sans le respecter ?",
+      "options": {
+        "agent": {"label": "L'agent seul : il doit s'en apercevoir avant de rendre la main.", "place": "hook_check"},
+        "dev": {"label": "Personne dans le dépôt : rien ne fusionne sans.", "place": "ci_check"},
+        "team": {"label": "Aucune équipe : l'organisation l'impose à tous les dépôts.", "place": "org_check"}
+      }
+    },
+    "when": {
+      "text": "Quand doit-il tourner ?",
+      "options": {
+        "on_demand": {"label": "Quand l'agent ou un humain en a besoin.", "place": "cli"},
+        "agent_loop": {"label": "À un moment fixe du travail de l'agent : avant un outil, après une édition, à l'arrêt.", "place": "hook_compute"},
+        "repo_event": {"label": "À un événement du dépôt : PR, push, planification.", "place": "workflow"}
+      }
+    },
+    "isolation": {
+      "text": "Ce travail a-t-il besoin d'être séparé de la session ?",
+      "options": {
+        "none": {"label": "Non : il s'appuie sur ce que la session sait déjà.", "place": "session"},
+        "context": {"label": "Il lit beaucoup (exploration, logs) et encombrerait le contexte de la session.", "place": "subagent"},
+        "independence": {"label": "Il doit juger sans le biais de l'auteur : revue, évaluation.", "place": "subagent"},
+        "rights": {"label": "Il lui faut d'autres droits que la session, en général moins : lecture seule.", "place": "subagent"},
+        "parallel": {"label": "Plusieurs parties indépendantes peuvent avancer en même temps.", "place": "subagent"}
+      }
+    },
+    "scope": {
+      "text": "Quand l'agent en a-t-il besoin ?",
+      "options": {
+        "always": {"label": "À chaque tâche dans ce dépôt, et il ne peut pas le trouver seul.", "place": "agents_md"},
+        "zone": {"label": "Seulement quand il travaille dans un dossier ou sur un type de fichier.", "place": "agents_md_zone"},
+        "reference": {"label": "De temps en temps, pour une question précise.", "place": "doc"},
+        "discoverable": {"label": "Jamais besoin de le lui dire : il le trouve en lisant le dépôt (manifeste, Makefile, arborescence).", "place": "nothing"}
+      }
+    }
+  },
+  "destinations": {
+    "mcp": {
+      "name": "Serveur MCP",
+      "layer": "L4",
+      "where": "Un serveur MCP déclaré pour le dépôt ; ses droits (lecture, commentaire) se règlent sur le compte du serveur, pas dans un prompt.",
+      "why": "Un droit tenu par le serveur vaut quel que soit le prompt. Ce que l'agent y lit est une donnée, pas une instruction : un ticket peut porter une injection.",
+      "also": "Une permission deny sur les outils d'écriture du serveur, en second rideau."
+    },
+    "pipeline": {
+      "name": "Workflow de livraison",
+      "layer": "L4",
+      "where": "Un workflow CI ou pipeline avec un mode plan (dry-run) et un environnement protégé ; l'agent le déclenche par une sous-commande CLI, jamais par l'API directement.",
+      "why": "Ce qui change une ressource partagée s'exécute avec des droits audités, hors de la machine de l'agent, avec un point d'arrêt humain avant l'irréversible."
+    },
+    "permission": {
+      "name": "Permission de l'agent",
+      "layer": "L3",
+      "where": "permissions.deny (ou ask) dans les paramètres partagés du dépôt (.claude/settings.json), et un hook PreToolUse si la règle dépend du contenu de la commande.",
+      "why": "Le runtime de l'agent l'applique à chaque appel d'outil ; une phrase dans AGENTS.md peut être oubliée ou contournée.",
+      "also": "Refuse aussi à l'agent l'écriture de ses propres paramètres, sinon il peut lever la règle."
+    },
+    "server_protection": {
+      "name": "Protection côté serveur",
+      "layer": "L4",
+      "where": "Protection de branche, ruleset, environnement protégé ou droits du compte, sur la forge.",
+      "why": "Un hook ou une permission locale se contournent à la main (--no-verify, un autre outil) ; le serveur refuse pour tout le monde.",
+      "also": "La même règle en permission deny, pour que l'agent n'essaie même pas."
+    },
+    "managed": {
+      "name": "Paramètres gérés de l'organisation",
+      "layer": "L4",
+      "where": "Paramètres gérés (managed settings) pour l'agent, rulesets et workflows requis au niveau de l'organisation pour la forge.",
+      "why": "Un fichier du dépôt, l'équipe peut le modifier ; un paramètre géré prime sur tous les autres niveaux et ne se retire pas depuis le dépôt."
+    },
+    "hook_check": {
+      "name": "Vérification lancée par un hook",
+      "layer": "L3",
+      "where": "Une sous-commande CLI, un linter ou un test, appelé par un hook de l'agent (après édition, ou à l'arrêt) ; il échoue avec un message qui dit quoi corriger.",
+      "why": "L'agent ne peut pas l'oublier. Un humain peut le sauter : c'est acceptable ici, puisque seul l'oubli de l'agent est en jeu."
+    },
+    "ci_check": {
+      "name": "Check bloquant en CI",
+      "layer": "L3 + L4",
+      "where": "Une sous-commande CLI, un linter ou un test d'architecture, rendu obligatoire par la protection de branche ; AGENTS.md peut le citer en une ligne avec « Vérifiée par ».",
+      "why": "Seul un check requis empêche la fusion, quels que soient l'outil et la personne. Un job en continue-on-error, un filtre de chemins qui ne le déclenche pas ou un hook local ne garantissent rien.",
+      "also": "Le même check lancé par un hook, pour que l'agent le voie avant d'ouvrir la PR."
+    },
+    "org_check": {
+      "name": "Check imposé par l'organisation",
+      "layer": "L3 + L4",
+      "where": "La même vérification, en workflow requis ou ruleset au niveau de l'organisation.",
+      "why": "Une équipe ne peut ni le désactiver ni l'affaiblir depuis son dépôt."
+    },
+    "judge": {
+      "name": "Juge et revue humaine",
+      "layer": "L1",
+      "where": "Un sous-agent ou un juge en CI qui signale, une revue humaine qui tranche ; une ligne dans AGENTS.md si l'agent doit le viser.",
+      "why": "Un jugement ne se vérifie pas de façon reproductible : aucun code ne le garantit. Découpe d'abord : la part mesurable (une section présente, un lien vers le ticket) repasse dans la grille comme règle vérifiable."
+    },
+    "cli": {
+      "name": "Sous-commande CLI testée",
+      "layer": "L3",
+      "where": "Une sous-commande du CLI du dépôt (un script si elle est vraiment isolée), avec ses tests et une sortie JSON ; le skill l'appelle.",
+      "why": "Un calcul écrit dans un prompt est refait à chaque fois, et parfois mal ; en code, il donne le même résultat à l'agent, à l'humain et à la CI."
+    },
+    "hook_compute": {
+      "name": "Sous-commande appelée par un hook",
+      "layer": "L3",
+      "where": "La sous-commande CLI, branchée sur l'événement de l'agent (PreToolUse, PostToolUse, Stop) dans les paramètres partagés du dépôt.",
+      "why": "Un moment fixe de la boucle se tient par le runtime de l'agent, pas par une consigne qu'il doit se rappeler."
+    },
+    "workflow": {
+      "name": "Workflow du dépôt",
+      "layer": "L3 + L4",
+      "where": "Un workflow déclenché par l'événement (PR, push, planification) qui appelle la sous-commande CLI.",
+      "why": "Un événement du dépôt arrive même quand aucun agent ne tourne."
+    },
+    "session": {
+      "name": "Jugement de l'agent, dans le skill",
+      "layer": "L1",
+      "where": "Aucun fichier dédié : le skill qui raconte la procédure dit où l'agent décide, entre quelles options, et le CLI fournit ces options.",
+      "why": "Juger est le travail de l'agent ; l'isoler sans besoin coûte du contexte et des allers-retours."
+    },
+    "subagent": {
+      "name": "Sous-agent",
+      "layer": "L1",
+      "where": "Un sous-agent (.claude/agents/<nom>.md) aux outils restreints, qui rend un résultat structuré.",
+      "why": "Un sous-agent part d'un contexte vierge, avec ses propres outils : c'est ce qui lui donne un regard indépendant, des droits plus étroits, de la place pour lire beaucoup, ou la possibilité de tourner en parallèle. Sans l'un de ces besoins, c'est un skill."
+    },
+    "skill": {
+      "name": "Skill",
+      "layer": "L2",
+      "where": ".claude/skills/<nom>/SKILL.md, chargé à la demande, avec ses références dans references/.",
+      "why": "Une procédure ne sert qu'à son type de tâche ; chargée à chaque session, elle coûterait du contexte partout. Chaque étape obligatoire de la procédure est un morceau à part (règle ou calcul) que le skill appelle."
+    },
+    "agents_md": {
+      "name": "Une ligne dans AGENTS.md",
+      "layer": "L2",
+      "where": "AGENTS.md, une ligne avec son pourquoi et sa date ; « Vérifiée par » si un garde-fou la porte.",
+      "why": "AGENTS.md est chargé à chaque session : n'y entre que ce qui sert à chaque tâche et que l'agent ne trouve pas seul."
+    },
+    "agents_md_zone": {
+      "name": "AGENTS.md du dossier",
+      "layer": "L2",
+      "where": "Un AGENTS.md dans le dossier concerné, ou une règle par chemin de l'outil.",
+      "why": "Il n'est chargé que quand l'agent travaille dans cette zone : le reste du dépôt n'en paie pas le coût."
+    },
+    "doc": {
+      "name": "Document lu à la demande",
+      "layer": "L2",
+      "where": "Un fichier dans docs/agents/, pointé depuis AGENTS.md ou depuis le skill qui en a besoin.",
+      "why": "De la référence chargée à chaque session noie les instructions ; pointée, elle n'est lue que quand elle sert."
+    },
+    "nothing": {
+      "name": "Rien à écrire",
+      "layer": "-",
+      "where": "Aucun fichier.",
+      "why": "Ce que l'agent trouve en lisant le dépôt ne change pas ce qu'il fait ; l'écrire coûte du contexte à chaque session et vieillit."
+    }
+  }
+}
