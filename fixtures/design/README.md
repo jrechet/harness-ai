@@ -27,4 +27,4 @@ Le noteur est généreux sur la destination (plusieurs sont acceptées par pièg
 
 | Nom | Artefact | Pièges | Ce qu'elle teste |
 |---|---|---|---|
-| `release-skill` | Un skill de release, son sous-agent, deux règles d'AGENTS.md | 6 + 4 sains | Limite racontée, calcul en prose, vérification racontée, livraison avec jeton depuis le poste, arborescence recopiée, limite de l'agent écrite en règle ; et ne pas toucher une étape de procédure, un jugement, un sous-agent justifié, une règle qui cite son check |
+| `release-skill` | Un skill de release, son sous-agent, deux règles d'AGENTS.md | 6 + 3 sains | Limite racontée, calcul en prose, vérification racontée, livraison avec jeton depuis le poste, arborescence recopiée, limite de l'agent écrite en règle ; et ne pas toucher un jugement, un sous-agent justifié, une règle qui cite son check |

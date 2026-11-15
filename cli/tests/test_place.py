@@ -6,6 +6,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -24,6 +25,7 @@ CASES = [
     ("Aucune équipe ne déploie en prod sans validation",
      {"nature": "limit", "bypass_limit": "team"}, "managed"),
     ("Lire le ticket Jira", {"nature": "action", "access": "consult"}, "mcp"),
+    ("Poster l'annonce dans le canal", {"nature": "action", "access": "write"}, "mcp"),
     ("Publier le paquet", {"nature": "action", "access": "deliver"}, "pipeline"),
     ("Toute route a un test d'autorisation",
      {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "dev"}, "ci_check"),
@@ -238,6 +240,24 @@ class CheckTests(unittest.TestCase):
         self.assertEqual(result["healthy"][0]["status"], "absent")
         self.assertTrue(result["passed"])
 
+    def test_another_piece_cut_from_the_same_line_does_not_flag_a_healthy_element(self):
+        # Le corrigé dit de quelle nature est l'élément sain : un morceau d'une autre nature, tiré de la
+        # même ligne, est un autre morceau.
+        expected = json.loads(json.dumps(EXPECTED))
+        expected["healthy"][0]["natures"] = ["procedure"]
+        other = {"piece": "Publier", "answers": {"nature": "action", "access": "deliver"}, "current": "skill",
+                 "evidence": ["skills/r/SKILL.md:2"]}
+        result = place.check(GRID, expected, [TRAP, SOUND, other])
+        self.assertEqual(result["healthy"][0]["status"], "kept")
+        moved = {**SOUND, "answers": {"nature": "procedure"}, "current": "agents_md"}
+        self.assertEqual(place.check(GRID, expected, [TRAP, moved])["healthy"][0]["status"], "flagged")
+
+    def test_an_unknown_nature_in_the_expected_file_is_refused(self):
+        broken = json.loads(json.dumps(EXPECTED))
+        broken["healthy"][0]["natures"] = ["poesie"]
+        with self.assertRaises(ValueError):
+            place.check(GRID, broken, [TRAP])
+
     def test_an_expected_file_pointing_to_an_unknown_place_is_refused(self):
         broken = json.loads(json.dumps(EXPECTED))
         broken["traps"][0]["accept"] = ["un-wiki"]
@@ -259,6 +279,12 @@ class DesignFixtureTests(unittest.TestCase):
                 for spec in expected["traps"] + expected["healthy"]:
                     with open(os.path.join(root, "artifact", spec["file"]), encoding="utf-8") as fh:
                         self.assertLessEqual(spec["lines"][1], len(fh.readlines()), spec["id"])
+                # Tout chemin de workflow cité par l'artefact existe : sinon l'agent ne peut pas le vérifier.
+                for folder, _, files in os.walk(os.path.join(root, "artifact")):
+                    for name_ in files:
+                        with open(os.path.join(folder, name_), encoding="utf-8") as fh:
+                            for cited in re.findall(r"`(\.github/workflows/[^`]+)`", fh.read()):
+                                self.assertTrue(os.path.isfile(os.path.join(root, "artifact", cited)), cited)
                 runs = os.path.join(root, "runs")
                 author = [r for r in sorted(os.listdir(runs)) if r.endswith("-author")]
                 self.assertTrue(author, "pas de plan d'auteur")
