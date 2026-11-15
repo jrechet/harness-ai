@@ -93,11 +93,13 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "ticket":
             try:
                 with open(args.file, encoding="utf-8") as fh:
-                    text = fh.read(500_000)
+                    text = fh.read(ticket.MAX_CHARS + 1)
             except (OSError, UnicodeDecodeError) as exc:
                 raise context.Refused(f"{args.file} : illisible ({exc})") from exc
+            if len(text) > ticket.MAX_CHARS:  # tronquer cacherait ce qui suit : des critères, ou une consigne
+                raise context.Refused(f"{args.file} : plus de {ticket.MAX_CHARS} caractères, ce n'est pas un ticket lisible")
             zones, warning = ticket.zones_for(table, args.repo, args.base)
-            data = ticket.check(text, zones)
+            data = {**ticket.check(text, zones), "warning": warning}
             text, code = ticket.render_md(data, warning), 0 if data["ready"] else 1
         elif args.command == "size":
             data = size.classify(table, args.repo, args.base, args.paths)
