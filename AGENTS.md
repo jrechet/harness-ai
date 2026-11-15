@@ -30,6 +30,7 @@ Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluati
 - Les questions ouvertes (arbitrage, choix d'approche, information que seul le propriétaire détient) sont posées **en fin de message**, dans une section « Questions » numérotée, une par ligne, avec le défaut proposé. Jamais noyées dans le corps, jamais implicites, jamais laissées « dans la PR ». Pas de section s'il n'y en a pas.
 - Les décisions déjà prises ne sont pas rouvertes ; les hypothèses prises sans question sont dites en une ligne.
 - Une tâche est finie quand les tests passent, les fixtures sont conformes, et le commit est poussé sur `main`.
+- Tout travail fini ou commencé, et toute demande ou correction du propriétaire, a sa ligne dans le plan d'avancement de `docs/capacites.md`, dans le même changement. Vérifiée par : hook Stop, `python3 cli/harness.py progress check` [2026-11]
 
 ## Tâches déléguées
 - `harness-stress` (`.claude/skills/harness-stress`) — une campagne d'évaluation des skills sur les projets types, à la demande, corrections en PR dédiée.
