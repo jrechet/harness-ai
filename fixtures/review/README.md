@@ -24,7 +24,7 @@ python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade <revue.json> --expected fix
 
 `init` crée un dépôt git : `base/` sur `main`, `pr/` par-dessus sur la branche de la PR, dates et auteur fixes. Le dossier de destination doit être hors de ce dépôt.
 
-Le noteur est généreux sur les mots et la gravité, strict sur la preuve : un piège est trouvé si un constat cite une de ses lignes. Un constat sur une ligne saine fait échouer. Un constat hors corrigé est compté comme bruit, sans faire échouer. Sortie 0 si tous les pièges requis sont trouvés, 1 sinon.
+Le noteur est généreux sur les mots et la gravité, strict sur la preuve : un piège est trouvé si un constat cite une de ses lignes, et un constat ne trouve qu'un piège. Un constat sur une ligne saine fait échouer. Un constat hors corrigé est compté comme bruit, sans faire échouer. Sortie 0 si tous les pièges requis sont trouvés, 1 sinon, 2 si le corrigé ou la revue sont illisibles : un corrigé vide ou cassé ne note rien.
 
 `plugins/ai-sdlc/cli/tests/test_review.py` vérifie à chaque passage que chaque fixture se monte, que son corrigé cite des lignes du diff, que la checklist de l'équipe se lit bien sur `main`, et que la revue de l'auteur passe. La revue de l'auteur est une base de régression, pas une mesure : seule une exécution à l'aveugle mesure le skill, et elle se lance à la demande du propriétaire.
 

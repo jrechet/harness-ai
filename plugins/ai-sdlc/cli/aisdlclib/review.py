@@ -15,11 +15,12 @@ from typing import Any
 from .context import Refused, _git, _is_head, resolve_base
 
 MAX_CONSTATS = 7
+MAX_SPAN = 20  # lignes qu'un constat peut citer d'un coup : au-delà, il ne cite plus, il englobe
 GRAVITES = {"bloquant": "bloquant", "a-corriger": "à corriger", "a-discuter": "à discuter"}
 PARTS = {"attendu": "Attendu", "observe": "Observé", "conseille": "Conseillé"}
-_WHERE = re.compile(r"^(?P<path>[^:\s][^:]*):(?P<first>\d+)(?:-(?P<last>\d+))?$")
+_WHERE = re.compile(r"\A(?P<path>[^:\s][^:\n]*):(?P<first>[0-9]{1,9})(?:-(?P<last>[0-9]{1,9}))?\Z")
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
-_FIXED = {"GIT_AUTHOR_NAME": "fixture", "GIT_AUTHOR_EMAIL": "fixture@example.com",
+_FIXED = {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_SYSTEM": os.devnull, "GIT_AUTHOR_NAME": "fixture", "GIT_AUTHOR_EMAIL": "fixture@example.com",
           "GIT_COMMITTER_NAME": "fixture", "GIT_COMMITTER_EMAIL": "fixture@example.com",
           "GIT_AUTHOR_DATE": "2026-01-01T00:00:00Z", "GIT_COMMITTER_DATE": "2026-01-01T00:00:00Z"}
 
@@ -31,8 +32,10 @@ def parse_where(text: Any) -> tuple[str, int, int]:
         raise ValueError(f"{text!r} : attendu chemin:ligne ou chemin:début-fin")
     path, first = match["path"], int(match["first"])
     last = int(match["last"] or first)
-    if path.startswith("/") or ".." in path.split("/") or first < 1 or last < first:
+    if path.startswith(("/", "./")) or ".." in path.split("/") or first < 1 or last < first:
         raise ValueError(f"{text!r} : chemin relatif au dépôt, lignes à partir de 1, début avant fin")
+    if last - first >= MAX_SPAN:
+        raise ValueError(f"{text!r} : au plus {MAX_SPAN} lignes citées, vise la ligne qui porte le défaut")
     return path, first, last
 
 
@@ -53,7 +56,7 @@ def validate(data: Any) -> list[str]:
         if not isinstance(item, dict):
             errors.append(f"constat {index} : un objet")
             continue
-        if item.get("gravite") not in GRAVITES:
+        if not isinstance(item.get("gravite"), str) or item["gravite"] not in GRAVITES:
             errors.append(f"constat {index} : gravite {item.get('gravite')!r} inconnue ({', '.join(GRAVITES)})")
         try:
             parse_where(item.get("sur_quoi"))
@@ -67,23 +70,27 @@ def validate(data: Any) -> list[str]:
 
 def changed_lines(repo: str, base: str) -> dict[str, set[int]]:
     """Par fichier, les lignes que le changement ajoute ou modifie, numérotées côté HEAD. Une
-    suppression se cite à la ligne où elle a eu lieu : celle d'avant et celle d'après."""
+    suppression se cite à la ligne où elle a eu lieu (celle d'avant ou celle d'après), un fichier
+    supprimé à sa ligne 1. Les chemins viennent de la liste de git, jamais du texte du diff : une
+    ligne ajoutée qui imite un en-tête ne rend pas citable un fichier que la PR ne touche pas."""
     commit = resolve_base(repo, base)
-    code, out = _git(repo, "-c", "core.quotepath=false", "diff", "-U0", "--no-color", "--no-ext-diff",
-                     "--no-renames", f"{commit}...HEAD")
+    span = f"{commit}...HEAD"
+    code, out = _git(repo, "diff", "-z", "--name-only", "--no-renames", span)
     if code != 0:
         raise Refused(f"diff impossible entre {base} et HEAD dans {repo}")
     changed: dict[str, set[int]] = {}
-    current: set[int] | None = None
-    for line in out.decode("utf-8", "replace").splitlines():
-        if line.startswith("+++ "):
-            current = changed.setdefault(line[6:], set()) if line.startswith("+++ b/") else None
-            continue
-        match = _HUNK.match(line)
-        if match and current is not None:
-            start, count = int(match[1]), int(match[2] if match[2] is not None else 1)
-            lines = range(start, start + count) if count else (start, start + 1)
-            current.update(n for n in lines if n >= 1)
+    for raw in filter(None, out.split(b"\0")):
+        path = raw.decode("utf-8", "replace")
+        code, patch = _git(repo, "--literal-pathspecs", "diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv",
+                           "--no-renames", span, "--", path)
+        if code != 0:
+            raise Refused(f"diff impossible pour {path} entre {base} et HEAD")
+        lines = changed.setdefault(path, set())
+        for line in patch.decode("utf-8", "replace").splitlines():
+            match = _HUNK.match(line)  # en -U0, seule une tête de bloc commence par @@
+            if match:
+                start, count = int(match[1]), int(match[2] if match[2] is not None else 1)
+                lines.update(n for n in (range(start, start + count) if count else (start, start + 1)) if n >= 1)
     return changed
 
 
@@ -92,7 +99,7 @@ def outside_diff(data: dict[str, Any], changed: dict[str, set[int]]) -> list[str
     errors = []
     for index, item in enumerate(data["constats"], 1):
         path, first, last = parse_where(item["sur_quoi"])
-        if not changed.get(path, set()) & set(range(first, last + 1)):
+        if not any(first <= n <= last for n in changed.get(path, ())):
             errors.append(f"constat {index} : {item['sur_quoi']} n'est pas une ligne du diff")
     return errors
 
@@ -101,7 +108,7 @@ def load(path: str) -> Any:
     try:
         with open(path, encoding="utf-8") as fh:
             return json.load(fh)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (OSError, ValueError, RecursionError) as exc:
         raise Refused(f"{path} : illisible ({exc})") from exc
 
 
@@ -120,7 +127,14 @@ def checked(path: str, repo: str, base: str) -> dict[str, Any]:
 
 def _cell(text: str) -> str:
     """Un texte de constat tenu dans une cellule : ni saut de ligne, ni barre, ni titre forgé."""
-    return " ".join(text.split()).replace("|", "\\|")
+    flat = " ".join(text.split()).replace("&", "&amp;").replace("<", "&lt;")
+    for char in "|[]":
+        flat = flat.replace(char, "\\" + char)
+    return flat.replace("@", "@\u200b")  # ni HTML, ni lien, ni image, ni mention qui notifie
+
+
+def _code(text: str) -> str:
+    return "`" + " ".join(text.split()).replace("`", "'").replace("|", "/") + "`"
 
 
 def _ordered(constats: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -137,9 +151,9 @@ def render_md(data: dict[str, Any]) -> str:
     out.append("Non vérifié : " + " ; ".join(_cell(u) for u in unchecked) + "." if unchecked
                else "Non vérifié : rien de signalé.")
     for index, item in enumerate(constats, 1):
-        out += ["", f"## {index}. {GRAVITES[item['gravite']].capitalize()} — `{_cell(item['sur_quoi'])}`", "",
+        out += ["", f"## {index}. {GRAVITES[item['gravite']].capitalize()} — {_code(item['sur_quoi'])}", "",
                 "| Partie | Contenu |", "|---|---|",
-                f"| Sur quoi | `{_cell(item['sur_quoi'])}` — {_cell(item['point'])} |"]
+                f"| Sur quoi | {_code(item['sur_quoi'])} — {_cell(item['point'])} |"]
         out += [f"| {label} | {_cell(item[key])} |" for key, label in PARTS.items()]
     return "\n".join(out) + "\n"
 
@@ -151,9 +165,59 @@ def _overlaps(item: dict[str, Any], place: dict[str, Any]) -> bool:
     return path == place["file"] and first <= place["lines"][1] and last >= place["lines"][0]
 
 
-def grade(expected: dict[str, Any], data: Any) -> dict[str, Any]:
+def _place_ok(place: Any) -> bool:
+    lines = place.get("lines") if isinstance(place, dict) else None
+    return (isinstance(place.get("file"), str) and isinstance(lines, list) and len(lines) == 2
+            and all(type(n) is int for n in lines) and 1 <= lines[0] <= lines[1]) if lines is not None else False
+
+
+def check_expected(expected: Any) -> None:
+    """Un corrigé vide ou cassé ne note rien : Refused, plutôt qu'un « conforme » qui ne veut rien dire."""
+    if not isinstance(expected, dict):
+        raise Refused("corrigé : un objet JSON avec traps et healthy")
+    traps, healthy = expected.get("traps"), expected.get("healthy")
+    if not isinstance(traps, list) or not isinstance(healthy, list):
+        raise Refused("corrigé : traps et healthy sont des listes")
+    limit = expected.get("max_constats", MAX_CONSTATS)
+    if type(limit) is not int or limit < 1:
+        raise Refused("corrigé : max_constats est un entier positif")
+    for trap in traps:
+        if not (isinstance(trap, dict) and isinstance(trap.get("id"), str) and isinstance(trap.get("what"), str)
+                and type(trap.get("must")) is bool and isinstance(trap.get("where"), list) and trap["where"]
+                and all(_place_ok(w) for w in trap["where"])):
+            raise Refused(f"corrigé : piège mal formé ({trap!r:.80})")
+    for item in healthy:
+        if not (_place_ok(item) and isinstance(item.get("id"), str) and isinstance(item.get("what"), str)):
+            raise Refused(f"corrigé : élément sain mal formé ({item!r:.80})")
+    if not any(t["must"] for t in traps):
+        raise Refused("corrigé : aucun piège requis, il ne peut rien mesurer")
+
+
+def _match(traps: list[dict[str, Any]], constats: list[dict[str, Any]]) -> dict[str, int]:
+    """Un constat ne trouve qu'un piège : le plus grand appariement, les pièges requis servis d'abord."""
+    owner: dict[int, str] = {}
+    by_id = {t["id"]: t for t in traps}
+
+    def claim(trap_id: str, seen: set[int]) -> bool:
+        for index, item in enumerate(constats):
+            if index in seen or not any(_overlaps(item, w) for w in by_id[trap_id]["where"]):
+                continue
+            seen.add(index)
+            if index not in owner or claim(owner[index], seen):
+                owner[index] = trap_id
+                return True
+        return False
+
+    for trap in sorted(traps, key=lambda t: not t["must"]):
+        claim(trap["id"], set())
+    return {trap_id: index for index, trap_id in owner.items()}
+
+
+def grade(expected: Any, data: Any) -> dict[str, Any]:
     """Généreux sur les mots, strict sur la preuve : un piège est trouvé si un constat cite une de
-    ses lignes ; un constat sur une ligne saine fait échouer ; le reste est du bruit, compté."""
+    ses lignes, et un constat ne trouve qu'un piège ; un constat sur une ligne saine fait échouer ;
+    le reste est du bruit, compté."""
+    check_expected(expected)
     invalid = validate(data)
     limit = expected.get("max_constats", MAX_CONSTATS)
     traps = expected["traps"]
@@ -161,7 +225,8 @@ def grade(expected: dict[str, Any], data: Any) -> dict[str, Any]:
         return {"pass": False, "invalid": invalid, "found": [], "missed": [t["id"] for t in traps if t["must"]],
                 "optional_missed": [], "healthy_touched": [], "noise": [], "count": 0, "max": limit}
     constats = data["constats"]
-    found = [t["id"] for t in traps if any(_overlaps(c, w) for c in constats for w in t["where"])]
+    matched = _match(traps, constats)
+    found = [t["id"] for t in traps if t["id"] in matched]
     touched = [h["id"] for h in expected["healthy"] if any(_overlaps(c, h) for c in constats)]
     places = [w for t in traps for w in t["where"]] + expected["healthy"]
     noise = [c["sur_quoi"] for c in constats if not any(_overlaps(c, p) for p in places)]
@@ -184,8 +249,13 @@ def render_grade_md(expected: dict[str, Any], result: dict[str, Any]) -> str:
     return "\n".join(out) + "\n"
 
 
+_ISOLATED = ("-c", "core.hooksPath=" + os.devnull, "-c", "commit.gpgsign=false", "-c", "core.autocrlf=false")
+
+
 def _run(dest: str, *args: str) -> None:
-    out = subprocess.run(["git", "-C", dest, *args], capture_output=True, env={**os.environ, **_FIXED}, timeout=30)
+    """git sans la configuration, les hooks ni les modèles de l'utilisateur : la fixture se monte pareil partout."""
+    out = subprocess.run(["git", "-C", dest, *_ISOLATED, *args], capture_output=True,
+                         env={**os.environ, **_FIXED}, timeout=30)
     if out.returncode != 0:
         raise Refused(f"git {args[0]} a échoué dans {dest} : {out.stderr.decode('utf-8', 'replace').strip()}")
 
@@ -196,16 +266,23 @@ def init_fixture(fixture_dir: str, dest: str) -> dict[str, str]:
     if os.path.exists(dest) and (not os.path.isdir(dest) or os.listdir(dest)):
         raise Refused(f"{dest} existe et n'est pas vide : donne un dossier neuf")
     try:
-        shutil.copytree(os.path.join(fixture_dir, "base"), dest, dirs_exist_ok=True)
-        _run(dest, "init", "-q", "-b", "main")
+        branch, message = spec["branch"], f"{spec['title']}\n\n{spec['body']}"
+        removed = spec.get("removed", [])
+        if any(not isinstance(r, str) or r.startswith("/") or ".." in r.split("/") for r in removed):
+            raise Refused(f"fixture {fixture_dir} : removed ne cite que des chemins relatifs au dépôt")
+        shutil.copytree(os.path.join(fixture_dir, "base"), dest, symlinks=True, dirs_exist_ok=True)
+        _run(dest, "init", "-q", "-b", "main", "--template=")
         _run(dest, "add", "-A")
-        _run(dest, "commit", "-q", "-m", "base")
-        _run(dest, "checkout", "-q", "-b", spec["branch"])
-        shutil.copytree(os.path.join(fixture_dir, "pr"), dest, dirs_exist_ok=True)
-        for rel in spec.get("removed", []):
+        _run(dest, "commit", "-q", "--no-verify", "-m", "base")
+        _run(dest, "checkout", "-q", "-b", branch)
+        shutil.copytree(os.path.join(fixture_dir, "pr"), dest, symlinks=True, dirs_exist_ok=True)
+        for rel in removed:
             os.remove(os.path.join(dest, rel))
         _run(dest, "add", "-A")
-        _run(dest, "commit", "-q", "-m", f"{spec['title']}\n\n{spec['body']}")
-    except (OSError, KeyError, subprocess.TimeoutExpired) as exc:
+        _run(dest, "commit", "-q", "--no-verify", "-m", message)
+    except (OSError, KeyError, TypeError, AttributeError, subprocess.TimeoutExpired, Refused) as exc:
+        shutil.rmtree(dest, ignore_errors=True)  # un montage à moitié fait ne se relit pas
+        if isinstance(exc, Refused):
+            raise
         raise Refused(f"fixture {fixture_dir} : montage impossible ({exc!r})") from exc
-    return {"repo": dest, "base": "main", "branch": spec["branch"]}
+    return {"repo": dest, "base": "main", "branch": branch}

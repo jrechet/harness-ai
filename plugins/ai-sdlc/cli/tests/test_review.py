@@ -40,7 +40,8 @@ class WhereTests(unittest.TestCase):
         self.assertEqual(review.parse_where("src/app.py:12-15"), ("src/app.py", 12, 15))
 
     def test_what_is_not_a_path_and_a_line_is_refused(self):
-        for bad in ("src/app.py", "src/app.py:", ":12", "src/app.py:0", "src/app.py:9-3", "../x.py:1", "/etc/x:1", 12):
+        for bad in ("src/app.py", "src/app.py:", ":12", "src/app.py:0", "src/app.py:9-3", "../x.py:1", "/etc/x:1", 12, "a.py:1\n",
+                    "./a.py:1", "a.py:1-40", "a.py:1-99999999999999", None, ["a.py:1"]):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 review.parse_where(bad)
 
@@ -53,6 +54,8 @@ class ValidateTests(unittest.TestCase):
     def test_each_defect_is_named(self):
         cases = {
             "gravite": revue(constat(gravite="grave")),
+            "gravite ": revue(constat(gravite=["bloquant"])),
+            "gravite {": revue(constat(gravite={})),
             "sur_quoi": revue(constat(where="quelque part")),
             "observe": revue(constat(observe="  ")),
             "au plus 7": revue(*[constat(f"app.py:{n}") for n in range(1, 9)]),
@@ -82,6 +85,28 @@ class DiffTests(RepoCase):
 
     def test_a_deletion_is_citable_at_the_line_where_it_happened(self):
         self.assertIn(3, review.changed_lines(self.repo, "main")["app.py"])
+
+    def test_a_deleted_file_is_citable_at_its_first_line(self):
+        from tests.test_context import git
+        git(self.repo, "rm", "-q", "README.md")
+        git(self.repo, "commit", "-q", "-m", "retire")
+        self.assertEqual(review.changed_lines(self.repo, "main")["README.md"], {1})
+
+    def test_an_added_line_that_looks_like_a_header_does_not_make_another_file_citable(self):
+        self.commit("f.txt", "++ b/README.md\n" + "x\n" * 30)
+        changed = review.changed_lines(self.repo, "main")
+        self.assertNotIn("README.md", changed)
+        self.assertIn(20, changed["f.txt"])
+
+    def test_paths_with_spaces_and_user_git_config_do_not_matter(self):
+        self.commit("a b/c d.txt", "x\n")
+        old = {k: os.environ.get(k) for k in ("GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0")}
+        os.environ.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="diff.noprefix", GIT_CONFIG_VALUE_0="true")
+        self.addCleanup(lambda: [os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+                                 for k, v in old.items()])
+        changed = review.changed_lines(self.repo, "main")
+        self.assertEqual(changed["a b/c d.txt"], {1})
+        self.assertIn(2, changed["app.py"])
 
     def test_a_finding_outside_the_diff_is_refused(self):
         changed = review.changed_lines(self.repo, "main")
@@ -133,6 +158,11 @@ class RenderTests(unittest.TestCase):
         self.assertNotIn("\n## Approuvé", text)
         self.assertNotIn("| a | b |", text)
 
+    def test_a_finding_cannot_carry_html_a_mention_an_image_or_break_the_code_span(self):
+        text = review.render_md(revue(constat("a`b.py:1", observe="<img src=x> @equipe ![t](http://x/y.png)")))
+        for forged in ("<img", " @equipe", "![t](", "`a`b"):
+            self.assertNotIn(forged, text)
+
 
 EXPECTED = {"max_constats": 7,
             "traps": [{"id": "T1", "what": "erreur avalée", "must": True, "where": [{"file": "app.py", "lines": [2, 4]}]},
@@ -162,6 +192,20 @@ class GradeTests(unittest.TestCase):
         result = review.grade(EXPECTED, revue(constat("app.py:3"), constat("autre.py:1")))
         self.assertEqual(result["noise"], ["autre.py:1"])
         self.assertTrue(result["pass"])
+
+    def test_one_finding_finds_one_trap(self):
+        both = {**EXPECTED, "traps": [EXPECTED["traps"][0],
+                                      {"id": "T3", "what": "voisin", "must": True, "where": [{"file": "app.py", "lines": [5, 6]}]}]}
+        self.assertEqual(review.grade(both, revue(constat("app.py:3-6")))["missed"], ["T3"])
+        self.assertTrue(review.grade(both, revue(constat("app.py:3-5"), constat("app.py:4")))["pass"])
+
+    def test_an_empty_or_broken_answer_key_grades_nothing(self):
+        broken = ([], {}, {"traps": [], "healthy": []}, {**EXPECTED, "healthy": None}, {**EXPECTED, "max_constats": "x"},
+                  {**EXPECTED, "traps": [{**EXPECTED["traps"][0], "where": [{"file": "a", "lines": [1]}]}]},
+                  {**EXPECTED, "traps": [EXPECTED["traps"][1]]})
+        for expected in broken:
+            with self.subTest(expected=expected), self.assertRaises(context.Refused):
+                review.grade(expected, revue())
 
     def test_an_invalid_review_does_not_pass(self):
         result = review.grade(EXPECTED, revue(constat("app.py:3", gravite="grave")))
@@ -217,6 +261,28 @@ class FixtureTests(unittest.TestCase):
             self.assertEqual(code, 0, err)
             code, out, err = run(["fixture", "grade", path, "--expected", os.path.join(FIXTURES, name, "expected.json")])
             self.assertEqual(code, 0, out + err)
+
+    def test_init_ignores_the_user_hooks_and_leaves_nothing_behind_when_it_fails(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        hooks = os.path.join(tmp.name, "hooks")
+        os.makedirs(hooks)
+        with open(os.path.join(hooks, "pre-commit"), "w", encoding="utf-8") as fh:
+            fh.write("#!/bin/sh\nexit 1\n")
+        os.chmod(os.path.join(hooks, "pre-commit"), 0o755)
+        old = {k: os.environ.get(k) for k in ("GIT_CONFIG_COUNT", "GIT_CONFIG_KEY_0", "GIT_CONFIG_VALUE_0")}
+        os.environ.update(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="core.hooksPath", GIT_CONFIG_VALUE_0=hooks)
+        self.addCleanup(lambda: [os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v)
+                                 for k, v in old.items()])
+        fixture = os.path.join(FIXTURES, fixture_names()[0])
+        review.init_fixture(fixture, os.path.join(tmp.name, "ok"))
+        broken = os.path.join(tmp.name, "fx")
+        os.makedirs(os.path.join(broken, "base"))
+        with open(os.path.join(broken, "pr.json"), "w", encoding="utf-8") as fh:
+            json.dump({"branch": "b", "title": "t", "body": "b", "removed": ["../x"]}, fh)
+        with self.assertRaises(context.Refused):
+            review.init_fixture(broken, os.path.join(tmp.name, "ko"))
+        self.assertFalse(os.path.exists(os.path.join(tmp.name, "ko")))
 
     def test_init_refuses_a_destination_that_is_not_empty(self):
         dest, _ = self.build(fixture_names()[0])

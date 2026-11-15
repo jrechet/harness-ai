@@ -50,7 +50,7 @@ Sept constats au plus. Écris-les dans un fichier JSON hors du dépôt :
 
 Puis `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" review render <fichier> . --base <base>`, et montre sa sortie telle quelle : les plus graves d'abord, chacun avec ses quatre parties.
 
-- **Code 2** : la revue est refusée, et le message dit quel constat. Une ligne citée doit être une ligne que le diff ajoute ou modifie, numérotée dans la version relue ; pour une suppression, la ligne où elle a eu lieu. Corrige le constat ou jette-le, ne le déplace pas sur une ligne voisine pour passer.
+- **Code 2** : la revue est refusée, et le message dit quel constat. Une ligne citée doit être une ligne que le diff ajoute ou modifie, numérotée dans la version relue ; pour une suppression, la ligne où elle a eu lieu ; pour un fichier supprimé, `chemin:1`. Un constat cite au plus vingt lignes, et un seul défaut : deux défauts voisins font deux constats. Corrige le constat ou jette-le, ne le déplace pas sur une ligne voisine pour passer.
 - Aucun constat est un résultat : `"constats": []`, avec dans `non_verifie` ce que tu n'as pas pu vérifier.
 
 Ne poste les commentaires sur la PR que si l'utilisateur le demande, à partir de la sortie de `render` : `gh pr review <n> --comment --body-file <fichier>`. Jamais `--approve`, jamais `--request-changes`.
