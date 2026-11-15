@@ -249,7 +249,7 @@ class DesignFixtureTests(unittest.TestCase):
     """Chaque fixture de harness-design : son corrigé tient debout, et le plan de son auteur le passe."""
 
     def test_every_fixture_cites_real_lines_and_its_author_run_passes(self):
-        names = sorted(os.listdir(FIXTURES))
+        names = sorted(n for n in os.listdir(FIXTURES) if os.path.isdir(os.path.join(FIXTURES, n)))
         self.assertTrue(names)
         for name in names:
             with self.subTest(fixture=name):
