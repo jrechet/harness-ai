@@ -8,6 +8,7 @@
   ai_sdlc.py dev body <corps.json> [repo] [--base REF]        le corps de la PR, s'il est complet pour sa taille
   ai_sdlc.py fixture init <fixture> <dest>         monte une PR piégée de fixtures/review en dépôt git
   ai_sdlc.py fixture grade <revue.json> --expected <expected.json>   note une revue contre son corrigé
+  ai_sdlc.py fixture grade-dev <dépôt> --task <dossier du ticket> [--body corps.json]   note un travail de /dev
 
 Codes de sortie de `context` : 0 servi, 2 refusé (surcharge invalide, phase ou branche inconnue) : rien
 n'est imprimé sur la sortie standard, la raison est sur la sortie d'erreur. `status` sort 0 et montre une
@@ -24,7 +25,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import context, dev, points, review, size  # noqa: E402
+from aisdlclib import context, dev, devgrade, points, review, size  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -56,12 +57,20 @@ def build_parser() -> argparse.ArgumentParser:
     grade = fix.add_parser("grade", help="note une revue contre le corrigé")
     grade.add_argument("file")
     grade.add_argument("--expected", required=True)
-    for sp in (init, grade):
+    gdev = fix.add_parser("grade-dev", help="note un travail de /dev dans un dépôt monté")
+    gdev.add_argument("repo")
+    gdev.add_argument("--task", required=True, help="le dossier du ticket dans la fixture (expected.json, hidden/)")
+    gdev.add_argument("--body", help="le corps de PR en JSON, tel que le skill l'a écrit")
+    for sp in (init, grade, gdev):
         sp.add_argument("--format", choices=["md", "json"], default="md")
     return parser
 
 
-def _fixture(args: argparse.Namespace) -> tuple[object, str, int]:
+def _fixture(args: argparse.Namespace, table: dict) -> tuple[object, str, int]:
+    if args.action == "grade-dev":
+        expected = review.load(os.path.join(args.task, "expected.json"))
+        result = devgrade.grade(table, expected, args.repo, args.task, args.body)
+        return result, devgrade.render_md(result), 0 if result["pass"] else 1
     if args.action == "init":
         made = review.init_fixture(args.fixture, args.dest)
         return made, f"Dépôt monté dans {made['repo']} : base {made['base']}, branche {made['branch']}.\n", 0
@@ -76,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     code = 0
     try:
         if args.command == "fixture":
-            data, text, code = _fixture(args)
+            data, text, code = _fixture(args, table)
         elif args.command == "size":
             data = size.classify(table, args.repo, args.base, args.paths)
             text = size.render_md(data)

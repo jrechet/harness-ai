@@ -57,7 +57,7 @@ Un second plugin, dans `plugins/ai-sdlc/`, outille les phases du cycle de dével
 | `ai_sdlc.py dev body` | Rend le corps de la PR, et le refuse s'il est incomplet pour sa taille : plan absent, plan de taille L non commité, rien de dit sur ce qui est vérifié. |
 | `ai_sdlc.py review render` | Rend la revue en commentaires, et la refuse si un constat ne cite pas une ligne du diff. |
 
-Le skill `review` se mesure sur une PR piégée, dans [fixtures/review/](fixtures/review/README.md).
+Le skill `review` se mesure sur une PR piégée, dans [fixtures/review/](fixtures/review/README.md). Le skill `dev` se mesure sur des tickets, dans [fixtures/dev/](fixtures/dev/README.md) : le noteur lit le dépôt que l'agent laisse, pas ce qu'il en dit.
 
 ```
 /plugin install ai-sdlc@harness-ai

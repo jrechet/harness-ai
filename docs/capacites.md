@@ -33,7 +33,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 |---|---|---|
 | Assembler le socle et les ajouts d'une équipe, lus sur la branche de base | `ai_sdlc.py context`, `status`, sept points d'extension | outillé |
 | Relire une PR : peu de constats, chacun sur une ligne du diff | skill `review`, sous-agent `reviewer`, `review render` | mesuré une fois : 6 pièges requis sur 6 |
-| Développer un ticket sur le chemin de sa taille | skill `dev`, `size`, `dev body` | outillé, jamais joué |
+| Développer un ticket sur le chemin de sa taille | skill `dev`, `size`, `dev body` | outillé, jamais joué à l'aveugle |
 
 ### Mesurer les skills eux-mêmes
 
@@ -41,7 +41,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 |---|---|---|
 | Projets types et leurs corrigés | `fixtures/repos`, `harness fixture check` | outillé pour huit projets |
 | Banc avant et après, à l'aveugle | `harness bench`, skill de mainteneur `harness-stress` | lancé, deux corrections |
-| Fixtures de conception et de revue | `fixtures/design`, `fixtures/review`, `place check`, `fixture grade` | outillé |
+| Fixtures de conception, de revue et de développement | `fixtures/design`, `fixtures/review`, `fixtures/dev`, `place check`, `fixture grade`, `fixture grade-dev` | outillé |
 
 ### Documenter
 
@@ -65,7 +65,8 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | S1 | Plugin `ai-sdlc` : contexte, points d'extension | fait | 2026-11-15 | PR 22 |
 | S2 | Skill `review`, rendu par le CLI, PR piégée, première mesure | fait | 2026-11-15 | PR 23 et 24 ; une seule exécution, fixture sans doute trop facile |
 | S3 | Skill `dev`, taille calculée, corps de PR | fait | 2026-11-15 | PR 25 ; jamais joué |
-| S4 | Fixture et noteur pour mesurer `dev` | en cours | 2026-11-15 | Branche `feat/ai-sdlc-dev-fixture` : dépôt de base, deux tickets et noteur écrits, tests du noteur et travail d'auteur à faire |
+| S4 | Fixture et noteur pour mesurer `dev` | fait | 2026-11-15 | `fixtures/dev/facturation`, `fixture grade-dev` ; le travail de l'auteur passe, c'est une base de régression |
+| S8 | Jouer `dev` à l'aveugle sur ses deux tickets | en attente | 2026-11-15 | Une exécution à l'aveugle ne se lance qu'à la demande du propriétaire |
 | S5 | Skills `qa` et `ticket` | à faire | 2026-11-14 | Ordre fixé par la proposition |
 | S6 | Skills `secu`, `ship`, `run` | à faire | 2026-11-14 | Viennent en dernier |
 | S7 | Installer le plugin depuis la marketplace et éprouver `${CLAUDE_PLUGIN_ROOT}` | à faire | 2026-11-15 | Jamais vérifié |
