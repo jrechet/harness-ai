@@ -11,13 +11,15 @@ même destination : c'est ce qui fait de la grille une garantie et pas un consei
   harness place grid                        les questions, leurs options, les destinations
   harness place one nature=limit …          un morceau ; s'il manque une réponse, la question suivante
   harness place plan morceaux.json          plusieurs morceaux, avec un verdict si `current` est donné
+  harness place check plan.json --expected … note un plan de revue contre le corrigé d'une fixture
 
 Format de `morceaux.json` : une liste de
     {"piece": "Ne jamais pousser sur main", "answers": {"nature": "limit", "bypass_limit": "dev"},
      "current": "agents_md"}
 `current` (facultatif) est la destination où le morceau vit aujourd'hui ; le verdict compare.
 
-Codes de sortie : 0 tout est placé, 3 une réponse manque, 2 saisie invalide."""
+Codes de sortie : 0 tout est placé, 3 une réponse manque, 2 saisie invalide ; pour `check`, 0 si tous les
+pièges sont trouvés sans élément sain déplacé, 1 sinon."""
 from __future__ import annotations
 
 import argparse
@@ -203,6 +205,73 @@ def place_piece(grid: dict[str, Any], item: Any) -> dict[str, Any]:
             "verdict": verdict(grid, current, result["destination"]["id"]) if placed and current else None}
 
 
+# --- Noter un plan contre le corrigé d'une fixture -------------------------------------------------
+
+def _cites(piece: dict[str, Any], spec: dict[str, Any]) -> bool:
+    """Le morceau cite-t-il une ligne de la plage attendue ? La preuve est `chemin:ligne`."""
+    evidence = piece.get("evidence", [])
+    for entry in evidence if isinstance(evidence, list) else [evidence]:
+        path, _, line = str(entry).rpartition(":")
+        digits = line.split("-")[0].strip()
+        if path.strip().removeprefix("./").removeprefix("artifact/") == spec["file"] and digits.isdigit() \
+                and spec["lines"][0] <= int(digits) <= spec["lines"][1]:
+            return True
+    return False
+
+
+def _moves(rows: list[dict[str, Any]]) -> list[str]:
+    """Où le plan envoie les morceaux qu'il déplace ; un morceau gardé à sa place n'y figure pas."""
+    return [r["destination"]["id"] for r in rows if r["status"] == "placed" and r["verdict"] not in (None, "KEEP")]
+
+
+def _validate_expected(grid: dict[str, Any], expected: Any) -> None:
+    if not isinstance(expected, dict) or not isinstance(expected.get("traps"), list):
+        raise ValueError("corrigé : attendu un objet {traps, healthy}")
+    for spec in expected["traps"] + expected.get("healthy", []):
+        lines = spec.get("lines")
+        if not spec.get("id") or not spec.get("file") or not isinstance(lines, list) or len(lines) != 2:
+            raise ValueError(f"corrigé : {spec.get('id', '?')} a un id, un file et lines [début, fin]")
+        unknown = [d for d in spec.get("accept", []) if d not in grid["destinations"]]
+        if unknown:
+            raise ValueError(f"corrigé : {spec['id']} accepte {', '.join(unknown)}, destination inconnue")
+
+
+def check(grid: dict[str, Any], expected: Any, pieces: list[Any]) -> dict[str, Any]:
+    """Note un plan de revue. Généreux sur la destination (plusieurs sont acceptées), strict sur la
+    preuve (le morceau cite la bonne ligne) et sur les éléments sains (aucun ne doit être déplacé)."""
+    _validate_expected(grid, expected)
+    rows = [(piece, place_piece(grid, piece)) for piece in pieces]
+    traps, healthy = [], []
+    for spec in expected["traps"]:
+        got = _moves([row for piece, row in rows if _cites(piece, spec)])
+        status = "found" if any(d in spec["accept"] for d in got) else "wrong" if any(
+            _cites(piece, spec) for piece, _ in rows) else "missed"
+        traps.append({"id": spec["id"], "what": spec.get("what", ""), "status": status, "got": got,
+                      "accept": spec["accept"]})
+    for spec in expected.get("healthy", []):
+        cited = [row for piece, row in rows if _cites(piece, spec)]
+        got = _moves(cited)
+        healthy.append({"id": spec["id"], "what": spec.get("what", ""), "got": got,
+                        "status": "flagged" if got else "kept" if cited else "absent"})
+    found = sum(1 for t in traps if t["status"] == "found")
+    flagged = sum(1 for h in healthy if h["status"] == "flagged")
+    return {"found": found, "expected": len(traps), "flagged": flagged, "traps": traps, "healthy": healthy,
+            "passed": found == len(traps) and flagged == 0}
+
+
+def render_check_md(result: dict[str, Any]) -> str:
+    out = [f"Pièges trouvés : {result['found']}/{result['expected']} ; éléments sains déplacés : {result['flagged']}", ""]
+    for t in result["traps"]:
+        detail = "" if t["status"] == "found" else (
+            f" — envoyé vers {', '.join(t['got']) or 'nulle part (gardé en place)'}, attendu {', '.join(t['accept'])}"
+            if t["status"] == "wrong" else " — aucun morceau ne cite cette ligne")
+        out.append(f"- {t['id']} {t['status']} : {t['what']}{detail}")
+    for h in result["healthy"]:
+        detail = f" — déplacé vers {', '.join(h['got'])}" if h["status"] == "flagged" else ""
+        out.append(f"- {h['id']} {h['status']} : {h['what']}{detail}")
+    return "\n".join(out) + "\n"
+
+
 # --- Rendu -----------------------------------------------------------------------------------------
 
 def _leads_to_label(grid: dict[str, Any], alt: dict[str, str]) -> str:
@@ -300,7 +369,10 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     one.add_argument("--current", help="destination où le morceau vit aujourd'hui, pour un verdict")
     plan = sub.add_parser("plan", help="plusieurs morceaux, depuis un fichier JSON")
     plan.add_argument("file", help="liste de {piece, answers, current?}")
-    for sp in (grid, one, plan):
+    chk = sub.add_parser("check", help="note un plan de revue contre le corrigé d'une fixture")
+    chk.add_argument("file", help="le plan : liste de {piece, answers, current, evidence}")
+    chk.add_argument("--expected", required=True, help="expected.json de la fixture")
+    for sp in (grid, one, plan, chk):
         sp.add_argument("--format", choices=["md", "json"], default="md")
     return p
 
@@ -326,6 +398,15 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
                                      "current": args.current})
             _emit(args.format, row, render_piece_md(grid, row))
             return 0 if row["status"] == "placed" else INCOMPLETE
+        if args.place_command == "check":
+            try:
+                with open(args.expected, encoding="utf-8") as fh:
+                    expected = json.load(fh)
+            except (OSError, json.JSONDecodeError) as exc:
+                raise ValueError(f"{args.expected} : {exc}") from exc
+            result = check(grid, expected, load_pieces(args.file))
+            _emit(args.format, result, render_check_md(result))
+            return 0 if result["passed"] else 1
         rows = [place_piece(grid, item) for item in load_pieces(args.file)]
     except ValueError as exc:
         print(f"place : {exc}", file=sys.stderr)

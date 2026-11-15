@@ -68,4 +68,5 @@ Même déroulé, avec `current` renseigné pour chaque morceau. Ce skill revoit 
 - **Répondre selon l'effort.** `bypass_rule=agent` pour éviter de toucher la CI, c'est répondre à la mauvaise question : elle porte sur ce qu'un contournement coûterait.
 - **Tout pousser en code.** Si un programme ne peut pas le vérifier avec la même réponse à chaque fois, `checkable` vaut `no` : un jugement codé en dur devient rigide, et l'équipe le contourne.
 - **Un sous-agent pour faire propre.** Sans contexte à part, regard indépendant, droits différents ou parallélisme, c'est un skill, ou le jugement de la session.
+- **Se tromper de `current` en revue.** `current` dit où le morceau est tenu aujourd'hui, pas dans quel fichier la phrase est écrite. Un choix que le skill laisse à l'agent a pour `current` `session`. Une règle d'AGENTS.md qui cite un check CI existant et bloquant a pour `current` `ci_check` : ouvre le workflow pour le vérifier.
 - **Écrire ce que l'agent trouve seul.** Commandes du manifeste, arborescence : `scope=discoverable`, rien à écrire.
