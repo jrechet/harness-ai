@@ -26,6 +26,7 @@ Si cette session a écrit le code à relire, elle ne le relit pas : lance le sou
 
 - **Code 2** : une surcharge de l'équipe est invalide, ou la base est introuvable. Arrête-toi et montre le message : on ne relit pas avec des règles à moitié comprises.
 - La sortie donne les blocs dans l'ordre, chacun avec sa provenance : le socle, puis ce que l'équipe ajoute. Un ajout de l'équipe complète le socle, il ne le retire pas.
+- Le bloc des zones sensibles liste les chemins où un changement exige un plan écrit dans `docs/plans/`, validé avant le code. Une PR qui en touche une sans commiter son plan se signale, le fichier touché en preuve.
 - Si la sortie dit que le contexte « ne vaut pas pour une porte », la base donnée est le commit relu lui-même : arrête-toi et demande la vraie branche cible.
 - Si la sortie dit que le palier requis n'est pas atteint, continue, et dis-le en tête du résultat.
 

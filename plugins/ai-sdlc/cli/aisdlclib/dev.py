@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import size as size_mod
-from .context import Refused
+from .context import Refused, _read_at
 
 
 def _text(value: Any) -> bool:
@@ -24,8 +24,8 @@ def validate(data: Any, sized: dict[str, Any], plans_dir: str) -> list[str]:
     if not isinstance(data, dict):
         return ["le corps est un objet JSON : titre, ticket, quoi, pourquoi, plan, verifie, non_verifie"]
     errors = []
-    if not _text(data.get("titre")):
-        errors.append("titre : une ligne")
+    if not _text(data.get("titre")) or "\n" in data["titre"].strip():
+        errors.append("titre : une ligne, une seule")
     if data.get("ticket") is not None and not _text(data.get("ticket")):
         errors.append("ticket : sa clé ou son lien, ou null s'il n'y en a pas")
     if not _texts(data.get("quoi")):
@@ -57,21 +57,27 @@ def validate(data: Any, sized: dict[str, Any], plans_dir: str) -> list[str]:
 
 def checked(table: dict[str, Any], data: Any, repo: str, base: str) -> tuple[dict[str, Any], dict[str, Any]]:
     sized = size_mod.classify(table, repo, base)
-    if not sized["files"]:
-        raise Refused(f"aucun changement entre {base} et HEAD : rien à proposer")
     errors = validate(data, sized, table["plans_dir"])
+    if not errors and sized["size"] == "L":
+        try:
+            plan = _read_at(repo, "HEAD", data["plan_fichier"])
+        except Refused:
+            plan = None
+        if not plan or not plan.strip():
+            errors.append(f"plan_fichier : {data['plan_fichier']} est absent ou vide dans cette branche")
     if errors:
         raise Refused("corps de PR refusé :\n- " + "\n- ".join(errors))
     return data, sized
 
 
 def _line(text: str) -> str:
-    """Une ligne et une seule : un texte ne peut pas ouvrir une section à lui."""
-    return " ".join(text.split())
+    """Une ligne et une seule, sans HTML ni mention : un texte ne peut ni ouvrir une section à lui,
+    ni masquer la suite du corps, ni notifier quelqu'un."""
+    return " ".join(text.split()).replace("&", "&amp;").replace("<", "&lt;").replace("@", "@\u200b")
 
 
 def render_md(data: dict[str, Any], sized: dict[str, Any]) -> str:
-    out = ["## Ce qui change", *[f"- {_line(q)}" for q in data["quoi"]], "", "## Pourquoi", _line(data["pourquoi"])]
+    out = ["## Ce qui change", *[f"- {_line(q)}" for q in data["quoi"]], "", "## Pourquoi", f"> {_line(data['pourquoi'])}", ""]
     out.append(f"Ticket : {_line(data['ticket'])}" if data.get("ticket") else "Ticket : aucun.")
     plan = [f"- {_line(p)}" for p in data.get("plan", [])]
     if data.get("plan_fichier") and sized["size"] == "L":

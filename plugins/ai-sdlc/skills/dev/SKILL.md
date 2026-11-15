@@ -30,6 +30,8 @@ Travaille sur une branche à toi, créée depuis la base. Jamais sur la base.
 Liste les fichiers que tu comptes toucher, puis :
 `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" size . --base <base> --paths <chemin> <chemin>…`
 
+**Code 2** : une ligne de `docs/agents/zones-sensibles.md` est illisible, ou un chemin sort du dépôt. Arrête-toi et montre le message.
+
 - **Taille L** (un chemin est en zone sensible) : écris le plan dans `docs/plans/<ticket>.md` (le but, les étapes, ce qui peut casser, comment revenir en arrière), commite-le seul, montre-le et **arrête-toi**. Tu ne codes qu'après l'accord explicite d'un humain sur ce plan.
 - **Pas encore tranchée** : c'est XS ou S–M. Si le changement tient en une phrase et quelques lignes, code. Sinon écris le plan en trois à six étapes et montre-le ; si la sortie de `context` dit que le palier requis n'est pas atteint, attends l'accord avant de coder.
 
@@ -44,7 +46,7 @@ Lance les commandes que le tableau d'AGENTS.md associe à ce que tu as touché ;
 
 ### 6. La taille, sur le vrai diff
 Commite, puis `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" size . --base <base>`.
-Si la taille est devenue L alors que tu n'as pas de plan validé, arrête-toi : écris le plan, montre-le, et attends l'accord avant d'ouvrir la PR. Ne retire pas des fichiers pour repasser dessous.
+Si la taille est devenue L alors que tu n'as pas de plan validé, le chemin n'a pas été suivi : le plan devait précéder le code. Arrête-toi et dis-le. L'humain choisit : découper le ticket, ou garder ce code avec un plan écrit après coup dans `docs/plans/`, qu'il valide, et que le corps de la PR signale comme tel dans « pas vérifié ». Ne retire pas des fichiers pour repasser dessous.
 
 ### 7. La PR
 Écris le corps dans un fichier JSON hors du dépôt :
@@ -58,9 +60,9 @@ Si la taille est devenue L alors que tu n'as pas de plan validé, arrête-toi : 
 ```
 
 `plan_fichier` ne sert qu'en taille L. Puis :
-`python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" dev body <fichier> . --base <base>`
+`python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" dev body <fichier> . --base <base> > <corps.md>`
 
-**Code 2** : le corps est incomplet pour sa taille, le message dit quoi. Corrige le corps, pas la taille. Montre la sortie telle quelle. Ne pousse la branche et n'ouvre la PR (`gh pr create --base <base> --title <titre> --body-file <sortie>`) que si l'utilisateur l'a demandé ou l'accepte.
+**Code 2** : le corps est incomplet pour sa taille, et `<corps.md>` est vide ; le message dit quoi. Corrige le corps, pas la taille. Montre le contenu de `<corps.md>` tel quel. Ne pousse la branche et n'ouvre la PR que si l'utilisateur l'a demandé ou l'accepte : `gh pr create --base <base> --title "<le titre du JSON>" --body-file <corps.md>`.
 
 ### 8. Compte rendu, puis on s'arrête
 Le lien de la PR, la taille, ce qui n'est pas vérifié, et ce que tu as vu hors ticket. Propose la relecture par le skill `review`, qui la confie à un agent qui n'a pas vu l'écriture. Ne relis pas toi-même ton changement pour le déclarer bon.
