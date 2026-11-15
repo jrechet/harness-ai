@@ -16,8 +16,8 @@ Rends un objet JSON, et rien d'autre :
 
 ```json
 {"base": "<ref>", "non_verifie": ["<ce que tu n'as pas pu vérifier>"],
- "constats": [{"gravite": "bloquant|a-corriger|a-discuter", "sur_quoi": "<chemin:ligne>", "point": "<point de la checklist>",
+ "constats": [{"gravite": "bloquant|a-corriger|a-discuter", "sur_quoi": "<chemin:ligne ou chemin:début-fin>", "point": "<point de la checklist>",
                "attendu": "<…>", "observe": "<…>", "conseille": "<…>"}]}
 ```
 
-Sept constats au plus. Aucun constat sans ligne citée.
+Sept constats au plus. Aucun constat sans ligne citée : `sur_quoi` est une ligne que le diff ajoute ou modifie, numérotée dans la version relue. La session qui t'a lancé passe ton objet à `review render`, qui refuse le reste.
