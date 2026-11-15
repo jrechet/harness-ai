@@ -189,6 +189,84 @@ def run_cli(*argv: str) -> tuple[int, str]:
     return code, out.getvalue()
 
 
+FIXTURES = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "fixtures", "design")
+EXPECTED = {
+    "traps": [{"id": "T1", "what": "limite racontée", "file": "skills/r/SKILL.md", "lines": [10, 12],
+               "accept": ["server_protection", "managed"]}],
+    "healthy": [{"id": "S1", "what": "procédure", "file": "skills/r/SKILL.md", "lines": [1, 5]}],
+}
+TRAP = {"piece": "Ne jamais pousser", "answers": {"nature": "limit", "bypass_limit": "dev"},
+        "current": "skill", "evidence": ["skills/r/SKILL.md:11"]}
+SOUND = {"piece": "La procédure", "answers": {"nature": "procedure"}, "current": "skill",
+         "evidence": ["./skills/r/SKILL.md:2"]}
+
+
+class CheckTests(unittest.TestCase):
+    def _check(self, *pieces):
+        return place.check(GRID, EXPECTED, list(pieces))
+
+    def test_a_trap_moved_to_an_accepted_place_with_its_line_is_found(self):
+        result = self._check(TRAP, SOUND)
+        self.assertEqual((result["found"], result["expected"], result["flagged"]), (1, 1, 0))
+        self.assertTrue(result["passed"])
+
+    def test_a_trap_nobody_cites_is_missed(self):
+        result = self._check(SOUND)
+        self.assertEqual(result["traps"][0]["status"], "missed")
+        self.assertFalse(result["passed"])
+
+    def test_the_right_place_without_the_right_line_is_not_found(self):
+        result = self._check({**TRAP, "evidence": ["skills/r/SKILL.md:40"]})
+        self.assertEqual(result["traps"][0]["status"], "missed")
+
+    def test_a_trap_sent_to_a_place_not_accepted_is_wrong_and_says_where(self):
+        result = self._check({**TRAP, "answers": {"nature": "limit", "bypass_limit": "agent"}})
+        self.assertEqual(result["traps"][0]["status"], "wrong")
+        self.assertEqual(result["traps"][0]["got"], ["permission"])
+
+    def test_a_trap_kept_where_it_is_is_wrong(self):
+        result = self._check({**TRAP, "answers": {"nature": "procedure"}})
+        self.assertEqual(result["traps"][0]["status"], "wrong")
+
+    def test_a_healthy_element_that_gets_moved_is_flagged(self):
+        result = self._check(TRAP, {**SOUND, "answers": {"nature": "compute", "when": "on_demand"}})
+        self.assertEqual(result["healthy"][0]["status"], "flagged")
+        self.assertFalse(result["passed"])
+
+    def test_a_healthy_element_nobody_mentions_is_not_a_fault(self):
+        result = self._check(TRAP)
+        self.assertEqual(result["healthy"][0]["status"], "absent")
+        self.assertTrue(result["passed"])
+
+    def test_an_expected_file_pointing_to_an_unknown_place_is_refused(self):
+        broken = json.loads(json.dumps(EXPECTED))
+        broken["traps"][0]["accept"] = ["un-wiki"]
+        with self.assertRaises(ValueError):
+            place.check(GRID, broken, [TRAP])
+
+
+class DesignFixtureTests(unittest.TestCase):
+    """Chaque fixture de harness-design : son corrigé tient debout, et le plan de son auteur le passe."""
+
+    def test_every_fixture_cites_real_lines_and_its_author_run_passes(self):
+        names = sorted(os.listdir(FIXTURES))
+        self.assertTrue(names)
+        for name in names:
+            with self.subTest(fixture=name):
+                root = os.path.join(FIXTURES, name)
+                with open(os.path.join(root, "expected.json"), encoding="utf-8") as fh:
+                    expected = json.load(fh)
+                for spec in expected["traps"] + expected["healthy"]:
+                    with open(os.path.join(root, "artifact", spec["file"]), encoding="utf-8") as fh:
+                        self.assertLessEqual(spec["lines"][1], len(fh.readlines()), spec["id"])
+                runs = os.path.join(root, "runs")
+                author = [r for r in sorted(os.listdir(runs)) if r.endswith("-author")]
+                self.assertTrue(author, "pas de plan d'auteur")
+                pieces = place.load_pieces(os.path.join(runs, author[-1], "pieces.json"))
+                result = place.check(GRID, expected, pieces)
+                self.assertTrue(result["passed"], result)
+
+
 class CliTests(unittest.TestCase):
     def test_one_piece_placed_prints_destination_and_why(self):
         code, out = run_cli("place", "one", "nature=limit", "bypass_limit=dev")
@@ -234,6 +312,24 @@ class CliTests(unittest.TestCase):
                 json.dump([{"piece": "x"}], fh)
             code, _ = run_cli("place", "plan", path)
         self.assertEqual(code, 2)
+
+    def test_check_scores_a_plan_against_a_fixture(self):
+        root = os.path.join(FIXTURES, "release-skill")
+        plan = os.path.join(root, "runs", "2026-11-15-author", "pieces.json")
+        code, out = run_cli("place", "check", plan, "--expected", os.path.join(root, "expected.json"), "--format", "json")
+        self.assertEqual(code, 0)
+        self.assertTrue(json.loads(out)["passed"])
+
+    def test_check_exits_1_when_a_trap_is_missed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            plan, exp = os.path.join(tmp, "p.json"), os.path.join(tmp, "e.json")
+            with open(plan, "w", encoding="utf-8") as fh:
+                json.dump([SOUND], fh)
+            with open(exp, "w", encoding="utf-8") as fh:
+                json.dump(EXPECTED, fh)
+            code, out = run_cli("place", "check", plan, "--expected", exp)
+        self.assertEqual(code, 1)
+        self.assertIn("T1", out)
 
 
 if __name__ == "__main__":

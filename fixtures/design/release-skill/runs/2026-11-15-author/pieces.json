@@ -1,0 +1,12 @@
+[
+  {"piece": "L'arborescence du dépôt", "answers": {"nature": "knowledge", "scope": "discoverable"}, "current": "skill", "evidence": [".claude/skills/release/SKILL.md:8"]},
+  {"piece": "Calculer la prochaine version depuis les commits", "answers": {"nature": "compute", "when": "on_demand"}, "current": "skill", "evidence": [".claude/skills/release/SKILL.md:12"]},
+  {"piece": "Toute version publiée a son entrée de changelog", "answers": {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "dev"}, "current": "skill", "evidence": [".claude/skills/release/SKILL.md:13"]},
+  {"piece": "Ne jamais publier hors de main", "answers": {"nature": "limit", "bypass_limit": "dev"}, "current": "skill", "evidence": [".claude/skills/release/SKILL.md:14"]},
+  {"piece": "Mettre la version, taguer, pousser", "answers": {"nature": "procedure"}, "current": "skill", "evidence": [".claude/skills/release/SKILL.md:15"]},
+  {"piece": "Publier le paquet avec le jeton du registre", "answers": {"nature": "action", "access": "deliver"}, "current": "skill", "evidence": [".claude/skills/release/SKILL.md:16"]},
+  {"piece": "Rédiger l'annonce", "answers": {"nature": "judgment", "isolation": "none"}, "current": "session", "evidence": [".claude/skills/release/SKILL.md:17"]},
+  {"piece": "Relire l'annonce sans le biais de l'auteur", "answers": {"nature": "judgment", "isolation": "independence"}, "current": "subagent", "evidence": [".claude/agents/release-reviewer.md:1"]},
+  {"piece": "L'agent ne lit jamais .npmrc.publish", "answers": {"nature": "limit", "bypass_limit": "agent"}, "current": "agents_md", "evidence": ["AGENTS.md:6"]},
+  {"piece": "Les commits suivent Conventional Commits", "answers": {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "dev"}, "current": "ci_check", "evidence": ["AGENTS.md:7"]}
+]
