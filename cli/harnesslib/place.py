@@ -34,6 +34,9 @@ GRID_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "placement.
 ID = re.compile(r"[a-z][a-z0-9_]*")
 LAYERS = {"L1": 1, "L2": 2, "L3": 3, "L4": 4, "L3 + L4": 4, "-": 0}
 INCOMPLETE = 3
+# Une fixture de revue part d'un artefact (chaque morceau a un `current`) ; une fixture de création part
+# d'une demande, où rien n'existe encore.
+MODES = ("review", "create")
 
 
 def fold(text: str) -> str:
@@ -225,14 +228,18 @@ def _cites(piece: dict[str, Any], spec: dict[str, Any]) -> bool:
     return False
 
 
-def _moves(rows: list[dict[str, Any]]) -> list[str]:
-    """Où le plan envoie les morceaux qu'il déplace ; un morceau gardé à sa place n'y figure pas."""
-    return [r["destination"]["id"] for r in rows if r["status"] == "placed" and r["verdict"] not in (None, "KEEP")]
+def _moves(rows: list[dict[str, Any]], create: bool = False) -> list[str]:
+    """Où le plan envoie les morceaux qu'il déplace ; un morceau gardé à sa place n'y figure pas. En
+    création rien n'existe encore : toute destination rendue compte."""
+    return [r["destination"]["id"] for r in rows
+            if r["status"] == "placed" and (create or r["verdict"] not in (None, "KEEP"))]
 
 
 def _validate_expected(grid: dict[str, Any], expected: Any) -> None:
     if not isinstance(expected, dict) or not isinstance(expected.get("traps"), list):
         raise ValueError("corrigé : attendu un objet {traps, healthy}")
+    if expected.get("mode", "review") not in MODES:
+        raise ValueError(f"corrigé : mode {expected.get('mode')} inconnu ({', '.join(MODES)})")
     for spec in expected["traps"] + expected.get("healthy", []):
         lines = spec.get("lines")
         if not spec.get("id") or not spec.get("file") or not isinstance(lines, list) or len(lines) != 2:
@@ -251,9 +258,10 @@ def check(grid: dict[str, Any], expected: Any, pieces: list[Any]) -> dict[str, A
     preuve (le morceau cite la bonne ligne) et sur les éléments sains (aucun ne doit être déplacé)."""
     _validate_expected(grid, expected)
     rows = [(piece, place_piece(grid, piece)) for piece in pieces]
+    create = expected.get("mode", "review") == "create"
     traps, healthy = [], []
     for spec in expected["traps"]:
-        got = _moves([row for piece, row in rows if _cites(piece, spec)])
+        got = _moves([row for piece, row in rows if _cites(piece, spec)], create)
         status = "found" if any(d in spec["accept"] for d in got) else "wrong" if any(
             _cites(piece, spec) for piece, _ in rows) else "missed"
         traps.append({"id": spec["id"], "what": spec.get("what", ""), "status": status, "got": got,

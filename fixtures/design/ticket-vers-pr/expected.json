@@ -1,0 +1,18 @@
+{
+  "mode": "create",
+  "holdout": true,
+  "traps": [
+    {"id": "C1", "what": "Lire un système externe", "file": "demande.md", "lines": [5, 5], "accept": ["mcp"]},
+    {"id": "C2", "what": "Une pré-condition que l'agent ne doit pas pouvoir oublier", "file": "demande.md", "lines": [6, 6], "accept": ["hook_check", "hook_compute", "cli", "ci_check"]},
+    {"id": "C3", "what": "Une procédure", "file": "demande.md", "lines": [7, 7], "accept": ["skill"]},
+    {"id": "C4", "what": "Un calcul", "file": "demande.md", "lines": [8, 8], "accept": ["cli", "hook_compute", "workflow"]},
+    {"id": "C5", "what": "Une limite que personne ne contourne", "file": "demande.md", "lines": [9, 9], "accept": ["server_protection", "managed"]},
+    {"id": "C6", "what": "Une limite de l'agent seul", "file": "demande.md", "lines": [10, 10], "accept": ["permission"]},
+    {"id": "C7", "what": "Une règle vérifiable que personne ne contourne", "file": "demande.md", "lines": [11, 11], "accept": ["ci_check", "org_check", "server_protection"]},
+    {"id": "C8", "what": "Un regard indépendant", "file": "demande.md", "lines": [12, 12], "accept": ["subagent"]},
+    {"id": "C9", "what": "Un jugement laissé à l'agent", "file": "demande.md", "lines": [13, 13], "accept": ["session", "skill"]},
+    {"id": "C10", "what": "Écrire dans un système externe", "file": "demande.md", "lines": [14, 14], "accept": ["mcp"]},
+    {"id": "C11", "what": "Ce que l'agent trouve seul", "file": "demande.md", "lines": [15, 15], "accept": ["nothing"]},
+    {"id": "C12", "what": "Une convention propre à un dossier", "file": "demande.md", "lines": [16, 16], "accept": ["agents_md_zone", "agents_md"]}
+  ]
+}

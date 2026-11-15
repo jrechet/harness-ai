@@ -252,6 +252,24 @@ class CheckTests(unittest.TestCase):
         moved = {**SOUND, "answers": {"nature": "procedure"}, "current": "agents_md"}
         self.assertEqual(place.check(GRID, expected, [TRAP, moved])["healthy"][0]["status"], "flagged")
 
+    def test_in_create_mode_a_piece_without_current_is_found_by_its_destination(self):
+        expected = {"mode": "create", "traps": [{"id": "C1", "what": "calcul", "file": "demande.md",
+                                                 "lines": [3, 3], "accept": ["cli"]}]}
+        piece = {"piece": "Nom de branche", "answers": {"nature": "compute", "when": "on_demand"},
+                 "evidence": ["demande.md:3"]}
+        self.assertTrue(place.check(GRID, expected, [piece])["passed"])
+        wrong = {**piece, "answers": {"nature": "procedure"}}
+        result = place.check(GRID, expected, [wrong])
+        self.assertEqual((result["traps"][0]["status"], result["traps"][0]["got"]), ("wrong", ["skill"]))
+
+    def test_in_review_mode_a_piece_without_current_finds_nothing(self):
+        piece = {k: v for k, v in TRAP.items() if k != "current"}
+        self.assertEqual(place.check(GRID, EXPECTED, [piece])["traps"][0]["status"], "wrong")
+
+    def test_an_unknown_mode_is_refused(self):
+        with self.assertRaises(ValueError):
+            place.check(GRID, {**EXPECTED, "mode": "devine"}, [TRAP])
+
     def test_an_unknown_nature_in_the_expected_file_is_refused(self):
         broken = json.loads(json.dumps(EXPECTED))
         broken["healthy"][0]["natures"] = ["poesie"]
@@ -276,7 +294,7 @@ class DesignFixtureTests(unittest.TestCase):
                 root = os.path.join(FIXTURES, name)
                 with open(os.path.join(root, "expected.json"), encoding="utf-8") as fh:
                     expected = json.load(fh)
-                for spec in expected["traps"] + expected["healthy"]:
+                for spec in expected["traps"] + expected.get("healthy", []):
                     with open(os.path.join(root, "artifact", spec["file"]), encoding="utf-8") as fh:
                         self.assertLessEqual(spec["lines"][1], len(fh.readlines()), spec["id"])
                 # Tout chemin de workflow cité par l'artefact existe : sinon l'agent ne peut pas le vérifier.
