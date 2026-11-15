@@ -81,6 +81,22 @@
         "server_protection",
         "managed"
       ]
+    },
+    {
+      "id": "T7",
+      "what": "Une pré-condition sans gravité, que l'agent ne doit pas pouvoir oublier",
+      "file": ".claude/skills/release/SKILL.md",
+      "lines": [
+        19,
+        19
+      ],
+      "accept": [
+        "hook_check",
+        "hook_compute",
+        "cli",
+        "ci_check",
+        "release_gate"
+      ]
     }
   ],
   "healthy": [

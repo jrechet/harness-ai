@@ -1,14 +1,124 @@
 [
-  {"piece": "Lire le ticket Jira et ses critères d'acceptation", "answers": {"nature": "action", "access": "consult"}, "evidence": ["demande.md:5"]},
-  {"piece": "Pas de travail sans critères d'acceptation", "answers": {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "agent"}, "evidence": ["demande.md:6"]},
-  {"piece": "Branche, tests d'abord, code, PR", "answers": {"nature": "procedure"}, "evidence": ["demande.md:7"]},
-  {"piece": "Nom de branche déduit du ticket", "answers": {"nature": "compute", "when": "on_demand"}, "evidence": ["demande.md:8"]},
-  {"piece": "Pas de fusion de sa propre PR ni sans approbation", "answers": {"nature": "limit", "bypass_limit": "dev"}, "evidence": ["demande.md:9"]},
-  {"piece": "L'agent ne modifie pas .github/workflows/", "answers": {"nature": "limit", "bypass_limit": "agent"}, "evidence": ["demande.md:10"]},
-  {"piece": "Aucune PR ne fusionne avec des tests rouges", "answers": {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "dev"}, "evidence": ["demande.md:11"]},
-  {"piece": "Relire le diff contre les critères, d'un regard neuf", "answers": {"nature": "judgment", "isolation": "independence"}, "evidence": ["demande.md:12"]},
-  {"piece": "Découper en commits", "answers": {"nature": "judgment", "isolation": "none"}, "evidence": ["demande.md:13"]},
-  {"piece": "Commenter le ticket avec le lien de la PR", "answers": {"nature": "action", "access": "write"}, "evidence": ["demande.md:14"]},
-  {"piece": "Le projet est en TypeScript avec pnpm", "answers": {"nature": "knowledge", "scope": "discoverable"}, "evidence": ["demande.md:15"]},
-  {"piece": "Une migration existante ne se modifie pas", "answers": {"nature": "knowledge", "scope": "zone"}, "evidence": ["demande.md:16"]}
+  {
+    "piece": "Lire le ticket Jira et ses critères d'acceptation",
+    "answers": {
+      "nature": "action",
+      "access": "consult"
+    },
+    "evidence": [
+      "demande.md:5"
+    ]
+  },
+  {
+    "piece": "Pas de travail sans critères d'acceptation",
+    "answers": {
+      "nature": "rule",
+      "incident": "no",
+      "scope": "always"
+    },
+    "evidence": [
+      "demande.md:6"
+    ]
+  },
+  {
+    "piece": "Branche, tests d'abord, code, PR",
+    "answers": {
+      "nature": "procedure"
+    },
+    "evidence": [
+      "demande.md:7"
+    ]
+  },
+  {
+    "piece": "Nom de branche déduit du ticket",
+    "answers": {
+      "nature": "compute",
+      "when": "on_demand"
+    },
+    "evidence": [
+      "demande.md:8"
+    ]
+  },
+  {
+    "piece": "Pas de fusion de sa propre PR ni sans approbation",
+    "answers": {
+      "nature": "limit",
+      "bypass_limit": "dev"
+    },
+    "evidence": [
+      "demande.md:9"
+    ]
+  },
+  {
+    "piece": "L'agent ne modifie pas .github/workflows/",
+    "answers": {
+      "nature": "limit",
+      "bypass_limit": "agent"
+    },
+    "evidence": [
+      "demande.md:10"
+    ]
+  },
+  {
+    "piece": "Aucune PR ne fusionne avec des tests rouges",
+    "answers": {
+      "nature": "rule",
+      "incident": "yes",
+      "checkable": "yes",
+      "bypass_rule": "dev"
+    },
+    "evidence": [
+      "demande.md:11"
+    ]
+  },
+  {
+    "piece": "Relire le diff contre les critères, d'un regard neuf",
+    "answers": {
+      "nature": "judgment",
+      "isolation": "independence"
+    },
+    "evidence": [
+      "demande.md:12"
+    ]
+  },
+  {
+    "piece": "Découper en commits",
+    "answers": {
+      "nature": "judgment",
+      "isolation": "none"
+    },
+    "evidence": [
+      "demande.md:13"
+    ]
+  },
+  {
+    "piece": "Commenter le ticket avec le lien de la PR",
+    "answers": {
+      "nature": "action",
+      "access": "write"
+    },
+    "evidence": [
+      "demande.md:14"
+    ]
+  },
+  {
+    "piece": "Le projet est en TypeScript avec pnpm",
+    "answers": {
+      "nature": "knowledge",
+      "scope": "discoverable"
+    },
+    "evidence": [
+      "demande.md:15"
+    ]
+  },
+  {
+    "piece": "Une migration existante ne se modifie pas",
+    "answers": {
+      "nature": "knowledge",
+      "scope": "zone"
+    },
+    "evidence": [
+      "demande.md:16"
+    ]
+  }
 ]
