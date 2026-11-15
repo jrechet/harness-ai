@@ -19,6 +19,16 @@
           }
         ]
       }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/cli/harness.py\" fresh \"$CLAUDE_PROJECT_DIR\" --hook"
+          }
+        ]
+      }
     ]
   }
 }

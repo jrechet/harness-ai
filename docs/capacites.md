@@ -18,6 +18,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | Faire naître des règles de ce qui s'est passé (revues, corrections, checks rouges) | skill `harness-harvest`, `harness harvest github` | outillé, jamais joué |
 | Auditer un harness, classer chaque élément L1 à L4, proposer les retraits | skill `harness-audit`, `harness rules` | mesuré une fois sur deux projets |
 | Proposer les commandes qu'un agent ne devine pas | `harness commands`, appelé par init et audit | outillé |
+| Dire ce qui a vieilli : un skill ou un agent qui cite un fichier disparu ou modifié depuis, un harvest en retard | `harness fresh`, hook de début de session | outillé |
 | Suivre l'état dans une application locale | `harness serve` | outillé |
 | Dire le niveau en médaille, succès débloqués et prochaines étapes, avec une page interactive | skill `harness-medals`, `harness medals`, `.harness/medals.json` | outillé |
 
@@ -76,7 +77,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | M1 | Proposer les commandes exactes qu'un AGENTS.md devrait dire | fait | 2026-11-15 | `harness commands` ; init et audit l'appellent, sans exécution à l'aveugle depuis |
 | M2 | Proposer le code trompeur (un dossier qui a l'air mort et sert encore) | à faire | 2026-11-15 | Même modèle : des candidates posées en questions |
 | M3 | Noter dans les corrigés les lignes qui auraient dû être proposées | en attente | 2026-11-15 | Modifier un corrigé change toutes les notes : décision du propriétaire |
-| B1 | Boucle contre l'obsolescence des skills et des agents : `harness fresh` et un hook de début de session | en cours | 2026-11-15 | Branche `feat/harness-fresh` : commande codée, essayée sur ce dépôt ; tests, hook et relecture à faire |
+| B1 | Boucle contre l'obsolescence des skills et des agents : `harness fresh` et un hook de début de session | fait | 2026-11-15 | `harness fresh`, hook `SessionStart` de ce dépôt, succès « hors rang » des médailles. Pas de consigne « post-usage » dans chaque skill ni de skill `/refresh` : du texte qu'un agent saute, et un doublon de harvest |
 | G1 | Médailles (bronze, argent, or, platine), succès débloqués, page HTML interactive tirée de données dures | fait | 2026-11-15 | `harness medals`, skill `harness-medals`, `docs/exemples/medailles.html` ; pour un dépôt et pour une marketplace. Page regardée en clair et en sombre, bureau et mobile, dans un seul navigateur |
 | G2 | La description de `harness-audit` dit quand ne pas l'utiliser (dernier succès d'argent de la marketplace) | à faire | 2026-11-15 | `harness medals --kind marketplace` : 9 succès sur 10 ; ce skill est à l'autre session |
 | P1 | Ce document, et le hook qui oblige à tenir son plan | fait | 2026-11-15 | `harness progress check`, `.claude/settings.json` |
