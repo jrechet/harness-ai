@@ -10,11 +10,14 @@ Un skill de release qui fait tout, son sous-agent et deux règles d'AGENTS.md. M
 | T4 | `SKILL.md:16` | `npm publish` avec le jeton copié sur le poste | Livraison avec droits : workflow ; la permission ou la protection serveur sont acceptées pour le jeton |
 | T5 | `SKILL.md:8` | L'arborescence du dépôt | Rien à écrire |
 | T6 | `AGENTS.md:6` | « L'agent ne lit jamais .npmrc.publish » | Limite de l'agent : permission |
-| S1 | `SKILL.md:15` | Étape de procédure | Sain : reste dans le skill |
 | S2 | `SKILL.md:17` | Rédiger l'annonce | Sain : jugement de l'agent, décrit par le skill (`current: session`) |
 | S3 | `release-reviewer.md` | Sous-agent en lecture seule, regard indépendant | Sain |
 | S4 | `AGENTS.md:7` | Règle qui cite son check CI | Sain : le check existe, la ligne le cite (`current: ci_check`) |
 
-Le noteur est généreux sur la destination (plusieurs sont acceptées), strict sur la preuve (le morceau doit citer la bonne ligne) et sur les éléments sains (aucun ne doit recevoir un verdict autre que KEEP).
+Le noteur est généreux sur la destination (plusieurs sont acceptées), strict sur la preuve (le morceau doit citer la bonne ligne) et sur les éléments sains (aucun ne doit recevoir un verdict autre que KEEP). Un élément sain porte sa nature : un morceau d'une autre nature tiré de la même ligne est un autre morceau.
 
 `request.md` et `artifact/` se donnent à l'agent évalué ; `traps.md`, `expected.json` et `runs/` jamais. `runs/2026-11-15-author/` est le plan de l'auteur des pièges : une base de régression, pas une mesure.
+
+## Révisions
+
+- 2026-11-15, après la première exécution à l'aveugle (`runs/2026-11-15-blind`) : S1 (« taguer et pousser », ligne 15) est retiré, c'est une livraison dans la grille de harness-audit et non un élément sain ; le workflow que cite `AGENTS.md:7` est ajouté à `artifact/`, sans lui S4 n'était pas vérifiable ; le noteur distingue par leur nature deux morceaux tirés d'une même ligne. Les exécutions d'avant cette date ne se comparent pas à celles d'après.

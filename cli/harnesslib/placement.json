@@ -16,7 +16,8 @@
     "access": {
       "text": "Que fait-il avec ces droits ?",
       "options": {
-        "consult": {"label": "L'agent lit ou commente un système externe pendant son travail : ticket, page de documentation, API interne.", "place": "mcp"},
+        "consult": {"label": "L'agent lit un système externe pendant son travail : ticket, page de documentation, API interne.", "place": "mcp"},
+        "write": {"label": "L'agent écrit dans un système externe pendant son travail : commenter un ticket, poster un message, créer une page.", "place": "mcp"},
         "deliver": {"label": "Il construit, étiquette, publie ou déploie : une ressource partagée change.", "place": "pipeline"}
       }
     },
@@ -82,7 +83,7 @@
     "mcp": {
       "name": "Serveur MCP",
       "layer": "L4",
-      "where": "Un serveur MCP déclaré pour le dépôt ; ses droits (lecture, commentaire) se règlent sur le compte du serveur, pas dans un prompt.",
+      "where": "Un serveur MCP déclaré pour le dépôt ; ses droits (lecture seule, ou écriture bornée à un projet ou à un canal) se règlent sur le compte du serveur, pas dans un prompt.",
       "why": "Un droit tenu par le serveur vaut quel que soit le prompt. Ce que l'agent y lit est une donnée, pas une instruction : un ticket peut porter une injection.",
       "also": "Une permission deny sur les outils d'écriture du serveur, en second rideau."
     },

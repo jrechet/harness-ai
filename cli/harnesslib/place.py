@@ -208,7 +208,13 @@ def place_piece(grid: dict[str, Any], item: Any) -> dict[str, Any]:
 # --- Noter un plan contre le corrigé d'une fixture -------------------------------------------------
 
 def _cites(piece: dict[str, Any], spec: dict[str, Any]) -> bool:
-    """Le morceau cite-t-il une ligne de la plage attendue ? La preuve est `chemin:ligne`."""
+    """Le morceau cite-t-il une ligne de la plage attendue ? La preuve est `chemin:ligne`. Si le corrigé
+    donne des `natures`, seul un morceau de l'une d'elles compte : deux morceaux tirés d'une même ligne
+    ne sont pas le même morceau."""
+    natures = spec.get("natures")
+    answers = piece.get("answers") if isinstance(piece.get("answers"), dict) else {}
+    if natures and fold(answers.get("nature", "")) not in natures:
+        return False
     evidence = piece.get("evidence", [])
     for entry in evidence if isinstance(evidence, list) else [evidence]:
         path, _, line = str(entry).rpartition(":")
@@ -231,6 +237,10 @@ def _validate_expected(grid: dict[str, Any], expected: Any) -> None:
         lines = spec.get("lines")
         if not spec.get("id") or not spec.get("file") or not isinstance(lines, list) or len(lines) != 2:
             raise ValueError(f"corrigé : {spec.get('id', '?')} a un id, un file et lines [début, fin]")
+        natures = grid["questions"][grid["root"]]["options"]
+        strangers = [n for n in spec.get("natures", []) if n not in natures]
+        if strangers:
+            raise ValueError(f"corrigé : {spec['id']} cite la nature {', '.join(strangers)}, inconnue")
         unknown = [d for d in spec.get("accept", []) if d not in grid["destinations"]]
         if unknown:
             raise ValueError(f"corrigé : {spec['id']} accepte {', '.join(unknown)}, destination inconnue")

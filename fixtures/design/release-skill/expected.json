@@ -1,16 +1,123 @@
 {
   "traps": [
-    {"id": "T1", "what": "Une limite que personne ne doit contourner, racontée dans le skill", "file": ".claude/skills/release/SKILL.md", "lines": [14, 14], "accept": ["server_protection", "managed"]},
-    {"id": "T2", "what": "Un calcul de version écrit en prose", "file": ".claude/skills/release/SKILL.md", "lines": [12, 12], "accept": ["cli", "hook_compute", "workflow"]},
-    {"id": "T3", "what": "Une vérification obligatoire racontée comme une étape", "file": ".claude/skills/release/SKILL.md", "lines": [13, 13], "accept": ["ci_check", "hook_check", "org_check"]},
-    {"id": "T4", "what": "Une publication avec jeton faite depuis le poste de l'agent", "file": ".claude/skills/release/SKILL.md", "lines": [16, 16], "accept": ["pipeline", "permission", "server_protection"]},
-    {"id": "T5", "what": "L'arborescence, que l'agent trouve seul", "file": ".claude/skills/release/SKILL.md", "lines": [8, 8], "accept": ["nothing"]},
-    {"id": "T6", "what": "Une limite de l'agent écrite comme une règle d'AGENTS.md", "file": "AGENTS.md", "lines": [6, 6], "accept": ["permission", "server_protection", "managed"]}
+    {
+      "id": "T1",
+      "what": "Une limite que personne ne doit contourner, racontée dans le skill",
+      "file": ".claude/skills/release/SKILL.md",
+      "lines": [
+        14,
+        14
+      ],
+      "accept": [
+        "server_protection",
+        "managed"
+      ]
+    },
+    {
+      "id": "T2",
+      "what": "Un calcul de version écrit en prose",
+      "file": ".claude/skills/release/SKILL.md",
+      "lines": [
+        12,
+        12
+      ],
+      "accept": [
+        "cli",
+        "hook_compute",
+        "workflow"
+      ]
+    },
+    {
+      "id": "T3",
+      "what": "Une vérification obligatoire racontée comme une étape",
+      "file": ".claude/skills/release/SKILL.md",
+      "lines": [
+        13,
+        13
+      ],
+      "accept": [
+        "ci_check",
+        "hook_check",
+        "org_check"
+      ]
+    },
+    {
+      "id": "T4",
+      "what": "Une publication avec jeton faite depuis le poste de l'agent",
+      "file": ".claude/skills/release/SKILL.md",
+      "lines": [
+        16,
+        16
+      ],
+      "accept": [
+        "pipeline",
+        "permission",
+        "server_protection"
+      ]
+    },
+    {
+      "id": "T5",
+      "what": "L'arborescence, que l'agent trouve seul",
+      "file": ".claude/skills/release/SKILL.md",
+      "lines": [
+        8,
+        8
+      ],
+      "accept": [
+        "nothing"
+      ]
+    },
+    {
+      "id": "T6",
+      "what": "Une limite de l'agent écrite comme une règle d'AGENTS.md",
+      "file": "AGENTS.md",
+      "lines": [
+        6,
+        6
+      ],
+      "accept": [
+        "permission",
+        "server_protection",
+        "managed"
+      ]
+    }
   ],
   "healthy": [
-    {"id": "S1", "what": "Une étape de procédure, dans le skill", "file": ".claude/skills/release/SKILL.md", "lines": [15, 15]},
-    {"id": "S2", "what": "Un jugement laissé à l'agent, décrit par le skill", "file": ".claude/skills/release/SKILL.md", "lines": [17, 17]},
-    {"id": "S3", "what": "Un sous-agent de relecture indépendante, en lecture seule", "file": ".claude/agents/release-reviewer.md", "lines": [1, 9]},
-    {"id": "S4", "what": "Une règle d'AGENTS.md portée par un check CI qu'elle cite", "file": "AGENTS.md", "lines": [7, 7]}
+    {
+      "id": "S2",
+      "what": "Un jugement laissé à l'agent, décrit par le skill",
+      "file": ".claude/skills/release/SKILL.md",
+      "lines": [
+        17,
+        17
+      ],
+      "natures": [
+        "judgment"
+      ]
+    },
+    {
+      "id": "S3",
+      "what": "Un sous-agent de relecture indépendante, en lecture seule",
+      "file": ".claude/agents/release-reviewer.md",
+      "lines": [
+        1,
+        9
+      ],
+      "natures": [
+        "judgment"
+      ]
+    },
+    {
+      "id": "S4",
+      "what": "Une règle d'AGENTS.md portée par un check CI qu'elle cite",
+      "file": "AGENTS.md",
+      "lines": [
+        7,
+        7
+      ],
+      "natures": [
+        "rule"
+      ]
+    }
   ]
 }
