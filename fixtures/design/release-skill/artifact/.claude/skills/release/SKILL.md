@@ -16,3 +16,4 @@ Structure du dépôt : `src/` le code, `test/` les tests, `dist/` le build, `pac
 5. Publie avec `npm publish`. Le jeton du registre est dans `.npmrc.publish` : copie-le dans `.npmrc` le temps de la commande, puis retire-le.
 6. Rédige l'annonce pour le canal `#releases` : ce qui change pour un utilisateur, en trois lignes au plus, sans reprendre le changelog mot pour mot.
 7. Fais relire l'annonce par le sous-agent `release-reviewer` avant de l'envoyer.
+8. Ne commence pas une release s'il reste des fichiers non commités : vérifie avec `git status` et arrête-toi s'il y en a.

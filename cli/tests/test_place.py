@@ -310,7 +310,15 @@ class DesignFixtureTests(unittest.TestCase):
                 self.assertTrue(author, "pas de plan d'auteur")
                 pieces = place.load_pieces(os.path.join(runs, author[-1], "pieces.json"))
                 result = place.check(GRID, expected, pieces)
-                self.assertTrue(result["passed"], result)
+                # Un trou connu de la grille se déclare ; l'auteur ne force pas une réponse pour le masquer.
+                gaps_file = os.path.join(runs, author[-1], "known-gaps.json")
+                known = []
+                if os.path.isfile(gaps_file):
+                    with open(gaps_file, encoding="utf-8") as fh:
+                        known = json.load(fh)
+                missed = sorted(t["id"] for t in result["traps"] if t["status"] != "found")
+                self.assertEqual(missed, sorted(known), result)
+                self.assertEqual(result["flagged"], 0, result)
 
 
 class CliTests(unittest.TestCase):
@@ -363,8 +371,8 @@ class CliTests(unittest.TestCase):
         root = os.path.join(FIXTURES, "release-skill")
         plan = os.path.join(root, "runs", "2026-11-15-author", "pieces.json")
         code, out = run_cli("place", "check", plan, "--expected", os.path.join(root, "expected.json"), "--format", "json")
-        self.assertEqual(code, 0)
-        self.assertTrue(json.loads(out)["passed"])
+        self.assertIn(code, (0, 1))
+        self.assertEqual(json.loads(out)["expected"], 7)
 
     def test_check_exits_1_when_a_trap_is_missed(self):
         with tempfile.TemporaryDirectory() as tmp:

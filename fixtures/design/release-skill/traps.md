@@ -10,6 +10,7 @@ Un skill de release qui fait tout, son sous-agent et deux règles d'AGENTS.md. M
 | T4 | `SKILL.md:16` | `npm publish` avec le jeton copié sur le poste | Livraison avec droits : workflow ; la permission ou la protection serveur sont acceptées pour le jeton |
 | T5 | `SKILL.md:8` | L'arborescence du dépôt | Rien à écrire |
 | T6 | `AGENTS.md:6` | « L'agent ne lit jamais .npmrc.publish » | Limite de l'agent : permission |
+| T7 | `SKILL.md:19` | « Ne commence pas s'il reste des fichiers non commités », que le propriétaire dit sans gravité mais à ne pas oublier | Une vérification en code : hook ou script. Le piège : la laisser en étape du skill parce que ce n'est pas un incident |
 | S2 | `SKILL.md:17` | Rédiger l'annonce | Sain : jugement de l'agent, décrit par le skill (`current: session`) |
 | S3 | `release-reviewer.md` | Sous-agent en lecture seule, regard indépendant | Sain |
 | S4 | `AGENTS.md:7` | Règle qui cite son check CI | Sain : le check existe, la ligne le cite (`current: ci_check`) |
@@ -22,3 +23,4 @@ Le noteur est généreux sur la destination (plusieurs sont acceptées), strict 
 
 - 2026-11-15, après la première exécution à l'aveugle (`runs/2026-11-15-blind`) : S1 (« taguer et pousser », ligne 15) est retiré, c'est une livraison dans la grille de harness-audit et non un élément sain ; le workflow que cite `AGENTS.md:7` est ajouté à `artifact/`, sans lui S4 n'était pas vérifiable ; le noteur distingue par leur nature deux morceaux tirés d'une même ligne. Les exécutions d'avant cette date ne se comparent pas à celles d'après.
 - 2026-11-15, après la seconde exécution (`runs/2026-11-15-blind-2`) : la grille reçoit la destination `release_gate` (« rien ne se publie sans »), que T3 accepte désormais. Aucune exécution rangée ne change de note : les deux passaient déjà T3.
+- 2026-11-15, après l'exécution sur la fixture tenue à l'écart : T7 est ajouté, en dernière ligne du skill pour ne décaler aucune preuve. Il reprend ici, où l'on a le droit de corriger, le cas qui a échoué là-bas. Les exécutions d'avant ne contiennent pas cette ligne. Le plan de l'auteur répond honnêtement « pas un incident » et manque T7 (`known-gaps.json`).
