@@ -73,7 +73,7 @@ Un second plugin, dans `plugins/ai-sdlc/`, outille les phases du cycle de dével
 
 | Pièce | Rôle |
 |---|---|
-| [`dev`](plugins/ai-sdlc/skills/dev/SKILL.md) | Développe un ticket jusqu'à la PR, sur le chemin que sa taille impose. Ne fusionne jamais. Pas encore mesuré sur une fixture. |
+| [`dev`](plugins/ai-sdlc/skills/dev/SKILL.md) | Développe un ticket jusqu'à la PR, sur le chemin que sa taille impose. Ne fusionne jamais. Mesuré une fois : deux tickets conformes. |
 | [`review`](plugins/ai-sdlc/skills/review/SKILL.md) | Relit une PR avec la checklist du socle et celle de l'équipe. Peu de commentaires, chacun prouvé. Ne fait que commenter. |
 | `ai_sdlc.py context <phase>` | Assemble le socle et les ajouts de l'équipe (`docs/agents/<point>.md`), avec leur provenance. Une surcharge de porte se lit sur la branche de base ; une surcharge invalide arrête tout. |
 | `ai_sdlc.py status` | Liste les points d'extension : convention du framework, surchargé, ou invalide. Aucun fichier n'est créé d'avance. |

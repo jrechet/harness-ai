@@ -35,7 +35,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 |---|---|---|
 | Assembler le socle et les ajouts d'une équipe, lus sur la branche de base | `ai_sdlc.py context`, `status`, sept points d'extension | outillé |
 | Relire une PR : peu de constats, chacun sur une ligne du diff | skill `review`, sous-agent `reviewer`, `review render` | mesuré une fois : 6 pièges requis sur 6 |
-| Développer un ticket sur le chemin de sa taille | skill `dev`, `size`, `dev body` | outillé, jamais joué à l'aveugle |
+| Développer un ticket sur le chemin de sa taille | skill `dev`, `size`, `dev body` | mesuré une fois : deux tickets conformes |
 
 ### Mesurer les skills eux-mêmes
 
@@ -68,7 +68,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | S2 | Skill `review`, rendu par le CLI, PR piégée, première mesure | fait | 2026-11-15 | PR 23 et 24 ; une seule exécution, fixture sans doute trop facile |
 | S3 | Skill `dev`, taille calculée, corps de PR | fait | 2026-11-15 | PR 25 ; jamais joué |
 | S4 | Fixture et noteur pour mesurer `dev` | fait | 2026-11-15 | `fixtures/dev/facturation`, `fixture grade-dev` ; le travail de l'auteur passe, c'est une base de régression |
-| S8 | Jouer `dev` à l'aveugle sur ses deux tickets | en attente | 2026-11-15 | Une exécution à l'aveugle ne se lance qu'à la demande du propriétaire |
+| S8 | Jouer `dev` à l'aveugle sur ses deux tickets | fait | 2026-11-15 | `fixtures/dev/facturation/runs/2026-11-15-blind` : 12 sur 12 et 4 sur 4. Une exécution par ticket, plugin copié et non installé |
 | S5 | Skills `qa` et `ticket` | à faire | 2026-11-14 | Ordre fixé par la proposition |
 | S6 | Skills `secu`, `ship`, `run` | à faire | 2026-11-14 | Viennent en dernier |
 | S7 | Installer le plugin depuis la marketplace et éprouver `${CLAUDE_PLUGIN_ROOT}` | à faire | 2026-11-15 | Jamais vérifié |

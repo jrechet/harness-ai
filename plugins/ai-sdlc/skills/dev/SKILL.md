@@ -22,7 +22,7 @@ Lis-le là où il vit : le serveur MCP du gestionnaire de tickets s'il est décl
 Trouve la branche cible (celle où la PR sera fusionnée ; à défaut, demande). Puis :
 `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" context dev . --base <base>`
 
-Il rend la définition de fini et les zones sensibles, celles du socle puis celles de l'équipe. **Code 2** : une surcharge est invalide, arrête-toi et montre le message. Lis aussi `AGENTS.md` : ses Interdits, et le tableau qui dit quoi lancer.
+Il rend la définition de fini et les zones sensibles, celles du socle puis celles de l'équipe. Tant que ta branche n'a aucun commit, il prévient que la base « est le commit relu lui-même » et que le contexte « ne vaut pas pour une porte » : c'est attendu ici, ces avertissements concernent la revue. **Code 2** : une surcharge est invalide, arrête-toi et montre le message. Lis aussi `AGENTS.md` : ses Interdits, et le tableau qui dit quoi lancer.
 
 Travaille sur une branche à toi, créée depuis la base. Jamais sur la base.
 
@@ -32,8 +32,8 @@ Liste les fichiers que tu comptes toucher, puis :
 
 **Code 2** : une ligne de `docs/agents/zones-sensibles.md` est illisible, ou un chemin sort du dépôt. Arrête-toi et montre le message.
 
-- **Taille L** (un chemin est en zone sensible) : écris le plan dans `docs/plans/<ticket>.md` (le but, les étapes, ce qui peut casser, comment revenir en arrière), commite-le seul, montre-le et **arrête-toi**. Tu ne codes qu'après l'accord explicite d'un humain sur ce plan.
-- **Pas encore tranchée** : c'est XS ou S–M. Si le changement tient en une phrase et quelques lignes, code. Sinon écris le plan en trois à six étapes et montre-le ; si la sortie de `context` dit que le palier requis n'est pas atteint, attends l'accord avant de coder.
+- **Taille L** (un chemin est en zone sensible) : écris le plan dans `docs/plans/<ticket>.md` (le but, les étapes, ce qui peut casser, comment revenir en arrière), commite-le seul, montre-le et **arrête-toi**. Tu ne codes qu'après l'accord explicite d'un humain sur ce plan. Montrer, c'est donner son chemin et le résumer en cinq lignes. Ne relance pas `size` sur ce commit : il ne mesure que le plan, et sa réponse ne rouvre pas le chemin court.
+- **Pas encore tranchée** : c'est XS ou S–M. Si tu prévois de rester sous les seuils de XS (deux fichiers et dix lignes changées au plus, tests compris), code. Sinon écris le plan en trois à six étapes et montre-le ; si la sortie de `context` dit que le palier requis n'est pas atteint, attends l'accord avant de coder.
 
 ### 4. Coder
 - Un comportement qui change a un test, écrit d'abord et vu échouer.

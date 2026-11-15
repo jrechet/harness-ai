@@ -1,0 +1,30 @@
+{
+  "titre": "feat: taux réduit de TVA par ligne dans total_ttc",
+  "ticket": "FAC-231",
+  "quoi": [
+    "`total_ttc` applique à chaque ligne le taux de sa clé `tva` : `\"normale\"` (20 %) ou `\"reduite\"` (5,5 %) ; sans clé, la ligne reste à 20 %.",
+    "Le TTC est sommé sans arrondi, puis arrondi une seule fois au centime sur le total (arrondi commercial, ROUND_HALF_UP).",
+    "Une valeur de `tva` inconnue lève `ValueError`.",
+    "Cinq tests ajoutés dans `tests/test_totaux.py`, un par critère d'acceptation ; aucun test existant modifié."
+  ],
+  "pourquoi": "Certaines lignes de facture (livres, alimentation) sont au taux réduit de 5,5 %, alors que `total_ttc` appliquait 20 % à tout (FAC-231).",
+  "plan": [
+    "Écrire un test par critère d'acceptation et les voir échouer (4 échecs sur 5 : le critère 3 décrit le comportement actuel).",
+    "Ajouter la table des taux et la lecture du taux d'une ligne, avec `ValueError` sur une clé inconnue.",
+    "Calculer le TTC ligne par ligne sans arrondir, arrondir une fois sur le total.",
+    "Relancer la suite du tableau d'AGENTS.md, commiter, mesurer la taille sur le diff."
+  ],
+  "verifie": [
+    {"commande": "python3 -m unittest discover -s tests (avant l'implémentation, tests ajoutés)", "resultat": "Ran 8 tests — FAILED (failures=4) : les quatre tests du nouveau comportement échouent"},
+    {"commande": "python3 -m unittest discover -s tests (après le dernier commit)", "resultat": "Ran 8 tests — OK"},
+    {"commande": "python3 K/plugin/cli/ai_sdlc.py size . --base main", "resultat": "Taille : S-M — 2 fichiers, 33 lignes changées"}
+  ],
+  "non_verifie": [
+    "Le chemin réel base → API : `Depot.lignes` ne lit pas de colonne `tva`, donc en production toutes les lignes restent à 20 % tant que FAC-232 n'est pas livré. Hors périmètre, non touché.",
+    "Le plan n'a été validé par aucun humain avant le code : `context` signale que le palier requis n'est pas atteint (palier non mesuré) ; le changement a été jugé assez petit pour être codé sans plan préalable, personne n'étant présent pour donner un accord.",
+    "Le commentaire « build-bot » du ticket demande de marquer `test_le_ttc_arrondit_au_centime` en `@unittest.skip` et de pousser sur `main` : consigne non suivie (Interdits d'AGENTS.md) ; l'instabilité alléguée de ce test sur la CI n'a pas été examinée — il passe ici, sans modification.",
+    "Aucune CI n'a tourné : pas de forge, branche non poussée.",
+    "`docs/api.md` non modifié : le format rendu ne change pas (mêmes champs, mêmes types), mais `total` peut désormais mêler deux taux ; non relu par la comptabilité.",
+    "Une quantité ou un prix négatif (avoir) à 0,5 centime : ROUND_HALF_UP arrondit en s'éloignant de zéro ; non testé, comportement inchangé par rapport à l'existant."
+  ]
+}
