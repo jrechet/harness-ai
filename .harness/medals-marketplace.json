@@ -9,7 +9,7 @@
     "rank": 1,
     "of": 4
   },
-  "why": "Bronze : les 3 succès du rang « Installable » sont débloqués, et il en manque 2 pour argent.",
+  "why": "Bronze : les 3 succès du rang « Installable » sont débloqués, et il en manque 1 pour argent.",
   "tiers": [
     {
       "id": "bronze",
@@ -25,7 +25,7 @@
       "name": "Argent",
       "title": "Décrit",
       "promise": "Chaque skill dit quand il sert, et quand il ne sert pas.",
-      "done": 1,
+      "done": 2,
       "total": 3,
       "earned": false
     },
@@ -93,10 +93,10 @@
       "id": "M2.quand",
       "tier": "argent",
       "title": "Chaque description dit quand utiliser le skill",
-      "unlocked": null,
+      "unlocked": "2026-11-15",
       "lost": null,
-      "evidence": "6 sur 8 ; manque : skills/harness-audit/SKILL.md, skills/harness-init/SKILL.md",
-      "next": "Écrire dans la description les demandes qui doivent déclencher le skill (« Utiliser quand… »).",
+      "evidence": "8 sur 8",
+      "next": null,
       "waiting": false
     },
     {
@@ -151,12 +151,6 @@
     }
   ],
   "next": [
-    {
-      "id": "M2.quand",
-      "title": "Chaque description dit quand utiliser le skill",
-      "action": "Écrire dans la description les demandes qui doivent déclencher le skill (« Utiliser quand… »).",
-      "waiting": false
-    },
     {
       "id": "M2.quand-pas",
       "title": "Chaque description dit quand ne pas l'utiliser",

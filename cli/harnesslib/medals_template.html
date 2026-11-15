@@ -18,6 +18,7 @@
   --metal-1: oklch(70% 0.02 80);
   --metal-2: oklch(88% 0.015 80);
   --metal-3: oklch(52% 0.02 80);
+  --accent: var(--metal-3);
   --display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
   --ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -42,12 +43,14 @@
 [data-medal="argent"] { --metal-1: oklch(74% 0.012 250); --metal-2: oklch(92% 0.008 250); --metal-3: oklch(54% 0.015 250); }
 [data-medal="or"] { --metal-1: oklch(78% 0.14 88); --metal-2: oklch(92% 0.1 95); --metal-3: oklch(60% 0.13 75); }
 [data-medal="platine"] { --metal-1: oklch(82% 0.035 200); --metal-2: oklch(97% 0.02 200); --metal-3: oklch(62% 0.045 215); }
+[data-medal] { --accent: var(--metal-3); }
+@media (prefers-color-scheme: dark) { :root, [data-medal] { --accent: var(--metal-2); } }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 1rem/1.5 var(--ui); }
 main { max-width: 68rem; margin: 0 auto; padding: var(--step) clamp(1rem, 4vw, 2.5rem) 4rem; }
 h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.1; margin: 0; text-wrap: balance; }
 button { font: inherit; color: inherit; }
-:focus-visible { outline: 3px solid var(--metal-3); outline-offset: 3px; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 
 .hero { display: grid; grid-template-columns: minmax(9rem, 15rem) 1fr; gap: clamp(1.25rem, 4vw, 3.5rem); align-items: center; padding-block: clamp(1rem, 4vw, 3rem); }
 .eyebrow { font: 0.78rem/1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin: 0 0 0.9rem; }
@@ -75,7 +78,7 @@ button { font: inherit; color: inherit; }
 .ladder { list-style: none; padding: 0; margin: 0 0 2.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.75rem; }
 .rung { width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 0.5rem 1.25rem 0.5rem 0.5rem; padding: 0.9rem 1rem 1rem; cursor: pointer;
   transition: transform var(--fast) var(--ease), border-color var(--fast); }
-.rung:hover { transform: translateY(-3px); border-color: var(--metal-3); }
+.rung:hover { transform: translateY(-3px); border-color: var(--accent); }
 .rung[aria-pressed="true"] { border-color: var(--ink); box-shadow: 0.3rem 0.3rem 0 var(--metal-1); }
 .rung .name { display: flex; align-items: center; gap: 0.5rem; font: 600 1.25rem/1 var(--display); }
 .rung .dot { width: 0.85rem; height: 0.85rem; border-radius: 50%; background: conic-gradient(var(--metal-3), var(--metal-2), var(--metal-1), var(--metal-3)); flex: none; }
@@ -112,7 +115,7 @@ button { font: inherit; color: inherit; }
 .next p { color: var(--muted); margin: 0.6rem 0 0; }
 .next ol { margin: 0; padding: 0; list-style: none; counter-reset: step; display: grid; gap: 0.6rem; }
 .next li { counter-increment: step; display: grid; grid-template-columns: 2.2rem 1fr; gap: 0.8rem; align-items: baseline; padding: 0.8rem 1rem; background: var(--surface); border: 1px solid var(--line); border-radius: 0.5rem; }
-.next li::before { content: counter(step); font: 600 1.5rem/1 var(--display); color: var(--metal-3); }
+.next li::before { content: counter(step); font: 600 1.5rem/1 var(--display); color: var(--accent); }
 .next small { display: block; color: var(--muted); margin-top: 0.2rem; }
 .history { margin-top: 2.5rem; font: 0.85rem/1.6 var(--mono); color: var(--muted); }
 footer { margin-top: 2.5rem; font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--line); padding-top: 1rem; }
@@ -180,7 +183,7 @@ dialog form { margin-top: 1.4rem; text-align: right; }
       el("span", {}, el("b", { text: `${data.next.length}` }), ` avant le rang suivant`))));
 
   const ladder = el("ol", { class: "ladder", "aria-label": "Les rangs" });
-  const grid = el("ul", { class: "grid", "aria-live": "polite" });
+  const grid = el("ul", { class: "grid" });
   const chips = el("div", { class: "chips", role: "group", "aria-label": "Filtrer les succès" });
 
   const open = (s) => {
@@ -254,7 +257,11 @@ dialog form { margin-top: 1.4rem; text-align: right; }
   app.replaceChildren(hero, ladder,
     el("section", { "aria-labelledby": "grid-title" }, el("div", { class: "bar-head" }, el("h2", { id: "grid-title", text: "Succès" }), chips), grid),
     next, history, footer);
-  dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+  dialog.addEventListener("click", (event) => {
+    const box = dialog.getBoundingClientRect();
+    const outside = event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom;
+    if (event.target === dialog && outside) dialog.close();
+  });
   draw();
 })();
 </script>

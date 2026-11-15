@@ -28,7 +28,7 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 
 ## Médailles et succès
 
-`harness medals` dit le niveau d'un dépôt ou d'une marketplace de plugins en médaille (bronze, argent, or, platine), avec les succès débloqués, pourquoi on en est là, et les prochaines étapes. Rien n'y est noté par un modèle : pour un dépôt, la médaille est le palier de `harness status`, et chaque vérification passée est un succès. `--write` tient `.harness/medals.json`, qui garde la date de chaque succès et dit quand l'un d'eux est perdu. `--page` écrit une page interactive en un seul fichier ([exemple](docs/exemples/medailles.html)). Le skill [`harness-medals`](skills/harness-medals/SKILL.md) répond à « pourquoi ce niveau ? ».
+`harness medals` dit le niveau d'un dépôt ou d'une marketplace de plugins en médaille (bronze, argent, or, platine), avec les succès débloqués, pourquoi on en est là, et les prochaines étapes. Rien n'y est noté par un modèle : pour un dépôt, la médaille est le palier de `harness status`, et chaque vérification passée est un succès. `--write` tient `.harness/medals.json`, qui garde la date de chaque succès et dit quand l'un d'eux est perdu. `--page` écrit une page interactive en un seul fichier ([exemple](docs/exemples/medailles.html), figé au 2026-11-15). Le skill [`harness-medals`](skills/harness-medals/SKILL.md) répond à « pourquoi ce niveau ? ».
 
 ```bash
 python3 cli/harness.py medals . --write --page medailles.html

@@ -78,7 +78,10 @@ class BuildTests(unittest.TestCase):
         self.assertEqual([h["medal"] for h in third["history"]], ["argent", "bronze", "argent"])
 
     def test_a_file_of_another_kind_or_a_broken_one_is_not_trusted(self):
-        for previous in ("x", [], {"schema": 99}, {"schema": 1, "kind": "marketplace", "successes": [{"id": "A1", "unlocked": "2020-01-01"}]},
+        for previous in ("x", [], {"schema": 99}, {"schema": 1, "kind": "repo", "successes": None},
+                         {"schema": 1, "kind": "repo", "successes": [{"id": ["A1"], "unlocked": "2020-01-01"}]},
+                         {"schema": 1, "kind": "repo", "successes": [{"id": "A1", "unlocked": 5}]},
+                         {"schema": 1, "kind": "repo", "successes": [{"id": "A1", "unlocked": "2099-01-01"}], "history": {}}, {"schema": 1, "kind": "marketplace", "successes": [{"id": "A1", "unlocked": "2020-01-01"}]},
                          {"schema": 1, "kind": "repo", "successes": ["x", {"nope": 1}], "history": ["x"]}):
             data = medals.build(evaluated({"A1": True}), previous)
             self.assertEqual(data["successes"][0]["unlocked"], "2026-11-15")
@@ -109,8 +112,33 @@ class RepoTests(RepoCase):
         self.run_cli("--write", "--today", "2026-11-15")
         with open(os.path.join(self.repo, ".harness", "medals.json"), encoding="utf-8") as fh:
             data = json.load(fh)
-        self.assertEqual(data["date"], "2026-11-15")
         self.assertEqual({s["unlocked"] for s in data["successes"] if s["tier"] == "bronze"}, {"2026-10-01"})
+        self.write("AGENTS.md", AGENTS.replace("## Interdits", "## Autre"))     # un succès de bronze se perd
+        self.run_cli("--write", "--today", "2026-12-01")
+        with open(os.path.join(self.repo, ".harness", "medals.json"), encoding="utf-8") as fh:
+            data = json.load(fh)
+        self.assertEqual((data["date"], data["medal"]["id"]), ("2026-12-01", "aucune"))
+        lost = [s for s in data["successes"] if s["lost"]]
+        self.assertEqual([(s["id"], s["lost"]) for s in lost], [("L1.forbidden", "2026-12-01")])
+
+    def test_the_same_measure_another_day_does_not_touch_the_file_and_keeps_its_name(self):
+        self.write("AGENTS.md", AGENTS)
+        self.run_cli("--write", "--today", "2026-10-01", "--name", "mon-depot")
+        path = os.path.join(self.repo, ".harness", "medals.json")
+        with open(path, encoding="utf-8") as fh:
+            first = fh.read()
+        code, out = self.run_cli("--write", "--today", "2026-11-15")
+        with open(path, encoding="utf-8") as fh:
+            self.assertEqual(fh.read(), first)
+        self.assertIn("mon-depot", out)
+        self.assertFalse(os.path.exists(path + ".tmp"))
+
+    def test_a_broken_file_or_a_bad_argument_is_a_message_not_a_crash(self):
+        self.write("AGENTS.md", AGENTS)
+        self.write(".harness/medals.json", "{")
+        self.assertEqual(self.run_cli("--write")[0], 0)
+        self.assertEqual(self.run_cli("--today", "2026-13-45")[0], 2)
+        self.assertEqual(self.run_cli("--page", os.path.join(self.repo, "absent", "p.html"))[0], 2)
 
     def test_without_write_nothing_is_created(self):
         code, out = self.run_cli()
@@ -141,10 +169,42 @@ class MarketplaceTests(RepoCase):
         self.plugin("Utiliser quand on demande X. Ne pas utiliser pour Y.")
         self.write("p/cli/outil.py", "x = 1\n")
         self.assertEqual(self.medal()["medal"]["id"], "argent")
-        self.write("p/cli/tests/test_outil.py", "x = 1\n")
+        self.write("p/cli/tests/test_outil.py", "def test_outil():\n    assert True\n")
         self.assertEqual(self.medal()["medal"]["rank"], 3)
         self.write(".claude-plugin/marketplace.json", json.dumps({"name": "d", "plugins": [{"name": "p", "source": "../ailleurs"}, "x", {"source": 3}]}))
         self.assertEqual(self.medal()["medal"]["id"], "aucune")
+
+    def test_descriptions_are_read_as_people_write_them(self):
+        for description, when, when_not in (
+                ("Utiliser dès que l'utilisateur veut X. Ne pas utiliser pour Y.", True, True),
+                (">\n  Fait X. Utiliser quand on demande X.\n  Ne pas utiliser pour Y.", True, True),
+                ("Use this when the user asks for X. Do not use for Y.", True, True),
+                ("Do not trigger this. Ne pas utiliser pour Y.", False, True),
+                ("Fait des choses.", False, False)):
+            with self.subTest(description=description):
+                self.plugin(description)
+                got = {s["id"]: s["passed"] for s in medals.evaluate_marketplace(self.repo)["successes"]}
+                self.assertEqual((got["M2.quand"], got["M2.quand-pas"]), (when, when_not))
+
+    def test_a_folder_named_like_a_url_is_a_source_and_a_link_out_of_the_repo_is_not(self):
+        self.plugin("x")
+        os.rename(os.path.join(self.repo, "p"), os.path.join(self.repo, "http-tools"))
+        self.write(".claude-plugin/marketplace.json", json.dumps({"name": "d", "plugins": [{"name": "p", "source": "./http-tools"}]}))
+        self.assertEqual(self.medal()["medal"]["id"], "bronze")
+        outside = tempfile.TemporaryDirectory()
+        self.addCleanup(outside.cleanup)
+        os.symlink(outside.name, os.path.join(self.repo, "lien"))
+        self.write(".claude-plugin/marketplace.json", json.dumps({"name": "d", "plugins": [{"name": "p", "source": "./lien"}]}))
+        self.assertEqual(self.medal()["medal"]["id"], "aucune")
+
+    def test_an_empty_blind_folder_or_a_test_that_asserts_nothing_unlocks_nothing(self):
+        self.plugin("Utiliser quand X. Ne pas utiliser pour Y.")
+        os.makedirs(os.path.join(self.repo, "fixtures", "a", "runs", "2026-blind"))
+        self.write("p/scripts/outil.sh", "echo x\n")
+        self.write("p/cli/tests/test_outil.py", "x = 1\n")
+        got = {s["id"]: s["passed"] for s in medals.evaluate_marketplace(self.repo)["successes"]}
+        self.assertFalse(got["M4.aveugle"])
+        self.assertFalse(got["M3.tests"])
 
     def test_the_cli_keeps_a_file_per_kind(self):
         self.plugin("x")
@@ -156,17 +216,20 @@ class PageTests(RepoCase):
     def test_the_page_is_self_contained_and_its_data_cannot_break_out(self):
         self.write("AGENTS.md", AGENTS)
         page = os.path.join(self.repo, "page.html")
-        code, _ = self.run_cli("--page", page, "--name", "</script><img src=x onerror=alert(1)>&")
+        code, _ = self.run_cli("--page", page, "--name", "</script><img src=x onerror=alert(1)>&{{data}}")
         self.assertEqual(code, 0)
         with open(page, encoding="utf-8") as fh:
             html = fh.read()
-        self.assertNotIn("{{", html)
+        self.assertNotIn("{{csp}}", html)
+        self.assertNotIn("{{title}}", html)
+        self.assertEqual(html.count("{{data}}"), 2)   # dans le titre et dans les données : le nom, jamais relu
         self.assertNotIn("<img src=x", html)
         self.assertEqual(html.count("</script>"), 2)
         self.assertNotRegex(html, r'(?:src|href)="https?://')
         self.assertNotIn("innerHTML", html)
         data = json.loads(re.search(r'id="medals-data">(.*?)</script>', html, re.DOTALL)[1])
-        self.assertEqual(data["name"], "</script><img src=x onerror=alert(1)>&")
+        self.assertEqual(data["name"], "</script><img src=x onerror=alert(1)>&{{data}}")
+        self.assertLess(len(re.search(r"<title>(.*?)</title>", html, re.DOTALL)[1]), 120)
         self.assertIn("sha256-", html)
 
     def test_the_same_data_gives_the_same_page(self):

@@ -26,7 +26,8 @@ MEDALS = ({"id": "aucune", "name": "Aucune médaille"}, {"id": "bronze", "name":
 KINDS = ("repo", "marketplace")
 TEMPLATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "medals_template.html")
 MAX_SKILL_LINES = 500
-_TRIGGER = re.compile(r"utiliser quand|à utiliser|use when|use this|when the user|trigger", re.IGNORECASE)
+_TRIGGER = re.compile(r"(?<!ne pas )(?<!pas )\butiliser (?:dès|quand|pour|si|lorsque)|\bà utiliser\b|"
+                      r"(?<!not )(?<!n't )\buse (?:(?:this|it|the skill) )?(?:when|for|whenever)\b", re.IGNORECASE)
 _NEGATIVE = re.compile(r"ne pas utiliser|do not use|don't use|not for\b|n'est pas pour", re.IGNORECASE)
 
 
@@ -93,20 +94,58 @@ def _json(path: str) -> Any:
 
 
 def _front_matter(path: str) -> tuple[dict[str, str], int]:
+    """Les clés de premier niveau de l'en-tête d'un SKILL.md, valeurs sur plusieurs lignes comprises
+    (`description: >`), et le nombre de lignes du fichier. Sans parseur YAML : bibliothèque standard."""
     try:
-        with open(path, encoding="utf-8", errors="replace") as fh:
+        with open(path, encoding="utf-8-sig", errors="replace") as fh:
             lines = fh.read().splitlines()
     except OSError:
         return {}, 0
     header: dict[str, str] = {}
+    key = None
     if lines[:1] == ["---"]:
         for line in lines[1:]:
             if line.strip() == "---":
                 break
-            key, sep, value = line.partition(":")
-            if sep and key.strip() and not key.startswith(" "):
-                header[key.strip()] = value.strip()
+            if line[:1] in (" ", "\t"):
+                if key:
+                    header[key] = (header[key] + " " + line.strip()).strip()
+                continue
+            name, sep, value = line.partition(":")
+            key = name.strip() if sep and name.strip() else None
+            if key:
+                header[key] = "" if value.strip() in (">", "|", ">-", "|-", ">+", "|+") else value.strip().strip("'\"")
     return header, len(lines)
+
+
+def _inside(repo: str, path: str) -> bool:
+    """Le chemin, liens suivis, reste dans le dépôt."""
+    root = os.path.realpath(repo)
+    return os.path.commonpath([root, os.path.realpath(path)]) == root
+
+
+CODE_DIRS = ("cli", "scripts", "src", "bin", "lib", "hooks")
+CODE_EXT = (".py", ".js", ".mjs", ".ts", ".sh")
+_TEST_NAME = re.compile(r"^test_.*\.py$|\.(?:test|spec)\.(?:js|mjs|ts)$")
+_TEST_BODY = re.compile(r"def test_|unittest|\b(?:it|test|describe)\(")
+
+
+def _code_and_tests(root: str) -> tuple[bool, bool]:
+    """Le plugin porte-t-il du code, et ce code a-t-il au moins un test qui affirme quelque chose ?"""
+    code = tests = False
+    for folder in CODE_DIRS:
+        for base, dirs, names in os.walk(os.path.join(root, folder)):
+            dirs[:] = [d for d in dirs if d not in ("node_modules", "__pycache__", ".git")]
+            for name in names:
+                if _TEST_NAME.search(name):
+                    try:
+                        with open(os.path.join(base, name), encoding="utf-8", errors="replace") as fh:
+                            tests = tests or bool(_TEST_BODY.search(fh.read(200_000)))
+                    except OSError:
+                        pass
+                elif name.endswith(CODE_EXT) and name != "__init__.py":
+                    code = True
+    return code, tests
 
 
 def _plugins(repo: str) -> tuple[Any, list[dict[str, Any]]]:
@@ -115,17 +154,16 @@ def _plugins(repo: str) -> tuple[Any, list[dict[str, Any]]]:
     entries = manifest.get("plugins") if isinstance(manifest, dict) else None
     for entry in entries if isinstance(entries, list) else []:
         source = entry.get("source") if isinstance(entry, dict) else None
-        if not isinstance(source, str) or source.startswith(("/", "http")) or ".." in source.split("/"):
+        if (not isinstance(source, str) or source.startswith("/") or "://" in source or ".." in source.split("/")
+                or not _inside(repo, os.path.join(repo, source))):
             plugins.append({"name": str((entry or {}).get("name") if isinstance(entry, dict) else entry), "root": None})
             continue
         root = os.path.normpath(os.path.join(repo, source))
         info = _json(os.path.join(root, ".claude-plugin", "plugin.json"))
         skills_dir = os.path.join(root, "skills")
         skills = sorted(os.path.join(skills_dir, d, "SKILL.md") for d in (os.listdir(skills_dir) if os.path.isdir(skills_dir) else [])
-                        if os.path.isfile(os.path.join(skills_dir, d, "SKILL.md")))
-        cli = os.path.join(root, "cli")
-        has_code = os.path.isdir(cli) and any(n.endswith(".py") for _, _, ns in os.walk(cli) for n in ns)
-        has_tests = os.path.isdir(cli) and any(n.startswith("test_") and n.endswith(".py") for _, _, ns in os.walk(cli) for n in ns)
+                        if os.path.isfile(os.path.join(skills_dir, d, "SKILL.md")) and _inside(repo, os.path.join(skills_dir, d, "SKILL.md")))
+        has_code, has_tests = _code_and_tests(root)
         plugins.append({"name": entry.get("name") or source, "root": root, "info": info if isinstance(info, dict) else None,
                         "skills": [{"path": os.path.relpath(p, repo).replace(os.sep, "/"), "front": _front_matter(p)} for p in skills],
                         "has_code": has_code, "has_tests": has_tests})
@@ -148,7 +186,8 @@ def evaluate_marketplace(repo: str, today: date | None = None) -> dict[str, Any]
 
     valid = isinstance(manifest, dict) and isinstance(manifest.get("name"), str) and bool(plugins)
     blind = [os.path.join(r, d) for r, ds, _ in os.walk(os.path.join(repo, "fixtures")) for d in ds
-             if os.path.basename(r) == "runs" and "blind" in d]
+             if os.path.basename(r) == "runs" and "blind" in d
+             and any(names for _, _, names in os.walk(os.path.join(r, d)))]
     try:
         with open(os.path.join(repo, progress.DOC), encoding="utf-8") as fh:
             plan_errors = progress.parse(fh.read())[1]
@@ -206,12 +245,21 @@ def build(evaluated: dict[str, Any], previous: Any = None) -> dict[str, Any]:
     (gardée de la fois précédente) et celle où il a été perdu."""
     today = evaluated["date"]
     same = isinstance(previous, dict) and previous.get("schema") == SCHEMA and previous.get("kind") == evaluated["kind"]
-    before = {s["id"]: s for s in previous.get("successes", []) if isinstance(s, dict) and "id" in s} if same else {}
+    raw = previous.get("successes") if same else None
+    before = {s["id"]: s for s in raw if isinstance(s, dict) and isinstance(s.get("id"), str)} if isinstance(raw, list) else {}
+
+    def day(value: Any) -> str | None:
+        """Une date reprise du fichier précédent : une vraie date, pas dans le futur."""
+        try:
+            return value if isinstance(value, str) and date.fromisoformat(value).isoformat() == value and value <= today else None
+        except ValueError:
+            return None
+
     successes = []
     for item in evaluated["successes"]:
         old = before.get(item["id"], {})
-        unlocked = (old.get("unlocked") or today) if item["passed"] else None
-        lost = None if item["passed"] else (old.get("lost") or (today if old.get("unlocked") else None))
+        unlocked = (day(old.get("unlocked")) or today) if item["passed"] else None
+        lost = None if item["passed"] else (day(old.get("lost")) or (today if day(old.get("unlocked")) else None))
         successes.append({"id": item["id"], "tier": item["tier"], "title": item["title"], "unlocked": unlocked, "lost": lost,
                           "evidence": item["evidence"], "next": item["next"], "waiting": item["waiting"]})
     rank = evaluated["rank"]
@@ -228,7 +276,9 @@ def build(evaluated: dict[str, Any], previous: Any = None) -> dict[str, Any]:
         why += f", et il en manque {len(steps)} pour {MEDALS[rank + 1]['name'].lower()}." if upcoming else ". C'est le dernier rang."
     else:
         why = f"Pas encore de médaille : il manque {len(steps)} succès pour le bronze."
-    history = [h for h in (previous.get("history", []) if same else []) if isinstance(h, dict)]
+    past = previous.get("history") if same else None
+    history = [{"date": h["date"], "medal": h["medal"]} for h in (past if isinstance(past, list) else [])
+               if isinstance(h, dict) and day(h.get("date")) and isinstance(h.get("medal"), str)]
     if not history or history[-1].get("medal") != medal["id"]:
         history.append({"date": today, "medal": medal["id"]})
     return {"schema": SCHEMA, "kind": evaluated["kind"], "name": evaluated["name"], "date": today, "medal": medal,
@@ -273,17 +323,26 @@ def render_html(data: dict[str, Any]) -> str:
         template = fh.read()
     raw = json.dumps(data, ensure_ascii=False, sort_keys=True).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
     title = f"{data['medal']['name']} · {data['name']}".replace("&", "&amp;").replace("<", "&lt;")
-    return template.replace("{{csp}}", _csp(template)).replace("{{title}}", title).replace("{{data}}", raw)
+    fields = {"csp": _csp(template), "title": title, "data": raw}  # une seule passe : une valeur n'est jamais relue
+    return re.sub(r"\{\{(csp|title|data)\}\}", lambda m: fields[m[1]], template)
+
+
+def _write(path: str, text: str) -> None:
+    """Écrit d'un coup : un fichier à moitié écrit ferait repartir les dates de zéro."""
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(text)
+    os.replace(tmp, path)
 
 
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(description=__doc__)
     p.add_argument("repo", nargs="?", default=".")
-    p.add_argument("--kind", choices=KINDS, help="défaut : marketplace si le dépôt en déclare une et n'a pas d'AGENTS.md mesuré, sinon repo")
+    p.add_argument("--kind", choices=KINDS, help="ce qu'on mesure (défaut : repo)")
     p.add_argument("--write", action="store_true", help=f"met à jour .harness/{FILE}, en gardant les dates déjà acquises")
     p.add_argument("--page", metavar="FICHIER", help="écrit la page HTML interactive")
     p.add_argument("--format", choices=["md", "json"], default="md")
-    p.add_argument("--name", help="le nom affiché (défaut : celui du dossier, ou de la marketplace)")
+    p.add_argument("--name", help="le nom affiché (défaut : celui du fichier de médailles s'il existe, sinon du dossier ou de la marketplace)")
     p.add_argument("--today", help=argparse.SUPPRESS)
     return p
 
@@ -293,20 +352,33 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
     if not os.path.isdir(args.repo):
         print(f"harness medals : {args.repo} n'est pas un dossier", file=sys.stderr)
         return 2
-    today = date.fromisoformat(args.today) if args.today else None
+    try:
+        today = date.fromisoformat(args.today) if args.today else None
+    except ValueError:
+        print(f"harness medals : --today {args.today!r} n'est pas une date AAAA-MM-JJ", file=sys.stderr)
+        return 2
     kind = args.kind or "repo"
     path = os.path.join(args.repo, ".harness", FILE if kind == "repo" else f"medals-{kind}.json")
+    previous = _json(path)
+    usable = isinstance(previous, dict) and previous.get("schema") == SCHEMA and previous.get("kind") == kind
+    if os.path.exists(path) and not usable:
+        print(f"harness medals : {path} est illisible ou d'un autre format, il n'est pas repris : "
+              "les dates de déblocage repartent d'aujourd'hui", file=sys.stderr)
     evaluated = evaluate_repo(args.repo, today) if kind == "repo" else evaluate_marketplace(args.repo, today)
     if args.name:
         evaluated["name"] = args.name
-    data = build(evaluated, _json(path))
-    if args.write:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(data, fh, ensure_ascii=False, indent=2)
-            fh.write("\n")
-    if args.page:
-        with open(args.page, "w", encoding="utf-8") as fh:
-            fh.write(render_html(data))
+    elif usable and isinstance(previous.get("name"), str) and previous["name"]:
+        evaluated["name"] = previous["name"]
+    data = build(evaluated, previous)
+    try:
+        if args.page:
+            _write(args.page, render_html(data))
+        # même mesure, autre jour : le fichier ne bouge pas, sa date est celle du dernier changement
+        if args.write and not (usable and {**previous, "date": None} == {**data, "date": None}):
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            _write(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+    except OSError as exc:
+        print(f"harness medals : écriture impossible ({exc})", file=sys.stderr)
+        return 2
     sys.stdout.write(json.dumps(data, ensure_ascii=False, indent=2) + "\n" if args.format == "json" else render_md(data))
     return 0
