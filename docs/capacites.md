@@ -19,6 +19,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | Auditer un harness, classer chaque élément L1 à L4, proposer les retraits | skill `harness-audit`, `harness rules` | mesuré une fois sur deux projets |
 | Proposer les commandes qu'un agent ne devine pas | `harness commands`, appelé par init et audit | outillé |
 | Suivre l'état dans une application locale | `harness serve` | outillé |
+| Dire le niveau en médaille, succès débloqués et prochaines étapes, avec une page interactive | skill `harness-medals`, `harness medals`, `.harness/medals.json` | outillé |
 
 ### Concevoir ou revoir un skill, un agent, une règle
 
@@ -76,5 +77,6 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | M2 | Proposer le code trompeur (un dossier qui a l'air mort et sert encore) | à faire | 2026-11-15 | Même modèle : des candidates posées en questions |
 | M3 | Noter dans les corrigés les lignes qui auraient dû être proposées | en attente | 2026-11-15 | Modifier un corrigé change toutes les notes : décision du propriétaire |
 | B1 | Boucle contre l'obsolescence des skills et des agents, pas seulement des règles | à faire | 2026-11-15 | Demande du propriétaire. Existe déjà pour les règles : harvest, revue de pertinence, dates, références sans cible. Manque : rien ne le déclenche, et rien ne regarde un skill qui vieillit |
-| G1 | Médailles (bronze, argent, or, platine), succès débloqués, page HTML interactive tirée de données dures | à faire | 2026-11-15 | Demande du propriétaire. S'appuie sur les paliers 0 à 4 et `.harness/state.json` |
+| G1 | Médailles (bronze, argent, or, platine), succès débloqués, page HTML interactive tirée de données dures | fait | 2026-11-15 | `harness medals`, skill `harness-medals`, `docs/exemples/medailles.html` ; pour un dépôt et pour une marketplace. Page regardée en clair et en sombre, bureau et mobile, dans un seul navigateur |
+| G2 | Les descriptions de skills de ce dépôt disent quand les utiliser et quand ne pas le faire (succès d'argent de la marketplace) | à faire | 2026-11-15 | `harness medals --kind marketplace` : deux succès manquent ; certains skills sont à l'autre session |
 | P1 | Ce document, et le hook qui oblige à tenir son plan | fait | 2026-11-15 | `harness progress check`, `.claude/settings.json` |

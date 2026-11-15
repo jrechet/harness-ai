@@ -1,0 +1,307 @@
+{
+  "schema": 1,
+  "kind": "repo",
+  "name": "harness-ai",
+  "date": "2026-11-15",
+  "medal": {
+    "id": "bronze",
+    "name": "Bronze",
+    "rank": 1,
+    "of": 4
+  },
+  "why": "Bronze : les 5 succès du rang « Cadré » sont débloqués, et il en manque 1 pour argent.",
+  "tiers": [
+    {
+      "id": "bronze",
+      "name": "Bronze",
+      "title": "Cadré",
+      "promise": "Un AGENTS.md court, un mode explicite, des stubs : l'agent sait où il est.",
+      "done": 5,
+      "total": 5,
+      "earned": true
+    },
+    {
+      "id": "argent",
+      "name": "Argent",
+      "title": "Bouclé",
+      "promise": "La boucle de retour tourne : les incidents deviennent des règles.",
+      "done": 3,
+      "total": 4,
+      "earned": false
+    },
+    {
+      "id": "or",
+      "name": "Or",
+      "title": "Vérifié",
+      "promise": "Les règles obligatoires sont portées par des outils, pas par du texte.",
+      "done": 1,
+      "total": 4,
+      "earned": false
+    },
+    {
+      "id": "platine",
+      "name": "Platine",
+      "title": "Délégué",
+      "promise": "Des tâches entières sont confiées à l'agent et reviennent propres.",
+      "done": 2,
+      "total": 5,
+      "earned": false
+    }
+  ],
+  "successes": [
+    {
+      "id": "L1.source",
+      "tier": "bronze",
+      "title": "Un fichier d'instructions existe (AGENTS.md)",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "AGENTS.md",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L1.mode",
+      "tier": "bronze",
+      "title": "La ligne « Mode : délégation | assistance » est présente",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "assistance",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L1.short",
+      "tier": "bronze",
+      "title": "Le fichier chargé fait au plus 60 lignes",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "42",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L1.single_source",
+      "tier": "bronze",
+      "title": "CLAUDE.md est un stub @AGENTS.md (ou absent)",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "exists : oui, lines : 1, loaded_lines : 42, is_stub : oui",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L1.forbidden",
+      "tier": "bronze",
+      "title": "Une section « Interdits » dit ce qu'un agent ne fait jamais",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "oui",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L2.maintenance",
+      "tier": "argent",
+      "title": "Une section Maintenance dit comment le fichier évolue",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "oui",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L2.rule_convention",
+      "tier": "argent",
+      "title": "La convention `rule:` en review est documentée",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "oui",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L2.marker_fresh",
+      "tier": "argent",
+      "title": "Un harvest a tourné depuis moins de 45 jours",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "6",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L2.signal",
+      "tier": "argent",
+      "title": "Le dernier harvest a trouvé au moins un signal réel (S1–S4)",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "",
+      "next": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore.",
+      "waiting": true
+    },
+    {
+      "id": "L3.ci",
+      "tier": "or",
+      "title": "Une CI existe (workflows ou .gitlab-ci.yml)",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "aucun",
+      "next": "Sans CI, aucune règle ne peut être garantie : en poser une.",
+      "waiting": false
+    },
+    {
+      "id": "L3.guarded",
+      "tier": "or",
+      "title": "Au moins 50 % des règles sont « Vérifiée par » un outil",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "0.0",
+      "next": "Pousser les règles racontées en L3 : lint custom, test d'architecture, check de PR.",
+      "waiting": false
+    },
+    {
+      "id": "L3.justified",
+      "tier": "or",
+      "title": "Au moins 50 % des règles disent pourquoi",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "0.71",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L3.audit",
+      "tier": "or",
+      "title": "Un harness-audit existe et n'a aucun P1 ouvert",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "",
+      "next": "Lancer harness-audit, écrire son JSON dans .harness/audit.json, traiter les P1.",
+      "waiting": false
+    },
+    {
+      "id": "L4.mode",
+      "tier": "platine",
+      "title": "Le mode est délégation",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "assistance",
+      "next": "Passer en délégation avec harness-init quand les garde-fous sont là.",
+      "waiting": false
+    },
+    {
+      "id": "L4.process",
+      "tier": "platine",
+      "title": "Une section « Processus de travail » cadre l'agent",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "oui",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L4.contracts",
+      "tier": "platine",
+      "title": "Au moins un contrat de tâche existe et est référencé",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "1",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "L4.clean_prs",
+      "tier": "platine",
+      "title": "Le dernier harvest voit des PRs d'agent sans correction après coup",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "",
+      "next": "Chaque correction après coup (S2) est une règle ou un garde-fou manquant : les traiter.",
+      "waiting": true
+    },
+    {
+      "id": "L4.cut_the_agent",
+      "tier": "platine",
+      "title": "Le test « coupe l'agent » de l'audit passe",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "",
+      "next": "Pousser en L3/L4 les étapes qui n'existent que dans des prompts.",
+      "waiting": false
+    },
+    {
+      "id": "B.dates",
+      "tier": "bonus",
+      "title": "Chaque règle porte sa date",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "7 sur 7",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "B.pourquoi",
+      "tier": "bonus",
+      "title": "Chaque règle dit pourquoi",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "5 sur 7",
+      "next": "Ajouter « Pourquoi : … » aux règles qui ne le disent pas, ou « pas d'incident connu ».",
+      "waiting": false
+    },
+    {
+      "id": "B.outils",
+      "tier": "bonus",
+      "title": "Chaque règle est tenue par un outil",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "0 sur 7",
+      "next": "Pousser les règles racontées vers un lint, un test d'architecture ou un check de PR.",
+      "waiting": false
+    },
+    {
+      "id": "B.cibles",
+      "tier": "bonus",
+      "title": "Aucune référence sans cible",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "0 référence(s) sans cible",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "B.commandes",
+      "tier": "bonus",
+      "title": "Les commandes que la CI lance sont écrites",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "aucun écart avec les commandes évidentes",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "B.objectif",
+      "tier": "bonus",
+      "title": "Le palier visé est atteint",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "visé : aucun",
+      "next": "Dire où l'on s'arrête avec `harness target <palier>`, puis l'atteindre.",
+      "waiting": false
+    }
+  ],
+  "next": [
+    {
+      "id": "L2.signal",
+      "title": "Le dernier harvest a trouvé au moins un signal réel (S1–S4)",
+      "action": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore.",
+      "waiting": true
+    }
+  ],
+  "history": [
+    {
+      "date": "2026-11-15",
+      "medal": "bronze"
+    }
+  ]
+}
