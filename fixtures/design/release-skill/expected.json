@@ -38,7 +38,8 @@
       "accept": [
         "ci_check",
         "hook_check",
-        "org_check"
+        "org_check",
+        "release_gate"
       ]
     },
     {
