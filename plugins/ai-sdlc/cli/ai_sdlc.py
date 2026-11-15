@@ -6,6 +6,7 @@
   ai_sdlc.py review render <revue.json> [repo] [--base REF]   la revue rendue, si chaque constat cite le diff
   ai_sdlc.py size [repo] [--base REF] [--paths P…]  la taille du changement et le chemin qu'elle impose
   ai_sdlc.py dev body <corps.json> [repo] [--base REF]        le corps de la PR, s'il est complet pour sa taille
+  ai_sdlc.py ticket check <ticket.md> [repo] [--base REF]     le ticket est-il prêt à être confié à un agent
   ai_sdlc.py fixture init <fixture> <dest>         monte une PR piégée de fixtures/review en dépôt git
   ai_sdlc.py fixture grade <revue.json> --expected <expected.json>   note une revue contre son corrigé
   ai_sdlc.py fixture grade-dev <dépôt> --task <dossier du ticket> [--body corps.json]   note un travail de /dev
@@ -25,7 +26,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import context, dev, devgrade, points, review, size  # noqa: E402
+from aisdlclib import context, dev, devgrade, points, review, size, ticket  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -46,7 +47,10 @@ def build_parser() -> argparse.ArgumentParser:
     body = sub.add_parser("dev", help="ce que /dev garantit").add_subparsers(dest="action", required=True)
     body = body.add_parser("body", help="valide et rend le corps de la PR")
     body.add_argument("file")
-    for sp in (ctx, status, render, sized, body):
+    tck = sub.add_parser("ticket", help="ce que /ticket mesure").add_subparsers(dest="action", required=True)
+    tck = tck.add_parser("check", help="le ticket est-il prêt à être confié à un agent")
+    tck.add_argument("file", help="le texte du ticket, en Markdown ou en texte brut")
+    for sp in (ctx, status, render, sized, body, tck):
         sp.add_argument("repo", nargs="?", default=".")
         sp.add_argument("--base", default="origin/HEAD", help="branche de base (défaut : origin/HEAD)")
         sp.add_argument("--format", choices=["md", "json"], default="md")
@@ -86,6 +90,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "fixture":
             data, text, code = _fixture(args, table)
+        elif args.command == "ticket":
+            try:
+                with open(args.file, encoding="utf-8") as fh:
+                    text = fh.read(500_000)
+            except (OSError, UnicodeDecodeError) as exc:
+                raise context.Refused(f"{args.file} : illisible ({exc})") from exc
+            zones, warning = ticket.zones_for(table, args.repo, args.base)
+            data = ticket.check(text, zones)
+            text, code = ticket.render_md(data, warning), 0 if data["ready"] else 1
         elif args.command == "size":
             data = size.classify(table, args.repo, args.base, args.paths)
             text = size.render_md(data)
