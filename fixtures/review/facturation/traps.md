@@ -26,3 +26,4 @@ Le skill rend sept commentaires au plus. Six pièges requis laissent une place :
 
 ## Révisions
 - 2026-11-15 : création. La revue de l'auteur (`runs/2026-11-15-author`) est une base de régression, pas une mesure.
+- 2026-11-15 : première exécution à l'aveugle (`runs/2026-11-15-blind`) : 6/6 requis, T7 trouvé aussi, 7 constats, aucun élément sain commenté, aucun bruit. Une seule exécution, par un agent neuf sans le corrigé ; le plugin était copié à côté du dépôt, pas installé depuis la marketplace.

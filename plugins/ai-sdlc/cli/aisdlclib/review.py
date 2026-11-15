@@ -148,8 +148,7 @@ def render_md(data: dict[str, Any]) -> str:
               if (n := sum(c["gravite"] == key for c in constats))]
     out = ["# Revue", "", ("Constats — " + ", ".join(counts) + ".") if counts else "Aucun constat."]
     unchecked = data.get("non_verifie") or []
-    out.append("Non vérifié : " + " ; ".join(_cell(u) for u in unchecked) + "." if unchecked
-               else "Non vérifié : rien de signalé.")
+    out += ["", "Non vérifié :"] + [f"- {_cell(u)}" for u in unchecked] if unchecked else ["", "Non vérifié : rien de signalé."]
     for index, item in enumerate(constats, 1):
         out += ["", f"## {index}. {GRAVITES[item['gravite']].capitalize()} — {_code(item['sur_quoi'])}", "",
                 "| Partie | Contenu |", "|---|---|",
