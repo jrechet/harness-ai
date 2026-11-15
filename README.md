@@ -44,6 +44,9 @@ Un second plugin, dans `plugins/ai-sdlc/`, outille les phases du cycle de dével
 | [`review`](plugins/ai-sdlc/skills/review/SKILL.md) | Relit une PR avec la checklist du socle et celle de l'équipe. Peu de commentaires, chacun prouvé. Ne fait que commenter. |
 | `ai_sdlc.py context <phase>` | Assemble le socle et les ajouts de l'équipe (`docs/agents/<point>.md`), avec leur provenance. Une surcharge de porte se lit sur la branche de base ; une surcharge invalide arrête tout. |
 | `ai_sdlc.py status` | Liste les points d'extension : convention du framework, surchargé, ou invalide. Aucun fichier n'est créé d'avance. |
+| `ai_sdlc.py review render` | Rend la revue en commentaires, et la refuse si un constat ne cite pas une ligne du diff. |
+
+Le skill `review` se mesure sur une PR piégée, dans [fixtures/review/](fixtures/review/README.md).
 
 ```
 /plugin install ai-sdlc@harness-ai
