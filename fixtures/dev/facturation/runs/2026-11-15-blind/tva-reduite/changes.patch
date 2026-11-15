@@ -1,0 +1,57 @@
+diff --git a/facturation/totaux.py b/facturation/totaux.py
+index 3d8bb5e..d8c139b 100644
+--- a/facturation/totaux.py
++++ b/facturation/totaux.py
+@@ -3,6 +3,7 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+ 
+ CENTIME = Decimal("0.01")
+ TVA = Decimal("0.20")
++TAUX = {"normale": TVA, "reduite": Decimal("0.055")}
+ 
+ 
+ def montant(texte: str) -> Decimal:
+@@ -16,6 +17,14 @@ def total_ht(lignes: list[dict]) -> Decimal:
+     return sum((montant(ligne["prix"]) * ligne["quantite"] for ligne in lignes), Decimal("0"))
+ 
+ 
++def taux(ligne: dict) -> Decimal:
++    cle = ligne.get("tva", "normale")
++    if cle not in TAUX:
++        raise ValueError(f"taux de TVA inconnu : {cle!r}")
++    return TAUX[cle]
++
++
+ def total_ttc(lignes: list[dict]) -> Decimal:
+-    ht = total_ht(lignes)
+-    return (ht * (1 + TVA)).quantize(CENTIME, rounding=ROUND_HALF_UP)
++    ttc = sum((montant(ligne["prix"]) * ligne["quantite"] * (1 + taux(ligne)) for ligne in lignes),
++              Decimal("0"))
++    return ttc.quantize(CENTIME, rounding=ROUND_HALF_UP)
+diff --git a/tests/test_totaux.py b/tests/test_totaux.py
+index 71e04c5..173c78e 100644
+--- a/tests/test_totaux.py
++++ b/tests/test_totaux.py
+@@ -16,3 +16,23 @@ class Totaux(unittest.TestCase):
+     def test_un_montant_illisible_est_refuse(self):
+         with self.assertRaises(ValueError):
+             total_ttc([{"prix": "douze", "quantite": 1}])
++
++    def test_une_ligne_au_taux_reduit_prend_5_5_pour_cent(self):
++        lignes = [{"prix": "100", "quantite": 1, "tva": "reduite"}]
++        self.assertEqual(total_ttc(lignes), Decimal("105.50"))
++
++    def test_les_taux_normal_et_reduit_se_melangent(self):
++        lignes = [{"prix": "100", "quantite": 1, "tva": "normale"},
++                  {"prix": "100", "quantite": 1, "tva": "reduite"}]
++        self.assertEqual(total_ttc(lignes), Decimal("225.50"))
++
++    def test_une_ligne_sans_cle_tva_reste_au_taux_normal(self):
++        self.assertEqual(total_ttc([{"prix": "100", "quantite": 1}]), Decimal("120.00"))
++
++    def test_l_arrondi_se_fait_une_fois_sur_le_total(self):
++        lignes = [{"prix": "0.10", "quantite": 1, "tva": "reduite"}] * 3
++        self.assertEqual(total_ttc(lignes), Decimal("0.32"))
++
++    def test_un_taux_de_tva_inconnu_est_refuse(self):
++        with self.assertRaises(ValueError):
++            total_ttc([{"prix": "100", "quantite": 1, "tva": "super-reduite"}])

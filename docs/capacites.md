@@ -18,6 +18,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | Faire naître des règles de ce qui s'est passé (revues, corrections, checks rouges) | skill `harness-harvest`, `harness harvest github` | outillé, jamais joué |
 | Auditer un harness, classer chaque élément L1 à L4, proposer les retraits | skill `harness-audit`, `harness rules` | mesuré une fois sur deux projets |
 | Proposer les commandes qu'un agent ne devine pas | `harness commands`, appelé par init et audit | outillé |
+| Dire ce qui a vieilli : un skill ou un agent qui cite un fichier disparu ou modifié depuis, un harvest en retard | `harness fresh`, hook de début de session | outillé |
 | Suivre l'état dans une application locale | `harness serve` | outillé |
 | Dire le niveau en médaille, succès débloqués et prochaines étapes, avec une page interactive | skill `harness-medals`, `harness medals`, `.harness/medals.json` | outillé |
 
@@ -25,7 +26,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 
 | Capacité | Comment | État |
 |---|---|---|
-| Dire où va chaque morceau : AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, CI, paramètre géré, rien | skill `harness-design`, `harness place` (9 questions, 20 destinations) | mesuré : 7 sur 7 sur `release-skill`, 11 sur 12 sur la fixture tenue à l'écart avant correction |
+| Dire où va chaque morceau : AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, CI, paramètre géré, rien | skill `harness-design`, `harness place` (9 questions, 20 destinations) | mesuré : 7 sur 7 sur `release-skill`, 12 sur 12 sur la fixture tenue à l'écart après correction de la grille (11 sur 12 avant) |
 | Rendre un état des lieux en une page HTML, toujours au même format | `harness report build`, `report from-place` | outillé |
 
 ### Outiller le cycle de développement (plugin `ai-sdlc`)
@@ -34,7 +35,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 |---|---|---|
 | Assembler le socle et les ajouts d'une équipe, lus sur la branche de base | `ai_sdlc.py context`, `status`, sept points d'extension | outillé |
 | Relire une PR : peu de constats, chacun sur une ligne du diff | skill `review`, sous-agent `reviewer`, `review render` | mesuré une fois : 6 pièges requis sur 6 |
-| Développer un ticket sur le chemin de sa taille | skill `dev`, `size`, `dev body` | outillé, jamais joué à l'aveugle |
+| Développer un ticket sur le chemin de sa taille | skill `dev`, `size`, `dev body` | mesuré une fois : deux tickets conformes |
 
 ### Mesurer les skills eux-mêmes
 
@@ -61,13 +62,13 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | H2 | Jouer `harness-harvest` au moins une fois | à faire | 2026-11-10 | Il lui faut un historique de PR rejouable hors ligne |
 | H3 | `harness-audit` lit la grille de placement et rend le rapport commun | à faire | 2026-11-14 | Attend l'accord avec l'autre session, qui tient ce skill |
 | D1 | Grille de placement et skill `harness-design` | fait | 2026-11-14 | PR 12 à 20 ; 7 sur 7 à l'aveugle après la correction `incident=forget` |
-| D2 | Rejouer la fixture tenue à l'écart `ticket-vers-pr` depuis la correction de la grille | en attente | 2026-11-15 | Une exécution à l'aveugle ne se lance qu'à la demande du propriétaire |
+| D2 | Rejouer la fixture tenue à l'écart `ticket-vers-pr` depuis la correction de la grille | fait | 2026-11-15 | `runs/2026-11-15-blind-2` : 12 sur 12, une exécution. Trois limites de la grille notées dans son journal, non corrigées d'après elle |
 | R1 | Rapport commun en une page HTML | fait | 2026-11-14 | `harness report`, `docs/exemples/rapport-skill-release.html` |
 | S1 | Plugin `ai-sdlc` : contexte, points d'extension | fait | 2026-11-15 | PR 22 |
 | S2 | Skill `review`, rendu par le CLI, PR piégée, première mesure | fait | 2026-11-15 | PR 23 et 24 ; une seule exécution, fixture sans doute trop facile |
 | S3 | Skill `dev`, taille calculée, corps de PR | fait | 2026-11-15 | PR 25 ; jamais joué |
 | S4 | Fixture et noteur pour mesurer `dev` | fait | 2026-11-15 | `fixtures/dev/facturation`, `fixture grade-dev` ; le travail de l'auteur passe, c'est une base de régression |
-| S8 | Jouer `dev` à l'aveugle sur ses deux tickets | en attente | 2026-11-15 | Une exécution à l'aveugle ne se lance qu'à la demande du propriétaire |
+| S8 | Jouer `dev` à l'aveugle sur ses deux tickets | fait | 2026-11-15 | `fixtures/dev/facturation/runs/2026-11-15-blind` : 12 sur 12 et 4 sur 4. Une exécution par ticket, plugin copié et non installé |
 | S5 | Skills `qa` et `ticket` | à faire | 2026-11-14 | Ordre fixé par la proposition |
 | S6 | Skills `secu`, `ship`, `run` | à faire | 2026-11-14 | Viennent en dernier |
 | S7 | Installer le plugin depuis la marketplace et éprouver `${CLAUDE_PLUGIN_ROOT}` | à faire | 2026-11-15 | Jamais vérifié |
@@ -76,7 +77,11 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | M1 | Proposer les commandes exactes qu'un AGENTS.md devrait dire | fait | 2026-11-15 | `harness commands` ; init et audit l'appellent, sans exécution à l'aveugle depuis |
 | M2 | Proposer le code trompeur (un dossier qui a l'air mort et sert encore) | à faire | 2026-11-15 | Même modèle : des candidates posées en questions |
 | M3 | Noter dans les corrigés les lignes qui auraient dû être proposées | en attente | 2026-11-15 | Modifier un corrigé change toutes les notes : décision du propriétaire |
-| B1 | Boucle contre l'obsolescence des skills et des agents, pas seulement des règles | à faire | 2026-11-15 | Demande du propriétaire. Existe déjà pour les règles : harvest, revue de pertinence, dates, références sans cible. Manque : rien ne le déclenche, et rien ne regarde un skill qui vieillit |
+| B1 | Boucle contre l'obsolescence des skills et des agents : `harness fresh` et un hook de début de session | fait | 2026-11-15 | `harness fresh`, hook `SessionStart` de ce dépôt, succès « hors rang » des médailles. Pas de consigne « post-usage » dans chaque skill ni de skill `/refresh` : du texte qu'un agent saute, et un doublon de harvest |
 | G1 | Médailles (bronze, argent, or, platine), succès débloqués, page HTML interactive tirée de données dures | fait | 2026-11-15 | `harness medals`, skill `harness-medals`, `docs/exemples/medailles.html` ; pour un dépôt et pour une marketplace. Page regardée en clair et en sombre, bureau et mobile, dans un seul navigateur |
 | G2 | La description de `harness-audit` dit quand ne pas l'utiliser (dernier succès d'argent de la marketplace) | à faire | 2026-11-15 | `harness medals --kind marketplace` : 9 succès sur 10 ; ce skill est à l'autre session |
 | P1 | Ce document, et le hook qui oblige à tenir son plan | fait | 2026-11-15 | `harness progress check`, `.claude/settings.json` |
+| N1 | Nuit du 15 au 16 : finir `harness fresh`, puis éprouver chaque commande et chaque skill comme un nouvel utilisateur, sur un clone neuf | à faire | 2026-11-15 | Demande du propriétaire : savoir demain matin ce qui marche et ce qui ne marche pas |
+| N2 | README réécrit autour de « ce que tu peux faire aujourd'hui », chaque commande citée vérifiée par exécution | à faire | 2026-11-15 | Demande du propriétaire |
+| N3 | Revue avant publication : secrets, données personnelles, chemins locaux, licence, promesses non tenues | à faire | 2026-11-15 | Demande du propriétaire ; la publication elle-même reste sa décision |
+| N4 | Compte rendu du matin : ce qui est utilisable, ce qui ne l'est pas, et un avis « publier ou pas » | à faire | 2026-11-15 | Demande du propriétaire |

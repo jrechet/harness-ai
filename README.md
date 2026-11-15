@@ -26,6 +26,21 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 | [`harness-audit`](skills/harness-audit/SKILL.md) | Audite un harness ou un AGENTS.md/CLAUDE.md, classe chaque élément dans la grille L1–L4, rend un verdict par élément (KEEP / INLINE / PUSH_DOWN / PROMOTE / MERGE / SPLIT / BLOCK / REMOVE) et un plan de remédiation. Sa revue de pertinence dit quelles lignes ne changent plus ce que fait l'agent : inutiles, nuisibles, ou périmées, ces dernières posées en question au propriétaire. Rapport à format fixe (Markdown + JSON) défini dans `references/report-template.md`. |
 | [`harness-design`](skills/harness-design/SKILL.md) | Pour créer ou revoir un skill, un agent, un outil ou une règle. Découpe la demande en morceaux et dit où va chacun — AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, check CI, paramètre géré, ou rien — avec la raison. La place vient de `harness place`, une grille de questions fermées : mêmes réponses, même destination. Montre le plan, pose les fichiers sur accord, et s'arrête. |
 
+## Ce qui a vieilli
+
+`harness fresh` lutte contre l'obsolescence du harness lui-même. Il confronte les skills et les agents du dépôt à l'historique git : celui qui cite un fichier renommé ou supprimé est **cassé**, celui dont les fichiers cités ont changé depuis sa dernière relecture est **à revoir**, comme celui que personne n'a touché depuis six mois ou qui nomme un modèle. Il y ajoute les signaux des règles : harvest ou audit en retard, garde-fou disparu, règle de plus d'un an sans garde-fou. Un chemin que git n'a jamais connu n'est pas jugé, parce qu'un skill parle souvent des fichiers d'un autre dépôt.
+
+```bash
+python3 cli/harness.py fresh .            # le détail, et quoi faire
+python3 cli/harness.py fresh . --strict   # sort en 1 si quelque chose est cassé : pour un job planifié
+```
+
+En hook de début de session (`--hook`), il ne dit rien tant que rien n'est cassé ni en retard, et trois lignes sinon :
+
+```json
+{"hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "python3 \"$CLAUDE_PROJECT_DIR/cli/harness.py\" fresh \"$CLAUDE_PROJECT_DIR\" --hook"}]}]}}
+```
+
 ## Médailles et succès
 
 `harness medals` dit le niveau d'un dépôt ou d'une marketplace de plugins en médaille (bronze, argent, or, platine), avec les succès débloqués, pourquoi on en est là, et les prochaines étapes. Rien n'y est noté par un modèle : pour un dépôt, la médaille est le palier de `harness status`, et chaque vérification passée est un succès. `--write` tient `.harness/medals.json`, qui garde la date de chaque succès et dit quand l'un d'eux est perdu. `--page` écrit une page interactive en un seul fichier ([exemple](docs/exemples/medailles.html), figé au 2026-11-15). Le skill [`harness-medals`](skills/harness-medals/SKILL.md) répond à « pourquoi ce niveau ? ».
@@ -58,7 +73,7 @@ Un second plugin, dans `plugins/ai-sdlc/`, outille les phases du cycle de dével
 
 | Pièce | Rôle |
 |---|---|
-| [`dev`](plugins/ai-sdlc/skills/dev/SKILL.md) | Développe un ticket jusqu'à la PR, sur le chemin que sa taille impose. Ne fusionne jamais. Pas encore mesuré sur une fixture. |
+| [`dev`](plugins/ai-sdlc/skills/dev/SKILL.md) | Développe un ticket jusqu'à la PR, sur le chemin que sa taille impose. Ne fusionne jamais. Mesuré une fois : deux tickets conformes. |
 | [`review`](plugins/ai-sdlc/skills/review/SKILL.md) | Relit une PR avec la checklist du socle et celle de l'équipe. Peu de commentaires, chacun prouvé. Ne fait que commenter. |
 | `ai_sdlc.py context <phase>` | Assemble le socle et les ajouts de l'équipe (`docs/agents/<point>.md`), avec leur provenance. Une surcharge de porte se lit sur la branche de base ; une surcharge invalide arrête tout. |
 | `ai_sdlc.py status` | Liste les points d'extension : convention du framework, surchargé, ou invalide. Aucun fichier n'est créé d'avance. |

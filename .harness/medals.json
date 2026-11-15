@@ -230,6 +230,16 @@
       "waiting": false
     },
     {
+      "id": "B.frais",
+      "tier": "bonus",
+      "title": "Aucun skill ni agent ne cite ce qui a disparu",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "rien de cassé",
+      "next": null,
+      "waiting": false
+    },
+    {
       "id": "B.dates",
       "tier": "bonus",
       "title": "Chaque règle porte sa date",
