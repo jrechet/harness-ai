@@ -18,12 +18,19 @@ class Refused(ValueError):
     """La demande ne peut pas être servie telle quelle ; le message dit quoi corriger."""
 
 
-def _git(repo: str, *args: str) -> tuple[int, str]:
+def _git(repo: str, *args: str) -> tuple[int, bytes]:
     try:
-        out = subprocess.run(["git", "-C", repo, *args], capture_output=True, text=True, timeout=20)
+        out = subprocess.run(["git", "-C", repo, *args], capture_output=True, timeout=20)
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return 1, str(exc)
+        raise Refused(f"git {args[0]} n'a pas répondu dans {repo} : {exc}") from exc
     return out.returncode, out.stdout
+
+
+def _decode(raw: bytes, rel: str) -> str:
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise Refused(f"{rel} : le fichier n'est pas du texte UTF-8") from exc
 
 
 def resolve_base(repo: str, base: str) -> str:
@@ -32,20 +39,43 @@ def resolve_base(repo: str, base: str) -> str:
     code, out = _git(repo, "rev-parse", "--short", "--verify", "--quiet", f"{base}^{{commit}}")
     if code != 0 or not out.strip():
         raise Refused(f"branche de base {base} introuvable dans {repo} : passe --base <ref>")
-    return out.strip()
+    return out.decode("ascii", "replace").strip()
 
 
-def _read_at(repo: str, ref: str, rel: str) -> str | None:
-    code, out = _git(repo, "show", f"{ref}:{rel}")
-    return out if code == 0 else None
+def _is_head(repo: str, commit: str) -> bool:
+    """La base est-elle le commit relu lui-même ? Alors rien ne sépare la PR de ses propres règles."""
+    code, out = _git(repo, "rev-parse", "--short", "--verify", "--quiet", "HEAD^{commit}")
+    return code == 0 and out.decode("ascii", "replace").strip() == commit
+
+
+def _read_at(repo: str, commit: str, rel: str) -> str | None:
+    """Le fichier tel qu'il est dans ce commit ; None s'il n'y est pas. Toute autre erreur refuse :
+    une porte qui ne peut pas lire ses règles ne les remplace pas par le défaut."""
+    code, out = _git(repo, "ls-tree", commit, "--", rel)
+    if code != 0:
+        raise Refused(f"{rel} : lecture impossible dans {commit}")
+    entry = out.decode("utf-8", "replace").strip()
+    if not entry:
+        return None
+    if not entry.startswith("100"):
+        raise Refused(f"{rel} : attendu un fichier ordinaire dans {commit}, pas un lien ni un dossier")
+    code, out = _git(repo, "show", f"{commit}:{rel}")
+    if code != 0:
+        raise Refused(f"{rel} : lecture impossible dans {commit}")
+    return _decode(out, rel)
 
 
 def _read_worktree(repo: str, rel: str) -> str | None:
     path = os.path.join(repo, rel)
+    if os.path.islink(path):
+        raise Refused(f"{rel} : attendu un fichier ordinaire, pas un lien")
     if not os.path.isfile(path):
         return None
-    with open(path, encoding="utf-8") as fh:
-        return fh.read()
+    try:
+        with open(path, "rb") as fh:
+            return _decode(fh.read(), rel)
+    except OSError as exc:
+        raise Refused(f"{rel} : lecture impossible ({exc})") from exc
 
 
 def parse_override(name: str, point: dict[str, Any], text: str, budget: int) -> dict[str, Any]:
@@ -69,6 +99,8 @@ def parse_override(name: str, point: dict[str, Any], text: str, budget: int) -> 
     if mode == "remplace" and not header.get("pourquoi"):
         raise Refused(f"{name} : remplace exige un champ pourquoi dans l'en-tête")
     body = [line for line in lines[end + 1:] if line.strip()]
+    if any(line.lstrip().startswith("#") for line in body):
+        raise Refused(f"{name} : pas de titre (ligne en #) dans une surcharge, seulement des règles")
     if len(body) > budget:
         raise Refused(f"{name} : {len(body)} lignes, au plus {budget} ; ce qui déborde va dans un skill d'équipe")
     return {"mode": mode, "why": header.get("pourquoi"), "text": "\n".join(body), "lines": len(body)}
@@ -79,12 +111,18 @@ def _override(table: dict[str, Any], repo: str, name: str, base: str, commit: st
     """La surcharge d'un point là où elle doit se lire, et un avertissement si une autre existe ailleurs."""
     point = table["points"][name]
     rel = f"{table['override_dir']}/{name}.md"
-    here = _read_worktree(repo, rel)
     on_base = point["branch"] == "base" and not worktree
-    text = _read_at(repo, commit, rel) if on_base else here
     warning = None
-    if on_base and here is not None and here != text:
-        warning = f"{rel} diffère de {base} dans la copie de travail : c'est la version de {base} qui est lue"
+    if on_base:
+        text = _read_at(repo, commit, rel)
+        try:  # la copie de travail ne sert qu'à prévenir : illisible, elle ne bloque pas la revue
+            here = _read_worktree(repo, rel)
+        except Refused:
+            here = ""
+        if here is not None and here != text:
+            warning = f"{rel} diffère de {base} dans la copie de travail : c'est la version de {base} qui est lue"
+    else:
+        text = _read_worktree(repo, rel)
     if text is None:
         return None, warning
     parsed = parse_override(name, point, text, table["budget_lines"])
@@ -120,9 +158,12 @@ def assemble(table: dict[str, Any], repo: str, phase: str, base: str, worktree: 
             blocks.append({"point": name, "origin": "socle", "text": default, "source": {"path": point["default"]}})
         if override:
             blocks.append({"point": name, "origin": "equipe", "text": override["text"], "source": override["source"]})
+    same = _is_head(repo, commit)
+    if same and not worktree:
+        warnings.append(f"{base} est le commit relu lui-même : rien ne sépare ce changement de ses propres règles")
     reached = read_level(repo)
     needed = table["phases"][phase]["min_level"]
-    return {"phase": phase, "base": base, "commit": commit, "gate": not worktree, "blocks": blocks,
+    return {"phase": phase, "base": base, "commit": commit, "gate": not worktree and not same, "blocks": blocks,
             "warnings": warnings,
             "level": {"reached": reached, "needed": needed, "open": reached is not None and reached >= needed}}
 
@@ -157,7 +198,7 @@ def render_context_md(result: dict[str, Any]) -> str:
     if not level["open"]:
         out.append("Le palier requis n'est pas atteint : la phase reste utilisable, ses résultats sont à prendre comme un essai.")
     if not result["gate"]:
-        out.append("Lu dans la copie de travail : ce contexte ne vaut pas pour une porte.")
+        out.append("Ce contexte ne vaut pas pour une porte : les règles ne viennent pas d'une branche de base distincte.")
     out += [f"Attention : {w}" for w in result["warnings"]]
     for block in result["blocks"]:
         src = block["source"]
