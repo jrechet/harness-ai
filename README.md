@@ -41,9 +41,12 @@ Un second plugin, dans `plugins/ai-sdlc/`, outille les phases du cycle de dével
 
 | Pièce | Rôle |
 |---|---|
+| [`dev`](plugins/ai-sdlc/skills/dev/SKILL.md) | Développe un ticket jusqu'à la PR, sur le chemin que sa taille impose. Ne fusionne jamais. Pas encore mesuré sur une fixture. |
 | [`review`](plugins/ai-sdlc/skills/review/SKILL.md) | Relit une PR avec la checklist du socle et celle de l'équipe. Peu de commentaires, chacun prouvé. Ne fait que commenter. |
 | `ai_sdlc.py context <phase>` | Assemble le socle et les ajouts de l'équipe (`docs/agents/<point>.md`), avec leur provenance. Une surcharge de porte se lit sur la branche de base ; une surcharge invalide arrête tout. |
 | `ai_sdlc.py status` | Liste les points d'extension : convention du framework, surchargé, ou invalide. Aucun fichier n'est créé d'avance. |
+| `ai_sdlc.py size` | Calcule la taille du changement (XS, S-M, L) par règles : fichiers, lignes, zones sensibles du socle et de l'équipe lues sur la branche de base. |
+| `ai_sdlc.py dev body` | Rend le corps de la PR, et le refuse s'il est incomplet pour sa taille : plan absent, plan de taille L non commité, rien de dit sur ce qui est vérifié. |
 | `ai_sdlc.py review render` | Rend la revue en commentaires, et la refuse si un constat ne cite pas une ligne du diff. |
 
 Le skill `review` se mesure sur une PR piégée, dans [fixtures/review/](fixtures/review/README.md).

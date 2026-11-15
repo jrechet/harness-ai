@@ -64,6 +64,11 @@ class PointsTests(unittest.TestCase):
         table["points"]["securite"]["replaceable"] = "peut-être"
         self.assertTrue(points.validate(table))
 
+    def test_size_thresholds_that_are_broken_or_upside_down_are_reported(self):
+        for sizes in (None, {"XS": 5, "S-M": {}}, {"XS": {"files": 50, "lines": 5}, "S-M": {"files": 20, "lines": 400}}):
+            table = {**points.load(), "sizes": sizes}
+            self.assertTrue(points.validate(table), sizes)
+
 
 class AssembleTests(RepoCase):
     def test_without_override_the_context_is_the_framework_default_alone(self):
