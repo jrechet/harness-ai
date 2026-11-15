@@ -28,3 +28,6 @@ Le noteur est généreux sur la destination (plusieurs sont acceptées par pièg
 | Nom | Artefact | Pièges | Ce qu'elle teste |
 |---|---|---|---|
 | `release-skill` | Un skill de release, son sous-agent, deux règles d'AGENTS.md | 6 + 3 sains | Limite racontée, calcul en prose, vérification racontée, livraison avec jeton depuis le poste, arborescence recopiée, limite de l'agent écrite en règle ; et ne pas toucher un jugement, un sous-agent justifié, une règle qui cite son check |
+| `ticket-vers-pr` | **Tenue à l'écart** (`holdout`), en création : une demande de douze besoins pour un outil ticket → PR | 12 | Donner sa place à chaque nature de morceau à partir d'une demande : lecture et écriture par MCP, pré-condition en code, limite de l'agent contre limite de tous, règle bloquante, sous-agent, jugement, convention de dossier, rien à écrire |
+
+Une fixture de création porte `"mode": "create"` dans son corrigé : rien n'existe, les morceaux n'ont pas de `current`, et le noteur compte la destination rendue. Une fixture `holdout` ne sert jamais à corriger le skill ou la grille.
