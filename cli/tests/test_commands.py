@@ -142,6 +142,72 @@ class CandidateTests(RepoCase):
         self.assertEqual(found[command]["kind"], "livraison")
         self.assertIn("Interdit", commands.render_md(self.found()))
 
+    def wf(self, body: str, name: str = "ci.yml") -> dict:
+        self.write(f".github/workflows/{name}", body)
+        return self.by_command()
+
+    def test_a_deploy_job_or_command_in_ci_yml_is_delivery_never_to_run(self):
+        found = self.wf("jobs:\n  test:\n    steps:\n      - run: make it\n  deploy:\n    steps:\n      - run: make ship\n"
+                        "  prod:\n    environment: production\n    steps:\n      - run: make go\n"
+                        "  misc:\n    steps:\n      - run: make deploy\n      - run: ./mvnw -Prelease verify\n")
+        self.write("Makefile", "deploy:\n\tx\n")
+        self.assertEqual(found["make it"]["kind"], "enveloppe")
+        for command in ("make ship", "make go", "make deploy"):
+            self.assertEqual(found[command]["kind"], "livraison", command)
+        self.assertEqual(self.by_command()["make deploy"]["kind"], "livraison")
+
+    def test_a_command_an_ordinary_job_also_runs_is_not_delivery(self):
+        self.write(".github/workflows/deploy.yml", "jobs:\n  d:\n    steps:\n      - run: npm run build\n")
+        found = self.wf("jobs:\n  t:\n    steps:\n      - run: npm run build\n")
+        self.assertEqual(found["npm run build"]["kind"], "enveloppe")
+
+    def test_a_delivery_target_of_the_makefile_is_listed_as_delivery(self):
+        self.write("Makefile", "test lint: deps\n\tx\npublish:\n\tx\n")
+        found = self.by_command()
+        self.assertEqual(found["make publish"]["kind"], "livraison")
+        self.assertIn("make test", found)
+        self.assertIn("make lint", found)
+
+    def test_documented_means_the_exact_command_not_a_prefix(self):
+        self.wf("jobs:\n  t:\n    steps:\n      - run: make it\n")
+        self.write("AGENTS.md", "Please make it work with `make it-fast`, then make test-all.\n")
+        self.assertFalse(self.by_command()["make it"]["documented"])
+        self.write("AGENTS.md", "Lance `make it`.\n")
+        self.assertTrue(self.by_command()["make it"]["documented"])
+
+    def test_common_shapes_of_run_are_read(self):
+        self.write("pom.xml", "<project/>")
+        found = self.wf('jobs:\n  t:\n    steps:\n      - "run": make quoted\n      - run: >-\n          make\n          folded\n'
+                        "      - run: |\n          mvn verify \\\n            -Pintegration\n          if [ -f x ]; then make cond; fi\n"
+                        "          (cd api && make sub)\n          make it # commentaire\n          mvn -B verify | tee out.log\n"
+                        "          cat <<EOF > f\n          make bogus\n          EOF\n          make ${{ matrix.t || 'x' }}\n")
+        for command in ("make quoted", "make folded", "make cond", "cd api && make sub", "make it", "make ${{ matrix.t || 'x' }}"):
+            self.assertIn(command, found)
+        self.assertEqual(found["mvn verify -Pintegration"]["kind"], "options")
+        self.assertNotIn("make bogus", found)
+        self.assertIn("mvn verify", [c["command"] for c in self.found()["obvious_in_ci"]])
+
+    def test_composite_actions_and_gitlab_blocks_are_read(self):
+        self.write(".github/actions/setup/action.yml", "runs:\n  using: composite\n  steps:\n    - run: make composite\n      shell: bash\n")
+        self.write(".gitlab-ci.yml", "test:\n  script:\n    - |\n      make block\n    - make plain\ndeploy_prod:\n  script:\n    - make push\n")
+        found = self.by_command()
+        for command in ("make composite", "make block", "make plain"):
+            self.assertIn(command, found)
+        self.assertEqual(found["make push"]["kind"], "livraison")
+
+    def test_environment_runners_and_the_working_directory_are_kept(self):
+        self.write("pyproject.toml", "")
+        found = self.wf("jobs:\n  t:\n    steps:\n      - run: uv run pytest -m fast\n      - run: npx playwright test\n"
+                        "      - run: npx playwright install\n      - run: cd web && npm run lint\n"
+                        "      - name: api\n        working-directory: api\n        run: make it\n      - run: make it\n")
+        for command in ("uv run pytest -m fast", "npx playwright test", "cd web && npm run lint", "cd api && make it", "make it"):
+            self.assertIn(command, found)
+        self.assertNotIn("npx playwright install", found)
+
+    def test_a_script_of_the_manifest_has_its_line(self):
+        self.write("package.json", '{\n  "scripts": {\n    "test": "jest",\n    "e2e": "playwright test"\n  }\n}\n')
+        self.assertEqual(self.by_command()["npm run e2e"]["source"], "package.json:4")
+
     def test_an_empty_repo_has_no_candidate_and_does_not_crash(self):
         self.assertEqual(self.found()["candidates"], [])
         self.write(".github/workflows/casse.yml", "run: |\n\t\x00\n  run:\n")

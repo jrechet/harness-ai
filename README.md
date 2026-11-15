@@ -26,9 +26,11 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 | [`harness-audit`](skills/harness-audit/SKILL.md) | Audite un harness ou un AGENTS.md/CLAUDE.md, classe chaque élément dans la grille L1–L4, rend un verdict par élément (KEEP / INLINE / PUSH_DOWN / PROMOTE / MERGE / SPLIT / BLOCK / REMOVE) et un plan de remédiation. Sa revue de pertinence dit quelles lignes ne changent plus ce que fait l'agent : inutiles, nuisibles, ou périmées, ces dernières posées en question au propriétaire. Rapport à format fixe (Markdown + JSON) défini dans `references/report-template.md`. |
 | [`harness-design`](skills/harness-design/SKILL.md) | Pour créer ou revoir un skill, un agent, un outil ou une règle. Découpe la demande en morceaux et dit où va chacun — AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, check CI, paramètre géré, ou rien — avec la raison. La place vient de `harness place`, une grille de questions fermées : mêmes réponses, même destination. Montre le plan, pose les fichiers sur accord, et s'arrête. |
 
-## Un rapport, toujours au même format
+## Ce qui manque à un AGENTS.md
 
 `harness commands` cherche ce qu'un AGENTS.md devrait dire et que personne n'a pensé à écrire : les commandes que la CI lance et que le dépôt ne laisse pas deviner (« `make it`, pas `mvn verify` »). Il rend des candidates avec leur source ; harness-init les confirme en les exécutant, harness-audit les pose en questions au propriétaire.
+
+## Un rapport, toujours au même format
 
 `harness report` écrit un état des lieux en une page HTML, qu'il porte sur un dépôt, un harness, un agent, un skill, un plugin ou une règle. Chaque constat a quatre colonnes — sur quoi porte l'évaluation, ce qui est attendu, ce qui est observé, ce qui est conseillé — un statut (bloquant, écart, à créer, non évalué, conforme) et sa preuve. Le skill ou l'agent remplit les données ; le code les valide et écrit la page : un écart sans preuve est refusé, et les mêmes données donnent le même fichier. La page est un seul fichier sans ressource externe, lisible sans JavaScript, en clair comme en sombre, et elle embarque ses données pour qu'un outil les relise.
 
