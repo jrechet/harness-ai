@@ -34,6 +34,8 @@ Ne demande à l'utilisateur que ce qui est une décision, pas un fait. En pratiq
 
 `current` ne sert qu'en revue : c'est l'identifiant de la destination où le morceau vit aujourd'hui (`place grid` les liste). Un morceau qui n'existe pas encore n'a pas de `current`. Le plan rend alors un verdict : KEEP, PUSH_DOWN, PROMOTE, MOVE (même couche, autre endroit) ou REMOVE. Pas de verdict tant qu'une réponse manque.
 
+Pour un état des lieux à lire ou à partager, `python3 cli/harness.py report from-place <fichier> --kind skill --name <nom> -o <rapport.html>` écrit la même chose en une page : sur quoi porte l'évaluation, attendu, observé, conseillé. En revue, chaque morceau porte alors `"evidence": ["chemin:ligne"]` : un écart sans preuve est refusé. Écris la page hors du dépôt, sauf si l'utilisateur la veut dedans.
+
 Code 3 : une réponse manque, retourne à l'étape 3. Code 2 : saisie invalide, corrige-la. Sous le plan, une ligne par morceau que tu n'as pas pu placer, avec la raison.
 
 ### 5. Poser, sur accord
