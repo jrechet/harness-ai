@@ -63,10 +63,14 @@ def evaluate_repo(repo: str, today: date | None = None) -> dict[str, Any]:
     found = commands.collect(repo)
     unwritten = [c["command"] for c in found["candidates"] if c["ci"] and c["kind"] != "livraison" and not c["documented"]]
     target = state["target"]
-    broken = [i for i in fresh.collect(repo, today)["items"] if i["state"] == "cassé"]
+    try:
+        aged = fresh.collect(repo, today, fast=True)
+    except Exception:  # la fraîcheur est un bonus : son échec ne prive pas de médaille
+        aged = {"git": False, "items": []}
+    broken = [i for i in aged["items"] if i["state"] == "cassé"]
     bonus = [
-        ("B.frais", "Aucun skill ni agent ne cite ce qui a disparu", bool(source.get("path")) and not broken,
-         ", ".join(f"{i['path']} : {i['evidence']}" for i in broken[:2]) or "rien de cassé",
+        ("B.frais", "Aucun skill ni agent ne cite ce qui a disparu", bool(source.get("path")) and aged["git"] and not broken,
+         ", ".join(f"{i['path']} : {i['evidence']}" for i in broken[:2]) or ("rien de cassé" if aged["git"] else "non mesuré : pas d'historique git"),
          "Lancer `harness fresh` et réparer chaque référence cassée."),
         ("B.dates", "Chaque règle porte sa date", total > 0 and source.get("rules_dated") == total,
          f"{source.get('rules_dated', 0)} sur {total}", "Dater chaque règle [AAAA-MM] : l'âge d'une règle est l'entrée de la revue de pertinence."),
