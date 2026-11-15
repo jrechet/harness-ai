@@ -26,7 +26,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 
 | Capacité | Comment | État |
 |---|---|---|
-| Dire où va chaque morceau : AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, CI, paramètre géré, rien | skill `harness-design`, `harness place` (9 questions, 20 destinations) | mesuré : 7 sur 7 sur `release-skill`, 11 sur 12 sur la fixture tenue à l'écart avant correction |
+| Dire où va chaque morceau : AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, CI, paramètre géré, rien | skill `harness-design`, `harness place` (9 questions, 20 destinations) | mesuré : 7 sur 7 sur `release-skill`, 12 sur 12 sur la fixture tenue à l'écart après correction de la grille (11 sur 12 avant) |
 | Rendre un état des lieux en une page HTML, toujours au même format | `harness report build`, `report from-place` | outillé |
 
 ### Outiller le cycle de développement (plugin `ai-sdlc`)
@@ -62,7 +62,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | H2 | Jouer `harness-harvest` au moins une fois | à faire | 2026-11-10 | Il lui faut un historique de PR rejouable hors ligne |
 | H3 | `harness-audit` lit la grille de placement et rend le rapport commun | à faire | 2026-11-14 | Attend l'accord avec l'autre session, qui tient ce skill |
 | D1 | Grille de placement et skill `harness-design` | fait | 2026-11-14 | PR 12 à 20 ; 7 sur 7 à l'aveugle après la correction `incident=forget` |
-| D2 | Rejouer la fixture tenue à l'écart `ticket-vers-pr` depuis la correction de la grille | en attente | 2026-11-15 | Une exécution à l'aveugle ne se lance qu'à la demande du propriétaire |
+| D2 | Rejouer la fixture tenue à l'écart `ticket-vers-pr` depuis la correction de la grille | fait | 2026-11-15 | `runs/2026-11-15-blind-2` : 12 sur 12, une exécution. Trois limites de la grille notées dans son journal, non corrigées d'après elle |
 | R1 | Rapport commun en une page HTML | fait | 2026-11-14 | `harness report`, `docs/exemples/rapport-skill-release.html` |
 | S1 | Plugin `ai-sdlc` : contexte, points d'extension | fait | 2026-11-15 | PR 22 |
 | S2 | Skill `review`, rendu par le CLI, PR piégée, première mesure | fait | 2026-11-15 | PR 23 et 24 ; une seule exécution, fixture sans doute trop facile |

@@ -24,3 +24,4 @@ Une demande de création : douze besoins, un par ligne, de natures différentes.
 ## Journal
 
 - 2026-11-15 : la grille a reçu `incident=forget` d'après `release-skill` (T7, `runs/2026-11-15-blind-3`), pas d'après cette fixture. Le plan de l'auteur, qui répondait `incident=yes` contre le propriétaire, passe désormais C2 par ce chemin. Le corrigé n'a pas changé.
+- 2026-11-15 : rejouée à l'aveugle depuis la correction de la grille (`runs/2026-11-15-blind-2`), par un agent neuf sans le corrigé : 12 pièges sur 12, C2 compris, par `incident=forget`. Une seule exécution. L'agent signale trois limites de la grille (une vérification par hook qui doit lire Jira, « rien ne fusionne sans approbation » entre limite et règle, une limite de l'agent tenue par le serveur) : notées ici, et pas corrigées d'après cette fixture, qui ne sert qu'à mesurer.
