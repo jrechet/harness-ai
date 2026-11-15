@@ -1,0 +1,15 @@
+[
+  {"piece": "Lire le ticket Jira et ses critères d'acceptation", "answers": {"nature": "action", "access": "consult"}, "evidence": ["demande.md:5"]},
+  {"piece": "Ne pas commencer le travail (branche) sur un ticket sans critères d'acceptation", "answers": {"nature": "limit", "bypass_limit": "agent"}, "evidence": ["demande.md:6"]},
+  {"piece": "Suivre toujours les mêmes étapes : branche, tests d'abord, code, puis PR", "answers": {"nature": "procedure"}, "evidence": ["demande.md:7"]},
+  {"piece": "Déduire le nom de la branche du ticket : type/CLE-123-titre-court", "answers": {"nature": "compute", "when": "on_demand"}, "evidence": ["demande.md:8"]},
+  {"piece": "L'agent ne fusionne jamais sa propre PR", "answers": {"nature": "limit", "bypass_limit": "agent"}, "evidence": ["demande.md:9"]},
+  {"piece": "Rien ne fusionne sans une approbation", "answers": {"nature": "limit", "bypass_limit": "dev"}, "evidence": ["demande.md:9"]},
+  {"piece": "L'agent ne peut pas modifier les fichiers de .github/workflows/", "answers": {"nature": "limit", "bypass_limit": "agent"}, "evidence": ["demande.md:10"]},
+  {"piece": "Aucune PR ne fusionne si ses tests ne passent pas", "answers": {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "dev"}, "evidence": ["demande.md:11"]},
+  {"piece": "Avant d'ouvrir la PR, un regard neuf relit le diff contre les critères d'acceptation", "answers": {"nature": "judgment", "isolation": "independence"}, "evidence": ["demande.md:12"]},
+  {"piece": "Décider du découpage en commits", "answers": {"nature": "judgment", "isolation": "none"}, "evidence": ["demande.md:13"]},
+  {"piece": "Commenter le ticket Jira avec le lien de la PR", "answers": {"nature": "action", "access": "write"}, "evidence": ["demande.md:14"]},
+  {"piece": "Savoir que le projet est en TypeScript, avec pnpm", "answers": {"nature": "knowledge", "scope": "discoverable"}, "evidence": ["demande.md:15"]},
+  {"piece": "Dans migrations/, une migration existante ne se modifie pas : on en ajoute une", "answers": {"nature": "knowledge", "scope": "zone"}, "evidence": ["demande.md:16"]}
+]
