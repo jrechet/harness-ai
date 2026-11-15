@@ -177,3 +177,7 @@ Conventions :
 - un `SKILL.md` reste court (procédure, vocabulaire, cas d'abandon) ; la référence longue va dans `references/` ;
 - tout ce qui doit être **garanti** va dans `cli/`, pas dans le texte des skills ; les skills appellent le CLI ;
 - chaque skill produit un format de sortie stable pour pouvoir comparer deux exécutions.
+
+## Licence
+
+MIT, voir [LICENSE](LICENSE).
