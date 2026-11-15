@@ -1,0 +1,167 @@
+{
+  "schema": 1,
+  "kind": "marketplace",
+  "name": "harness-ai",
+  "date": "2026-11-15",
+  "medal": {
+    "id": "bronze",
+    "name": "Bronze",
+    "rank": 1,
+    "of": 4
+  },
+  "why": "Bronze : les 3 succès du rang « Installable » sont débloqués, et il en manque 1 pour argent.",
+  "tiers": [
+    {
+      "id": "bronze",
+      "name": "Bronze",
+      "title": "Installable",
+      "promise": "La marketplace se lit, chaque plugin s'installe.",
+      "done": 3,
+      "total": 3,
+      "earned": true
+    },
+    {
+      "id": "argent",
+      "name": "Argent",
+      "title": "Décrit",
+      "promise": "Chaque skill dit quand il sert, et quand il ne sert pas.",
+      "done": 2,
+      "total": 3,
+      "earned": false
+    },
+    {
+      "id": "or",
+      "name": "Or",
+      "title": "Tenu",
+      "promise": "Ce qui est garanti est dans du code testé, les skills restent courts.",
+      "done": 2,
+      "total": 2,
+      "earned": false
+    },
+    {
+      "id": "platine",
+      "name": "Platine",
+      "title": "Mesuré",
+      "promise": "Les skills sont éprouvés à l'aveugle, l'avancement est tenu.",
+      "done": 2,
+      "total": 2,
+      "earned": false
+    }
+  ],
+  "successes": [
+    {
+      "id": "M1.manifeste",
+      "tier": "bronze",
+      "title": "Le manifeste de la marketplace se lit et liste des plugins",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "2 plugin(s)",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "M1.sources",
+      "tier": "bronze",
+      "title": "Chaque plugin a sa source dans le dépôt, avec son `plugin.json`",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "2 sur 2",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "M1.identite",
+      "tier": "bronze",
+      "title": "Chaque plugin a un nom, une version et une description",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "2 sur 2",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "M2.skills",
+      "tier": "argent",
+      "title": "Chaque skill a un nom et une description",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "8 sur 8",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "M2.quand",
+      "tier": "argent",
+      "title": "Chaque description dit quand utiliser le skill",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "8 sur 8",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "M2.quand-pas",
+      "tier": "argent",
+      "title": "Chaque description dit quand ne pas l'utiliser",
+      "unlocked": null,
+      "lost": null,
+      "evidence": "7 sur 8 ; manque : skills/harness-audit/SKILL.md",
+      "next": "Ajouter « Ne pas utiliser pour… » : c'est ce qui départage deux skills voisins.",
+      "waiting": false
+    },
+    {
+      "id": "M3.budget",
+      "tier": "or",
+      "title": "Aucun SKILL.md ne dépasse 500 lignes",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "8 sur 8",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "M3.tests",
+      "tier": "or",
+      "title": "Chaque plugin qui porte du code a ses tests",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "2 sur 2",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "M4.aveugle",
+      "tier": "platine",
+      "title": "Au moins une exécution à l'aveugle est rangée dans le dépôt",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "46 exécution(s) sous fixtures/",
+      "next": null,
+      "waiting": false
+    },
+    {
+      "id": "M4.plan",
+      "tier": "platine",
+      "title": "Le plan d'avancement existe et il est en forme",
+      "unlocked": "2026-11-15",
+      "lost": null,
+      "evidence": "docs/capacites.md",
+      "next": null,
+      "waiting": false
+    }
+  ],
+  "next": [
+    {
+      "id": "M2.quand-pas",
+      "title": "Chaque description dit quand ne pas l'utiliser",
+      "action": "Ajouter « Ne pas utiliser pour… » : c'est ce qui départage deux skills voisins.",
+      "waiting": false
+    }
+  ],
+  "history": [
+    {
+      "date": "2026-11-15",
+      "medal": "bronze"
+    }
+  ]
+}

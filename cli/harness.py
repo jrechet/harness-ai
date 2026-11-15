@@ -10,6 +10,7 @@
   harness serve [repo]               application de suivi en local (http://127.0.0.1:8787)
   harness place grid|one|plan …      où va chaque morceau d'un harness, et pourquoi
   harness commands [repo]            les commandes qu'un agent ne devine pas : ce que la CI lance vraiment
+  harness medals [repo] [--write] [--page F]   médaille, succès débloqués, prochaines étapes ; page HTML
   harness progress check|remind      le plan d'avancement de docs/capacites.md suit chaque changement
   harness report build|from-place …  un état des lieux en une page HTML, toujours au même format
 
@@ -22,7 +23,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harnesslib import bench, commands, fixtures, github, place, progress, report, rules, serve, status  # noqa: E402
+from harnesslib import bench, commands, fixtures, github, medals, place, progress, report, rules, serve, status  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -42,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     report.build_parser(sub.add_parser("report", help="un état des lieux en une page HTML"))
     commands.build_parser(sub.add_parser("commands", help="les commandes qu'un agent ne devine pas"))
     progress.build_parser(sub.add_parser("progress", help="le plan d'avancement suit chaque changement"))
+    medals.build_parser(sub.add_parser("medals", help="médailles et succès : le niveau de maturité et pourquoi"))
     args = parser.parse_args(argv)
     if args.command == "status":
         return status.main(args=args)
@@ -65,6 +67,8 @@ def main(argv: list[str] | None = None) -> int:
         return commands.main(args=args)
     if args.command == "progress":
         return progress.main(args=args)
+    if args.command == "medals":
+        return medals.main(args=args)
     parser.error("commande inconnue")
     return 2
 
