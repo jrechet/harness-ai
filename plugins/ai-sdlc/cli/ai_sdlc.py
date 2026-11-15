@@ -4,8 +4,9 @@
   ai_sdlc.py context <phase> [repo] [--base REF]   le socle et les ajouts de l'équipe, avec leur provenance
   ai_sdlc.py status [repo] [--base REF]            les points d'extension : convention, surchargé, invalide
 
-Codes de sortie : 0 servi, 2 refusé (surcharge invalide, phase ou branche inconnue) : rien n'est imprimé
-sur la sortie standard, la raison est sur la sortie d'erreur.
+Codes de sortie de `context` : 0 servi, 2 refusé (surcharge invalide, phase ou branche inconnue) : rien
+n'est imprimé sur la sortie standard, la raison est sur la sortie d'erreur. `status` sort 0 et montre une
+surcharge invalide dans son tableau : il décrit, il ne sert pas de porte.
 
 Python 3.10+, bibliothèque standard uniquement."""
 from __future__ import annotations
