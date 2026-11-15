@@ -35,6 +35,20 @@ python3 cli/harness.py report build rapport.json -o rapport.html
 python3 cli/harness.py report from-place morceaux.json --kind skill --name release -o rapport.html
 ```
 
+## Le plugin ai-sdlc
+
+Un second plugin, dans `plugins/ai-sdlc/`, outille les phases du cycle de développement : un socle commun que chaque équipe complète dans son dépôt. Il est autonome et porte son propre CLI ; de harness-ai, il lit seulement `.harness/state.json`, pour dire si le palier d'une phase est atteint. Sa conception est dans [docs/ai-sdlc/proposition.md](docs/ai-sdlc/proposition.md).
+
+| Pièce | Rôle |
+|---|---|
+| [`review`](plugins/ai-sdlc/skills/review/SKILL.md) | Relit une PR avec la checklist du socle et celle de l'équipe. Peu de commentaires, chacun prouvé. Ne fait que commenter. |
+| `ai_sdlc.py context <phase>` | Assemble le socle et les ajouts de l'équipe (`docs/agents/<point>.md`), avec leur provenance. Une surcharge de porte se lit sur la branche de base ; une surcharge invalide arrête tout. |
+| `ai_sdlc.py status` | Liste les points d'extension : convention du framework, surchargé, ou invalide. Aucun fichier n'est créé d'avance. |
+
+```
+/plugin install ai-sdlc@harness-ai
+```
+
 ## Progression mesurée
 
 `harness status` calcule le palier de maturité du repo à partir de faits (fichiers, règles, dernier audit, dernier harvest) et écrit `.harness/state.json`. Cinq paliers : Rien, Cadré, Bouclé, Vérifié, Délégué. Un palier est un endroit où l'on peut rester : tu déclares celui que tu vises, et au-delà l'état ne propose rien. Modèle et seuils dans [docs/maturity.md](docs/maturity.md).
