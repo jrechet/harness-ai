@@ -45,6 +45,38 @@ class DisabledTests(Case):
                 self.commit("tests/test_app.py", TEST + marker + "\n")
                 self.assertEqual(self.gates()["desactives"]["status"], qa.FAIL)
 
+    def test_a_test_renamed_out_of_collection_or_made_exclusive_fails(self):
+        for old, new in (("    def test_somme(self):", "    def _test_somme(self):"), ("    def test_somme(self):", "    def xtest_somme(self):")):
+            with self.subTest(new=new):
+                git(self.repo, "checkout", "-q", "-B", "essai", "main")
+                self.commit("tests/test_app.py", TEST.replace(old, new))
+                gate = self.gates()["desactives"]
+                self.assertEqual(gate["status"], qa.FAIL)
+                self.assertIn("test_somme", gate["evidence"])
+        for marker in ("it.only('x', () => {})", "fdescribe('x')", "pytest.importorskip('numpy')", '#[ignore = "lent"]', '[Fact(Skip = "x")]'):
+            with self.subTest(marker=marker):
+                git(self.repo, "checkout", "-q", "-B", "essai", "main")
+                self.commit("tests/test_app.py", TEST + marker + "\n")
+                self.assertEqual(self.gates()["desactives"]["status"], qa.FAIL)
+
+    def test_a_changed_test_configuration_is_not_measured_and_a_word_in_the_docs_is_not_a_skip(self):
+        self.commit("pytest.ini", "[pytest]\ntestpaths = nulle_part\n")
+        gate = self.gates()["desactives"]
+        self.assertEqual(gate["status"], qa.UNKNOWN)
+        self.assertIn("pytest.ini", gate["evidence"])
+        git(self.repo, "checkout", "-q", "-B", "essai", "main")
+        self.commit("README.md", "Utilise pytest.skip( pour sauter un test.\n")
+        self.assertEqual(self.gates()["desactives"]["status"], qa.OK)
+
+    def test_a_moved_test_file_is_not_a_deleted_one_and_other_test_names_are_known(self):
+        git(self.repo, "mv", "tests/test_app.py", "tests/test_total.py")
+        git(self.repo, "commit", "-q", "-m", "renomme")
+        self.assertEqual(self.gates()["desactives"]["status"], qa.OK)
+        for path in ("tests.py", "src/FooTest.php", "src/foo_test.rs", "src/FooIT.java", "e2e/login.ts", "features/a.feature", "conftest.py"):
+            self.assertTrue(qa.is_test(path), path)
+        for path in ("src/contest/x.py", "latest/a.py", "attest.py", "src/app.py"):
+            self.assertFalse(qa.is_test(path), path)
+
     def test_a_deleted_test_file_fails_and_a_removed_assertion_is_said(self):
         git(self.repo, "rm", "-q", "tests/test_app.py")
         git(self.repo, "commit", "-q", "-m", "retire")
@@ -74,6 +106,20 @@ class RepeatTests(Case):
         os.remove(os.path.join(self.repo, "compteur"))
         self.assertEqual(self.gates(command="commande-qui-n-existe-pas", runs=1)["repete"]["status"], qa.FAIL)
 
+    def test_a_command_that_needs_a_shell_is_refused_not_half_run(self):
+        self.change()
+        for command in ("echo tests && false", "true || false", "pytest | tee out", "CI=1 pytest", "cd tests", "pytest > out"):
+            with self.subTest(command=command), self.assertRaises(context.Refused) as ctx:
+                self.gates(command=command, runs=1)
+            self.assertIn("sans shell", str(ctx.exception))
+
+    def test_uncommitted_work_is_refused(self):
+        self.change()
+        write(self.repo, "tests/test_nouveau.py", "def test_x():\n    pass\n")
+        with self.assertRaises(context.Refused) as ctx:
+            self.gates()
+        self.assertIn("commitée", str(ctx.exception))
+
 
 class CoverageTests(Case):
     def report(self, name: str, text: str) -> str:
@@ -94,6 +140,31 @@ class CoverageTests(Case):
                + "".join(f'<line number="{n}" hits="1"/>' for n in range(1, 9)) + "</lines></class></classes></package></packages></coverage>")
         self.assertEqual(self.gates(coverage=self.report("cov.xml", xml))["couverture"]["status"], qa.OK)
 
+    def test_a_changed_file_the_report_does_not_know_is_not_measured_and_test_files_do_not_count(self):
+        self.change()
+        self.commit("autre.py", "def f():\n    return 1\n")
+        self.commit("tests.py", "x = 1\n" * 30)
+        lcov = self.report("lcov.info", "SF:app.py\n" + "".join(f"DA:{n},1\n" for n in range(1, 9))
+                           + "end_of_record\nSF:tests.py\n" + "".join(f"DA:{n},1\n" for n in range(1, 31)) + "end_of_record\n")
+        gate = self.gates(coverage=lcov)["couverture"]
+        self.assertEqual(gate["status"], qa.UNKNOWN)
+        self.assertIn("autre.py", gate["evidence"])
+        self.assertIn("6 lignes sur 6", gate["evidence"])       # celles d'app.py : tests.py ne gonfle rien
+        self.assertIn("1 fichier(s) sur 2", gate["evidence"])
+
+    def test_a_pure_deletion_adds_no_line_and_an_ambiguous_or_stale_report_is_not_measured(self):
+        self.commit("app.py", "def total(a, b):\n")              # une ligne retirée, aucune ajoutée
+        self.commit("pkg/util.py", "def g():\n    return 2\n")
+        self.commit("lib/util.py", "def h():\n    return 3\n")
+        lcov = self.report("lcov.info", "SF:app.py\nDA:1,0\nDA:2,0\nend_of_record\nSF:util.py\nDA:1,1\nDA:2,1\nend_of_record\n")
+        gate = self.gates(coverage=lcov)["couverture"]
+        self.assertEqual(gate["status"], qa.UNKNOWN)
+        self.assertIn("ambigu", gate["evidence"])
+        self.assertNotIn("app.py:", gate["evidence"])
+        old = self.report("vieux.info", "SF:pkg/util.py\nDA:1,1\nend_of_record\n")
+        os.utime(old, (0, 0))
+        self.assertIn("plus ancien", self.gates(coverage=old)["couverture"]["evidence"])
+
     def test_no_report_or_a_report_about_other_files_is_not_measured(self):
         self.change()
         self.assertEqual(self.gates()["couverture"]["status"], qa.UNKNOWN)
@@ -102,7 +173,8 @@ class CoverageTests(Case):
 
     def test_a_broken_report_is_refused(self):
         self.change()
-        for name, text in (("a.xml", "<coverage><class"), ("b.xml", '<!DOCTYPE x [<!ENTITY a "b">]><coverage/>')):
+        for name, text in (("a.xml", "<coverage><class"), ("b.xml", '<!DOCTYPE x [<!ENTITY a "b">]><coverage/>'),
+                           ("c.xml", "<coverage><!--" + "x" * 3000 + '--></coverage><!DOCTYPE x [<!ENTITY a "b">]>')):
             with self.subTest(name=name), self.assertRaises(context.Refused):
                 self.gates(coverage=self.report(name, text))
         with self.assertRaises(context.Refused):
@@ -119,16 +191,35 @@ class CriteriaTests(Case):
                 "non_couverts": [{"critere": 2, "pourquoi": "couvert par la recette manuelle"}]}
         gate = self.trace(mapping=good)
         self.assertEqual(gate["status"], qa.UNKNOWN)      # un critère sans test, même justifié, attend un humain
-        full = {"criteres": [{"critere": 1, "tests": ["tests/test_app.py::test_somme"]}, {"critere": 2, "tests": ["tests/test_app.py"]}],
-                "non_couverts": []}
+        self.commit("tests/test_app.py", TEST + "\n    def test_remise(self):\n        self.assertEqual(total(0, 0), 0)\n")
+        full = {"criteres": [{"critere": 1, "tests": ["tests/test_app.py::test_somme"]},
+                             {"critere": 2, "tests": ["tests/test_app.py::T::test_remise"]}], "non_couverts": []}
         self.assertEqual(self.trace(mapping=full)["status"], qa.OK)
+        same = {"criteres": [{"critere": n, "tests": ["tests/test_app.py::test_somme"]} for n in (1, 2)], "non_couverts": []}
+        self.assertEqual(self.trace(mapping=same)["status"], qa.UNKNOWN)     # un seul test pour tous les critères : à regarder
+
+    def test_a_reference_must_name_a_real_test_in_a_test_file(self):
+        self.change()
+        self.commit("README.md", "test_somme est décrit ici\n")
+        self.commit("tests/test_app.py", TEST + "    # test_fantome n'existe que dans ce commentaire\n")
+        for ref, needle in (("tests/test_app.py", "ne nomme pas"), ("README.md::test_somme", "n'est pas un fichier de test"),
+                            ("tests/test_app.py::test_fantome", "introuvable"), ("tests/test_app.py::t", "introuvable"),
+                            ("tests/test_app.py::", "ne nomme pas")):
+            with self.subTest(ref=ref):
+                gate = self.trace(mapping={"criteres": [{"critere": 1, "tests": [ref]}, {"critere": 2, "tests": [ref]}], "non_couverts": []})
+                self.assertEqual(gate["status"], qa.FAIL)
+                self.assertIn(needle, gate["evidence"])
+        excused = {"criteres": [], "non_couverts": [{"critere": n, "pourquoi": "vérifié à la main par la recette"} for n in (1, 2)]}
+        self.assertIn("aucun critère n'a de test", self.trace(mapping=excused)["evidence"])
+        short = {"criteres": [{"critere": 1, "tests": ["tests/test_app.py::test_somme"]}], "non_couverts": [{"critere": 2, "pourquoi": "."}]}
+        self.assertEqual(self.trace(mapping=short)["status"], qa.FAIL)
 
     def test_a_missing_criterion_a_test_that_does_not_exist_or_an_extra_one_fails(self):
         self.change()
         cases = {"sans test": {"criteres": [{"critere": 1, "tests": ["tests/test_app.py"]}], "non_couverts": []},
                  "introuvable": {"criteres": [{"critere": 1, "tests": ["tests/test_app.py::test_invente"]},
                                               {"critere": 2, "tests": ["tests/test_app.py"]}], "non_couverts": []},
-                 "n'existe pas": {"criteres": [{"critere": 1, "tests": ["../ailleurs.py"]}, {"critere": 2, "tests": ["tests/absent.py"]}],
+                 "n'existe pas": {"criteres": [{"critere": 1, "tests": ["../ailleurs.py::t"]}, {"critere": 2, "tests": ["tests/absent.py::t"]}],
                                   "non_couverts": []},
                  "n'en a que 2": {"criteres": [{"critere": n, "tests": ["tests/test_app.py"]} for n in (1, 2, 3)], "non_couverts": []}}
         for needle, mapping in cases.items():

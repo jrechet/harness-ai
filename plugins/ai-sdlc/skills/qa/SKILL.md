@@ -16,7 +16,7 @@ Quatre règles qui ne se négocient pas :
 ## Déroulé
 
 ### 1. Le ticket et ses critères
-Récupère le texte du ticket dans un fichier hors du dépôt, puis `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" ticket check <ticket.md> . --base <base>`. S'il n'est pas prêt, ou sans critère listé, arrête-toi : c'est le travail du skill `ticket`. Numérote les critères dans l'ordre où la commande les compte.
+Récupère le texte du ticket dans un fichier hors du dépôt, puis `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" ticket check <ticket.md> . --base <base>`. S'il n'est pas prêt, ou sans critère listé, arrête-toi : c'est le travail du skill `ticket`. Les critères sont les puces de premier niveau de la section des critères, numérotées dans l'ordre : `--format json` les liste (clé `criteria`). Les sous-puces précisent un critère, elles n'en sont pas.
 
 ### 2. La convention
 `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" context qa . --base <base>` rend ce que le socle et l'équipe demandent aux tests. **Code 2** : surcharge invalide, arrête-toi. Si la sortie dit que le palier requis n'est pas atteint, continue et dis-le en tête du résultat : sans CI ni garde-fous, ces portes sont un essai.
@@ -24,7 +24,7 @@ Récupère le texte du ticket dans un fichier hors du dépôt, puis `python3 "${
 Lis dans `AGENTS.md` la commande de test, et comment le dépôt produit un rapport de couverture (lcov ou Cobertura). S'il ne sait pas en produire, n'installe rien : la porte restera « non mesurée ».
 
 ### 3. Ce qui manque
-Pour chaque critère : quel test existant échouerait si le critère n'était pas tenu ? S'il y en a un, note-le. Sinon écris-le, au plus près du critère : ses valeurs, son exemple, son cas d'erreur. Lance-le et vois-le passer ; si tu le peux, vois-le échouer en retirant le changement (`git stash` de la ligne en cause, pas du test).
+Pour chaque critère : quel test existant échouerait si le critère n'était pas tenu ? S'il y en a un, note-le. Sinon écris-le, au plus près du critère : ses valeurs, son exemple, son cas d'erreur. Lance-le et vois-le passer. Pour le voir échouer sans le changement, travaille dans une copie : `git worktree add <dossier jetable> HEAD`, défais-y la ligne en cause, lance le test, puis `git worktree remove --force <dossier jetable>`. Jamais `git stash` : il range aussi tes tests, et sa pile est partagée avec les autres sessions.
 
 Un critère qu'un test ne peut pas porter (une impression visuelle, une donnée de production) ne reçoit pas un faux test : il va dans `non_couverts`, avec sa raison.
 
@@ -36,10 +36,10 @@ Un critère qu'un test ne peut pas porter (une impression visuelle, une donnée 
  "non_couverts": [{"critere": 3, "pourquoi": "rendu visuel, vérifié à la main par la recette"}]}
 ```
 
-Un test se nomme `chemin::nom` : le chemin existe dans le dépôt, le nom se trouve dans le fichier.
+Un test se nomme `chemin::nom` : le chemin est un fichier de test du dépôt, le nom y figure hors commentaire. Une raison de ne pas tester fait au moins une phrase. Un même test pour presque tous les critères, ou aucun critère testé, ne passe pas.
 
 ### 5. Les portes
-Commite les tests, produis le rapport de couverture si le dépôt le permet, puis :
+Commite les tests : la commande refuse une copie de travail non commitée. Produis le rapport de couverture après ce commit si le dépôt le permet, hors du dépôt, puis :
 
 `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" qa gate . --base <base> --run "<commande de test>" --coverage <rapport> --ticket <ticket.md> --trace <correspondance.json>`
 
@@ -50,7 +50,9 @@ Commite les tests, produis le rapport de couverture si le dépôt le permet, pui
 | 3 | Rien en échec, une porte non mesurée | Rends la sortie, et dis quelle porte et pourquoi |
 | 2 | Refusé : fichier illisible, correspondance mal formée | Corrige l'entrée |
 
-La commande lance la suite plusieurs fois. Une suite « instable » est un échec : cherche l'ordre des tests, l'horloge, le réseau, un état partagé.
+La commande lance la suite plusieurs fois, dans le dépôt, sans shell : `--run` prend une commande simple (`make test`, `python3 -m pytest`), pas de `&&`, de tube ni de `VAR=valeur` en tête. Une suite « instable » est un échec : cherche l'ordre des tests, l'horloge, le réseau, un état partagé. Trois passages n'attrapent pas un test qui échoue une fois sur dix : la porte le dit.
+
+Une configuration de tests modifiée (`pytest.ini`, `jest.config.*`, `conftest.py`…) ou un fichier changé absent du rapport de couverture rendent la porte « non mesurée » : explique dans la PR ce que le changement fait aux tests collectés.
 
 ### 6. Rendre
 La sortie de `qa gate` telle quelle, puis en trois lignes au plus : les tests ajoutés, les critères laissés sans test avec leur raison, ce qui n'est pas mesuré. Les critères sans test attendent l'accord d'un humain : ne les présente pas comme réglés.

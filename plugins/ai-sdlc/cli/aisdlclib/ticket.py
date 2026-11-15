@@ -114,7 +114,8 @@ def check(text: str, zones: list[dict[str, str]]) -> dict[str, Any]:
     parts = sections(text)
     body = [p for p in parts if not p["comment"]]    # un commentaire n'est pas le ticket
     need = [p for p in body if not _CRITERIA.search(p["title"]) and not _SCOPE.search(p["title"])]
-    criteria = [line.strip() for p in body if _CRITERIA.search(p["title"]) for line in p["lines"] if _ITEM.match(line)]
+    criteria = [line.strip() for p in body if _CRITERIA.search(p["title"]) for line in p["lines"]
+                if _ITEM.match(line) and len(line) - len(line.lstrip()) < 2]      # les sous-puces précisent, elles ne comptent pas
     own = "\n".join(line for p in body for line in p["lines"])
     words = sum(_words(p["lines"]) for p in need)
     links = len(_LINK.findall(own))
