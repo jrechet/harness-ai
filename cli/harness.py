@@ -22,6 +22,9 @@ import argparse
 import os
 import sys
 
+if sys.version_info < (3, 10):  # avant tout import : le reste du CLI ne se lit pas en 3.9
+    sys.exit("harness : Python 3.10 ou plus est requis (ici %d.%d). Essaie python3.11 ou python3.12." % sys.version_info[:2])
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from harnesslib import bench, commands, fixtures, fresh, github, medals, place, progress, report, rules, serve, status  # noqa: E402
@@ -47,6 +50,10 @@ def main(argv: list[str] | None = None) -> int:
     medals.build_parser(sub.add_parser("medals", help="médailles et succès : le niveau de maturité et pourquoi"))
     fresh.build_parser(sub.add_parser("fresh", help="ce qui a vieilli : skills, agents, règles"))
     args = parser.parse_args(argv)
+    target = getattr(args, "repo", None)
+    if args.command in ("status", "target", "rules", "serve") and isinstance(target, str) and not os.path.isdir(target):
+        print(f"harness {args.command} : {target} n'est pas un dossier", file=sys.stderr)
+        return 2
     if args.command == "status":
         return status.main(args=args)
     if args.command == "target":

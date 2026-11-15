@@ -18,7 +18,7 @@ Trois règles :
 Un dépôt (`--kind repo`, le défaut) ou la marketplace de plugins qu'il déclare (`--kind marketplace`, s'il a un `.claude-plugin/marketplace.json`). Si la demande ne le dit pas et que les deux existent, donne le dépôt et propose l'autre en une ligne.
 
 ### 2. Mesurer
-`python3 cli/harness.py medals <repo> [--kind marketplace]` (CLI du dépôt harness-ai). `--name <nom>` fixe le nom affiché (par défaut celui du fichier de médailles s'il existe, sinon celui du dossier), `--format json` rend les données. Il rend la médaille, la phrase qui dit pourquoi, les succès par rang avec leur date, les succès hors rang, et les prochaines étapes.
+`python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" medals <repo> [--kind marketplace]`. `--name <nom>` fixe le nom affiché (par défaut celui du fichier de médailles s'il existe, sinon celui du dossier), `--format json` rend les données. Il rend la médaille, la phrase qui dit pourquoi, les succès par rang avec leur date, les succès hors rang, et les prochaines étapes.
 
 ### 3. Répondre à la question posée
 - **« Pourquoi ce niveau ? »** : la phrase « pourquoi », puis les succès qui manquent au rang suivant, chacun avec ce qui est mesuré.
@@ -28,7 +28,7 @@ Un dépôt (`--kind repo`, le défaut) ou la marketplace de plugins qu'il décla
 Ne recopie pas toute la sortie si on t'a posé une question précise.
 
 ### 4. La page
-Sur demande, ou si l'utilisateur veut « voir » : `python3 cli/harness.py medals <repo> --page <fichier.html>`. La page est un seul fichier, sans ressource externe, avec ses données dedans. Écris-la hors du dépôt sauf si l'utilisateur la veut dedans, et ouvre-la.
+Sur demande, ou si l'utilisateur veut « voir » : `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" medals <repo> --page <fichier.html>`. La page est un seul fichier, sans ressource externe, avec ses données dedans. Écris-la hors du dépôt sauf si l'utilisateur la veut dedans, et ouvre-la.
 
 ### 5. Le fichier du dépôt
 `--write` met à jour `.harness/medals.json` (`.harness/medals-marketplace.json` pour une marketplace). Il garde la date où chaque succès a été débloqué et le parcours des médailles. Si la mesure n'a pas changé, le fichier n'est pas réécrit : sa date est celle du dernier changement. Ne l'écris que si l'utilisateur le demande ou si le fichier existe déjà. Qu'il soit commité est son choix : commité, il se voit en revue et un badge peut le lire.

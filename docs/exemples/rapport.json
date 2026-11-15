@@ -1,0 +1,22 @@
+{
+  "subject": {"kind": "skill", "name": "release", "path": ".claude/skills/release/SKILL.md"},
+  "date": "2026-11-15",
+  "source": "exemple écrit à la main",
+  "summary": "Deux écarts : une vérification racontée, un calcul en prose.",
+  "items": [
+    {"scope": "Vérifier que la branche de release est verte avant de taguer",
+     "expected": "Une vérification qu'un programme tient : un check bloquant",
+     "observed": "Une phrase du skill, que l'agent peut sauter",
+     "advice": "Écrire la vérification en sous-commande, appelée par un check requis",
+     "status": "gap", "evidence": [".claude/skills/release/SKILL.md:13"], "tag": "PUSH_DOWN"},
+    {"scope": "Calculer le numéro de version",
+     "expected": "Du code testé, qui donne le même résultat à chaque fois",
+     "observed": "Trois phrases qui décrivent le calcul",
+     "advice": "Une sous-commande `version next` avec ses tests",
+     "status": "gap", "evidence": [".claude/skills/release/SKILL.md:12"], "tag": "PUSH_DOWN"},
+    {"scope": "Choisir le titre de la release",
+     "expected": "Un jugement laissé à l'agent",
+     "observed": "Le skill dit où l'agent décide",
+     "status": "ok"}
+  ]
+}

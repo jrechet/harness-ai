@@ -38,12 +38,12 @@ Chaque adaptateur produit un tableau JSON de ce type, une entrée par évidence 
 
 Le script ne juge pas : il ne décide ni du verdict ni de la formulation. Il ne fait que repérer, dater, lier et proposer une clé de regroupement.
 
-## Adaptateur GitHub — `cli/harness.py harvest github`
+## Adaptateur GitHub — `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" harvest github`
 
 Python 3 standard, sans dépendance ; transport `gh api` (déjà authentifié sur un poste de dev et dans les sessions Claude Code).
 
 ```
-python3 cli/harness.py harvest github --repo owner/repo --agents-md AGENTS.md \
+python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" harvest github --repo owner/repo --agents-md AGENTS.md \
     --agent-login claude --agent-branch-prefix claude/ --agent-label agent \
     --agent-trailer "Co-Authored-By: Claude" --summary > .harness/harvest.json
 ```

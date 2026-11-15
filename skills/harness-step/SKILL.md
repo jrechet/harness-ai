@@ -15,10 +15,10 @@ Trois règles qui ne se négocient pas :
 ## Déroulé
 
 ### 1. Mesurer
-`python3 cli/harness.py status <repo>` (CLI du dépôt harness-ai). Garde la sortie : c'est l'« avant ».
+`python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status <repo>`. Garde la sortie : c'est l'« avant ».
 
 ### 2. L'objectif, demandé une seule fois
-Si `status` dit « aucun palier visé », pose **une** question avec ce tableau, puis écris la réponse avec `python3 cli/harness.py target <n> <repo>` :
+Si `status` dit « aucun palier visé », pose **une** question avec ce tableau, puis écris la réponse avec `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" target <n> <repo>` :
 
 | Palier | Ce que ça apporte | Ce que ça demande |
 |---|---|---|
@@ -70,7 +70,7 @@ Dans le compte rendu, dis laquelle de ces preuves existe pour ce pas, ou qu'il n
 
 ## Quand il n'y a plus de pas
 
-Ce qui est posé vieillit : une règle reçoit un garde-fou, un contexte change, un nouveau modèle n'a plus besoin d'une consigne. Propose une **revue de pertinence** (harness-audit, section du même nom) dans deux cas seulement : le modèle utilisé par l'équipe a changé, ou six mois ont passé depuis la dernière. `python3 cli/harness.py rules <repo>` donne l'âge de chaque règle. La revue retire ; elle n'ajoute rien.
+Ce qui est posé vieillit : une règle reçoit un garde-fou, un contexte change, un nouveau modèle n'a plus besoin d'une consigne. Propose une **revue de pertinence** (harness-audit, section du même nom) dans deux cas seulement : le modèle utilisé par l'équipe a changé, ou six mois ont passé depuis la dernière. `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" rules <repo>` donne l'âge de chaque règle. La revue retire ; elle n'ajoute rien.
 
 ## Pièges fréquents
 - Enchaîner deux pas parce que le second est petit.
