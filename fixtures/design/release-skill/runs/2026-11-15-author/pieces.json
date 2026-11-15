@@ -116,8 +116,9 @@
     "piece": "Pas de release avec des fichiers non commités",
     "answers": {
       "nature": "rule",
-      "incident": "no",
-      "scope": "always"
+      "incident": "forget",
+      "checkable": "yes",
+      "bypass_rule": "agent"
     },
     "current": "skill",
     "evidence": [

@@ -35,6 +35,8 @@ CASES = [
      {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "team"}, "org_check"),
     ("Toute version publiée a son entrée de changelog",
      {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "release"}, "release_gate"),
+    ("Pas de release avec des fichiers non commités",
+     {"nature": "rule", "incident": "forget", "checkable": "yes", "bypass_rule": "agent"}, "hook_check"),
     ("La description de PR explique le pourquoi",
      {"nature": "rule", "incident": "yes", "checkable": "no"}, "judge"),
     ("On préfère les fonctions courtes", {"nature": "rule", "incident": "no", "scope": "always"}, "agents_md"),

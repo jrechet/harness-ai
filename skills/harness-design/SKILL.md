@@ -23,7 +23,7 @@ Reformule ce que l'utilisateur veut obtenir, pas l'artefact qu'il a nommé : « 
 ### 3. Répondre aux questions
 Pour chaque morceau, réponds aux questions de la grille à partir de la conversation et du dépôt. Lis ce qui répond sans demander : la forge et sa CI, `.claude/settings.json`, les serveurs MCP déclarés, `.harness/state.json` s'il existe. `python3 cli/harness.py place one <question=réponse>…` dit quelle question manque encore pour un morceau.
 
-Ne demande à l'utilisateur que ce qui est une décision, pas un fait. En pratique, presque toujours deux questions : est-ce un incident (`incident`), et qui ne doit pas pouvoir passer outre (`bypass_limit`, `bypass_rule`). Pose-les toutes en une fois, une ligne par morceau, avec ta proposition.
+Ne demande à l'utilisateur que ce qui est une décision, pas un fait. En pratique, presque toujours deux questions : ce que ça coûte quand ce n'est pas respecté (`incident`), et qui ne doit pas pouvoir passer outre (`bypass_limit`, `bypass_rule`). Pose-les toutes en une fois, une ligne par morceau, avec ta proposition.
 
 ### 4. Le plan
 Écris les morceaux dans un fichier JSON hors du dépôt, puis lance `python3 cli/harness.py place plan <fichier>` et montre le plan tel quel :
@@ -65,7 +65,7 @@ Ce qui est posé et où ; ce qui reste à faire par quelqu'un d'autre (réglages
 Même déroulé, avec `current` renseigné pour chaque morceau. Ce skill revoit un artefact ou une demande. Pour tout un harness (graphe d'appels, test « coupe l'agent », revue de pertinence), c'est harness-audit.
 
 ## Pièges fréquents
-- **Confondre limite et règle.** « Ne jamais pousser sur main » borne une action de l'agent (`limit`). « Pas de secret dans le code » exige quelque chose du résultat (`rule`).
+- **Confondre limite et règle.** « Ne jamais pousser sur main » borne une action de l'agent (`limit`). « Pas de secret dans le code » exige quelque chose du résultat (`rule`). Une pré-condition (« ne commence pas si… », « refuse sans… ») est une règle, même sans gravité : `incident=forget` lui donne sa vérification. Ne la range pas en limite pour obtenir un verrou.
 - **Répondre selon l'effort.** `bypass_rule=agent` pour éviter de toucher la CI, c'est répondre à la mauvaise question : elle porte sur ce qu'un contournement coûterait.
 - **Tout pousser en code.** Si un programme ne peut pas le vérifier avec la même réponse à chaque fois, `checkable` vaut `no` : un jugement codé en dur devient rigide, et l'équipe le contourne.
 - **Un sous-agent pour faire propre.** Sans contexte à part, regard indépendant, droits différents ou parallélisme, c'est un skill, ou le jugement de la session.

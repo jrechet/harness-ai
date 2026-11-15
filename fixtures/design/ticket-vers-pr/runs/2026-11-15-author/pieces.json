@@ -13,8 +13,9 @@
     "piece": "Pas de travail sans critères d'acceptation",
     "answers": {
       "nature": "rule",
-      "incident": "no",
-      "scope": "always"
+      "incident": "forget",
+      "checkable": "yes",
+      "bypass_rule": "agent"
     },
     "evidence": [
       "demande.md:6"
