@@ -26,6 +26,10 @@ Test global : si on coupe L1 et L2, est-ce que L3 + L4 suffisent à un humain pr
 | [`harness-audit`](skills/harness-audit/SKILL.md) | Audite un harness ou un AGENTS.md/CLAUDE.md, classe chaque élément dans la grille L1–L4, rend un verdict par élément (KEEP / INLINE / PUSH_DOWN / PROMOTE / MERGE / SPLIT / BLOCK / REMOVE) et un plan de remédiation. Sa revue de pertinence dit quelles lignes ne changent plus ce que fait l'agent : inutiles, nuisibles, ou périmées, ces dernières posées en question au propriétaire. Rapport à format fixe (Markdown + JSON) défini dans `references/report-template.md`. |
 | [`harness-design`](skills/harness-design/SKILL.md) | Pour créer ou revoir un skill, un agent, un outil ou une règle. Découpe la demande en morceaux et dit où va chacun — AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, check CI, paramètre géré, ou rien — avec la raison. La place vient de `harness place`, une grille de questions fermées : mêmes réponses, même destination. Montre le plan, pose les fichiers sur accord, et s'arrête. |
 
+## Où on en est
+
+[docs/capacites.md](docs/capacites.md) liste ce que le dépôt sait faire et tient le plan d'avancement. Un hook de fin de tour (`harness progress check`, dans `.claude/settings.json`) renvoie l'agent le mettre à jour tant que le dépôt change sans lui.
+
 ## Ce qui manque à un AGENTS.md
 
 `harness commands` cherche ce qu'un AGENTS.md devrait dire et que personne n'a pensé à écrire : les commandes que la CI lance et que le dépôt ne laisse pas deviner (« `make it`, pas `mvn verify` »). Il rend des candidates avec leur source ; harness-init les confirme en les exécutant, harness-audit les pose en questions au propriétaire.

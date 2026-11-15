@@ -1,0 +1,79 @@
+# Ce que harness-ai sait faire, et où on en est
+
+Dernière mise à jour : 2026-11-15
+
+Ce document liste ce que le dépôt sait faire aujourd'hui, et tient le plan d'avancement. Il est mis à jour dans le même changement que le travail : un hook de fin de tour (`harness progress check`) renvoie l'agent l'écrire tant que le dépôt change sans lui. Les exigences d'origine et leur niveau de preuve restent dans [cahier-des-charges.md](cahier-des-charges.md).
+
+Trois mots pour l'état d'une capacité, repris du cahier des charges : **outillé** (le mécanisme existe et il est testé), **mesuré** (une exécution à l'aveugle l'a éprouvé), **prouvé** (la mesure montre un gain).
+
+## Ce que le dépôt sait faire
+
+### Instrumenter un dépôt, un palier à la fois
+
+| Capacité | Comment | État |
+|---|---|---|
+| Poser le palier 1 : un AGENTS.md court, mode, règles datées, Interdits | skill `harness-init` | mesuré sur quatre projets types |
+| Avancer d'un pas vers le palier visé, et s'arrêter | skill `harness-step`, `harness target` | mesuré sur un projet |
+| Mesurer le palier 0 à 4 et la vue par couche | `harness status`, écrit `.harness/state.json` | outillé |
+| Faire naître des règles de ce qui s'est passé (revues, corrections, checks rouges) | skill `harness-harvest`, `harness harvest github` | outillé, jamais joué |
+| Auditer un harness, classer chaque élément L1 à L4, proposer les retraits | skill `harness-audit`, `harness rules` | mesuré une fois sur deux projets |
+| Proposer les commandes qu'un agent ne devine pas | `harness commands`, appelé par init et audit | outillé |
+| Suivre l'état dans une application locale | `harness serve` | outillé |
+
+### Concevoir ou revoir un skill, un agent, une règle
+
+| Capacité | Comment | État |
+|---|---|---|
+| Dire où va chaque morceau : AGENTS.md, skill, sous-agent, CLI, hook, permission, MCP, CI, paramètre géré, rien | skill `harness-design`, `harness place` (9 questions, 20 destinations) | mesuré : 7 sur 7 sur `release-skill`, 11 sur 12 sur la fixture tenue à l'écart avant correction |
+| Rendre un état des lieux en une page HTML, toujours au même format | `harness report build`, `report from-place` | outillé |
+
+### Outiller le cycle de développement (plugin `ai-sdlc`)
+
+| Capacité | Comment | État |
+|---|---|---|
+| Assembler le socle et les ajouts d'une équipe, lus sur la branche de base | `ai_sdlc.py context`, `status`, sept points d'extension | outillé |
+| Relire une PR : peu de constats, chacun sur une ligne du diff | skill `review`, sous-agent `reviewer`, `review render` | mesuré une fois : 6 pièges requis sur 6 |
+| Développer un ticket sur le chemin de sa taille | skill `dev`, `size`, `dev body` | outillé, jamais joué |
+
+### Mesurer les skills eux-mêmes
+
+| Capacité | Comment | État |
+|---|---|---|
+| Projets types et leurs corrigés | `fixtures/repos`, `harness fixture check` | outillé pour huit projets |
+| Banc avant et après, à l'aveugle | `harness bench`, skill de mainteneur `harness-stress` | lancé, deux corrections |
+| Fixtures de conception et de revue | `fixtures/design`, `fixtures/review`, `place check`, `fixture grade` | outillé |
+
+### Documenter
+
+| Capacité | Où | État |
+|---|---|---|
+| Étude des pratiques, rapport complémentaire, proposition de framework | `docs/ai-sdlc/` | écrit |
+| Cours interactif : neuf chapitres, QCM, lexique | `docs/ai-sdlc/cours/index.html` | écrit, publié en artifact privé |
+
+## Plan d'avancement
+
+États : `fait`, `en cours`, `à faire`, `en attente` (d'une décision ou d'une demande du propriétaire), `écarté`. Une ligne par sujet. Une demande nouvelle du propriétaire ajoute une ligne, datée.
+
+| # | Sujet | État | Depuis | Preuve, ou ce qui manque |
+|---|---|---|---|---|
+| H1 | Poser, faire avancer et auditer l'instrumentation d'un dépôt (init, step, audit, status) | fait | 2026-11 | Niveau de preuve par exigence dans le cahier des charges |
+| H2 | Jouer `harness-harvest` au moins une fois | à faire | 2026-11-10 | Il lui faut un historique de PR rejouable hors ligne |
+| H3 | `harness-audit` lit la grille de placement et rend le rapport commun | à faire | 2026-11-14 | Attend l'accord avec l'autre session, qui tient ce skill |
+| D1 | Grille de placement et skill `harness-design` | fait | 2026-11-14 | PR 12 à 20 ; 7 sur 7 à l'aveugle après la correction `incident=forget` |
+| D2 | Rejouer la fixture tenue à l'écart `ticket-vers-pr` depuis la correction de la grille | en attente | 2026-11-15 | Une exécution à l'aveugle ne se lance qu'à la demande du propriétaire |
+| R1 | Rapport commun en une page HTML | fait | 2026-11-14 | `harness report`, `docs/exemples/rapport-skill-release.html` |
+| S1 | Plugin `ai-sdlc` : contexte, points d'extension | fait | 2026-11-15 | PR 22 |
+| S2 | Skill `review`, rendu par le CLI, PR piégée, première mesure | fait | 2026-11-15 | PR 23 et 24 ; une seule exécution, fixture sans doute trop facile |
+| S3 | Skill `dev`, taille calculée, corps de PR | fait | 2026-11-15 | PR 25 ; jamais joué |
+| S4 | Fixture et noteur pour mesurer `dev` | en cours | 2026-11-15 | Branche `feat/ai-sdlc-dev-fixture` : dépôt de base, deux tickets et noteur écrits, tests du noteur et travail d'auteur à faire |
+| S5 | Skills `qa` et `ticket` | à faire | 2026-11-14 | Ordre fixé par la proposition |
+| S6 | Skills `secu`, `ship`, `run` | à faire | 2026-11-14 | Viennent en dernier |
+| S7 | Installer le plugin depuis la marketplace et éprouver `${CLAUDE_PLUGIN_ROOT}` | à faire | 2026-11-15 | Jamais vérifié |
+| C1 | Étude, rapport complémentaire, proposition | fait | 2026-11-14 | `docs/ai-sdlc/` |
+| C2 | Cours interactif, approfondi : bases vectorielles, phases, scénario BI | fait | 2026-11-15 | PR 21 et 26 ; rendu publié non regardé |
+| M1 | Proposer les commandes exactes qu'un AGENTS.md devrait dire | fait | 2026-11-15 | `harness commands` ; init et audit l'appellent, sans exécution à l'aveugle depuis |
+| M2 | Proposer le code trompeur (un dossier qui a l'air mort et sert encore) | à faire | 2026-11-15 | Même modèle : des candidates posées en questions |
+| M3 | Noter dans les corrigés les lignes qui auraient dû être proposées | en attente | 2026-11-15 | Modifier un corrigé change toutes les notes : décision du propriétaire |
+| B1 | Boucle contre l'obsolescence des skills et des agents, pas seulement des règles | à faire | 2026-11-15 | Demande du propriétaire. Existe déjà pour les règles : harvest, revue de pertinence, dates, références sans cible. Manque : rien ne le déclenche, et rien ne regarde un skill qui vieillit |
+| G1 | Médailles (bronze, argent, or, platine), succès débloqués, page HTML interactive tirée de données dures | à faire | 2026-11-15 | Demande du propriétaire. S'appuie sur les paliers 0 à 4 et `.harness/state.json` |
+| P1 | Ce document, et le hook qui oblige à tenir son plan | fait | 2026-11-15 | `harness progress check`, `.claude/settings.json` |
