@@ -34,6 +34,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | Capacité | Comment | État |
 |---|---|---|
 | Assembler le socle et les ajouts d'une équipe, lus sur la branche de base | `ai_sdlc.py context`, `status`, sept points d'extension | outillé |
+| Dire si un ticket est prêt, et ce qui lui manque | skill `ticket`, `ticket check`, définition de prêt du socle | outillé, jamais joué |
 | Relire une PR : peu de constats, chacun sur une ligne du diff | skill `review`, sous-agent `reviewer`, `review render` | mesuré une fois : 6 pièges requis sur 6 |
 | Développer un ticket sur le chemin de sa taille | skill `dev`, `size`, `dev body` | mesuré une fois : deux tickets conformes |
 
@@ -69,7 +70,9 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | S3 | Skill `dev`, taille calculée, corps de PR | fait | 2026-11-15 | PR 25 ; jamais joué |
 | S4 | Fixture et noteur pour mesurer `dev` | fait | 2026-11-15 | `fixtures/dev/facturation`, `fixture grade-dev` ; le travail de l'auteur passe, c'est une base de régression |
 | S8 | Jouer `dev` à l'aveugle sur ses deux tickets | fait | 2026-11-15 | `fixtures/dev/facturation/runs/2026-11-15-blind` : 12 sur 12 et 4 sur 4. Une exécution par ticket, plugin copié et non installé |
-| S5 | Skills `qa` et `ticket` | à faire | 2026-11-14 | Ordre fixé par la proposition |
+| S5 | Skill `ticket` : contrôle d'un ticket, définition de prêt du socle | fait | 2026-11-16 | `ticket check`, skill `ticket` ; jamais joué, pas de fixture |
+| S9 | Skill `qa` : tests dérivés des critères d'acceptation, portes déterministes | à faire | 2026-11-14 | Ordre fixé par la proposition |
+| S10 | Fixture pour mesurer `ticket` | à faire | 2026-11-16 | Des tickets prêts, flous et piégés, avec ce que le skill doit en dire |
 | S6 | Skills `secu`, `ship`, `run` | à faire | 2026-11-14 | Viennent en dernier |
 | S7 | Installer le plugin depuis la marketplace et éprouver `${CLAUDE_PLUGIN_ROOT}` | en attente | 2026-11-15 | Les manifestes passent `claude plugin validate` et la doc de Claude Code confirme la substitution dans un skill de plugin. L'installation réelle n'a pas pu être essayée : la commande `claude` du poste n'était pas authentifiée. À faire par le propriétaire, deux minutes |
 | C1 | Étude, rapport complémentaire, proposition | fait | 2026-11-14 | `docs/ai-sdlc/` |

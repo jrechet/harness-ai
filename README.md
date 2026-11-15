@@ -60,6 +60,7 @@ Trois niveaux de confiance, toujours les mêmes mots : **éprouvé** (lancé sur
 | Créer ou revoir un skill, un agent, une règle, en mettant chaque morceau à sa place | `harness-design` | mesuré : 12 pièges sur 12 sur un cas tenu à l'écart |
 | Demander « pourquoi ce niveau ? » | `harness-medals` | écrit |
 | Tirer des règles de ce qui s'est passé dans tes PR | `harness-harvest` | écrit, jamais joué |
+| Savoir si un ticket est prêt, et ce qui lui manque | `ticket` (plugin `ai-sdlc`) | écrit |
 | Faire relire une PR : peu de commentaires, chacun sur une ligne du diff | `review` (plugin `ai-sdlc`) | mesuré une fois : 6 pièges sur 6 |
 | Faire développer un ticket jusqu'à la PR, sur le chemin de sa taille | `dev` (plugin `ai-sdlc`) | mesuré une fois : deux tickets conformes |
 
@@ -67,7 +68,7 @@ Une mesure est un tirage, pas une moyenne, et les cas d'essai ont été écrits 
 
 ### Ce qui n'existe pas encore
 
-- Les phases `ticket`, `qa`, `secu`, `ship` et `run` du plugin `ai-sdlc` : prévues, pas écrites.
+- Les phases `qa`, `secu`, `ship` et `run` du plugin `ai-sdlc` : prévues, pas écrites.
 - La preuve d'un gain sur un vrai dépôt. Ce que le projet mesure, c'est que ses mécanismes fonctionnent sur des projets types.
 - Une CI pour ce dépôt : ses tests se lancent à la main.
 - Une version anglaise.
@@ -134,6 +135,7 @@ python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /chemin/de/ton/depot --
 |---|---|
 | `status` | Les sept points d'extension : convention du socle, surchargé, ou invalide |
 | `context <phase>` | Le socle et les ajouts de l'équipe, avec leur provenance |
+| `ticket check <ticket.md>` | Un ticket est-il prêt : besoin décrit, critères listés, rien d'ouvert, et la taille annoncée par les chemins cités |
 | `size [--paths …]` | La taille d'un changement (XS, S-M, L) par règles : fichiers, lignes, zones sensibles |
 | `dev body <corps.json>` | Le corps d'une PR, refusé s'il est incomplet pour sa taille |
 | `review render <revue.json>` | Une revue en commentaires, refusée si un constat ne cite pas une ligne du diff |
@@ -162,7 +164,7 @@ Les deux suites passent sur un clone neuf, de Python 3.10 à 3.14. Les règles d
 |---|---|
 | `cli/` | Le CLI `harness.py` et ses tests |
 | `skills/` | Les six skills du plugin `harness-ai` |
-| `plugins/ai-sdlc/` | Le second plugin : skills `dev` et `review`, son CLI |
+| `plugins/ai-sdlc/` | Le second plugin : skills `ticket`, `dev` et `review`, son CLI |
 | `fixtures/` | Projets types, cas piégés, corrigés, exécutions rangées |
 | `app/` | La page de suivi servie par `harness serve` |
 | `docs/` | Ce que le dépôt sait faire ([capacites.md](docs/capacites.md)), le modèle de maturité, l'étude et un [cours interactif](docs/ai-sdlc/cours/index.html) |
