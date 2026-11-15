@@ -263,6 +263,8 @@ def init_fixture(fixture_dir: str, dest: str) -> dict[str, str]:
     """Monte la fixture en dépôt git : `base/` commité sur main, puis, si elle porte une PR (`pr.json`),
     `pr/` par-dessus sur sa branche. Sans PR, le dépôt s'arrête à main : c'est une fixture de `/dev`."""
     has_pr = os.path.exists(os.path.join(fixture_dir, "pr.json"))
+    if not has_pr and os.path.exists(os.path.join(fixture_dir, "pr")):
+        raise Refused(f"fixture {fixture_dir} : un dossier pr/ sans pr.json, la PR ne peut pas être montée")
     spec = load(os.path.join(fixture_dir, "pr.json")) if has_pr else {}
     if os.path.exists(dest) and (not os.path.isdir(dest) or os.listdir(dest)):
         raise Refused(f"{dest} existe et n'est pas vide : donne un dossier neuf")
