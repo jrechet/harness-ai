@@ -1654,12 +1654,14 @@ Dans ce cas, le délai est de
         <tr><th><code>ai_sdlc.py context</code> et <code>status</code></th><td><strong>Construit</strong></td><td>Assemblent le socle et les ajouts de l'équipe. Listent les points d'extension.</td></tr>
         <tr><th><code>ai_sdlc.py review render</code></th><td><strong>Construit</strong></td><td>Rend la revue en commentaires, ou la refuse</td></tr>
         <tr><th><code>ai_sdlc.py fixture init</code> et <code>grade</code></th><td><strong>Construit</strong></td><td>Montent une PR piégée et notent une revue contre son corrigé</td></tr>
-        <tr><th><code>/ticket</code>, <code>/dev</code>, <code>/qa</code>, <code>/secu</code>, <code>/ship</code>, <code>/run</code></th><td>Prévu, pas construit</td><td>Les autres phases. Leurs points d'extension sont déjà déclarés, les skills n'existent pas.</td></tr>
-        <tr><th>Classement de la taille par règles</th><td>Prévu, pas construit</td><td>Décrit dans le document de travail. Aucune commande ne le fait.</td></tr>
+        <tr><th>Skill <code>dev</code></th><td><strong>Construit, pas mesuré</strong></td><td>Mène un ticket jusqu'à la PR, sur le chemin que sa taille impose. N'ouvre qu'une PR. Aucune fixture ne le mesure encore.</td></tr>
+        <tr><th><code>ai_sdlc.py size</code></th><td><strong>Construit</strong></td><td>Classe un changement XS, S-M ou L par règles : fichiers, lignes, zones sensibles</td></tr>
+        <tr><th><code>ai_sdlc.py dev body</code></th><td><strong>Construit</strong></td><td>Rend le corps de la PR, ou le refuse s'il est incomplet pour sa taille</td></tr>
+        <tr><th><code>/ticket</code>, <code>/qa</code>, <code>/secu</code>, <code>/ship</code>, <code>/run</code></th><td>Prévu, pas construit</td><td>Les autres phases. Leurs points d'extension sont déjà déclarés, les skills n'existent pas.</td></tr>
       </tbody>
     </table>
   </div>
-  <p>L'ordre est celui du chapitre 8 : la revue d'abord, parce qu'elle est la mieux mesurée et qu'elle ne fait que commenter.</p>
+  <p>L'ordre est celui du chapitre 8 : la revue d'abord, parce qu'elle est la mieux mesurée et qu'elle ne fait que commenter. Le développement vient ensuite. « Construit » ne veut pas dire « éprouvé » : le skill <code>dev</code> n'a encore été joué sur aucun cas noté.</p>
 
   <h4>Les points d'extension</h4>
   <p>Un <strong>point d'extension</strong> est un endroit nommé où une équipe peut compléter le socle. La liste est fermée : sept points, déclarés dans un fichier de données du CLI. La commande <code>status</code> les montre. Sur un dépôt qui n'a rien ajouté :</p>
@@ -1669,7 +1671,7 @@ Dans ce cas, le délai est de
 | revue                | review       | convention du framework   |
 | qa                   | qa           | aucune convention encore  |
 | securite             | secu, review | aucune convention encore  |
-| zones-sensibles      | dev, review  | aucune convention encore  |
+| zones-sensibles      | dev, review  | convention du framework   |
 | livraison            | ship         | aucune convention encore  |</pre>
   <p>Aucun fichier n'est créé d'avance. L'équipe voit où elle peut agir, et rien ne l'invite à remplir pour remplir. Une <strong>surcharge</strong> naît au premier besoin réel. C'est un fichier <code>docs/agents/&lt;point&gt;.md</code>. Pour l'équipe du moteur SQL, après un incident, cela donnerait :</p>
 <pre>---
@@ -1733,7 +1735,7 @@ mode: ajoute
     <li>Elle contient aussi 3 éléments sains, à ne pas commenter : du style, un test correct, une erreur bien traitée. Un constat sur une ligne saine fait échouer.</li>
     <li>Un agent neuf reçoit le dépôt monté et la demande. Il ne voit ni les pièges ni le corrigé. Le noteur est un programme : un piège est trouvé si un constat cite une de ses lignes.</li>
   </ul>
-  <p>Le 15 novembre 2026, une exécution à l'aveugle a trouvé les 6 pièges requis. C'est une seule exécution : un point, pas une moyenne. La revue faite par l'auteur des pièges est gardée à part, comme base de régression (chapitre 7).</p>
+  <p>Le 15 novembre 2026, une exécution à l'aveugle a trouvé les 6 pièges requis et le facultatif, en sept constats, sans commenter d'élément sain. C'est une seule exécution : un point, pas une moyenne. Et un sans-faute dit aussi que la PR piégée est peut-être trop facile. La revue faite par l'auteur des pièges est gardée à part, comme base de régression (chapitre 7).</p>
   <p>Pour l'éditeur BI, la suite logique est d'écrire sa propre PR piégée, sur un connecteur. Des pièges du métier : un chemin de compatibilité retiré, un test de contrat désactivé, un changement de dialecte sans jeu de référence. Et des éléments sains du métier : une pagination inhabituelle mais correcte. C'est elle qui dira si le skill sert sur ce code, et elle sera rejouée à chaque version du socle et à chaque changement de modèle.</p>
 
   <h4>Le chemin selon la taille</h4>
@@ -1748,7 +1750,8 @@ mode: ajoute
       </tbody>
     </table>
   </div>
-  <p>Le point d'extension <code>zones-sensibles</code> est fait pour la dernière ligne. L'équipe y déclare ses dossiers à risque, par exemple <code>engine/sql/</code> et <code>dialects/</code>. Ce point ne se remplace pas et se lit sur la branche de base : une PR ne peut pas sortir son propre dossier de la liste. Une réserve : le point existe, mais le classement automatique qui s'en servirait n'est pas construit. Aujourd'hui, c'est le relecteur humain qui applique ce tableau.</p>
+  <p>Le point d'extension <code>zones-sensibles</code> est fait pour la dernière ligne. Le socle en déclare déjà quelques-unes : les migrations, la CI, les règles des agents, l'authentification, l'infrastructure. L'équipe y ajoute ses dossiers à risque, par exemple <code>engine/sql/**</code> et <code>dialects/**</code>. Ce point ne se remplace pas et se lit sur la branche de base : une PR ne peut pas sortir son propre dossier de la liste.</p>
+  <p>C'est un programme qui classe, pas le modèle. La commande <code>size</code> compte les fichiers et les lignes du changement, et regarde si un chemin tombe dans une zone. Les seuils de départ : XS jusqu'à 2 fichiers et 10 lignes, S à M jusqu'à 20 fichiers et 400 lignes, L au-delà ou dès qu'une zone sensible est touchée. Une ligne dans <code>dialects/</code> est donc de taille L. Avant d'écrire, l'agent donne les chemins qu'il compte toucher, et la commande dit si le plan est exigé. Une réserve : ces seuils sont des choix de départ, sans mesure derrière, et le plan « validé par un humain » reste une promesse du skill. Le programme vérifie que le plan est commité, pas qu'il a été lu.</p>
   <p>Enfin, chaque phase déclare le palier de maturité (chapitre 7) à partir duquel elle s'ouvre : le palier 1 pour le ticket, le développement, la revue et la sécurité, le palier 3 pour les tests et la livraison. Le framework ne bloque pas. La commande dit que le palier n'est pas atteint, et la revue le répète en tête de son résultat.</p>
 
   <h3>Un ordre possible</h3>
