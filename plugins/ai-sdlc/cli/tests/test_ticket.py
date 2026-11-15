@@ -116,6 +116,10 @@ class CheckTests(unittest.TestCase):
             ticket.check(READY + line + "\n", ZONES)
         self.assertLess(time.monotonic() - start, 3)
 
+    def test_nested_bullets_detail_a_criterion_they_are_not_criteria(self):
+        text = READY.replace("2. Un montant illisible lève `ValueError`.", "2. Un montant illisible lève `ValueError`.\n   - par exemple « douze »\n   - ou une chaîne vide")
+        self.assertEqual(len(ticket.check(text, ZONES)["criteria"]), 2)
+
     def test_odd_inputs_do_not_crash(self):
         for text in ("", "\n\n", "# \n## \n**", "x" * 10000, "## Critères d'acceptation\n" + "- c\n" * 500):
             ticket.check(text, ZONES)

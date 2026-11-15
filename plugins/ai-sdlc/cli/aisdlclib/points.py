@@ -41,6 +41,10 @@ def validate(table: dict[str, Any]) -> list[str]:
         errors.append("sizes : les seuils de XS ne dépassent pas ceux de S-M")
     if not isinstance(table.get("plans_dir"), str) or not table["plans_dir"]:
         errors.append("plans_dir : le dossier des plans écrits")
+    settings = table.get("qa")
+    if not (isinstance(settings, dict) and type(settings.get("runs")) is int and 1 <= settings["runs"] <= 20
+            and type(settings.get("diff_coverage")) is int and 0 <= settings["diff_coverage"] <= 100):
+        errors.append("qa : runs entre 1 et 20, diff_coverage entre 0 et 100")
     phases = table.get("phases", {})
     for name, point in table.get("points", {}).items():
         if not isinstance(point.get("replaceable"), bool):

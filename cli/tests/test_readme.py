@@ -54,7 +54,7 @@ class ReadmeTests(unittest.TestCase):
 
     def test_every_skill_it_names_is_shipped_and_finds_its_cli_once_installed(self):
         for name in re.findall(r"^\| [^|]+ \| `([a-z-]+)`", readme(), re.MULTILINE):
-            folder = "plugins/ai-sdlc/skills" if name in ("dev", "review", "ticket") else "skills"
+            folder = "plugins/ai-sdlc/skills" if name in ("dev", "review", "ticket", "qa") else "skills"
             path = os.path.join(ROOT, folder, name, "SKILL.md")
             with self.subTest(name=name):
                 self.assertTrue(os.path.isfile(path), path)
