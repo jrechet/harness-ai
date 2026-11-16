@@ -34,7 +34,7 @@ header .path { color: var(--text-muted); font-size: 13px; word-break: break-all;
 .card .hint { color: var(--text-muted); font-size: 13px; margin: 8px 0 0; }
 .wide { grid-column: 1 / -1; }
 
-/* Paliers : un escalier, chaque marche cliquable */
+/* Levels: a staircase, each step clickable */
 .stairs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; align-items: end; }
 .step { background: var(--surface-1); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; text-align: left; color: inherit; font: inherit; }
 .step[aria-pressed="true"] { outline: 2px solid var(--series-1); }
@@ -58,7 +58,7 @@ header .path { color: var(--text-muted); font-size: 13px; word-break: break-all;
 .checks .value { color: var(--text-muted); font-size: 12px; }
 .summary { color: var(--text-secondary); font-style: italic; margin: 10px 0 0; }
 
-/* Graphiques */
+/* Charts */
 .chart { width: 100%; height: auto; display: block; }
 .chart text { fill: var(--text-secondary); font-size: 11px; }
 .chart .grid line { stroke: var(--border); stroke-width: 1; }

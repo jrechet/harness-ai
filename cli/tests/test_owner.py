@@ -1,5 +1,5 @@
-"""Tests du propriétaire simulé : il ne répond qu'à ce que la question déclenche, et un fait qu'il
-est seul à détenir ne s'échappe par aucune autre réponse."""
+"""Tests of the simulated owner: it only answers what the question triggers, and a fact only it
+holds leaks through no other answer."""
 from __future__ import annotations
 
 import json
@@ -16,6 +16,13 @@ OWNER = {"answers": [{"id": "mode", "any_of": ["mode", "délég*"], "answer": "D
                      {"id": "oral", "fact": "I9", "any_of": ["nulle part"], "answer": "L'en-tête X-Rejoue."}],
          "default": "Regardez dans docs/."}
 EXPECTED = {"init": {"must_surface": [{"id": "I9", "what": "…", "any_of": ["x-rejoue"], "only_in_instructions": ["x-rejoue"]}]}}
+# An owner who must hear both languages carries triggers in both.
+BILINGUAL = {"answers": [{"id": "mode", "any_of": ["mode", "délég*", "delegat*"], "answer": "Delegation."},
+                         {"id": "review", "any_of": ["remarque* en revue", "review comment*"],
+                          "answer": "Branch names."},
+                         {"id": "oral", "fact": "I9", "any_of": ["nulle part", "nowhere", "unwritten"],
+                          "answer": "The X-Rejoue header."}],
+             "default": "Look in docs/."}
 
 
 class AnswerTests(unittest.TestCase):
@@ -34,6 +41,30 @@ class AnswerTests(unittest.TestCase):
         ids, text = owner.answer(OWNER, "Mode ? Et qu'est-ce qui n'est écrit nulle part ?")
         self.assertEqual(ids, ["mode", "oral"])
         self.assertEqual(text, "Délégation.\nL'en-tête X-Rejoue.")
+
+    def test_french_and_english_questions_reach_the_same_answers(self):
+        pairs = [("Délégation ou assistance ?", "Delegation or assistance?", ["mode"]),
+                 ("Quelles remarques en revue ?", "Which review comments come back?", ["review"]),
+                 ("Qu'est-ce qui n'est écrit nulle part ?", "What is written nowhere?", ["oral"])]
+        for french, english, ids in pairs:
+            with self.subTest(question=english):
+                self.assertEqual(owner.answer(BILINGUAL, french)[0], ids)
+                self.assertEqual(owner.answer(BILINGUAL, english)[0], ids)
+
+    def test_english_apostrophes_and_case_do_not_matter(self):
+        self.assertEqual(owner.answer(BILINGUAL, "Any UNWRITTEN rule you’d tell a newcomer?")[0], ["oral"])
+        self.assertEqual(owner.answer(BILINGUAL, "Delegating?")[0], ["mode"])
+        self.assertEqual(owner.answer(BILINGUAL, "Which database?"), ([], "Look in docs/."))
+
+    def test_the_kit_command_asks_and_prints_question_and_answer(self):
+        import subprocess
+        with tempfile.TemporaryDirectory() as kit, owner.Interview(BILINGUAL) as interview:
+            client = interview.install(kit)
+            self.assertEqual(os.path.basename(client), owner.CLIENT_FILE)
+            out = subprocess.run([sys.executable, client, "What is written nowhere?"], capture_output=True,
+                                 text=True, check=True).stdout
+            self.assertIn("Q: What is written nowhere?\nA: The X-Rejoue header.", out)
+            self.assertIn("I9, held only by the owner: asked at question 1", interview.render("demo"))
 
 
 class OwnerFileTests(unittest.TestCase):
@@ -54,13 +85,13 @@ class OwnerFileTests(unittest.TestCase):
 
     def test_a_fact_said_unasked_is_reported(self):
         leaky = {**OWNER, "default": "Regardez dans docs/, et pensez à X-Rejoue."}
-        self.assertTrue(any("s'échappe aussi par default" in p for p in self.problems(leaky)))
+        self.assertTrue(any("also leaks through default" in p for p in self.problems(leaky)))
         leaky = {**OWNER, "answers": OWNER["answers"] + [{"id": "ci", "any_of": ["ci"], "answer": "X-Rejoue en CI."}]}
-        self.assertTrue(any("s'échappe aussi par ci" in p for p in self.problems(leaky)))
+        self.assertTrue(any("also leaks through ci" in p for p in self.problems(leaky)))
 
     def test_a_fact_no_answer_carries_is_reported(self):
         mute = {**OWNER, "answers": OWNER["answers"][:2]}
-        self.assertTrue(any("aucune réponse ne porte ce fait" in p for p in self.problems(mute)))
+        self.assertTrue(any("no answer carries this fact" in p for p in self.problems(mute)))
 
     def test_a_fact_the_repository_s_instructions_hold_needs_no_owner(self):
         with open(os.path.join(self.tmp.name, "repo", "AGENTS.md"), "w", encoding="utf-8") as fh:
@@ -77,11 +108,12 @@ class OwnerFileTests(unittest.TestCase):
 
 
 class BenchOwnerTests(unittest.TestCase):
-    """Chaque propriétaire simulé du banc entend les façons courantes de demander ce qui n'est écrit
-    nulle part, et seulement elles : une question sur le mode, la CI ou un point du code ne lui fait pas
-    dire le fait. Pour le service Go, les questions refusées sont celles d'un pas 1 réel qui ne l'a pas
-    demandé (2026-11-12) ; pour le monolithe Django, deux questions d'un pas 1 réel qui l'avaient
-    fait sortir sans le demander (2026-11-13)."""
+    """Each simulated owner of the bench hears the usual ways of asking what is written nowhere,
+    and only those: a question about the mode, the CI or a point of the code does not make it say
+    the fact. For the Go service, the refused questions are those of a real step 1 that did not ask
+    for it (2026-11-12); for the Django monolith, two questions of a real step 1 that had made it
+    come out without asking (2026-11-13). The fixtures are still in French, and so are these
+    questions; English questions get their own list once the fixtures carry English triggers."""
 
     ASKS = ["Qu'est-ce que vous redites à chaque revue, ou qu'un nouveau venu apprend en se trompant ?",
             "Y a-t-il des règles que l'équipe applique sans les avoir jamais écrites ?",

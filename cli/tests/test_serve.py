@@ -1,4 +1,4 @@
-"""Tests de `harness serve` : historique depuis git et API HTTP, sans navigateur."""
+"""Tests of `harness serve`: history from git and HTTP API, without a browser."""
 from __future__ import annotations
 
 import json
@@ -50,16 +50,16 @@ class HistoryTests(unittest.TestCase):
         self.assertEqual(entries[0]["level"], 0)
 
     def test_history_follows_commits_then_current(self):
-        self.commit_state("2026-09-01T10:00:00Z")                      # palier 0
+        self.commit_state("2026-09-01T10:00:00Z")                      # level 0
         write(self.repo, "AGENTS.md", "# r\n\nMode : **délégation**.\n\n## Règles\n- a\n\n## Interdits\n- b\n")
-        self.commit_state("2026-10-01T10:00:00Z")                      # palier 1
+        self.commit_state("2026-10-01T10:00:00Z")                      # level 1
         entries = serve.history(self.repo, today=TODAY)
         self.assertEqual([e["date"] for e in entries[:2]], ["2026-09-01", "2026-10-01"])
         self.assertEqual([e["level"] for e in entries[:2]], [0, 1])
         self.assertTrue(all(e["sha"] for e in entries[:2]))
-        # l'état courant est identique au dernier commit : pas d'entrée « courant » en plus
+        # the current state is identical to the last commit: no extra "current" entry
         self.assertEqual(len(entries), 2)
-        # une modification non commitée ajoute l'état courant
+        # an uncommitted change adds the current state
         write(self.repo, "AGENTS.md", "# r\n")
         entries = serve.history(self.repo, today=TODAY)
         self.assertEqual(len(entries), 3)
@@ -119,7 +119,7 @@ class HttpTests(unittest.TestCase):
         except urllib.error.HTTPError as exc:
             self.assertEqual(exc.code, 404)
         else:
-            self.fail("404 attendu")
+            self.fail("404 expected")
 
 
 if __name__ == "__main__":
