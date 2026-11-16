@@ -128,6 +128,8 @@ Un palier est un endroit où l'on peut rester. Tu dis lequel tu vises (`harness 
 
 Un second plugin, dans [plugins/ai-sdlc/](plugins/ai-sdlc/), outille les phases du cycle de développement : un socle commun que chaque équipe complète dans son dépôt, par un fichier `docs/agents/<point>.md`. Ces ajouts se lisent sur la branche cible, pas dans la PR : une PR ne peut pas alléger sa propre revue. Sa conception est dans [docs/ai-sdlc/proposition.md](docs/ai-sdlc/proposition.md).
 
+**Un agent ne livre pas.** Une fois installé, le plugin pose un hook (`plugins/ai-sdlc/hooks/hooks.json`) qui lit chaque commande shell de l'agent avant qu'elle parte et refuse celles qui posent ou poussent un tag, créent une release, lancent un workflow, publient un paquet ou une image, déploient, ou figurent dans la procédure de livraison de l'équipe. C'est une barrière contre l'accident et contre une consigne glissée dans un ticket, pas un bac à sable : un script qui déploie, lancé par son nom, passe. Une équipe qui veut qu'un agent livre pose `AI_SDLC_LIVRAISON_PAR_AGENT=1` dans l'environnement de la session.
+
 Son CLI se lance aussi à la main. Sur un dépôt sans dépôt distant, donne la branche cible avec `--base` :
 
 ```bash
@@ -144,6 +146,7 @@ python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /chemin/de/ton/depot --
 | `secu gate [--report <rapport.sarif>…]` | Quatre portes : aucun secret dans ce que la branche ajoute (historique et messages de commit compris), aucun scanner réduit au silence, aucun résultat de scanner (SARIF) sur une ligne ajoutée, et la liste des endroits sensibles à relire |
 | `ship check [--checks <relevé.json>]` | Les prérequis d'une livraison : tête de branche propre, CI verte sur ce commit, zones sensibles et ruptures depuis la dernière version ; une version et des notes proposées. Ne tague ni ne déploie |
 | `ship render <proposition.json>` | La proposition de livraison du skill, refusée si une commande n'est pas citée de la procédure de l'équipe ou si un prérequis échoue |
+| `guard check "<commande>"` | Dit si une commande shell pose un tag, publie ou déploie. C'est ce que le hook du plugin appelle avant chaque commande de l'agent, pour la refuser |
 | `size [--paths …]` | La taille d'un changement (XS, S-M, L) par règles : fichiers, lignes, zones sensibles |
 | `dev body <corps.json>` | Le corps d'une PR, refusé s'il est incomplet pour sa taille |
 | `review render <revue.json>` | Une revue en commentaires, refusée si un constat ne cite pas une ligne du diff |

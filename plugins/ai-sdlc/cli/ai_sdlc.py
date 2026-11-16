@@ -12,6 +12,8 @@
   ai_sdlc.py secu gate [repo] [--base REF] [--report SARIF…]   les portes de /secu
   ai_sdlc.py ship check [repo] [--base REF] [--since REF] [--checks relevé.json]   les prérequis d'une livraison
   ai_sdlc.py ship render <proposition.json> [repo] [--base REF] [--checks relevé.json]   la proposition de livraison, si elle tient
+  ai_sdlc.py guard check <commande>   dit si une commande shell livre (tag, publication, déploiement) : 0 non, 1 oui
+  ai_sdlc.py guard hook   le même contrôle pour le hook PreToolUse du plugin (lit l'appel sur l'entrée standard, 2 refuse)
   ai_sdlc.py fixture init <fixture> <dest>         monte une PR piégée de fixtures/review en dépôt git
   ai_sdlc.py fixture grade <revue.json> --expected <expected.json>   note une revue contre son corrigé
   ai_sdlc.py fixture grade-dev <dépôt> --task <dossier du ticket> [--body corps.json]   note un travail de /dev
@@ -36,7 +38,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import context, dev, devgrade, points, qa, qagrade, review, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
+from aisdlclib import context, dev, devgrade, guard, points, qa, qagrade, review, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -85,6 +87,11 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("repo", nargs="?", default=".")
         sp.add_argument("--base", default="origin/HEAD", help="branche de base (défaut : origin/HEAD)")
         sp.add_argument("--format", choices=["md", "json"], default="md")
+    grd = sub.add_parser("guard", help="un agent ne livre pas").add_subparsers(dest="action", required=True)
+    gchk = grd.add_parser("check", help="dit si une commande shell pose un tag, publie ou déploie")
+    gchk.add_argument("words", nargs="+", metavar="COMMANDE", help="la commande, en un seul argument entre guillemets")
+    gchk.add_argument("--repo", default=".", help="le dépôt dont la procédure de livraison est lue")
+    grd.add_parser("hook", help="le hook PreToolUse : lit l'appel d'outil en JSON sur l'entrée standard")
     fix = sub.add_parser("fixture", help="mesurer le skill review").add_subparsers(dest="action", required=True)
     init = fix.add_parser("init", help="monte la fixture en dépôt git")
     init.add_argument("fixture")
@@ -156,6 +163,14 @@ def _fixture(args: argparse.Namespace, table: dict) -> tuple[object, str, int]:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "guard":
+        if args.action == "hook":
+            code, message = guard.run_hook(sys.stdin.read(guard.MAX_COMMAND * 10), dict(os.environ))
+            sys.stderr.write(message)
+            return code
+        found = guard.reasons(" ".join(args.words), guard.team_lines(args.repo) if os.path.isdir(args.repo) else None)
+        sys.stdout.write(guard.render(found) if found else "Rien dans cette commande ne pose de tag, ne publie ni ne déploie, de ce que le garde-fou connaît.\n")
+        return 1 if found else 0
     table = points.load()
     code = 0
     try:
