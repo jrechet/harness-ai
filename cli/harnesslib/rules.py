@@ -21,7 +21,7 @@ def _blame_date(repo: str, rel: str, line: int) -> str | None:
     """La date du dernier commit qui a touché la ligne, ou None hors d'un dépôt git."""
     try:
         out = subprocess.run(["git", "-C", repo, "blame", "--porcelain", "-L", f"{line},{line}", "--", rel],
-                             capture_output=True, text=True, timeout=20)
+                             capture_output=True, text=True, timeout=120)
     except (OSError, subprocess.TimeoutExpired):
         return None
     if out.returncode != 0:

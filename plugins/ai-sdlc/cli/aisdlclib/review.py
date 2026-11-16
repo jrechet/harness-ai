@@ -12,7 +12,7 @@ import shutil
 import subprocess
 from typing import Any
 
-from .context import Refused, _git, _is_head, resolve_base
+from .context import Refused, _git, _is_head, resolve_base, GIT_TIMEOUT
 
 MAX_CONSTATS = 7
 MAX_SPAN = 20  # lignes qu'un constat peut citer d'un coup : au-delà, il ne cite plus, il englobe
@@ -254,7 +254,7 @@ _ISOLATED = ("-c", "core.hooksPath=" + os.devnull, "-c", "commit.gpgsign=false",
 def _run(dest: str, *args: str) -> None:
     """git sans la configuration, les hooks ni les modèles de l'utilisateur : la fixture se monte pareil partout."""
     out = subprocess.run(["git", "-C", dest, *_ISOLATED, *args], capture_output=True,
-                         env={**os.environ, **_FIXED}, timeout=30)
+                         env={**os.environ, **_FIXED}, timeout=GIT_TIMEOUT)
     if out.returncode != 0:
         raise Refused(f"git {args[0]} a échoué dans {dest} : {out.stderr.decode('utf-8', 'replace').strip()}")
 
