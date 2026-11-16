@@ -1,9 +1,14 @@
-"""Le plan d'avancement tenu à jour : un changement dans le dépôt ne part pas sans sa ligne.
+"""The progress plan kept up to date: a change in the repository does not leave without its row.
 
-Un document d'avancement que personne n'est obligé de tenir ment au bout d'une semaine. Ce module
-vérifie deux choses, sans modèle : le document a la forme attendue (une date, un tableau dont chaque
-ligne a un identifiant unique et un état connu), et il fait partie de tout changement de la branche.
-Branché en hook de fin de tour, il renvoie l'agent écrire sa ligne avant de s'arrêter."""
+A progress document that nobody has to keep lies within a week. This module checks two things, without
+a model: the document has the expected shape (a date, a table whose rows each have a unique id and a
+known state), and it is part of every change of the branch. Plugged into an end-of-turn hook, it sends
+the agent back to write its row before stopping.
+
+The plan is written in English (`docs/capabilities.md`, `## Progress plan`, `Last updated:`, states
+`done`, `in progress`, `to do`, `waiting`, `dropped`). The French form (`docs/capacites.md`,
+`## Plan d'avancement`, `Dernière mise à jour :`, `fait`, `en cours`, `à faire`, `en attente`, `écarté`)
+is still read, so a plan not yet translated keeps passing."""
 from __future__ import annotations
 
 import argparse
@@ -14,24 +19,40 @@ import subprocess
 import sys
 from typing import Any
 
-DOC = "docs/capacites.md"
-HEADING = "## Plan d'avancement"
-STATES = ("fait", "en cours", "à faire", "en attente", "écarté")
-REMINDER = (f"Rappel du dépôt : toute demande nouvelle ou correction de qui pilote la session, et tout travail fini ou commencé, "
-            f"s'inscrit dans {DOC} (section « Plan d'avancement » : une ligne par sujet, état parmi "
-            f"{', '.join(STATES)}), dans le même changement.")
-_DATE = re.compile(r"^Dernière mise à jour : (\d{4}-\d{2}-\d{2})\b", re.MULTILINE)
+DOC = "docs/capabilities.md"
+LEGACY_DOCS = ("docs/capacites.md",)
+HEADING = "## Progress plan"
+LEGACY_HEADINGS = ("## Plan d'avancement",)
+STATES = ("done", "in progress", "to do", "waiting", "dropped")
+LEGACY_STATES = ("fait", "en cours", "à faire", "en attente", "écarté")
+_DATE = re.compile(r"^(?:Last updated|Dernière mise à jour)\s*:\s*(\d{4}-\d{2}-\d{2})\b", re.MULTILINE)
 _ID = re.compile(r"^[A-Z]{1,3}\d{1,3}$")
 
 
+def default_doc(repo: str) -> str:
+    """The plan of the repository: the English file, or the French one while it is not renamed."""
+    for doc in (DOC, *LEGACY_DOCS):
+        if os.path.isfile(os.path.join(repo, doc)):
+            return doc
+    return DOC
+
+
+def reminder(doc: str = DOC) -> str:
+    return (f"Repository reminder: every new request or correction from whoever drives the session, and every piece of "
+            f"work finished or started, is recorded in {doc} (section \"Progress plan\": one row per topic, state among "
+            f"{', '.join(STATES)}), in the same change.")
+
+
 def parse(text: str) -> tuple[list[dict[str, str]], list[str]]:
-    """Les lignes du plan et ce qui cloche dans sa forme."""
+    """The rows of the plan and what is wrong with its shape."""
     errors = []
     if not _DATE.search(text):
-        errors.append("ligne « Dernière mise à jour : AAAA-MM-JJ » absente")
-    if HEADING not in text:
-        return [], errors + [f"section « {HEADING} » absente"]
-    section = text.split(HEADING, 1)[1].split("\n## ", 1)[0]
+        errors.append("line \"Last updated: YYYY-MM-DD\" missing")
+    heading = next((h for h in (HEADING, *LEGACY_HEADINGS) if h in text), None)
+    if heading is None:
+        return [], errors + [f"section \"{HEADING}\" missing"]
+    section = text.split(heading, 1)[1].split("\n## ", 1)[0]
+    known = STATES + LEGACY_STATES
     rows, seen = [], set()
     for line in section.splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.strip().startswith("|") else []
@@ -39,15 +60,15 @@ def parse(text: str) -> tuple[list[dict[str, str]], list[str]]:
             continue
         row = {"id": cells[0], "what": cells[1], "state": cells[2]}
         if row["id"] in seen:
-            errors.append(f"{row['id']} : identifiant en double")
+            errors.append(f"{row['id']}: duplicate id")
         seen.add(row["id"])
-        if row["state"] not in STATES:
-            errors.append(f"{row['id']} : état « {row['state']} » inconnu ({', '.join(STATES)})")
+        if row["state"] not in known:
+            errors.append(f"{row['id']}: unknown state \"{row['state']}\" ({', '.join(STATES)})")
         if not row["what"]:
-            errors.append(f"{row['id']} : sujet vide")
+            errors.append(f"{row['id']}: empty topic")
         rows.append(row)
     if not rows:
-        errors.append("aucune ligne dans le plan (| A1 | sujet | état | …)")
+        errors.append("no row in the plan (| A1 | topic | state | …)")
     return rows, errors
 
 
@@ -60,7 +81,7 @@ def _git(repo: str, *args: str) -> tuple[int, str]:
 
 
 def changed_paths(repo: str, base: str) -> set[str] | None:
-    """Ce que la branche et la copie de travail changent par rapport à la base ; None hors d'un dépôt git."""
+    """What the branch and the working tree change compared with the base; None outside a git repository."""
     code, status = _git(repo, "status", "--porcelain", "-z", "--untracked-files=all")
     if code != 0:
         return None
@@ -73,7 +94,7 @@ def changed_paths(repo: str, base: str) -> set[str] | None:
         if len(entry) < 4:
             continue
         paths.add(entry[3:])
-        if entry[0] in "RC":  # un renommage porte son ancien nom dans l'entrée suivante
+        if entry[0] in "RC":  # a rename carries its old name in the next entry
             if index < len(entries):
                 paths.add(entries[index])
             index += 1
@@ -83,41 +104,42 @@ def changed_paths(repo: str, base: str) -> set[str] | None:
     return paths
 
 
-def check(repo: str, doc: str = DOC, base: str = "origin/main") -> list[str]:
-    """Ce qui empêche de s'arrêter là : liste vide si le plan est en forme et suit le changement."""
+def check(repo: str, doc: str | None = None, base: str = "origin/main") -> list[str]:
+    """What prevents stopping here: an empty list if the plan is well formed and follows the change."""
+    doc = doc or default_doc(repo)
     try:
         with open(os.path.join(repo, doc), encoding="utf-8") as fh:
             text = fh.read()
     except OSError:
-        return [f"{doc} est introuvable : c'est le document qui dit ce que le dépôt sait faire et où il en est"]
-    errors = [f"{doc} : {e}" for e in parse(text)[1]]
+        return [f"{doc} not found: it is the document that says what the repository can do and where it stands"]
+    errors = [f"{doc}: {e}" for e in parse(text)[1]]
     changed = changed_paths(repo, base)
-    if changed is not None:  # l'état mesuré (.harness/) est une sortie de commande, pas un travail à inscrire
+    if changed is not None:  # the measured state (.harness/) is a command output, not work to record
         changed = {p for p in changed if not p.startswith(".harness/")}
     if changed is not None and changed - {doc} and doc not in changed:
         sample = ", ".join(sorted(changed - {doc})[:4])
-        errors.append(f"le dépôt change ({sample}{'…' if len(changed) > 5 else ''}) et {doc} ne bouge pas : inscris "
-                      "au plan d'avancement ce qui est fait, commencé ou demandé, et mets la date à jour")
+        errors.append(f"the repository changes ({sample}{'…' if len(changed) > 5 else ''}) and {doc} does not move: record "
+                      "in the progress plan what is done, started or requested, and update the date")
     return errors
 
 
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(description=__doc__)
     sub = p.add_subparsers(dest="progress_command", required=True)
-    chk = sub.add_parser("check", help="le plan est en forme et suit le changement de la branche")
+    chk = sub.add_parser("check", help="the plan is well formed and follows the change of the branch")
     chk.add_argument("repo", nargs="?", default=".")
-    chk.add_argument("--doc", default=DOC)
+    chk.add_argument("--doc", default=None, help=f"the plan (default: {DOC}, or {LEGACY_DOCS[0]} if only it exists)")
     chk.add_argument("--base", default="origin/main")
     chk.add_argument("--hook", action="store_true",
-                     help="appelé par un hook Stop : lit son JSON sur l'entrée, et ne bloque pas deux fois de suite")
-    sub.add_parser("remind", help="la ligne de rappel injectée à chaque demande")
+                     help="called by a Stop hook: reads its JSON on stdin, and does not block twice in a row")
+    sub.add_parser("remind", help="the reminder line injected at every request")
     return p
 
 
 def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) -> int:
     args = args or build_parser().parse_args(argv)
     if args.progress_command == "remind":
-        print(REMINDER)
+        print(reminder(default_doc(".")))  # the hook runs from the project directory
         return 0
     if args.hook:
         try:
@@ -125,11 +147,12 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         except (ValueError, OSError):
             event = {}
         if isinstance(event, dict) and event.get("stop_hook_active"):
-            return 0  # déjà renvoyé une fois ce tour-ci : ne pas enfermer l'agent dans une boucle
-    errors = check(args.repo, args.doc, args.base)
+            return 0  # already sent back once this turn: do not lock the agent in a loop
+    doc = args.doc or default_doc(args.repo)
+    errors = check(args.repo, doc, args.base)
     if not errors:
         if not args.hook:
-            print(f"{args.doc} : en forme, et il suit le changement.")
+            print(f"{doc}: well formed, and it follows the change.")
         return 0
-    print("Plan d'avancement à mettre à jour avant de s'arrêter :\n- " + "\n- ".join(errors), file=sys.stderr)
+    print("Progress plan to update before stopping:\n- " + "\n- ".join(errors), file=sys.stderr)
     return 2

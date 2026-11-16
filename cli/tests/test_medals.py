@@ -1,5 +1,5 @@
-"""Tests des médailles : la médaille est le palier mesuré, un succès garde la date où il a été débloqué,
-un succès perdu le dit, et la page ne contient que des données échappées."""
+"""Tests of the medals: the medal is the measured level, an achievement keeps the date it was unlocked,
+a lost achievement says so, and the page contains only escaped data."""
 from __future__ import annotations
 
 import contextlib
@@ -15,7 +15,19 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import harness  # noqa: E402
 from harnesslib import medals  # noqa: E402
 
-AGENTS = """# démo — instructions pour les agents
+AGENTS = """# demo — instructions for agents
+
+Mode: **assistance**. The human drives and reviews every diff.
+
+## Rules
+- No secret in the code. Why: the March leak. (unverified) [2026-03]
+
+## Forbidden
+- Pushing to main. Why: everything goes through a PR. [2026-01]
+"""
+
+# The same file written by a French-speaking team.
+AGENTS_FR = """# démo — instructions pour les agents
 
 Mode : **assistance**. L'humain pilote et relit chaque diff.
 
@@ -28,11 +40,11 @@ Mode : **assistance**. L'humain pilote et relit chaque diff.
 
 
 def evaluated(passed: dict[str, bool], rank: int = 1) -> dict:
-    tiers = [{"id": "bronze", "name": "Bronze", "title": "Cadré", "promise": "p"},
-             {"id": "argent", "name": "Argent", "title": "Bouclé", "promise": "p"}]
-    successes = [{"id": i, "tier": "bronze" if i.startswith("A") else "argent", "title": i, "passed": ok,
-                  "evidence": "", "next": None if ok else f"faire {i}", "waiting": False} for i, ok in passed.items()]
-    return {"kind": "repo", "name": "démo", "date": "2026-11-15", "rank": rank, "tiers": tiers, "successes": successes}
+    tiers = [{"id": "bronze", "name": "Bronze", "title": "Framed", "promise": "p"},
+             {"id": "silver", "name": "Silver", "title": "Looped", "promise": "p"}]
+    successes = [{"id": i, "tier": "bronze" if i.startswith("A") else "silver", "title": i, "passed": ok,
+                  "evidence": "", "next": None if ok else f"do {i}", "waiting": False} for i, ok in passed.items()]
+    return {"kind": "repo", "name": "demo", "date": "2026-11-15", "rank": rank, "tiers": tiers, "successes": successes}
 
 
 class RepoCase(unittest.TestCase):
@@ -58,13 +70,13 @@ class BuildTests(unittest.TestCase):
     def test_the_medal_is_the_rank_and_the_why_counts_what_is_missing(self):
         data = medals.build(evaluated({"A1": True, "B1": False, "B2": True}))
         self.assertEqual((data["medal"]["id"], data["medal"]["rank"], data["medal"]["of"]), ("bronze", 1, 4))
-        self.assertIn("il en manque 1 pour argent", data["why"])
+        self.assertIn("1 missing for silver", data["why"])
         self.assertEqual([s["id"] for s in data["next"]], ["B1"])
         self.assertEqual([(t["done"], t["total"], t["earned"]) for t in data["tiers"]], [(1, 1, True), (1, 2, False)])
 
     def test_no_medal_points_at_bronze(self):
         data = medals.build(evaluated({"A1": False}, rank=0))
-        self.assertEqual(data["medal"]["id"], "aucune")
+        self.assertEqual(data["medal"]["id"], "none")
         self.assertEqual([s["id"] for s in data["next"]], ["A1"])
 
     def test_an_unlock_date_is_kept_and_a_lost_success_says_when(self):
@@ -75,7 +87,19 @@ class BuildTests(unittest.TestCase):
         self.assertEqual((by_id["B1"]["unlocked"], by_id["B1"]["lost"]), (None, "2026-11-15"))
         third = medals.build({**evaluated({"A1": True, "B1": True}, rank=2), "date": "2026-12-01"}, second)
         self.assertEqual({s["id"]: s for s in third["successes"]}["B1"]["unlocked"], "2026-12-01")
-        self.assertEqual([h["medal"] for h in third["history"]], ["argent", "bronze", "argent"])
+        self.assertEqual([h["medal"] for h in third["history"]], ["silver", "bronze", "silver"])
+
+    def test_a_previous_file_with_french_ids_keeps_its_dates_under_the_english_ids(self):
+        previous = {"schema": 1, "kind": "repo",
+                    "successes": [{"id": "B.outils", "unlocked": "2026-10-01"}, {"id": "M4.aveugle", "unlocked": "2026-09-01"},
+                                  {"id": "B.frais", "unlocked": None, "lost": "2026-10-05"}],
+                    "history": [{"date": "2026-09-01", "medal": "aucune"}, {"date": "2026-10-01", "medal": "argent"}]}
+        current = evaluated({"B.tools": True, "M4.blind": True, "B.fresh": False}, rank=2)
+        data = medals.build(current, previous)
+        by_id = {s["id"]: s for s in data["successes"]}
+        self.assertEqual((by_id["B.tools"]["unlocked"], by_id["M4.blind"]["unlocked"]), ("2026-10-01", "2026-09-01"))
+        self.assertEqual(by_id["B.fresh"]["lost"], "2026-10-05")
+        self.assertEqual([h["medal"] for h in data["history"]], ["none", "silver"])
 
     def test_a_file_of_another_kind_or_a_broken_one_is_not_trusted(self):
         for previous in ("x", [], {"schema": 99}, {"schema": 1, "kind": "repo", "successes": None},
@@ -89,21 +113,24 @@ class BuildTests(unittest.TestCase):
 
 class RepoTests(RepoCase):
     def test_an_empty_repo_has_no_medal_and_a_framed_one_has_bronze(self):
-        self.assertEqual(medals.build(medals.evaluate_repo(self.repo))["medal"]["id"], "aucune")
-        self.write("AGENTS.md", AGENTS)
-        data = medals.build(medals.evaluate_repo(self.repo))
-        self.assertEqual(data["medal"]["id"], "bronze")
-        bonus = {s["id"]: s for s in data["successes"] if s["tier"] == "bonus"}
-        self.assertTrue(bonus["B.dates"]["unlocked"])
-        self.assertFalse(bonus["B.outils"]["unlocked"])
+        self.assertEqual(medals.build(medals.evaluate_repo(self.repo))["medal"]["id"], "none")
+        for text in (AGENTS, AGENTS_FR):
+            with self.subTest(language="en" if text is AGENTS else "fr"):
+                self.write("AGENTS.md", text)
+                data = medals.build(medals.evaluate_repo(self.repo))
+                self.assertEqual(data["medal"]["id"], "bronze")
+                bonus = {s["id"]: s for s in data["successes"] if s["tier"] == "bonus"}
+                self.assertTrue(bonus["B.dates"]["unlocked"])
+                self.assertTrue(bonus["B.why"]["unlocked"])
+                self.assertFalse(bonus["B.tools"]["unlocked"])
 
     def test_a_command_the_ci_runs_and_nobody_wrote_locks_its_bonus(self):
         self.write("AGENTS.md", AGENTS)
         self.write("pom.xml", "<project/>")
         self.write(".github/workflows/ci.yml", "jobs:\n  t:\n    steps:\n      - run: make it\n")
         bonus = {s["id"]: s for s in medals.evaluate_repo(self.repo)["successes"]}
-        self.assertFalse(bonus["B.commandes"]["passed"])
-        self.assertIn("make it", bonus["B.commandes"]["evidence"])
+        self.assertFalse(bonus["B.commands"]["passed"])
+        self.assertIn("make it", bonus["B.commands"]["evidence"])
 
     def test_write_keeps_the_file_and_the_dates_between_two_runs(self):
         self.write("AGENTS.md", AGENTS)
@@ -113,24 +140,24 @@ class RepoTests(RepoCase):
         with open(os.path.join(self.repo, ".harness", "medals.json"), encoding="utf-8") as fh:
             data = json.load(fh)
         self.assertEqual({s["unlocked"] for s in data["successes"] if s["tier"] == "bronze"}, {"2026-10-01"})
-        self.write("AGENTS.md", AGENTS.replace("## Interdits", "## Autre"))     # un succès de bronze se perd
+        self.write("AGENTS.md", AGENTS.replace("## Forbidden", "## Other"))     # a bronze achievement is lost
         self.run_cli("--write", "--today", "2026-12-01")
         with open(os.path.join(self.repo, ".harness", "medals.json"), encoding="utf-8") as fh:
             data = json.load(fh)
-        self.assertEqual((data["date"], data["medal"]["id"]), ("2026-12-01", "aucune"))
+        self.assertEqual((data["date"], data["medal"]["id"]), ("2026-12-01", "none"))
         lost = [s for s in data["successes"] if s["lost"]]
         self.assertEqual([(s["id"], s["lost"]) for s in lost], [("L1.forbidden", "2026-12-01")])
 
     def test_the_same_measure_another_day_does_not_touch_the_file_and_keeps_its_name(self):
         self.write("AGENTS.md", AGENTS)
-        self.run_cli("--write", "--today", "2026-10-01", "--name", "mon-depot")
+        self.run_cli("--write", "--today", "2026-10-01", "--name", "my-repo")
         path = os.path.join(self.repo, ".harness", "medals.json")
         with open(path, encoding="utf-8") as fh:
             first = fh.read()
         code, out = self.run_cli("--write", "--today", "2026-11-15")
         with open(path, encoding="utf-8") as fh:
             self.assertEqual(fh.read(), first)
-        self.assertIn("mon-depot", out)
+        self.assertIn("my-repo", out)
         self.assertFalse(os.path.exists(path + ".tmp"))
 
     def test_a_broken_file_or_a_bad_argument_is_a_message_not_a_crash(self):
@@ -143,13 +170,13 @@ class RepoTests(RepoCase):
     def test_without_write_nothing_is_created(self):
         code, out = self.run_cli()
         self.assertEqual(code, 0)
-        self.assertIn("Pas encore de médaille", out)
+        self.assertIn("No medal yet", out)
         self.assertFalse(os.path.exists(os.path.join(self.repo, ".harness")))
 
 
 class MarketplaceTests(RepoCase):
     def plugin(self, description: str) -> None:
-        self.write(".claude-plugin/marketplace.json", json.dumps({"name": "démo", "plugins": [{"name": "p", "source": "./p"}]}))
+        self.write(".claude-plugin/marketplace.json", json.dumps({"name": "demo", "plugins": [{"name": "p", "source": "./p"}]}))
         self.write("p/.claude-plugin/plugin.json", json.dumps({"name": "p", "version": "1.0.0", "description": "d"}))
         self.write("p/skills/s/SKILL.md", f"---\nname: s\ndescription: {description}\n---\n# s\n")
 
@@ -157,22 +184,22 @@ class MarketplaceTests(RepoCase):
         return medals.build(medals.evaluate_marketplace(self.repo))
 
     def test_no_manifest_is_no_medal(self):
-        self.assertEqual(self.medal()["medal"]["id"], "aucune")
+        self.assertEqual(self.medal()["medal"]["id"], "none")
 
     def test_an_installable_marketplace_is_bronze_and_a_described_one_silver(self):
-        self.plugin("Fait des choses.")
+        self.plugin("Does things.")
         self.assertEqual(self.medal()["medal"]["id"], "bronze")
-        self.plugin("Fait des choses. Utiliser quand on demande X. Ne pas utiliser pour Y.")
-        self.assertEqual(self.medal()["medal"]["rank"], 3)   # sans code, rien à tester : l'or suit
+        self.plugin("Does things. Use when someone asks for X. Do not use for Y.")
+        self.assertEqual(self.medal()["medal"]["rank"], 3)   # without code, nothing to test: gold follows
 
     def test_code_without_tests_stops_at_silver_and_a_source_outside_the_repo_is_not_followed(self):
-        self.plugin("Utiliser quand on demande X. Ne pas utiliser pour Y.")
-        self.write("p/cli/outil.py", "x = 1\n")
-        self.assertEqual(self.medal()["medal"]["id"], "argent")
-        self.write("p/cli/tests/test_outil.py", "def test_outil():\n    assert True\n")
+        self.plugin("Use when someone asks for X. Do not use for Y.")
+        self.write("p/cli/tool.py", "x = 1\n")
+        self.assertEqual(self.medal()["medal"]["id"], "silver")
+        self.write("p/cli/tests/test_tool.py", "def test_tool():\n    assert True\n")
         self.assertEqual(self.medal()["medal"]["rank"], 3)
-        self.write(".claude-plugin/marketplace.json", json.dumps({"name": "d", "plugins": [{"name": "p", "source": "../ailleurs"}, "x", {"source": 3}]}))
-        self.assertEqual(self.medal()["medal"]["id"], "aucune")
+        self.write(".claude-plugin/marketplace.json", json.dumps({"name": "d", "plugins": [{"name": "p", "source": "../elsewhere"}, "x", {"source": 3}]}))
+        self.assertEqual(self.medal()["medal"]["id"], "none")
 
     def test_descriptions_are_read_as_people_write_them(self):
         for description, when, when_not in (
@@ -184,7 +211,7 @@ class MarketplaceTests(RepoCase):
             with self.subTest(description=description):
                 self.plugin(description)
                 got = {s["id"]: s["passed"] for s in medals.evaluate_marketplace(self.repo)["successes"]}
-                self.assertEqual((got["M2.quand"], got["M2.quand-pas"]), (when, when_not))
+                self.assertEqual((got["M2.when"], got["M2.when-not"]), (when, when_not))
 
     def test_a_folder_named_like_a_url_is_a_source_and_a_link_out_of_the_repo_is_not(self):
         self.plugin("x")
@@ -193,17 +220,17 @@ class MarketplaceTests(RepoCase):
         self.assertEqual(self.medal()["medal"]["id"], "bronze")
         outside = tempfile.TemporaryDirectory()
         self.addCleanup(outside.cleanup)
-        os.symlink(outside.name, os.path.join(self.repo, "lien"))
-        self.write(".claude-plugin/marketplace.json", json.dumps({"name": "d", "plugins": [{"name": "p", "source": "./lien"}]}))
-        self.assertEqual(self.medal()["medal"]["id"], "aucune")
+        os.symlink(outside.name, os.path.join(self.repo, "link"))
+        self.write(".claude-plugin/marketplace.json", json.dumps({"name": "d", "plugins": [{"name": "p", "source": "./link"}]}))
+        self.assertEqual(self.medal()["medal"]["id"], "none")
 
     def test_an_empty_blind_folder_or_a_test_that_asserts_nothing_unlocks_nothing(self):
-        self.plugin("Utiliser quand X. Ne pas utiliser pour Y.")
+        self.plugin("Use when X. Do not use for Y.")
         os.makedirs(os.path.join(self.repo, "fixtures", "a", "runs", "2026-blind"))
-        self.write("p/scripts/outil.sh", "echo x\n")
-        self.write("p/cli/tests/test_outil.py", "x = 1\n")
+        self.write("p/scripts/tool.sh", "echo x\n")
+        self.write("p/cli/tests/test_tool.py", "x = 1\n")
         got = {s["id"]: s["passed"] for s in medals.evaluate_marketplace(self.repo)["successes"]}
-        self.assertFalse(got["M4.aveugle"])
+        self.assertFalse(got["M4.blind"])
         self.assertFalse(got["M3.tests"])
 
     def test_the_cli_keeps_a_file_per_kind(self):
@@ -222,7 +249,7 @@ class PageTests(RepoCase):
             html = fh.read()
         self.assertNotIn("{{csp}}", html)
         self.assertNotIn("{{title}}", html)
-        self.assertEqual(html.count("{{data}}"), 2)   # dans le titre et dans les données : le nom, jamais relu
+        self.assertEqual(html.count("{{data}}"), 2)   # in the title and in the data: the name, never read again
         self.assertNotIn("<img src=x", html)
         self.assertEqual(html.count("</script>"), 2)
         self.assertNotRegex(html, r'(?:src|href)="https?://')

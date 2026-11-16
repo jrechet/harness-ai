@@ -1,11 +1,15 @@
-"""Les commandes qu'un agent ne devine pas : ce que la CI lance vraiment, là où ça s'écarte de la
-commande que l'écosystème laisse supposer.
+"""The commands an agent does not guess: what the CI really runs, where it departs from the command
+the ecosystem suggests.
 
-Un dépôt Maven se teste « évidemment » avec `mvn verify`. Si la CI lance `make it`, ou `mvn verify`
-avec un profil, l'agent lancera la mauvaise commande et croira avoir vérifié. Ce module lit les
-workflows, le Makefile et les scripts du manifeste, et rend des **candidates** : chacune se confirme
-en l'exécutant et auprès du propriétaire avant d'entrer dans AGENTS.md. Il ne lit pas le YAML en
-entier (bibliothèque standard seulement) : lignes `run:` de GitHub Actions, listes `script:` de GitLab."""
+A Maven repository is "obviously" tested with `mvn verify`. If the CI runs `make it`, or `mvn verify`
+with a profile, the agent will run the wrong command and believe it has verified. This module reads the
+workflows, the Makefile and the manifest scripts, and returns **candidates**: each one is confirmed by
+running it and with the owner before it enters AGENTS.md. It does not parse the whole YAML (standard
+library only): GitHub Actions `run:` lines, GitLab `script:` lists.
+
+Kinds of candidate: `wrapper` (the CI runs this command, not the tool directly), `options` (the tool
+with options that change what runs), `target` (offered by the repository, not run by the CI) and
+`delivery` (it delivers or publishes). An `obvious` command is the one the ecosystem suggests."""
 from __future__ import annotations
 
 import argparse
@@ -39,6 +43,7 @@ TARGETS = {"test", "tests", "it", "integration", "integration-test", "e2e", "lin
 _ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=\S*$")
 _RUN = re.compile(r"^(\s*)(?:-\s+)?[\"']?run[\"']?:\s*(.*)$")
 _SCRIPT = re.compile(r"^(\s*)(?:before_script|script|after_script):\s*$")
+# A job, target or file name that delivers: in English, or in French ("livraison") in a team's repository.
 _DELIVERY = re.compile(r"deploy|release|publish|deliver|livraison|rollout|promote|(?:^|[-_.])cd(?:[-_.]|$)", re.IGNORECASE)
 _DELIVERY_CMD = re.compile(r"deploy|release|publish|rollout|kubectl\s+(?:apply|delete|rollout)|terraform\s+(?:apply|destroy)"
                            r"|docker\s+push|helm\s+(?:upgrade|install)|twine\s+upload|gh\s+release|git\s+push|\bscp\b",
@@ -67,8 +72,8 @@ def _unquote(value: str) -> str:
 
 
 def _split(raw: str) -> list[str]:
-    """Une ligne de shell en commandes simples : sans les variables posées devant, sans commentaire,
-    sans ce qui suit un tube. Un `cd dossier` reste devant les commandes qui le suivent."""
+    """A shell line split into simple commands: without the variables set in front, without comments,
+    without what follows a pipe. A `cd folder` stays in front of the commands that follow it."""
     saved: list[str] = []
 
     def keep(match: re.Match[str]) -> str:
@@ -95,7 +100,7 @@ def _split(raw: str) -> list[str]:
 
 
 def _logical(block: list[tuple[int, str]], folded: bool) -> list[tuple[int, str]]:
-    """Les lignes d'un bloc de script, rejointes : continuation par `\\`, bloc replié, corps de heredoc sauté."""
+    """The lines of a script block, joined: continuation by `\\`, folded block, heredoc body skipped."""
     if folded:
         text = " ".join(line.strip() for _, line in block if line.strip())
         return [(block[0][0], text)] if block and text else []
@@ -117,8 +122,8 @@ def _logical(block: list[tuple[int, str]], folded: bool) -> list[tuple[int, str]
 
 
 def _jobs(lines: list[str]) -> list[dict[str, Any]]:
-    """Par ligne d'un workflow GitHub : le job auquel elle appartient, et s'il livre (son nom, ou un
-    `environment:`). Sans parseur YAML : les jobs sont les clés du premier niveau sous `jobs:`."""
+    """For each line of a GitHub workflow: the job it belongs to, and whether it delivers (its name, or an
+    `environment:`). Without a YAML parser: the jobs are the first-level keys under `jobs:`."""
     info: list[dict[str, Any]] = [{"job": "", "delivery": False} for _ in lines]
     level, current, start = None, "", 0
     inside = False
@@ -144,7 +149,7 @@ def _jobs(lines: list[str]) -> list[dict[str, Any]]:
 
 
 def _workdir(lines: list[str], index: int) -> str:
-    """Le `working-directory:` de l'étape qui porte la ligne `run:` donnée, s'il y en a un."""
+    """The `working-directory:` of the step that carries the given `run:` line, if there is one."""
     limit = _indent(lines[index]) if lines[index].lstrip().startswith("- ") else _indent(lines[index]) - 2
     start = index
     while start > 0 and not (lines[start].lstrip().startswith("- ") and _indent(lines[start]) <= limit):
@@ -214,7 +219,7 @@ def _gitlab(repo: str, rel: str) -> list[dict[str, Any]]:
 
 
 def ci_commands(repo: str) -> list[dict[str, Any]]:
-    """Chaque commande que la CI lance, avec le fichier et la ligne où elle est écrite."""
+    """Each command the CI runs, with the file and the line where it is written."""
     found: list[dict[str, Any]] = []
     for folder, deep in ((".github/workflows", False), (".github/actions", True)):
         try:
@@ -236,8 +241,8 @@ def ecosystems(repo: str) -> list[dict[str, Any]]:
 
 
 def classify(repo: str, command: str) -> tuple[str, str] | None:
-    """(`enveloppe` | `options` | `evidente`, commande normalisée), ou None pour ce qui n'est pas une
-    commande de vérification : installation, préparation, affichage."""
+    """(`wrapper` | `options` | `obvious`, normalized command), or None for what is not a
+    verification command: installation, preparation, display."""
     try:
         tokens = shlex.split(command)
     except ValueError:
@@ -245,31 +250,31 @@ def classify(repo: str, command: str) -> tuple[str, str] | None:
     if not tokens:
         return None
     tool, rest = tokens[0], tokens[1:]
-    if tool == "cd" and "&&" in rest:  # `cd dossier && commande` : on classe la commande, on garde le tout
+    if tool == "cd" and "&&" in rest:  # `cd folder && command`: the command is classified, the whole is kept
         inner = classify(repo, " ".join(rest[rest.index("&&") + 1:]))
-        return (("enveloppe" if inner[0] == "evidente" else inner[0]), command) if inner else None
+        return (("wrapper" if inner[0] == "obvious" else inner[0]), command) if inner else None
     if tool in ENV_RUNNERS and rest[:1] == ["run"] and len(rest) > 1:
-        return "enveloppe", command
+        return "wrapper", command
     if tool in ("npx", "docker-compose") or (tool == "docker" and rest[:1] == ["compose"]) or \
             (tool in ("pnpm", "yarn") and rest[:1] == ["exec"]):
-        return None if any(w in ("install", "up", "down", "pull", "build", "login") for w in rest) else ("enveloppe", command)
+        return None if any(w in ("install", "up", "down", "pull", "build", "login") for w in rest) else ("wrapper", command)
     if tool in RUNNERS:
-        return ("enveloppe", command) if rest else None
+        return ("wrapper", command) if rest else None
     if tool in ("bash", "sh") and rest:
         tool, rest = rest[0], rest[1:]
         if not os.path.isfile(os.path.join(repo, tool)):
             return None
-        return "enveloppe", command
+        return "wrapper", command
     if tool.startswith("./") and tool not in ("./mvnw", "./gradlew"):
-        return ("enveloppe", command) if os.path.isfile(os.path.join(repo, tool)) else None
+        return ("wrapper", command) if os.path.isfile(os.path.join(repo, tool)) else None
     if tool in ("python", "python3") and rest[:1] == ["-m"] and rest[1:2] and rest[1] in ("pytest", "unittest", "tox", "nox"):
         tool, rest = rest[1], rest[2:]
         if tool == "unittest":
-            return "evidente", "python -m unittest"
+            return "obvious", "python -m unittest"
     if tool in ("npm", "yarn", "pnpm"):
         if not rest or rest[0] in NODE_SETUP or rest[0].startswith("-"):
             return None
-        return ("evidente", "npm test") if rest == ["test"] else ("enveloppe", command)
+        return ("obvious", "npm test") if rest == ["test"] else ("wrapper", command)
     known = {t for eco in ECOSYSTEMS for t in eco["tools"]}
     if tool not in known:
         return None
@@ -280,12 +285,12 @@ def classify(repo: str, command: str) -> tuple[str, str] | None:
         return None
     flags = [t for t in rest if t.startswith("-") and t not in PLAIN_FLAGS]
     plain = " ".join([tool.replace("./mvnw", "mvn"), *words])
-    return ("options", command) if flags else ("evidente", plain)
+    return ("options", command) if flags else ("obvious", plain)
 
 
 def _targets(repo: str) -> list[dict[str, Any]]:
-    """Les cibles du Makefile ou du justfile et les scripts du manifeste dont le nom dit qu'ils vérifient
-    ou qu'ils livrent quelque chose."""
+    """The targets of the Makefile or justfile and the manifest scripts whose name says they verify
+    or deliver something."""
     found = []
     for rel, runner in (("Makefile", "make"), ("justfile", "just"), ("Justfile", "just")):
         for number, line in enumerate(_lines(repo, rel), 1):
@@ -310,8 +315,8 @@ def _targets(repo: str) -> list[dict[str, Any]]:
 
 
 def _documented(command: str, corpus: str) -> bool:
-    """La commande est écrite telle quelle dans du code des instructions (entre accents graves ou dans
-    un bloc), pas comme le début d'une autre ni comme des mots d'une phrase."""
+    """The command is written as is in code of the instructions (between backticks or in a block),
+    not as the start of another one nor as words of a sentence."""
     code = "\n".join(re.findall(r"```.*?```|`[^`\n]+`", corpus, re.DOTALL))
     return bool(re.search(r"(?<![\w./-])" + re.escape(command) + r"(?![\w:./-])", code))
 
@@ -330,50 +335,50 @@ def collect(repo: str) -> dict[str, Any]:
         kind = classify(repo, item["command"])
         if kind is None:
             continue
-        if kind[0] == "evidente":
+        if kind[0] == "obvious":
             seen_obvious.setdefault(kind[1], {"command": kind[1], "source": source(item)})
             continue
-        label = "livraison" if item["delivery"] or _DELIVERY_CMD.search(kind[1]) else kind[0]
+        label = "delivery" if item["delivery"] or _DELIVERY_CMD.search(kind[1]) else kind[0]
         previous = candidates.get(kind[1])
-        # une commande qu'un job ordinaire lance aussi n'est pas une livraison : c'est son job qui l'était
-        if previous is None or (previous["kind"] == "livraison" and label != "livraison"):
+        # a command that an ordinary job also runs is not a delivery: its job was
+        if previous is None or (previous["kind"] == "delivery" and label != "delivery"):
             candidates[kind[1]] = {"command": kind[1], "kind": label, "source": source(item), "ci": True}
     for item in _targets(repo):
-        label = "livraison" if item["delivery"] else "cible"
+        label = "delivery" if item["delivery"] else "target"
         candidates.setdefault(item["command"], {"command": item["command"], "kind": label, "source": source(item),
                                                 "ci": False})
     for candidate in candidates.values():
         candidate["obvious"] = obvious
         candidate["documented"] = _documented(candidate["command"], corpus)
-    order = {"enveloppe": 0, "options": 1, "cible": 2, "livraison": 3}
+    order = {"wrapper": 0, "options": 1, "target": 2, "delivery": 3}
     return {"ecosystems": [eco["name"] for eco in ecos],
             "candidates": sorted(candidates.values(), key=lambda c: (c["documented"], order[c["kind"]], c["command"])),
             "obvious_in_ci": sorted(seen_obvious.values(), key=lambda c: c["command"])}
 
 
-WHY = {"enveloppe": "la CI lance cette commande, pas l'outil directement",
-       "options": "la CI lance l'outil avec des options qui changent ce qui tourne",
-       "cible": "le dépôt l'offre, la CI ne la lance pas : à confirmer",
-       "livraison": "elle livre ou publie : candidate pour un Interdit, un agent ne la lance pas de son poste"}
+WHY = {"wrapper": "the CI runs this command, not the tool directly",
+       "options": "the CI runs the tool with options that change what runs",
+       "target": "the repository offers it, the CI does not run it: to confirm",
+       "delivery": "it delivers or publishes: candidate for a Forbidden rule, an agent does not run it from its machine"}
 
 
 def render_md(result: dict[str, Any]) -> str:
     todo = [c for c in result["candidates"] if not c["documented"]]
-    out = [f"Commandes qu'un agent ne devine pas : {len(todo)} à confirmer, "
-           f"{len(result['candidates']) - len(todo)} déjà dans les instructions."]
+    out = [f"Commands an agent does not guess: {len(todo)} to confirm, "
+           f"{len(result['candidates']) - len(todo)} already in the instructions."]
     if result["ecosystems"]:
-        out.append("Écosystème vu : " + ", ".join(result["ecosystems"]) + ".")
+        out.append("Ecosystem seen: " + ", ".join(result["ecosystems"]) + ".")
     for item in result["candidates"]:
         line = f"- `{item['command']}` — {WHY[item['kind']]} ({item['source']})."
-        if item["obvious"] and item["kind"] != "livraison":
-            line += " Ce qu'un agent lancerait sans le savoir : " + ", ".join(f"`{o}`" for o in item["obvious"]) + "."
-        out.append(line + (" Déjà écrite." if item["documented"] else ""))
+        if item["obvious"] and item["kind"] != "delivery":
+            line += " What an agent would run without knowing: " + ", ".join(f"`{o}`" for o in item["obvious"]) + "."
+        out.append(line + (" Already written." if item["documented"] else ""))
     if result["obvious_in_ci"]:
-        out.append("Commandes évidentes que la CI lance telles quelles (rien à écrire) : "
+        out.append("Obvious commands the CI runs as is (nothing to write): "
                    + ", ".join(f"`{c['command']}`" for c in result["obvious_in_ci"]) + ".")
     if not result["candidates"]:
-        out.append("Aucune candidate : la CI et le dépôt ne montrent pas d'écart avec les commandes évidentes.")
-    out.append("Une candidate n'est pas une règle. Lis ce qu'elle lance avant de l'exécuter, n'exécute jamais une commande de livraison ni une commande qui écrit hors du dépôt, puis demande au propriétaire si l'écart est voulu.")
+        out.append("No candidate: the CI and the repository show no departure from the obvious commands.")
+    out.append("A candidate is not a rule. Read what it runs before running it, never run a delivery command nor a command that writes outside the repository, then ask the owner whether the departure is intended.")
     return "\n".join(out) + "\n"
 
 
@@ -387,7 +392,7 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
 def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) -> int:
     args = args or build_parser().parse_args(argv)
     if not os.path.isdir(args.repo):
-        print(f"harness commands : {args.repo} n'est pas un dossier", file=sys.stderr)
+        print(f"harness commands: {args.repo} is not a directory", file=sys.stderr)
         return 2
     result = collect(args.repo)
     sys.stdout.write(json.dumps(result, ensure_ascii=False, indent=2) + "\n" if args.format == "json" else render_md(result))

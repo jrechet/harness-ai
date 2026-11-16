@@ -1,10 +1,13 @@
-"""Médailles et succès : le niveau de maturité, dit comme une progression qu'on a envie de suivre.
+"""Medals and achievements: the maturity level, told as a progression one wants to follow.
 
-Rien n'est noté ici par un modèle. Pour un dépôt, la médaille est le palier que `harness status`
-mesure (bronze = palier 1 … platine = palier 4) et chaque vérification passée est un succès débloqué.
-Pour une marketplace de plugins, quatre rangs de vérifications lues dans ses fichiers. Le résultat
-tient dans `.harness/medals.json`, qu'on peut commiter : il garde la date où chaque succès a été
-débloqué, et dit quand l'un d'eux a été perdu. `--page` en fait une page HTML autonome."""
+Nothing is graded here by a model. For a repository, the medal is the level that `harness status`
+measures (bronze = level 1 … platinum = level 4) and each passed check is an unlocked achievement.
+For a plugin marketplace, four ranks of checks read in its files. The result is kept in
+`.harness/medals.json`, which can be committed: it keeps the date each achievement was unlocked, and
+says when one of them was lost. `--page` turns it into a standalone HTML page.
+
+Until 2026-11-16 the ids were French (`aucune`, `argent`, `or`, `platine`, `B.frais`…). A previous
+file with those ids is still read: its dates are kept under the English ids."""
 from __future__ import annotations
 
 import argparse
@@ -21,11 +24,18 @@ from . import commands, facts, fresh, maturity, progress
 
 SCHEMA = 1
 FILE = "medals.json"
-MEDALS = ({"id": "aucune", "name": "Aucune médaille"}, {"id": "bronze", "name": "Bronze"},
-          {"id": "argent", "name": "Argent"}, {"id": "or", "name": "Or"}, {"id": "platine", "name": "Platine"})
+MEDALS = ({"id": "none", "name": "No medal"}, {"id": "bronze", "name": "Bronze"},
+          {"id": "silver", "name": "Silver"}, {"id": "gold", "name": "Gold"}, {"id": "platinum", "name": "Platinum"})
+# French ids written before 2026-11-16 (medals, tiers and achievements), read from a previous file.
+LEGACY_IDS = {"aucune": "none", "argent": "silver", "or": "gold", "platine": "platinum",
+              "B.frais": "B.fresh", "B.pourquoi": "B.why", "B.outils": "B.tools", "B.cibles": "B.targets",
+              "B.commandes": "B.commands", "B.objectif": "B.target", "M1.manifeste": "M1.manifest",
+              "M1.identite": "M1.identity", "M2.quand": "M2.when", "M2.quand-pas": "M2.when-not",
+              "M4.aveugle": "M4.blind"}
 KINDS = ("repo", "marketplace")
 TEMPLATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "medals_template.html")
 MAX_SKILL_LINES = 500
+# A skill description is written by its author, in French or in English: both are read.
 _TRIGGER = re.compile(r"(?<!ne pas )(?<!pas )\butiliser (?:dès|quand|pour|si|lorsque)|\bà utiliser\b|"
                       r"(?<!not )(?<!n't )\buse (?:(?:this|it|the skill) )?(?:when|for|whenever)\b", re.IGNORECASE)
 _NEGATIVE = re.compile(r"ne pas utiliser|do not use|don't use|not for\b|n'est pas pour", re.IGNORECASE)
@@ -38,17 +48,17 @@ def _success(ident: str, tier: str, title: str, passed: bool, evidence: str, act
 
 
 def _short(value: Any) -> str:
-    """La valeur mesurée d'une vérification, en une ligne lisible."""
+    """The measured value of a check, in one readable line."""
     if isinstance(value, dict):
-        return ", ".join(f"{k} : {_short(v)}" for k, v in value.items() if not isinstance(v, (dict, list)))[:160]
+        return ", ".join(f"{k}: {_short(v)}" for k, v in value.items() if not isinstance(v, (dict, list)))[:160]
     if isinstance(value, (list, tuple)):
-        return ", ".join(_short(v) for v in value)[:160] or "aucun"
+        return ", ".join(_short(v) for v in value)[:160] or "none"
     if isinstance(value, bool):
-        return "oui" if value else "non"
+        return "yes" if value else "no"
     return "" if value is None else str(value)[:160]
 
 
-# --- Un dépôt : les paliers de harness status ------------------------------------------------------------
+# --- A repository: the levels of harness status ----------------------------------------------------------
 
 def evaluate_repo(repo: str, today: date | None = None) -> dict[str, Any]:
     state = maturity.evaluate(facts.collect(repo, today=today))
@@ -61,37 +71,37 @@ def evaluate_repo(repo: str, today: date | None = None) -> dict[str, Any]:
     source = state["facts"]["instructions"]["source"]
     total = source.get("rules_total") or 0
     found = commands.collect(repo)
-    unwritten = [c["command"] for c in found["candidates"] if c["ci"] and c["kind"] != "livraison" and not c["documented"]]
+    unwritten = [c["command"] for c in found["candidates"] if c["ci"] and c["kind"] != "delivery" and not c["documented"]]
     target = state["target"]
     try:
         aged = fresh.collect(repo, today, fast=True)
-    except Exception:  # la fraîcheur est un bonus : son échec ne prive pas de médaille
+    except Exception:  # freshness is a bonus: its failure does not deprive of a medal
         aged = {"git": False, "items": []}
-    broken = [i for i in aged["items"] if i["state"] == "cassé"]
+    broken = [i for i in aged["items"] if i["state"] == "broken"]
     bonus = [
-        ("B.frais", "Aucun skill ni agent ne cite ce qui a disparu", bool(source.get("path")) and aged["git"] and not broken,
-         ", ".join(f"{i['path']} : {i['evidence']}" for i in broken[:2]) or ("rien de cassé" if aged["git"] else "non mesuré : pas d'historique git"),
-         "Lancer `harness fresh` et réparer chaque référence cassée."),
-        ("B.dates", "Chaque règle porte sa date", total > 0 and source.get("rules_dated") == total,
-         f"{source.get('rules_dated', 0)} sur {total}", "Dater chaque règle [AAAA-MM] : l'âge d'une règle est l'entrée de la revue de pertinence."),
-        ("B.pourquoi", "Chaque règle dit pourquoi", total > 0 and source.get("rules_justified") == total,
-         f"{source.get('rules_justified', 0)} sur {total}", "Ajouter « Pourquoi : … » aux règles qui ne le disent pas, ou « pas d'incident connu »."),
-        ("B.outils", "Chaque règle est tenue par un outil", total > 0 and source.get("rules_guarded") == total,
-         f"{source.get('rules_guarded', 0)} sur {total}", "Pousser les règles racontées vers un lint, un test d'architecture ou un check de PR."),
-        ("B.cibles", "Aucune référence sans cible", bool(source.get("path")) and not state["dangling"],
-         f"{len(state['dangling'])} référence(s) sans cible", "Retirer ou réparer ce que `harness status` liste sous « références sans cible »."),
-        ("B.commandes", "Les commandes que la CI lance sont écrites", bool(source.get("path")) and not unwritten,
-         ", ".join(unwritten[:3]) or "aucun écart avec les commandes évidentes",
-         "Lancer `harness commands`, confirmer chaque candidate et l'écrire dans le tableau d'AGENTS.md."),
-        ("B.objectif", "Le palier visé est atteint", bool(target.get("reached")),
-         f"visé : {target.get('name') or 'aucun'}", "Dire où l'on s'arrête avec `harness target <palier>`, puis l'atteindre."),
+        ("B.fresh", "No skill or agent cites what has vanished", bool(source.get("path")) and aged["git"] and not broken,
+         ", ".join(f"{i['path']}: {i['evidence']}" for i in broken[:2]) or ("nothing broken" if aged["git"] else "unmeasured: no git history"),
+         "Run `harness fresh` and repair each broken reference."),
+        ("B.dates", "Each rule carries its date", total > 0 and source.get("rules_dated") == total,
+         f"{source.get('rules_dated', 0)} of {total}", "Date each rule [YYYY-MM]: the age of a rule is the input of the relevance review."),
+        ("B.why", "Each rule says why", total > 0 and source.get("rules_justified") == total,
+         f"{source.get('rules_justified', 0)} of {total}", "Add \"Why: …\" to the rules that do not say it, or \"no known incident\"."),
+        ("B.tools", "Each rule is enforced by a tool", total > 0 and source.get("rules_guarded") == total,
+         f"{source.get('rules_guarded', 0)} of {total}", "Push the narrated rules to a lint, an architecture test or a PR check."),
+        ("B.targets", "No reference without a target", bool(source.get("path")) and not state["dangling"],
+         f"{len(state['dangling'])} reference(s) without a target", "Remove or repair what `harness status` lists under \"References without a target\"."),
+        ("B.commands", "The commands the CI runs are written", bool(source.get("path")) and not unwritten,
+         ", ".join(unwritten[:3]) or "no departure from the obvious commands",
+         "Run `harness commands`, confirm each candidate and write it in the AGENTS.md table."),
+        ("B.target", "The target level is reached", bool(target.get("reached")),
+         f"target: {target.get('name') or 'none'}", "Say where you stop with `harness target <level>`, then reach it."),
     ]
     successes += [_success(i, "bonus", t, p, e, a) for i, t, p, e, a in bonus]
     return {"kind": "repo", "name": os.path.basename(os.path.abspath(repo)), "date": state["date"],
             "rank": state["level"]["reached"], "tiers": tiers, "successes": successes}
 
 
-# --- Une marketplace de plugins --------------------------------------------------------------------------
+# --- A plugin marketplace -----------------------------------------------------------------------------
 
 def _json(path: str) -> Any:
     try:
@@ -102,8 +112,8 @@ def _json(path: str) -> Any:
 
 
 def _front_matter(path: str) -> tuple[dict[str, str], int]:
-    """Les clés de premier niveau de l'en-tête d'un SKILL.md, valeurs sur plusieurs lignes comprises
-    (`description: >`), et le nombre de lignes du fichier. Sans parseur YAML : bibliothèque standard."""
+    """The first-level keys of a SKILL.md header, multi-line values included (`description: >`), and
+    the number of lines of the file. Without a YAML parser: standard library."""
     try:
         with open(path, encoding="utf-8-sig", errors="replace") as fh:
             lines = fh.read().splitlines()
@@ -127,7 +137,7 @@ def _front_matter(path: str) -> tuple[dict[str, str], int]:
 
 
 def _inside(repo: str, path: str) -> bool:
-    """Le chemin, liens suivis, reste dans le dépôt."""
+    """The path, links followed, stays inside the repository."""
     root = os.path.realpath(repo)
     return os.path.commonpath([root, os.path.realpath(path)]) == root
 
@@ -139,7 +149,7 @@ _TEST_BODY = re.compile(r"def test_|unittest|\b(?:it|test|describe)\(")
 
 
 def _code_and_tests(root: str) -> tuple[bool, bool]:
-    """Le plugin porte-t-il du code, et ce code a-t-il au moins un test qui affirme quelque chose ?"""
+    """Does the plugin carry code, and does this code have at least one test that asserts something?"""
     code = tests = False
     for folder in CODE_DIRS:
         for base, dirs, names in os.walk(os.path.join(root, folder)):
@@ -187,49 +197,50 @@ def evaluate_marketplace(repo: str, today: date | None = None) -> dict[str, Any]
 
     def row(ident: str, tier: str, title: str, missing: list[str], total: int, action: str,
             vacuous: bool = False) -> dict[str, Any]:
-        evidence = f"{total - len(missing)} sur {total}" + (f" ; manque : {', '.join(missing[:3])}" if missing else "")
+        evidence = f"{total - len(missing)} of {total}" + (f"; missing: {', '.join(missing[:3])}" if missing else "")
         if vacuous and not total:
-            evidence = "aucun plugin ne porte de code : rien à tester"
+            evidence = "no plugin carries code: nothing to test"
         return _success(ident, tier, title, (total > 0 or vacuous) and not missing, evidence, action)
 
     valid = isinstance(manifest, dict) and isinstance(manifest.get("name"), str) and bool(plugins)
     blind = [os.path.join(r, d) for r, ds, _ in os.walk(os.path.join(repo, "fixtures")) for d in ds
              if os.path.basename(r) == "runs" and "blind" in d
              and any(names for _, _, names in os.walk(os.path.join(r, d)))]
+    plan = progress.default_doc(repo)
     try:
-        with open(os.path.join(repo, progress.DOC), encoding="utf-8") as fh:
+        with open(os.path.join(repo, plan), encoding="utf-8") as fh:
             plan_errors = progress.parse(fh.read())[1]
     except OSError:
-        plan_errors = [f"{progress.DOC} absent"]
+        plan_errors = [f"{plan} missing"]
     successes = [
-        _success("M1.manifeste", "bronze", "Le manifeste de la marketplace se lit et liste des plugins", valid,
-                 f"{len(plugins)} plugin(s)", "Écrire `.claude-plugin/marketplace.json` avec un nom et au moins un plugin."),
-        row("M1.sources", "bronze", "Chaque plugin a sa source dans le dépôt, avec son `plugin.json`",
+        _success("M1.manifest", "bronze", "The marketplace manifest reads and lists plugins", valid,
+                 f"{len(plugins)} plugin(s)", "Write `.claude-plugin/marketplace.json` with a name and at least one plugin."),
+        row("M1.sources", "bronze", "Each plugin has its source in the repository, with its `plugin.json`",
             lacking(lambda p: p["root"] and p.get("info"), plugins, "name"), len(plugins),
-            "Donner à chaque plugin une source relative et un `.claude-plugin/plugin.json`."),
-        row("M1.identite", "bronze", "Chaque plugin a un nom, une version et une description",
+            "Give each plugin a relative source and a `.claude-plugin/plugin.json`."),
+        row("M1.identity", "bronze", "Each plugin has a name, a version and a description",
             lacking(lambda p: p.get("info") and all(isinstance(p["info"].get(k), str) and p["info"][k] for k in ("name", "version", "description")),
-                    plugins, "name"), len(plugins), "Compléter `name`, `version` et `description` dans chaque `plugin.json`."),
-        row("M2.skills", "argent", "Chaque skill a un nom et une description",
+                    plugins, "name"), len(plugins), "Fill in `name`, `version` and `description` in each `plugin.json`."),
+        row("M2.skills", "silver", "Each skill has a name and a description",
             lacking(lambda s: s["front"][0].get("name") and s["front"][0].get("description"), skills, "path"), len(skills),
-            "Donner à chaque SKILL.md un en-tête `name` et `description`."),
-        row("M2.quand", "argent", "Chaque description dit quand utiliser le skill",
+            "Give each SKILL.md a `name` and `description` header."),
+        row("M2.when", "silver", "Each description says when to use the skill",
             lacking(lambda s: _TRIGGER.search(s["front"][0].get("description", "")), skills, "path"), len(skills),
-            "Écrire dans la description les demandes qui doivent déclencher le skill (« Utiliser quand… »)."),
-        row("M2.quand-pas", "argent", "Chaque description dit quand ne pas l'utiliser",
+            "Write in the description the requests that must trigger the skill (\"Use when…\")."),
+        row("M2.when-not", "silver", "Each description says when not to use it",
             lacking(lambda s: _NEGATIVE.search(s["front"][0].get("description", "")), skills, "path"), len(skills),
-            "Ajouter « Ne pas utiliser pour… » : c'est ce qui départage deux skills voisins."),
-        row("M3.budget", "or", f"Aucun SKILL.md ne dépasse {MAX_SKILL_LINES} lignes",
+            "Add \"Do not use for…\": it is what separates two neighbouring skills."),
+        row("M3.budget", "gold", f"No SKILL.md exceeds {MAX_SKILL_LINES} lines",
             lacking(lambda s: 0 < s["front"][1] <= MAX_SKILL_LINES, skills, "path"), len(skills),
-            "Déporter la référence dans des fichiers chargés à la demande."),
-        row("M3.tests", "or", "Chaque plugin qui porte du code a ses tests",
+            "Move the reference material to files loaded on demand."),
+        row("M3.tests", "gold", "Each plugin that carries code has its tests",
             lacking(lambda p: p["has_tests"], [p for p in plugins if p.get("has_code")], "name"),
-            len([p for p in plugins if p.get("has_code")]), "Tester le CLI du plugin : ce qui est garanti vit dans du code testé.",
+            len([p for p in plugins if p.get("has_code")]), "Test the plugin's CLI: what is guaranteed lives in tested code.",
             vacuous=valid),
-        _success("M4.aveugle", "platine", "Au moins une exécution à l'aveugle est rangée dans le dépôt", bool(blind),
-                 f"{len(blind)} exécution(s) sous fixtures/", "Jouer un skill sur une fixture par un agent neuf, et ranger son résultat dans `runs/`."),
-        _success("M4.plan", "platine", "Le plan d'avancement existe et il est en forme", not plan_errors,
-                 "; ".join(plan_errors[:2]) or progress.DOC, f"Tenir {progress.DOC} avec `harness progress check`."),
+        _success("M4.blind", "platinum", "At least one blind run is stored in the repository", bool(blind),
+                 f"{len(blind)} run(s) under fixtures/", "Play a skill on a fixture with a fresh agent, and store its result in `runs/`."),
+        _success("M4.plan", "platinum", "The progress plan exists and is well formed", not plan_errors,
+                 "; ".join(plan_errors[:2]) or plan, f"Keep {plan} with `harness progress check`."),
     ]
     order = [m["id"] for m in MEDALS[1:]]
     rank = 0
@@ -237,27 +248,29 @@ def evaluate_marketplace(repo: str, today: date | None = None) -> dict[str, Any]
         if not all(s["passed"] for s in successes if s["tier"] == tier):
             break
         rank = index
-    tiers = [{"id": "bronze", "name": "Bronze", "title": "Installable", "promise": "La marketplace se lit, chaque plugin s'installe."},
-             {"id": "argent", "name": "Argent", "title": "Décrit", "promise": "Chaque skill dit quand il sert, et quand il ne sert pas."},
-             {"id": "or", "name": "Or", "title": "Tenu", "promise": "Ce qui est garanti est dans du code testé, les skills restent courts."},
-             {"id": "platine", "name": "Platine", "title": "Mesuré", "promise": "Les skills sont éprouvés à l'aveugle, l'avancement est tenu."}]
+    tiers = [{"id": "bronze", "name": "Bronze", "title": "Installable", "promise": "The marketplace reads, each plugin installs."},
+             {"id": "silver", "name": "Silver", "title": "Described", "promise": "Each skill says when it serves, and when it does not."},
+             {"id": "gold", "name": "Gold", "title": "Maintained", "promise": "What is guaranteed is in tested code, the skills stay short."},
+             {"id": "platinum", "name": "Platinum", "title": "Measured", "promise": "The skills are tested blind, the progress is kept."}]
     name = manifest.get("name") if isinstance(manifest, dict) and isinstance(manifest.get("name"), str) else os.path.basename(os.path.abspath(repo))
     return {"kind": "marketplace", "name": name, "date": (today or date.today()).isoformat(), "rank": rank,
             "tiers": tiers, "successes": successes}
 
 
-# --- Le fichier du dépôt : ce qu'on garde d'une fois sur l'autre -----------------------------------------
+# --- The repository file: what is kept from one run to the next ------------------------------------------
 
 def build(evaluated: dict[str, Any], previous: Any = None) -> dict[str, Any]:
-    """Le contenu de medals.json : l'évaluation du jour, plus la date où chaque succès a été débloqué
-    (gardée de la fois précédente) et celle où il a été perdu."""
+    """The content of medals.json: today's evaluation, plus the date each achievement was unlocked
+    (kept from the previous time) and the date it was lost. French ids of a previous file are read
+    under their English names (`LEGACY_IDS`)."""
     today = evaluated["date"]
     same = isinstance(previous, dict) and previous.get("schema") == SCHEMA and previous.get("kind") == evaluated["kind"]
     raw = previous.get("successes") if same else None
-    before = {s["id"]: s for s in raw if isinstance(s, dict) and isinstance(s.get("id"), str)} if isinstance(raw, list) else {}
+    before = {LEGACY_IDS.get(s["id"], s["id"]): s for s in raw
+              if isinstance(s, dict) and isinstance(s.get("id"), str)} if isinstance(raw, list) else {}
 
     def day(value: Any) -> str | None:
-        """Une date reprise du fichier précédent : une vraie date, pas dans le futur."""
+        """A date taken from the previous file: a real date, not in the future."""
         try:
             return value if isinstance(value, str) and date.fromisoformat(value).isoformat() == value and value <= today else None
         except ValueError:
@@ -280,12 +293,12 @@ def build(evaluated: dict[str, Any], previous: Any = None) -> dict[str, Any]:
     steps = [{"id": s["id"], "title": s["title"], "action": s["next"], "waiting": s["waiting"]}
              for s in successes if s["tier"] == upcoming and not s["unlocked"]]
     if rank and tiers:
-        why = f"{medal['name']} : les {tiers[rank - 1]['total']} succès du rang « {tiers[rank - 1]['title']} » sont débloqués"
-        why += f", et il en manque {len(steps)} pour {MEDALS[rank + 1]['name'].lower()}." if upcoming else ". C'est le dernier rang."
+        why = f"{medal['name']}: the {tiers[rank - 1]['total']} achievements of the \"{tiers[rank - 1]['title']}\" rank are unlocked"
+        why += f", and {len(steps)} missing for {MEDALS[rank + 1]['name'].lower()}." if upcoming else ". It is the last rank."
     else:
-        why = f"Pas encore de médaille : il manque {len(steps)} succès pour le bronze."
+        why = f"No medal yet: {len(steps)} achievement(s) missing for bronze."
     past = previous.get("history") if same else None
-    history = [{"date": h["date"], "medal": h["medal"]} for h in (past if isinstance(past, list) else [])
+    history = [{"date": h["date"], "medal": LEGACY_IDS.get(h["medal"], h["medal"])} for h in (past if isinstance(past, list) else [])
                if isinstance(h, dict) and day(h.get("date")) and isinstance(h.get("medal"), str)]
     if not history or history[-1].get("medal") != medal["id"]:
         history.append({"date": today, "medal": medal["id"]})
@@ -296,26 +309,26 @@ def build(evaluated: dict[str, Any], previous: Any = None) -> dict[str, Any]:
 def render_md(data: dict[str, Any]) -> str:
     done = [s for s in data["successes"] if s["unlocked"]]
     out = [f"# {data['medal']['name']} — {data['name']}", "", data["why"],
-           f"Succès débloqués : {len(done)} sur {len(data['successes'])}. Mesuré le {data['date']}.", ""]
+           f"Achievements unlocked: {len(done)} of {len(data['successes'])}. Measured on {data['date']}.", ""]
     for tier in data["tiers"]:
         out.append(f"## {'✓' if tier['earned'] else '·'} {tier['name']} — {tier['title']} ({tier['done']}/{tier['total']})")
         out.append(f"_{tier['promise']}_")
         for s in (s for s in data["successes"] if s["tier"] == tier["id"]):
-            mark = f"[x] {s['title']} (depuis le {s['unlocked']})" if s["unlocked"] else f"[ ] {s['title']}"
-            out.append(f"- {mark}" + (f" — perdu le {s['lost']}" if s["lost"] else ""))
+            mark = f"[x] {s['title']} (since {s['unlocked']})" if s["unlocked"] else f"[ ] {s['title']}"
+            out.append(f"- {mark}" + (f" — lost on {s['lost']}" if s["lost"] else ""))
         out.append("")
     extra = [s for s in data["successes"] if s["tier"] == "bonus"]
     if extra:
-        out.append(f"## Hors rang ({sum(bool(s['unlocked']) for s in extra)}/{len(extra)})")
+        out.append(f"## Outside the ranks ({sum(bool(s['unlocked']) for s in extra)}/{len(extra)})")
         out += [f"- [{'x' if s['unlocked'] else ' '}] {s['title']} ({s['evidence']})" for s in extra] + [""]
     if data["next"]:
-        out.append("## Prochaines étapes")
-        out += [f"{n}. {s['action'] or s['title']}" + (" (en attente : ça ne dépend pas que de toi)" if s["waiting"] else "")
+        out.append("## Next steps")
+        out += [f"{n}. {s['action'] or s['title']}" + (" (waiting: it does not depend on you alone)" if s["waiting"] else "")
                 for n, s in enumerate(data["next"], 1)]
     return "\n".join(out).rstrip() + "\n"
 
 
-# --- La page ---------------------------------------------------------------------------------------------
+# --- The page ---------------------------------------------------------------------------------------------
 
 def _csp(template: str) -> str:
     def digest(tag: str) -> str:
@@ -326,17 +339,17 @@ def _csp(template: str) -> str:
 
 
 def render_html(data: dict[str, Any]) -> str:
-    """Une page autonome : les données sont dans le fichier, le script ne fait que les montrer."""
+    """A standalone page: the data is in the file, the script only shows it."""
     with open(TEMPLATE_FILE, encoding="utf-8") as fh:
         template = fh.read()
     raw = json.dumps(data, ensure_ascii=False, sort_keys=True).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
     title = f"{data['medal']['name']} · {data['name']}".replace("&", "&amp;").replace("<", "&lt;")
-    fields = {"csp": _csp(template), "title": title, "data": raw}  # une seule passe : une valeur n'est jamais relue
+    fields = {"csp": _csp(template), "title": title, "data": raw}  # a single pass: a value is never read again
     return re.sub(r"\{\{(csp|title|data)\}\}", lambda m: fields[m[1]], template)
 
 
 def _write(path: str, text: str) -> None:
-    """Écrit d'un coup : un fichier à moitié écrit ferait repartir les dates de zéro."""
+    """Writes in one go: a half-written file would restart the dates from zero."""
     tmp = f"{path}.tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         fh.write(text)
@@ -346,11 +359,11 @@ def _write(path: str, text: str) -> None:
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(description=__doc__)
     p.add_argument("repo", nargs="?", default=".")
-    p.add_argument("--kind", choices=KINDS, help="ce qu'on mesure (défaut : repo)")
-    p.add_argument("--write", action="store_true", help=f"met à jour .harness/{FILE}, en gardant les dates déjà acquises")
-    p.add_argument("--page", metavar="FICHIER", help="écrit la page HTML interactive")
+    p.add_argument("--kind", choices=KINDS, help="what is measured (default: repo)")
+    p.add_argument("--write", action="store_true", help=f"updates .harness/{FILE}, keeping the dates already earned")
+    p.add_argument("--page", metavar="FILE", help="writes the interactive HTML page")
     p.add_argument("--format", choices=["md", "json"], default="md")
-    p.add_argument("--name", help="le nom affiché (défaut : celui du fichier de médailles s'il existe, sinon du dossier ou de la marketplace)")
+    p.add_argument("--name", help="the displayed name (default: the one of the medals file if it exists, otherwise of the folder or the marketplace)")
     p.add_argument("--today", help=argparse.SUPPRESS)
     return p
 
@@ -358,20 +371,20 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
 def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) -> int:
     args = args or build_parser().parse_args(argv)
     if not os.path.isdir(args.repo):
-        print(f"harness medals : {args.repo} n'est pas un dossier", file=sys.stderr)
+        print(f"harness medals: {args.repo} is not a directory", file=sys.stderr)
         return 2
     try:
         today = date.fromisoformat(args.today) if args.today else None
     except ValueError:
-        print(f"harness medals : --today {args.today!r} n'est pas une date AAAA-MM-JJ", file=sys.stderr)
+        print(f"harness medals: --today {args.today!r} is not a YYYY-MM-DD date", file=sys.stderr)
         return 2
     kind = args.kind or "repo"
     path = os.path.join(args.repo, ".harness", FILE if kind == "repo" else f"medals-{kind}.json")
     previous = _json(path)
     usable = isinstance(previous, dict) and previous.get("schema") == SCHEMA and previous.get("kind") == kind
     if os.path.exists(path) and not usable:
-        print(f"harness medals : {path} est illisible ou d'un autre format, il n'est pas repris : "
-              "les dates de déblocage repartent d'aujourd'hui", file=sys.stderr)
+        print(f"harness medals: {path} is unreadable or of another format, it is not reused: "
+              "the unlock dates restart from today", file=sys.stderr)
     evaluated = evaluate_repo(args.repo, today) if kind == "repo" else evaluate_marketplace(args.repo, today)
     if args.name:
         evaluated["name"] = args.name
@@ -381,12 +394,12 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
     try:
         if args.page:
             _write(args.page, render_html(data))
-        # même mesure, autre jour : le fichier ne bouge pas, sa date est celle du dernier changement
+        # same measure, another day: the file does not move, its date is that of the last change
         if args.write and not (usable and {**previous, "date": None} == {**data, "date": None}):
             os.makedirs(os.path.dirname(path), exist_ok=True)
             _write(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
     except OSError as exc:
-        print(f"harness medals : écriture impossible ({exc})", file=sys.stderr)
+        print(f"harness medals: cannot write ({exc})", file=sys.stderr)
         return 2
     sys.stdout.write(json.dumps(data, ensure_ascii=False, indent=2) + "\n" if args.format == "json" else render_md(data))
     return 0

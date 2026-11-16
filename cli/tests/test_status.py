@@ -1,4 +1,4 @@
-"""Tests de `harness status` : faits et paliers sur des dépôts temporaires."""
+"""Tests of `harness status`: facts and levels on temporary repositories."""
 from __future__ import annotations
 
 import io
@@ -15,7 +15,38 @@ from harnesslib import facts, maturity, rules, status  # noqa: E402
 
 TODAY = date(2026, 11, 9)
 
-AGENTS_LEVEL1 = """# demo — instructions pour les agents
+AGENTS_LEVEL1 = """# demo — instructions for agents
+
+Mode: **delegation**. An agent can receive a whole task.
+
+## What this repo does
+A billing API.
+
+## Rules
+- HTTP calls go through `src/http`. Why: centralised retries. Enforced by: `eslint/no-raw-fetch`
+- No raw SQL in a business transaction. Why: incident #42. (unverified)
+
+## Forbidden
+- Never force push.
+"""
+
+AGENTS_LEVEL2 = AGENTS_LEVEL1 + """
+## Maintaining this file
+- A review comment that starts with `rule:` is a candidate rule.
+
+<!-- harvest: last=2026-11-01 ref=https://gh/pr/9 -->
+"""
+
+AGENTS_LEVEL4 = AGENTS_LEVEL2.replace("## Forbidden", """## Working process
+- Stop and ask when the task touches a forbidden item.
+
+## Delegated tasks
+- `bump-dependency` — bump a dependency and prove nothing breaks.
+
+## Forbidden""")
+
+# The same files written by a French-speaking team: they must reach the same levels.
+AGENTS_LEVEL1_FR = """# demo — instructions pour les agents
 
 Mode : **délégation**. Un agent peut recevoir une tâche entière.
 
@@ -30,14 +61,14 @@ Une API de facturation.
 - Jamais de force push.
 """
 
-AGENTS_LEVEL2 = AGENTS_LEVEL1 + """
+AGENTS_LEVEL2_FR = AGENTS_LEVEL1_FR + """
 ## Maintenance de ce fichier
 - Un commentaire de review qui commence par `rule:` est une règle candidate.
 
 <!-- harvest: last=2026-11-01 ref=https://gh/pr/9 -->
 """
 
-AGENTS_LEVEL4 = AGENTS_LEVEL2.replace("## Interdits", """## Processus de travail
+AGENTS_LEVEL4_FR = AGENTS_LEVEL2_FR.replace("## Interdits", """## Processus de travail
 - Arrête-toi et pose la question quand la tâche touche un interdit.
 
 ## Tâches déléguées
@@ -103,14 +134,14 @@ class Level0Tests(TempRepo):
 
 
 class TargetLevelTests(TempRepo):
-    """Un palier est un endroit où l'on peut rester : au-delà du palier visé, status ne pousse pas."""
+    """A level is a place where one can stay: beyond the target level, status does not push."""
 
     def test_without_target_the_next_level_is_proposed(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
         s = self.state()
         self.assertEqual(s["target"], {"level": None, "name": None, "reached": False})
         self.assertTrue(s["next_actions"])
-        self.assertIn("aucun palier visé", maturity.render_markdown(s))
+        self.assertIn("no target level", maturity.render_markdown(s))
 
     def test_target_reached_proposes_nothing_and_says_so(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
@@ -120,9 +151,9 @@ class TargetLevelTests(TempRepo):
         self.assertTrue(s["target"]["reached"])
         self.assertEqual(s["next_actions"], [])
         md = maturity.render_markdown(s)
-        self.assertIn("objectif atteint", md)
-        self.assertIn("Palier 2 — Bouclé (hors objectif)", md)
-        self.assertNotIn("Section Maintenance", md)
+        self.assertIn("target reached", md)
+        self.assertIn("Level 2 — Looped (beyond target)", md)
+        self.assertNotIn("A maintenance section", md)
 
     def test_target_above_current_level_keeps_pushing_up_to_it_only(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
@@ -133,25 +164,25 @@ class TargetLevelTests(TempRepo):
         self.assertEqual([l["in_scope"] for l in s["levels"]], [True, True, True, False, False])
 
     def test_a_level_that_only_waits_for_time_does_not_hold_back_the_next_one(self):
-        # 2026-11-14 : visé 3, palier 2 posé sans signal de revue ; le pas s'arrêtait, aucun garde-fou posé
-        write(self.repo, "AGENTS.md", AGENTS_LEVEL1 + "\n## Maintenance de ce fichier\n"
-              "- Un commentaire de review qui commence par `rule:` est une règle candidate.\n"
+        # 2026-11-14: target 3, level 2 set up without a review signal; the step stopped, no guardrail set up
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1 + "\n## Maintaining this file\n"
+              "- A review comment that starts with `rule:` is a candidate rule.\n"
               f"<!-- harvest: last={TODAY.isoformat()} ref=init -->\n")
         write(self.repo, ".github/workflows/ci.yml", "on: push\njobs:\n  test:\n    runs-on: x\n    steps:\n      - run: make test\n")
         write(self.repo, ".harness/config.json", json.dumps({"target_level": 3}))
         s = self.state()
-        self.assertEqual(s["level"]["reached"], 1)            # le palier reste honnête
+        self.assertEqual(s["level"]["reached"], 1)            # the level stays honest
         self.assertEqual(s["waiting"], ["L2.signal"])
         self.assertTrue(s["next_actions"])
         self.assertTrue(all("harvest" not in a.lower() and "rule:" not in a for a in s["next_actions"]), s["next_actions"])
         self.assertTrue(self.check(s, "L2.signal")["waits"])
         md = maturity.render_markdown(s)
-        self.assertIn("## En attente", md)
-        self.assertIn("**en attente**", md)
+        self.assertIn("## Waiting", md)
+        self.assertIn("**waiting**", md)
 
     def test_waiting_stops_at_the_target(self):
-        write(self.repo, "AGENTS.md", AGENTS_LEVEL1 + "\n## Maintenance de ce fichier\n"
-              "- Un commentaire de review qui commence par `rule:` est une règle candidate.\n"
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1 + "\n## Maintaining this file\n"
+              "- A review comment that starts with `rule:` is a candidate rule.\n"
               f"<!-- harvest: last={TODAY.isoformat()} ref=init -->\n")
         write(self.repo, ".harness/config.json", json.dumps({"target_level": 2}))
         s = self.state()
@@ -170,7 +201,7 @@ class TargetLevelTests(TempRepo):
         with open(os.path.join(self.repo, ".harness/config.json"), encoding="utf-8") as fh:
             config = json.load(fh)
         self.assertEqual(config, {"schema": "harness-config/1", "note": "x", "target_level": 3})
-        self.assertIn("Vérifié", out.getvalue())
+        self.assertIn("Verified", out.getvalue())
 
 
 class AuditRemovalFactsTests(TempRepo):
@@ -183,7 +214,7 @@ class AuditRemovalFactsTests(TempRepo):
 
 
 class DanglingReferenceTests(TempRepo):
-    """Ce qui est posé reste cohérent : un contrat ou un garde-fou cité doit exister."""
+    """What is set up stays consistent: a cited contract or guardrail must exist."""
 
     def test_contract_cited_without_skill_is_dangling(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL4)
@@ -198,16 +229,16 @@ class DanglingReferenceTests(TempRepo):
         self.assertEqual(self.state()["dangling"], [])
 
     def test_linter_rule_name_and_job_name_are_not_paths(self):
-        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)          # `eslint/no-raw-fetch` : pas de dossier eslint/
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)          # `eslint/no-raw-fetch`: no eslint/ folder
         self.assertEqual(self.state()["dangling"], [])
 
     def test_ci_job_cited_but_gone_from_the_workflows_is_dangling(self):
-        rule = "- Une migration appliquée ne se modifie jamais. Vérifié par : le job `frozen-migrations` de la CI."
+        rule = "- An applied migration is never modified. Enforced by: the CI job `frozen-migrations`."
         write(self.repo, "AGENTS.md", AGENTS_LEVEL1 + rule + "\n")
-        self.assertEqual(self.state()["dangling"], [])          # pas de workflow : rien à confronter
+        self.assertEqual(self.state()["dangling"], [])          # no workflow: nothing to confront
         write(self.repo, ".github/workflows/ci.yml", "name: CI\non: push\njobs:\n  test:\n    runs-on: x\n    steps: []\n")
         self.assertEqual([(d["kind"], d["ref"]) for d in self.state()["dangling"]], [("job", "frozen-migrations")])
-        self.assertIn("absent des workflows", maturity.render_markdown(self.state()))
+        self.assertIn("absent from the workflows", maturity.render_markdown(self.state()))
         write(self.repo, ".github/workflows/ci.yml", "jobs:\n    test:\n        steps: []\n    frozen-migrations:\n        steps: []\n")
         self.assertEqual(self.state()["dangling"], [])
 
@@ -219,7 +250,7 @@ class DanglingReferenceTests(TempRepo):
 
 
 class RuleDateTests(TempRepo):
-    DATED = AGENTS_LEVEL1.replace("(non vérifiée)", "(non vérifiée) [2026-03]")
+    DATED = AGENTS_LEVEL1.replace("(unverified)", "(unverified) [2026-03]")
 
     def test_dated_rules_are_counted(self):
         write(self.repo, "AGENTS.md", self.DATED)
@@ -255,7 +286,7 @@ class RuleDateTests(TempRepo):
 
     def test_rules_of_subdirectory_files_are_listed_with_their_path(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
-        write(self.repo, "apps/web/CLAUDE.md", "# Web\n- Tout passe par `escapeHtml`. Pourquoi : pentest. [2026-03]\n")
+        write(self.repo, "apps/web/CLAUDE.md", "# Web\n- Everything goes through `escapeHtml`. Why: pentest. [2026-03]\n")
         files = {r["file"] for r in rules.collect(self.repo, TODAY, blame=False)}
         self.assertEqual(files, {"AGENTS.md", "apps/web/CLAUDE.md"})
 
@@ -267,7 +298,7 @@ class HeadingAndToolDetectionTests(TempRepo):
 
     def test_working_process_headings_are_recognised(self):
         for heading in ("Processus de travail", "Working process", "Workflow"):
-            write(self.repo, "AGENTS.md", f"# x\n\n## {heading}\n- Arrête-toi quand la CI est rouge.\n")
+            write(self.repo, "AGENTS.md", f"# x\n\n## {heading}\n- Stop when the CI is red.\n")
             self.assertTrue(self.state()["facts"]["instructions"]["source"]["has_process_section"], heading)
 
     def test_golangci_config_is_a_guardrail_marker(self):
@@ -290,7 +321,7 @@ class Level1Tests(TempRepo):
 
     def test_rule_metrics(self):
         src = facts.collect(self.repo, today=TODAY)["instructions"]["source"]
-        self.assertEqual(src["rules_total"], 3)          # 2 règles + 1 interdit (puce)
+        self.assertEqual(src["rules_total"], 3)          # 2 rules + 1 forbidden item (bullet)
         self.assertEqual(src["rules_guarded"], 1)
         self.assertEqual(src["rules_unguarded_marked"], 1)
         self.assertEqual(src["rules_justified"], 2)
@@ -341,14 +372,14 @@ class Level3And4Tests(TempRepo):
     def test_level_3_needs_guarded_ratio_and_clean_audit(self):
         s = self.state()
         self.assertEqual(s["level"]["reached"], 2)
-        self.assertFalse(self.check(s, "L3.guarded")["passed"])     # 1 règle sur 4 puces
+        self.assertFalse(self.check(s, "L3.guarded")["passed"])     # 1 rule out of 4 bullets
         self.assertFalse(self.check(s, "L3.audit")["passed"])
         self.assertTrue(self.check(s, "L3.ci")["passed"])
 
     def test_level_4_reached_when_everything_measured(self):
-        guarded = AGENTS_LEVEL4.replace("(non vérifiée)", "Vérifiée par : `archunit/NoRawSql`") \
-            .replace("- Jamais de force push.", "- Jamais de force push. Pourquoi : incident #7. Vérifiée par : branch protection") \
-            .replace("- `bump-dependency` — monter", "- `bump-dependency` — Vérifiée par : CI. Pourquoi : #3. monter")
+        guarded = AGENTS_LEVEL4.replace("(unverified)", "Enforced by: `archunit/NoRawSql`") \
+            .replace("- Never force push.", "- Never force push. Why: incident #7. Enforced by: branch protection") \
+            .replace("- `bump-dependency` — bump", "- `bump-dependency` — Enforced by: CI. Why: #3. bump")
         write(self.repo, "AGENTS.md", guarded)
         write(self.repo, ".harness/audit.json", audit_json(p1=0, passed=True))
         s = self.state()
@@ -366,10 +397,68 @@ class Level3And4Tests(TempRepo):
         self.assertFalse(self.check(self.state(), "L4.clean_prs")["passed"])
 
     def test_contract_must_be_referenced(self):
-        write(self.repo, "AGENTS.md", AGENTS_LEVEL4.replace("`bump-dependency`", "`autre-chose`"))
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL4.replace("`bump-dependency`", "`something-else`"))
         s = self.state()
         self.assertEqual(s["facts"]["contracts"]["count"], 1)
         self.assertFalse(self.check(s, "L4.contracts")["passed"])
+
+
+class BilingualTests(TempRepo):
+    """An AGENTS.md is written by a team, in French or in English: the same file in either language
+    reaches the same level, with the same facts."""
+
+    GUARDED_EN = AGENTS_LEVEL4.replace("(unverified)", "Enforced by: `archunit/NoRawSql`") \
+        .replace("- Never force push.", "- Never force push. Why: incident #7. Enforced by: branch protection")
+    GUARDED_FR = AGENTS_LEVEL4_FR.replace("(non vérifiée)", "Vérifiée par : `archunit/NoRawSql`") \
+        .replace("- Jamais de force push.", "- Jamais de force push. Pourquoi : incident #7. Vérifiée par : branch protection")
+    PAIRS = {"level 1": (AGENTS_LEVEL1, AGENTS_LEVEL1_FR), "level 2": (AGENTS_LEVEL2, AGENTS_LEVEL2_FR),
+             "level 4": (AGENTS_LEVEL4, AGENTS_LEVEL4_FR), "level 4 guarded": (GUARDED_EN, GUARDED_FR)}
+    SOURCE_FACTS = ("mode", "rules_total", "rules_guarded", "rules_unguarded_marked", "rules_justified",
+                    "has_maintenance_section", "has_process_section", "has_forbidden_section",
+                    "mentions_rule_convention", "harvest_marker")
+
+    def measure(self, text: str) -> tuple:
+        write(self.repo, "AGENTS.md", text)
+        s = self.state()
+        src = s["facts"]["instructions"]["source"]
+        checks = {c["id"]: c["passed"] for l in s["levels"] for c in l["checks"]}
+        rules_rows = [(r["guarded"], r["marked_unguarded"], r["justified"]) for r in rules.collect(self.repo, TODAY, blame=False)]
+        return (s["level"]["reached"], checks, {k: src[k] for k in self.SOURCE_FACTS},
+                [(d["kind"], d["ref"]) for d in s["dangling"]], rules_rows)
+
+    def test_the_same_file_in_english_and_in_french_reaches_the_same_level(self):
+        write(self.repo, ".harness/harvest.json", harvest_json(real=1))
+        write(self.repo, ".harness/audit.json", audit_json(p1=0, passed=True))
+        write(self.repo, ".github/workflows/ci.yml", "name: ci\n")
+        write(self.repo, ".claude/skills/bump-dependency/SKILL.md", "---\nname: bump-dependency\n---\n")
+        expected = {"level 1": 1, "level 2": 2, "level 4": 2, "level 4 guarded": 4}
+        for name, (english, french) in self.PAIRS.items():
+            with self.subTest(name):
+                en, fr = self.measure(english), self.measure(french)
+                self.assertEqual(en, fr)
+                self.assertEqual(en[0], expected[name])
+
+    def test_english_markers_are_read(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL4)
+        src = self.state()["facts"]["instructions"]["source"]
+        self.assertEqual(src["mode"], "delegation")
+        self.assertTrue(src["has_maintenance_section"])
+        self.assertTrue(src["has_process_section"])
+        self.assertTrue(src["has_forbidden_section"])
+        self.assertEqual((src["rules_total"], src["rules_guarded"], src["rules_unguarded_marked"], src["rules_justified"]),
+                         (3, 1, 1, 2))
+        self.assertEqual([(d["kind"], d["ref"]) for d in self.state()["dangling"]], [("contract", "bump-dependency")])
+
+    def test_assistance_mode_is_read_in_both_languages(self):
+        for line in ("Mode: assistance.", "Mode : **assistance**.", "- Mode: **Assistance**"):
+            with self.subTest(line):
+                write(self.repo, "AGENTS.md", f"# x\n\n{line}\n")
+                self.assertEqual(self.state()["facts"]["instructions"]["source"]["mode"], "assistance")
+
+    def test_maintaining_and_delegated_sections_are_not_rules(self):
+        write(self.repo, "AGENTS.md", "# x\n\n## Maintaining this file\n- A comment `rule:` is a candidate.\n\n"
+                                      "## Delegated tasks\n- `bump` — bump a dependency.\n")
+        self.assertEqual(self.state()["facts"]["instructions"]["source"]["rules_total"], 0)
 
 
 class CliTests(TempRepo):
@@ -379,7 +468,7 @@ class CliTests(TempRepo):
         with redirect_stdout(out):
             code = status.main([self.repo, "--today", "2026-11-09"])
         self.assertEqual(code, 0)
-        self.assertIn("Palier atteint", out.getvalue())
+        self.assertIn("Level reached", out.getvalue())
         with open(os.path.join(self.repo, ".harness", "state.json"), encoding="utf-8") as fh:
             state = json.load(fh)
         self.assertEqual(state["schema"], "harness-state/1")
