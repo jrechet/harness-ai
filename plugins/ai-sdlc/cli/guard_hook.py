@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Le hook PreToolUse du plugin ai-sdlc : refuse une commande shell qui pose un tag, publie ou déploie.
+"""The PreToolUse hook of the ai-sdlc plugin: refuses a shell command that tags, publishes or deploys.
 
-Lit l'appel d'outil en JSON sur l'entrée standard. Sort 2 avec la raison sur la sortie d'erreur pour refuser,
-0 pour laisser passer. N'importe que le module du garde-fou : il démarre vite, et une erreur ailleurs dans le
-plugin ne le fait pas tomber. S'il tombe quand même, il juge l'appel sur son texte au lieu d'ouvrir la porte."""
+Reads the tool call as JSON on standard input. Exits 2 with the reason on standard error to refuse, 0 to let
+it through. Imports only the guardrail module: it starts fast, and an error elsewhere in the plugin does not
+bring it down. If it falls anyway, it judges the call on its text instead of opening the door."""
 import os
 import re
 import sys
@@ -11,6 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 _LAST_RESORT = re.compile(r"git\s[^\n;&|]{0,200}tag\s+v?\d|push[^\n;&|]{0,200}--tags|gh\s+release\s+create|\b(?:npm|cargo|pnpm|yarn)\s+publish|"
                           r"\b(?:kubectl|terraform)\s+apply|\bhelm\s+(?:install|upgrade)|\bmake\s+(?:deploy|release|livr)")
+_ALLOW = ("AI_SDLC_ALLOW_AGENT_DELIVERY", "AI_SDLC_LIVRAISON_PAR_AGENT")   # the former name is still read
 
 
 def main() -> int:
@@ -19,10 +20,10 @@ def main() -> int:
         raw = sys.stdin.buffer.read(5_000_001).decode("utf-8", "replace")
         from aisdlclib import guard
         code, message = guard.run_hook(raw, dict(os.environ))
-    except Exception:   # noqa: BLE001 — jamais de trace : un hook qui plante laisse passer
-        if os.environ.get("AI_SDLC_LIVRAISON_PAR_AGENT") == "1" or not _LAST_RESORT.search(raw):
+    except Exception:   # noqa: BLE001 — never a trace: a hook that crashes lets through
+        if any(os.environ.get(name) == "1" for name in _ALLOW) or not _LAST_RESORT.search(raw):
             return 0
-        code, message = 2, "ai-sdlc : le garde-fou n'a pas pu lire cet appel, et son texte ressemble à une livraison. Commande refusée.\n"
+        code, message = 2, "ai-sdlc: the guardrail could not read this call, and its text looks like a delivery. Command refused.\n"
     sys.stderr.write(message)
     return code
 

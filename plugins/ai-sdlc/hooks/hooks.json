@@ -1,5 +1,5 @@
 {
-  "description": "Un agent ne livre pas : refuse avant exécution les commandes qui posent un tag, publient ou déploient.",
+  "description": "An agent does not deliver: refuses, before they run, the commands that tag, publish or deploy.",
   "hooks": {
     "PreToolUse": [
       {

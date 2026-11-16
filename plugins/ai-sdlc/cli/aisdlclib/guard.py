@@ -1,14 +1,14 @@
-"""Le garde-fou « un agent ne livre pas » : dit si une commande shell pose un tag, publie ou déploie.
+"""The guardrail "an agent does not deliver": says whether a shell command tags, publishes or deploys.
 
-Appelé par un hook du plugin avant chaque commande de l'agent. Il refuse ce qui fait partir quelque
-chose : un tag git créé, déplacé ou poussé, une release ou un workflow lancés sur la forge, une
-publication de paquet ou d'image, un déploiement par les outils courants, une cible `make` ou un script
-de livraison, et les commandes que la procédure de l'équipe écrit elle-même.
+Called by a hook of the plugin before each command of the agent. It refuses what sends something out: a
+git tag created, moved or pushed, a release or a workflow started on the forge, a package or image
+publication, a deployment through the usual tools, a `make` target or a delivery script, and the commands
+the team's procedure writes itself.
 
-C'est une barrière contre l'accident et contre la consigne glissée dans un ticket ou un commit, pas un
-bac à sable : un script qui déploie, lancé par son nom, passe, comme une commande assemblée par des
-variables. Ce qui tient vraiment une production, ce sont les droits de l'agent et la protection de la
-forge. Ce module n'importe rien du reste du plugin : un hook doit démarrer vite et ne pas tomber avec lui."""
+It is a barrier against accidents and against an instruction slipped into a ticket or a commit, not a
+sandbox: a script that deploys, run by its name, passes, as does a command assembled from variables. What
+really protects a production system is the agent's permissions and the forge's protection. This module
+imports nothing from the rest of the plugin: a hook must start fast and not fall with it."""
 from __future__ import annotations
 
 import json
@@ -18,13 +18,15 @@ import shlex
 import subprocess
 from typing import Any
 
-MAX_COMMAND = 20_000        # au-delà, la commande se juge sur son texte, sans être découpée
+MAX_COMMAND = 20_000        # beyond this, the command is judged on its text, without being split
 MAX_STDIN = 5_000_000
 MAX_DEPTH = 4
-MAX_WORK = 300              # commandes imbriquées examinées, au plus : au-delà on refuse plutôt que de tourner
-GIT_TIMEOUT = 3             # secondes : le hook entier doit rendre avant son propre délai
-ALLOW_ENV = "AI_SDLC_LIVRAISON_PAR_AGENT"   # posée par l'équipe dans l'environnement de la session, jamais par l'agent
-PROCEDURE = "docs/agents/livraison.md"
+MAX_WORK = 300              # nested commands examined, at most: beyond this we refuse rather than spin
+GIT_TIMEOUT = 3             # seconds: the whole hook must answer before its own timeout
+ALLOW_ENV = "AI_SDLC_ALLOW_AGENT_DELIVERY"   # set by the team in the session's environment, never by the agent
+ALLOW_ENV_ALIASES = (ALLOW_ENV, "AI_SDLC_LIVRAISON_PAR_AGENT")   # the former name is still read
+# the team's delivery procedure, under its English name and its former French name: both are read
+PROCEDURES = ("docs/agents/delivery.md", "docs/agents/livraison.md")
 
 _VERB = re.compile(r"^(?:deploy\w*|release[sd]?|publish\w*|livr\w+|ship(?:it|ping)?|rollout|promote\w*|revenir|rollback|golive|go-live)$", re.IGNORECASE)
 _BENIGN = re.compile(r"^(?:notes?|docs?|check\w*|tests?|lint|preview|dry|dryrun|plan|diff|status|list|logs?|verify|validate)$", re.IGNORECASE)
@@ -46,8 +48,8 @@ _VALUE_OPTS = {"-n", "--namespace", "--context", "--kubeconfig", "--kube-context
                "-g", "--resource-group", "--cwd", "--prefix", "-C", "--dir", "--filter", "-F", "-w", "--workspace", "-f", "--file",
                "--registry", "--config", "-c", "--cluster", "-p", "--values", "-chdir"}
 _DEPLOY_REMOTES = {"heroku", "dokku", "production", "prod", "live"}
-# outil → suites de mots qui font partir quelque chose. Elles se lisent en tête des mots de la commande (hors options),
-# sauf pour les outils de _ANYWHERE, où le verbe vient après un nom de service (`gcloud run deploy`).
+# tool → word sequences that send something out. They are read at the head of the command's words (options aside),
+# except for the tools of _ANYWHERE, where the verb comes after a service name (`gcloud run deploy`).
 _TOOLS: dict[str, list[tuple[str, ...]]] = {
     "gh": [("release", "create"), ("release", "edit"), ("release", "upload"), ("release", "delete"), ("workflow", "run"),
            ("workflow", "enable"), ("run", "rerun")],
@@ -83,7 +85,7 @@ _FLAGS = {"vercel": {"--prod"}, "docker": {"--push"}, "netlify": {"--prod"}}
 _DRY = re.compile(r"^--dry-run(?:=(?!none$|false$).*)?$|^--snapshot$|^--plan-only$")
 _RUNNERS = {"make", "gmake", "just", "task", "rake", "invoke", "nox", "tox"}
 _SCRIPT_RUNNERS = {("npm", "run"), ("npm", "run-script"), ("pnpm", "run"), ("yarn", "run"), ("bun", "run"), ("composer", "run"), ("composer", "run-script")}
-# « lance la suite comme une commande » : après ces mots, la commande recommence
+# "runs the rest as a command": after these words, the command starts again
 _PASS = {("npx",), ("bunx",), ("pnpx",), ("npm", "exec"), ("npm", "x"), ("pnpm", "dlx"), ("pnpm", "exec"), ("yarn", "dlx"), ("yarn", "exec"),
          ("uv", "run"), ("uvx",), ("pipx", "run"), ("poetry", "run"), ("pipenv", "run"), ("bundle", "exec"), ("python", "-m"),
          ("python3", "-m"), ("python", "setup.py"), ("python3", "setup.py"), ("docker", "exec"), ("mise", "exec"), ("direnv", "exec")}
@@ -95,7 +97,7 @@ _TO_SHELL = re.compile(r"(?:^|[|;&(\s])(?:sudo\s+)?(?:/[\w/.-]*/)?(?:sh|bash|zsh
 
 
 def _blank_quotes(line: str) -> str:
-    """La ligne où ce qui est entre guillemets est remplacé par des espaces : pour y chercher un opérateur du shell."""
+    """The line where what is between quotes is replaced by spaces: to look for a shell operator in it."""
     out, quote, escaped = [], "", False
     for ch in line:
         if escaped:
@@ -116,7 +118,7 @@ def _blank_quotes(line: str) -> str:
 
 
 def _blank_single(line: str) -> str:
-    """La ligne où seul ce qui est entre guillemets simples est effacé : entre guillemets doubles, un `$(…)` reste du shell."""
+    """The line where only what is between single quotes is blanked: between double quotes, a `$(…)` is still shell."""
     out, quote, in_double = [], False, False
     for ch in line:
         if quote:
@@ -132,15 +134,15 @@ def _blank_single(line: str) -> str:
 
 
 def _heredoc_in(line: str) -> re.Match[str] | None:
-    """L'ouverture d'un here-document sur cette ligne, si son `<<` n'est pas dans une chaîne entre guillemets simples."""
+    """The opening of a here-document on this line, if its `<<` is not in a single-quoted string."""
     visible = _blank_single(line)
     return next((m for m in _HEREDOC.finditer(line) if visible[m.start():m.start() + 2] == "<<"), None)
 
 
 def _without_heredocs(command: str) -> tuple[str, list[str], list[str]]:
-    """La commande sans les corps de ses here-documents, puis les corps donnés à un shell (ce sont des commandes),
-    puis les corps littéraux (délimiteur entre guillemets : rien n'y est exécuté). Un `<<` n'ouvre un here-document
-    que hors guillemets, hors `<<<`, et si la ligne qui le ferme existe : sinon c'est un décalage de bits."""
+    """The command without the bodies of its here-documents, then the bodies given to a shell (they are commands),
+    then the literal bodies (quoted delimiter: nothing is executed there). A `<<` opens a here-document only
+    outside quotes, outside `<<<`, and if the line that closes it exists: otherwise it is a bit shift."""
     lines = command.split("\n")
     kept, to_shell, literal, index = [], [], [], 0
     while index < len(lines):
@@ -160,14 +162,14 @@ def _without_heredocs(command: str) -> tuple[str, list[str], list[str]]:
         elif quoted:
             literal.append(body)
         else:
-            kept.append(body)   # un corps non protégé : le shell y développe $(…) ; il reste lu comme du texte de la commande
+            kept.append(body)   # an unprotected body: the shell expands $(…) in it; it is still read as text of the command
             kept.append(found[2])
         index = end + 1
     return "\n".join(kept), to_shell, literal
 
 
 def _join_lines(command: str) -> str:
-    """Un saut de ligne hors guillemets devient un « ; »."""
+    """A newline outside quotes becomes a ";"."""
     out, quote, escaped, line = [], "", False, ""
     for ch in command + "\n":
         if ch == "\n" and not quote:
@@ -184,13 +186,13 @@ def _join_lines(command: str) -> str:
         elif ch in "'\"":
             quote = ch
     if line:
-        out.append(line)   # un guillemet jamais fermé : le reste se juge tel quel
+        out.append(line)   # a quote never closed: the rest is judged as is
     return " ; ".join(part for part in out if part.strip())
 
 
 def _executed_inside(command: str) -> list[str]:
-    """Ce qu'un shell exécuterait à l'intérieur des mots : `$(…)` et accents graves, hors guillemets simples
-    (où rien ne s'exécute : un message de commit peut citer une commande)."""
+    """What a shell would execute inside the words: `$(…)` and backticks, outside single quotes
+    (where nothing runs: a commit message may quote a command)."""
     out, quote, escaped, visible = [], "", False, []
     for ch in command:
         if escaped:
@@ -215,8 +217,8 @@ def _executed_inside(command: str) -> list[str]:
 
 
 def _segments(command: str) -> list[tuple[list[str], list[str]]]:
-    """Les commandes simples d'une ligne de shell : (mots, textes donnés par `<<<`). Les redirections sont
-    retirées avec leur cible. Lève ValueError si la ligne ne se découpe pas."""
+    """The simple commands of a shell line: (words, texts given by `<<<`). Redirections are removed with their
+    target. Raises ValueError if the line cannot be split."""
     lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
     lexer.whitespace_split = True
     out: list[tuple[list[str], list[str]]] = []
@@ -230,12 +232,12 @@ def _segments(command: str) -> list[tuple[list[str], list[str]]]:
             skip = ""
             continue
         if token and set(token) <= set("<>&|;()"):
-            if "<" in token or ">" in token:           # une redirection : ni une commande, ni une séparation
+            if "<" in token or ">" in token:           # a redirection: neither a command nor a separator
                 if words and words[-1].isdigit():
                     words.pop()
                 skip = token if not token.endswith("&") else ""
                 if token.endswith("&"):
-                    skip = "&"                         # `2>&1` : le descripteur qui suit n'est pas un mot
+                    skip = "&"                         # `2>&1`: the descriptor that follows is not a word
                 continue
             if words or fed:
                 out.append((words, fed))
@@ -250,7 +252,7 @@ def _segments(command: str) -> list[tuple[list[str], list[str]]]:
 
 
 def _strip(argv: list[str]) -> list[str]:
-    """La commande sans ce qui l'enrobe : affectations, sudo, env, nice… et leurs options à valeur."""
+    """The command without what wraps it: assignments, sudo, env, nice… and their options that take a value."""
     while argv:
         word = argv[0]
         name = word.rsplit("/", 1)[-1].lstrip("\\")
@@ -266,7 +268,7 @@ def _strip(argv: list[str]) -> list[str]:
 
 
 def _positional(args: list[str]) -> list[str]:
-    """Les mots d'une commande hors options, et hors valeur des options qui en prennent une."""
+    """The words of a command, without options and without the value of the options that take one."""
     out, skip = [], False
     for arg in args:
         if skip:
@@ -279,8 +281,8 @@ def _positional(args: list[str]) -> list[str]:
 
 
 def _delivery_name(name: str) -> bool:
-    """Un nom de cible ou de script qui est une livraison : un de ses segments est un verbe de livraison, et
-    aucun ne dit que c'est autre chose (`release-notes`, `deploy-preview`, `test:release`)."""
+    """A target or script name that is a delivery: one of its segments is a delivery verb, and none says it is
+    something else (`release-notes`, `deploy-preview`, `test:release`)."""
     parts = [p for p in re.split(r"[-_:./]", name) if p]
     return any(_VERB.match(p) for p in parts) and not any(_BENIGN.match(p) for p in parts)
 
@@ -289,7 +291,7 @@ def _git(argv: list[str], tags: set[str]) -> str | None:
     rest = argv[1:]
     while rest and rest[0].startswith("-"):
         if rest[0] == "-c" and len(rest) > 1 and rest[1].lower().startswith("alias."):
-            return "un alias git défini à la volée peut cacher une livraison"
+            return "a git alias defined on the fly can hide a delivery"
         rest = rest[2:] if rest[0] in _GIT_VALUE_OPTS else rest[1:]
     if not rest:
         return None
@@ -298,27 +300,27 @@ def _git(argv: list[str], tags: set[str]) -> str | None:
         names = [a for a in args if not a.startswith("-")]
         flags = {a.split("=")[0] for a in args if a.startswith("-")}
         if flags & _TAG_WRITE or (names and not flags & _TAG_READ):
-            return "un tag git est posé, déplacé ou supprimé"
+            return "a git tag is created, moved or deleted"
     if sub == "push":
         if any(a in ("--tags", "--follow-tags", "--mirror") or "refs/tags" in a for a in args):
-            return "des tags sont poussés"
+            return "tags are pushed"
         words = [a for a in args if not a.startswith("-")]
         if any(a.startswith("--repo=") for a in args):
             words = ["", *words]
         remote, refs = (words[0] if words else ""), words[1:]
         if "tag" in refs:
-            return "un tag est poussé"
+            return "a tag is pushed"
         if remote.lower() in _DEPLOY_REMOTES:
-            return f"pousser vers `{remote[:30]}` déclenche un déploiement"
+            return f"pushing to `{remote[:30]}` triggers a deployment"
         for ref in refs:
             for side in ref.lstrip("+").split(":"):
                 side = side.split("^")[0]
                 if side and (side in tags or _VERSION_REF.fullmatch(side)):
-                    return "un tag de version est poussé ou supprimé à distance"
+                    return "a version tag is pushed or deleted remotely"
     if sub == "update-ref" and any("refs/tags" in a for a in args):
-        return "un tag git est écrit"
+        return "a git tag is written"
     if sub == "config" and any(a.lower().startswith("alias.") for a in args) and re.search(r"\b(?:tag|push)\b|!", " ".join(args)):
-        return "un alias git peut cacher une livraison"
+        return "a git alias can hide a delivery"
     return None
 
 
@@ -332,12 +334,12 @@ def _http(name: str, args: list[str]) -> str | None:
     writes = any(a.split("=")[0] in ("-d", "--data", "--data-raw", "--data-binary", "--json", "-F", "--form", "-T", "--upload-file",
                                      "-f", "--field", "--raw-field", "--input") or a.startswith("--post-") for a in args)
     if method.upper() in ("POST", "PUT", "PATCH", "DELETE") or (writes and method.upper() != "GET"):
-        return "une requête écrit une release, un tag ou un déclenchement sur la forge"
+        return "a request writes a release, a tag or a trigger on the forge"
     return None
 
 
 def _one(argv: list[str], team: list[list[str]], tags: set[str]) -> tuple[str | None, list[str]]:
-    """Pourquoi cette commande simple livre, ou None ; et la commande qu'elle lance à son tour, s'il y en a une."""
+    """Why this simple command delivers, or None; and the command it runs in turn, if there is one."""
     argv = _strip(argv)
     if not argv:
         return None, []
@@ -345,7 +347,7 @@ def _one(argv: list[str], team: list[list[str]], tags: set[str]) -> tuple[str | 
     args = argv[1:]
     for known in team:
         if len(argv) >= len(known) and all(_team_word(want, got) for want, got in zip(known, [name, *args])):
-            return "c'est une commande de la procédure de livraison de l'équipe", []
+            return "it is a command of the team's delivery procedure", []
     for prefix in _PASS:
         if (name, *args[:len(prefix) - 1]) == prefix:
             rest = args[len(prefix) - 1:]
@@ -354,7 +356,7 @@ def _one(argv: list[str], team: list[list[str]], tags: set[str]) -> tuple[str | 
             if prefix[-1] == "setup.py":
                 rest = ["setup.py", *rest]
             if prefix == ("docker", "exec"):
-                rest = rest[1:]   # le nom du conteneur
+                rest = rest[1:]   # the container name
             return None, rest
     if name == "git":
         return _git(argv, tags), []
@@ -362,28 +364,28 @@ def _one(argv: list[str], team: list[list[str]], tags: set[str]) -> tuple[str | 
         words = _positional(args)
         for wanted in _TOOLS[name]:
             if (name in _ANYWHERE and _subsequence(words, wanted)) or (name not in _ANYWHERE and tuple(words[:len(wanted)]) == wanted):
-                return f"`{name}` publie ou déploie", []
+                return f"`{name}` publishes or deploys", []
         if _FLAGS.get(name, set()) & set(args):
-            return f"`{name}` publie ou déploie", []
+            return f"`{name}` publishes or deploys", []
     if name == "gh" and args[:1] == ["api"] or name in ("curl", "wget", "http", "https", "xh"):
         return _http(name, args), []
     if name in _RUNNERS and not any(a in ("-n", "--dry-run", "--just-print", "--recon", "-q", "--question") for a in args):
         hit = next((a for a in _positional(args) if not _ASSIGN.match(a) and _delivery_name(a)), None)
         if hit:
-            return f"la cible `{hit[:40]}` de `{name}` est une livraison", []
+            return f"the target `{hit[:40]}` of `{name}` is a delivery", []
     runs_script = (name, *args[:1]) in _SCRIPT_RUNNERS
     if runs_script or name in ("yarn", "pnpm", "bun"):
         words = _positional(args[1:] if runs_script else args)
         if words[:1] == ["workspace"]:
             words = words[2:]
         if words and _delivery_name(words[0]):
-            return f"le script `{words[0][:40]}` est une livraison", []
+            return f"the script `{words[0][:40]}` is a delivery", []
     return None, []
 
 
 def _team_word(want: str, got: str) -> bool:
-    """Un mot de la commande de l'équipe contre un mot de la commande examinée. Ce qui suit un chevron ouvrant est
-    une valeur à remplacer : `VERSION=<version>` reconnaît `VERSION=v2.0.0`."""
+    """A word of the team's command against a word of the examined command. What follows an opening angle bracket
+    is a value to replace: `VERSION=<version>` recognises `VERSION=v2.0.0`."""
     fixed = want.split("<", 1)[0]
     want_name = fixed if "/" not in fixed or "<" in want else fixed.rsplit("/", 1)[-1]
     return got == want or got.rsplit("/", 1)[-1] == want.rsplit("/", 1)[-1] or ("<" in want and got.startswith(want_name) and len(got) >= len(want_name))
@@ -400,8 +402,8 @@ def _subsequence(words: list[str], wanted: tuple[str, ...]) -> bool:
 
 
 def _nested(argv: list[str], fed: list[str]) -> tuple[list[str], list[str]]:
-    """Ce que les mots d'une commande portent : des lignes de shell (`sh -c "…"`, `eval`, `ssh hôte "…"`, `find -exec`,
-    un texte donné à un shell par `<<<`), et du code d'un autre langage (`python -c`), qui se juge sur son texte."""
+    """What the words of a command carry: shell lines (`sh -c "…"`, `eval`, `ssh host "…"`, `find -exec`, a text
+    given to a shell by `<<<`), and code in another language (`python -c`), which is judged on its text."""
     stripped = _strip(argv)
     shell, code = [], []
     if not stripped:
@@ -414,7 +416,7 @@ def _nested(argv: list[str], fed: list[str]) -> tuple[list[str], list[str]]:
                 rest = [w for w in stripped[index + 1:] if w != "--"]
                 shell += rest[:1]
     if name in ("eval", "xargs", "watch", "timeout", "ssh", "parallel", "su", "env", "flock", "retry"):
-        # la commande portée commence après des options et des valeurs qu'on ne connaît pas : chaque fin est essayée
+        # the carried command starts after options and values we do not know: each ending is tried
         shell += [shlex.join(stripped[start:]) for start in range(1, min(len(stripped), 8))]
         shell += stripped[1:]
     if name == "find":
@@ -436,7 +438,7 @@ class _Budget:
 
 def reasons(command: Any, team: list[str] | None = None, tags: set[str] | None = None, depth: int = 0,
             budget: _Budget | None = None) -> list[str]:
-    """Pourquoi cette commande est refusée ; liste vide si elle ne fait rien partir de connu."""
+    """Why this command is refused; an empty list if it sends nothing known out."""
     if not isinstance(command, str) or not command.strip():
         return []
     budget = budget or _Budget()
@@ -445,7 +447,7 @@ def reasons(command: Any, team: list[str] | None = None, tags: set[str] | None =
     budget.seen.add(command)
     budget.left -= 1
     if budget.left < 0:
-        return ["la commande emboîte trop de commandes pour être lue : elle n'est pas lancée"]
+        return ["the command nests too many commands to be read: it is not run"]
     command = command.translate(_SPACES)
     tags = tags or set()
     known = []
@@ -458,27 +460,27 @@ def reasons(command: Any, team: list[str] | None = None, tags: set[str] | None =
             known.append([words[0].rsplit("/", 1)[-1], *words[1:]])
     found: list[str] = []
     text, to_shell, _literal = _without_heredocs(command)
-    if len(text) > MAX_COMMAND:   # trop longue pour être découpée : jugée sur son texte, pas refusée d'office
-        return ["la commande est très longue et son texte ressemble à une livraison"] if _CRUDE.search(text) else []
+    if len(text) > MAX_COMMAND:   # too long to be split: judged on its text, not refused outright
+        return ["the command is very long and its text looks like a delivery"] if _CRUDE.search(text) else []
     executed = _executed_inside(text)
     inner = executed + to_shell if depth < MAX_DEPTH else []
     for piece in inner:
         found += reasons(piece, team, tags, depth + 1, budget)
     visible = _blank_single(text)
     if (_TO_SHELL.search(visible) or re.search(r"(?:^|[;&|\s])eval\s", visible)) and any(_CRUDE.search(piece) for piece in executed):
-        found.append("un texte produit par une commande est donné à un shell, et il ressemble à une livraison")
+        found.append("a text produced by a command is given to a shell, and it looks like a delivery")
     try:
         segments = _segments(_join_lines(text.replace("\\\n", " ")))
     except ValueError:
-        # une ligne que shlex ne sait pas découper se juge sur son texte : mieux vaut un refus de trop
-        return found + (["la commande ne se découpe pas, et son texte ressemble à une livraison"] if _CRUDE.search(text) else [])
+        # a line shlex cannot split is judged on its text: better one refusal too many
+        return found + (["the command cannot be split, and its text looks like a delivery"] if _CRUDE.search(text) else [])
     for argv, fed in segments:
         why, launched = _one(argv, known, tags)
         if why:
             found.append(why)
         if depth >= MAX_DEPTH:
             if _CRUDE.search(" ".join(argv)):
-                found.append("une commande emboîtée trop profond ressemble à une livraison")
+                found.append("a command nested too deep looks like a delivery")
             continue
         if launched:
             found += reasons(shlex.join(launched), team, tags, depth + 1, budget)
@@ -486,18 +488,18 @@ def reasons(command: Any, team: list[str] | None = None, tags: set[str] | None =
         for piece in shell:
             found += reasons(piece, team, tags, depth + 1, budget)
         if any(_CRUDE.search(piece) for piece in code):
-            found.append("du code passé à un interpréteur lance une livraison")
+            found.append("code passed to an interpreter runs a delivery")
     return list(dict.fromkeys(found))
 
 
 def render(found: list[str]) -> str:
-    return ("ai-sdlc : commande refusée, " + " ; ".join(found) + ".\n"
-            "Un agent ne pose pas de tag, ne publie pas et ne déploie pas. Écris la commande dans ta proposition "
-            "(`ship render`) : c'est un humain qui la lance, dans son terminal.\n")
+    return ("ai-sdlc: command refused, " + "; ".join(found) + ".\n"
+            "An agent does not tag, publish or deploy. Write the command in your proposal "
+            "(`ship render`): a human runs it, in their terminal.\n")
 
 
 def team_commands(procedure: str) -> list[str]:
-    """Les commandes que la procédure de l'équipe écrit entre accents graves."""
+    """The commands the team's procedure writes between backticks."""
     return list(dict.fromkeys(" ".join(m.split()) for m in _SPAN.findall(procedure) if " " in m.strip()))
 
 
@@ -511,14 +513,16 @@ def _git_out(repo: str, *args: str) -> str:
 
 
 def team_lines(repo: str) -> list[str]:
-    """Les commandes de la procédure de l'équipe, lues sur la branche distante, dans le dernier commit et dans la
-    copie de travail : retirer la ligne de sa copie ne désarme pas le garde-fou."""
-    texts = [_git_out(repo, "show", f"{ref}:{PROCEDURE}")[:200_000] for ref in ("origin/HEAD", "HEAD")]
-    try:
-        with open(os.path.join(repo, PROCEDURE), encoding="utf-8", errors="replace") as fh:
-            texts.append(fh.read(200_000))
-    except OSError:
-        pass
+    """The commands of the team's procedure, read on the remote branch, in the last commit and in the working
+    copy, under its English and its former French file name: removing the line from one's copy, or renaming the
+    file, does not disarm the guardrail."""
+    texts = [_git_out(repo, "show", f"{ref}:{path}")[:200_000] for path in PROCEDURES for ref in ("origin/HEAD", "HEAD")]
+    for path in PROCEDURES:
+        try:
+            with open(os.path.join(repo, path), encoding="utf-8", errors="replace") as fh:
+                texts.append(fh.read(200_000))
+        except OSError:
+            pass
     return list(dict.fromkeys(line for text in texts for line in team_commands(text)))
 
 
@@ -527,7 +531,7 @@ def tag_names(repo: str) -> set[str]:
 
 
 def hook(payload: Any, team: list[str] | None = None, tags: set[str] | None = None) -> tuple[int, str]:
-    """La réponse à un appel de hook PreToolUse : (code de sortie, message). 2 refuse l'appel, 0 le laisse passer."""
+    """The answer to a PreToolUse hook call: (exit code, message). 2 refuses the call, 0 lets it through."""
     if not isinstance(payload, dict):
         return 0, ""
     tool_input = payload.get("tool_input")
@@ -539,11 +543,11 @@ def hook(payload: Any, team: list[str] | None = None, tags: set[str] | None = No
 
 
 def run_hook(raw: str, environ: dict[str, str]) -> tuple[int, str]:
-    """Le hook de bout en bout. Il ne plante pas : une entrée qui n'est pas un appel d'outil laisse passer, mais
-    une entrée illisible ou tronquée, ou une erreur interne, se juge sur son texte plutôt que d'ouvrir la porte."""
-    if environ.get(ALLOW_ENV) == "1":
+    """The hook end to end. It does not crash: an input that is not a tool call lets through, but an unreadable
+    or truncated input, or an internal error, is judged on its text rather than opening the door."""
+    if any(environ.get(name) == "1" for name in ALLOW_ENV_ALIASES):
         return 0, ""
-    fallback = (2, render(["l'appel n'a pas pu être lu et son texte ressemble à une livraison"])) if _CRUDE.search(raw[:MAX_STDIN]) else (0, "")
+    fallback = (2, render(["the call could not be read and its text looks like a delivery"])) if _CRUDE.search(raw[:MAX_STDIN]) else (0, "")
     try:
         payload = json.loads(raw)
     except (ValueError, RecursionError):
@@ -552,5 +556,5 @@ def run_hook(raw: str, environ: dict[str, str]) -> tuple[int, str]:
         repo = environ.get("CLAUDE_PROJECT_DIR") or (payload.get("cwd") if isinstance(payload, dict) else None) or "."
         known = isinstance(repo, str) and "\0" not in repo and os.path.isdir(repo)
         return hook(payload, team_lines(repo) if known else None, tag_names(repo) if known else None)
-    except Exception:   # noqa: BLE001 — un garde-fou qui plante laisserait tout passer : on se rabat, on ne lève pas
+    except Exception:   # noqa: BLE001 — a guardrail that crashes would let everything through: fall back, do not raise
         return fallback

@@ -6,5 +6,5 @@ __pycache__/
 # dossier de travail de l'outil Serena : propre à chaque poste
 .serena/
 
-# la branche cible récupérée par la CI pour jouer les portes avec son code
-.cible/
+# the target branch fetched by CI to run the gates with its code
+.base-branch/

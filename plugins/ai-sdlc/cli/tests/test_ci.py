@@ -1,5 +1,5 @@
-"""Tests des portes en CI : les réglages se lisent sur la branche de base, une pull request ne peut pas
-alléger ses propres portes, et le code de sortie bloque quand il le faut."""
+"""Tests of the gates in CI: the settings are read on the base branch, a pull request cannot loosen its own
+gates, and the exit code blocks when it must."""
 from __future__ import annotations
 
 import contextlib
@@ -25,7 +25,7 @@ def git(repo: str, *args: str) -> str:
 
 
 class Case(unittest.TestCase):
-    CONFIG: dict | None = {"secu": {"exclure": ["tests/secrets/**"]}, "qa": {"commande": "python3 -m unittest discover -s tests", "passages": 2}}
+    CONFIG: dict | None = {"security": {"exclude": ["tests/secrets/**"]}, "qa": {"command": "python3 -m unittest discover -s tests", "runs": 2}}
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -39,7 +39,7 @@ class Case(unittest.TestCase):
                                          "    def test_double(self):\n        self.assertEqual(double(2), 4)\n")
         self.write("app/__init__.py", "")
         if self.CONFIG is not None:
-            self.write("docs/agents/portes.json", json.dumps(self.CONFIG))
+            self.write("docs/agents/gates.json", json.dumps(self.CONFIG))
         self.commit()
         git(self.repo, "checkout", "-q", "-b", "pr")
         self.table = points.load()
@@ -68,13 +68,13 @@ class GateTests(Case):
         self.assertEqual(gates["repeat"]["status"], qa.OK)
         self.assertIn("2 runs out of 2", gates["repeat"]["evidence"])
         text = ci.render_md(gates["_"])
-        self.assertIn("rien en échec", text)   # la porte scanner reste non mesurée sans rapport
-        self.assertIn("ni la revue", text)
+        self.assertIn("nothing failed", text)   # the scanner gate stays unmeasured without a report
+        self.assertIn("neither the review", text)
 
     def test_a_secret_a_skipped_test_or_a_red_suite_blocks(self):
-        cases = {"secrets": ("app/conf.py", f'CLE = "{AWS}"\n'),
+        cases = {"secrets": ("app/conf.py", f'KEY = "{AWS}"\n'),
                  "disabled": ("tests/test_calc.py", "import unittest\nfrom app.calc import double\n\n\nclass T(unittest.TestCase):\n"
-                                                      "    @unittest." + "skip('plus tard')\n    def test_double(self):\n        self.assertEqual(double(2), 4)\n"),
+                                                      "    @unittest." + "skip('later')\n    def test_double(self):\n        self.assertEqual(double(2), 4)\n"),
                  "repeat": ("app/calc.py", "def double(x):\n    return 3 * x\n")}
         for gate, (rel, text) in cases.items():
             with self.subTest(gate=gate):
@@ -84,7 +84,7 @@ class GateTests(Case):
                 result = self.run_ci()["_"]
                 self.assertIn(gate, result["failed"])
                 self.assertFalse(result["pass"])
-                self.assertIn("La fusion est bloquée", ci.render_md(result))
+                self.assertIn("The merge is blocked", ci.render_md(result))
                 self.assertNotIn(AWS, ci.render_md(result))
 
     def test_unmeasured_blocks_only_when_the_repo_asks_for_it(self):
@@ -93,64 +93,64 @@ class GateTests(Case):
         self.assertTrue(self.run_ci()["_"]["pass"])
         strict = self.run_ci(strict=True)["_"]
         self.assertFalse(strict["pass"])
-        self.assertIn("les exige mesurées", ci.render_md(strict))
+        self.assertIn("requires them measured", ci.render_md(strict))
 
     def test_the_pipeline_tools_left_beside_the_code_do_not_stop_the_gates(self):
         self.write("app/calc.py", "def double(x):\n    return x + x\n")
         self.commit()
-        self.write(".ai-sdlc/outil.py", "x = 1\n")   # le plugin récupéré par le pipeline, non suivi
+        self.write(".ai-sdlc/tool.py", "x = 1\n")   # the plugin fetched by the pipeline, untracked
         self.assertTrue(self.run_ci()["_"]["pass"])
 
 
 class BaseBranchTests(Case):
     def test_a_folder_put_out_of_reading_on_the_base_branch_is_skipped_and_said(self):
-        self.write("tests/secrets/faux.py", f'CLE = "{AWS}"\n')
+        self.write("tests/secrets/fake.py", f'KEY = "{AWS}"\n')
         self.commit()
         result = self.run_ci()["_"]
         self.assertTrue(result["pass"])
-        self.assertEqual(result["excluded"], ["tests/secrets/faux.py"])
-        self.assertIn("Hors lecture", ci.render_md(result))
-        self.assertIn("1 fichier(s) hors lecture.", ci.render_md(result).splitlines()[0])   # dit dès le titre
+        self.assertEqual(result["excluded"], ["tests/secrets/fake.py"])
+        self.assertIn("Out of reading", ci.render_md(result))
+        self.assertIn("1 file(s) out of reading.", ci.render_md(result).splitlines()[0])   # said from the title
 
     def test_a_test_about_skipping_can_be_put_out_of_the_disabled_gate_from_the_base_branch_only(self):
-        skipped = ("import unittest\n\n\nclass T(unittest.TestCase):\n    @unittest." + "skip('exemple')\n    def test_x(self):\n"
+        skipped = ("import unittest\n\n\nclass T(unittest.TestCase):\n    @unittest." + "skip('example')\n    def test_x(self):\n"
                    "        self.assertTrue(True)\n")
-        self.write("tests/test_exemples.py", skipped)
+        self.write("tests/test_examples.py", skipped)
         self.commit()
         self.assertIn("disabled", self.run_ci()["_"]["failed"])
         git(self.repo, "checkout", "-q", "main")
-        self.write("docs/agents/portes.json", json.dumps({**self.CONFIG, "qa": {**self.CONFIG["qa"], "exclure": ["tests/test_exemples.py"]}}))
+        self.write("docs/agents/gates.json", json.dumps({**self.CONFIG, "qa": {**self.CONFIG["qa"], "exclude": ["tests/test_examples.py"]}}))
         self.commit()
         git(self.repo, "checkout", "-q", "pr")
         git(self.repo, "merge", "-q", "main")
         result = self.run_ci()["_"]
         self.assertNotIn("disabled", result["failed"])
-        self.assertIn("tests/test_exemples.py", result["excluded"])
+        self.assertIn("tests/test_examples.py", result["excluded"])
 
     def test_a_pull_request_cannot_loosen_its_own_gates(self):
-        self.write("docs/agents/portes.json", json.dumps({"secu": {"exclure": ["app/**"]}, "qa": {}}))
-        self.write("app/conf.py", f'CLE = "{AWS}"\n')
+        self.write("docs/agents/gates.json", json.dumps({"security": {"exclude": ["app/**"]}, "qa": {}}))
+        self.write("app/conf.py", f'KEY = "{AWS}"\n')
         self.write("app/calc.py", "def double(x):\n    return 3 * x\n")
         self.commit()
         result = self.run_ci()["_"]
-        self.assertIn("secrets", result["failed"])   # l'exclusion écrite par la PR n'est pas lue
-        self.assertIn("repeat", result["failed"])    # la commande retirée par la PR est encore jouée
+        self.assertIn("secrets", result["failed"])   # the exclusion written by the PR is not read
+        self.assertIn("repeat", result["failed"])    # the command removed by the PR is still run
         self.assertEqual(result["excluded"], [])
 
     def test_a_secret_added_then_removed_in_an_excluded_file_only_is_out_but_elsewhere_is_seen(self):
-        self.write("app/conf.py", f'CLE = "{AWS}"\n')
+        self.write("app/conf.py", f'KEY = "{AWS}"\n')
         self.commit()
-        self.write("app/conf.py", "CLE = None\n")
+        self.write("app/conf.py", "KEY = None\n")
         self.commit()
-        self.assertIn("secrets", self.run_ci()["_"]["failed"])   # l'historique de la branche se lit aussi en CI
+        self.assertIn("secrets", self.run_ci()["_"]["failed"])   # the history of the branch is read in CI too
 
 
 class ConfigTests(Case):
     CONFIG = None
 
-    def set_config(self, value) -> None:
+    def set_config(self, value, name: str = "gates.json") -> None:
         git(self.repo, "checkout", "-q", "main")
-        self.write("docs/agents/portes.json", value if isinstance(value, str) else json.dumps(value))
+        self.write(f"docs/agents/{name}", value if isinstance(value, str) else json.dumps(value))
         self.commit()
         git(self.repo, "checkout", "-q", "pr")
         git(self.repo, "merge", "-q", "main")
@@ -160,12 +160,14 @@ class ConfigTests(Case):
         self.commit()
         gates = self.run_ci()
         self.assertNotIn("repeat", gates)
-        self.assertIn("ne donne pas de commande", ci.render_md(gates["_"]))
+        self.assertIn("gives no command", ci.render_md(gates["_"]))
 
     def test_settings_that_put_everything_out_of_reading_or_are_malformed_are_refused(self):
-        for bad in ({"secu": {"exclure": ["**"]}}, {"secu": {"exclure": ["*"]}}, {"secu": {"exclure": ["**/*.py"]}}, {"secu": {"exclure": ["/etc/**"]}},
-                    {"secu": {"exclure": "tests/**"}}, {"secu": {"exclure": ["a/**"] * 21}}, {"secu": {"ignorer": []}}, {"autre": 1}, [], {"qa": {"exclure": ["**/test_*.py"]}}, {"qa": {"exclure": "tests/**"}},
-                    {"qa": {"passages": 0}}, {"qa": {"passages": True}}, {"qa": {"commande": ""}}, {"qa": {"commande": 3}}, "{"):
+        for bad in ({"security": {"exclude": ["**"]}}, {"security": {"exclude": ["*"]}}, {"security": {"exclude": ["**/*.py"]}},
+                    {"security": {"exclude": ["/etc/**"]}}, {"security": {"exclude": "tests/**"}}, {"security": {"exclude": ["a/**"] * 21}},
+                    {"security": {"ignore": []}}, {"other": 1}, [], {"qa": {"exclude": ["**/test_*.py"]}}, {"qa": {"exclude": "tests/**"}},
+                    {"qa": {"runs": 0}}, {"qa": {"runs": True}}, {"qa": {"command": ""}}, {"qa": {"command": 3}}, "{",
+                    {"secu": {"exclude": []}}, {"qa": {"commande": "make test"}}):   # the French keys belong to the former file only
             with self.subTest(bad=str(bad)[:40]):
                 self.setUp()
                 self.set_config(bad)
@@ -174,10 +176,36 @@ class ConfigTests(Case):
                 with self.assertRaises(context.Refused):
                     self.run_ci()
 
+    def test_the_former_french_settings_file_is_still_read_on_the_base_branch(self):
+        self.set_config({"secu": {"exclure": ["tests/secrets/**"]}, "qa": {"commande": "python3 -m unittest discover -s tests", "passages": 2}},
+                        "portes.json")
+        self.write("tests/secrets/fake.py", f'KEY = "{AWS}"\n')
+        self.write("app/calc.py", "def double(x):\n    return 3 * x\n")
+        self.commit()
+        result = self.run_ci()
+        self.assertEqual(result["_"]["excluded"], ["tests/secrets/fake.py"])
+        self.assertIn("repeat", result["_"]["failed"])   # the command of the former file is run
+        self.assertIn("docs/agents/portes.json", ci.render_md(result["_"]))
+        for bad in ({"security": {"exclude": []}}, {"secu": {"exclure": ["**"]}}, {"qa": {"passages": 0}}):
+            with self.subTest(bad=str(bad)[:40]):
+                self.setUp()
+                self.set_config(bad, "portes.json")
+                self.write("app/calc.py", "def double(x):\n    return x + x\n")
+                self.commit()
+                with self.assertRaises(context.Refused):
+                    self.run_ci()
+
+    def test_the_english_settings_file_wins_over_the_former_one(self):
+        self.set_config({"secu": {"exclure": ["app/**"]}}, "portes.json")
+        self.set_config({"security": {"exclude": ["tests/secrets/**"]}})
+        self.write("app/conf.py", f'KEY = "{AWS}"\n')
+        self.commit()
+        self.assertIn("secrets", self.run_ci()["_"]["failed"])
+
 
 class CliAndRepoTests(Case):
     def test_exit_codes_and_the_job_summary(self):
-        summary = os.path.join(self.tmp.name, "resume.md")
+        summary = os.path.join(self.tmp.name, "summary.md")
         self.write("app/calc.py", "def double(x):\n    return x + x\n")
         self.commit()
 
@@ -192,40 +220,40 @@ class CliAndRepoTests(Case):
         self.assertEqual(call()[0], 0)
         self.assertEqual(call("--strict")[0], 1)
         with open(summary, encoding="utf-8") as fh:
-            self.assertIn("### Portes", fh.read())
-        self.write("app/conf.py", f'CLE = "{AWS}"\n')
+            self.assertIn("### Gates", fh.read())
+        self.write("app/conf.py", f'KEY = "{AWS}"\n')
         self.commit()
         code, out = call()
         self.assertEqual(code, 1)
         self.assertNotIn(AWS, out)
         git(self.repo, "checkout", "-q", "main")
-        self.assertEqual(call()[0], 2)   # sur la branche de base elle-même : rien à vérifier
+        self.assertEqual(call()[0], 2)   # on the base branch itself: nothing to check
 
     def test_this_repository_settings_and_pipeline_files_hold_together(self):
-        with open(os.path.join(ROOT, "docs", "agents", "portes.json"), encoding="utf-8") as fh:
+        with open(os.path.join(ROOT, "docs", "agents", "gates.json"), encoding="utf-8") as fh:
             config = json.load(fh)
-        self.assertTrue(config["qa"]["commande"])
-        for glob in config["secu"]["exclure"]:
+        self.assertTrue(config["qa"]["command"])
+        for glob in config["security"]["exclude"]:
             self.assertNotIn(glob, ci._TOO_WIDE)
-        with open(os.path.join(ROOT, "scripts", "ci", "verifier.sh"), encoding="utf-8") as fh:
+        with open(os.path.join(ROOT, "scripts", "ci", "verify.sh"), encoding="utf-8") as fh:
             script = fh.read()
         for expected in ("discover -s cli/tests", "discover -s plugins/ai-sdlc/cli/tests", "progress check", "ci pr"):
             self.assertIn(expected, script)
         for workflow in (".github/workflows/ci.yml", ".forgejo/workflows/ci.yml"):
             with open(os.path.join(ROOT, workflow), encoding="utf-8") as fh:
                 text = fh.read()
-            self.assertIn("sh scripts/ci/verifier.sh", text)          # le YAML ne porte pas la logique
-            self.assertIn("runs-on: [self-hosted, jre-server]", text)  # dépôt privé : jamais un runner facturé
+            self.assertIn("sh scripts/ci/verify.sh", text)            # the YAML does not carry the logic
+            self.assertIn("runs-on: [self-hosted, jre-server]", text)  # private repository: never a billed runner
             self.assertNotIn("ubuntu-latest", text)
             self.assertIn("fetch-depth: 0", text)
             self.assertIn("persist-credentials: false", text)
-            self.assertIn("path: .cible", text)                        # les portes se jouent avec le code de la branche cible
+            self.assertIn("path: .base-branch", text)                  # the gates run with the code of the target branch
         with open(os.path.join(ROOT, ".github", "workflows", "ci.yml"), encoding="utf-8") as fh:
-            self.assertIn("head.repo.full_name == github.repository", fh.read())   # jamais une PR de fork sur ce runner
-        with open(os.path.join(ROOT, "plugins", "ai-sdlc", "ci", "portes.yml"), encoding="utf-8") as fh:
+            self.assertIn("head.repo.full_name == github.repository", fh.read())   # never a fork PR on this runner
+        with open(os.path.join(ROOT, "plugins", "ai-sdlc", "ci", "gates.yml"), encoding="utf-8") as fh:
             template = fh.read()
         run_lines = [line for line in template.splitlines() if "ai_sdlc.py ci pr" in line]
-        self.assertTrue(run_lines and all("${{" not in line for line in run_lines))   # un nom de branche n'entre pas dans une ligne de shell
+        self.assertTrue(run_lines and all("${{" not in line for line in run_lines))   # a branch name does not enter a shell line
 
 
 if __name__ == "__main__":
