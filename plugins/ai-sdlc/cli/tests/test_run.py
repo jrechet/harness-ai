@@ -293,7 +293,7 @@ class CliTests(Case):
         self.assertEqual(self.run_cli("run", "changes", self.repo, "--base", "main", "--since", "v2.0.3", "--until", "main")[0], 0)
         code, out, _ = self.run_cli("context", "run", self.repo, "--base", "main")
         self.assertEqual(code, 0)
-        self.assertIn("Personne n'agit en production sans ordre", out)
+        self.assertIn("Nobody acts in production without an order", out)
         self.assertIn("make revenir", out)
 
     def test_the_commands_write_nothing_in_the_repo(self):

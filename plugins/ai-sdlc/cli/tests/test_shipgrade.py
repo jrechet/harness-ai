@@ -49,7 +49,7 @@ class Case(unittest.TestCase):
     def errors(self, prop, task: str = READY) -> list[str]:
         result = ship.check(self.table, self.repo, "origin/main", None, review.load(self.ci(task)))
         blocks = context.assemble(self.table, self.repo, "ship", "origin/main")["blocks"]
-        procedure = "\n".join(b["text"] for b in blocks if b["origin"] == "equipe")
+        procedure = "\n".join(b["text"] for b in blocks if b["origin"] == "team")
         return ship.check_proposal(prop, result, procedure, ship.messages(self.repo, "v1.4.0"), ship.breaking_shas(self.repo, "v1.4.0"))
 
 

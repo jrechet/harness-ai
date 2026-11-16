@@ -24,7 +24,7 @@ from . import size, ticket
 from .context import Refused, _git, resolve_base
 from .devgrade import _changed_lines
 
-OK, FAIL, UNKNOWN = "ok", "échec", "non mesuré"
+OK, FAIL, UNKNOWN = "ok", "failed", "unmeasured"
 RUN_TIMEOUT = 600      # par passage
 RUN_BUDGET = 1800      # pour tous les passages
 MAX_REPORT = 50_000_000

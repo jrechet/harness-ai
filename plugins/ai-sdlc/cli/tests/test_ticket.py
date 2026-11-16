@@ -24,7 +24,7 @@ la moitié vers le haut, dans `facturation/totaux.py`.
 ## Périmètre
 Le calcul seulement. Le format de l'API ne change pas.
 """
-ZONES = size.parse_zones(points.default_text(points.load()["points"]["zones-sensibles"]), "socle")
+ZONES = size.parse_zones(points.default_text(points.load()["points"]["sensitive-zones"]), "base")
 
 
 def state(text: str) -> dict[str, bool]:
@@ -158,7 +158,7 @@ class CliTests(RepoCase):
     def test_the_ticket_phase_serves_the_framework_definition_of_ready(self):
         code, out, _ = run(["context", "ticket", self.repo, "--base", "main"])
         self.assertEqual(code, 0)
-        self.assertIn("critères d'acceptation", out)
+        self.assertIn("acceptance criteria", out)
 
 
 if __name__ == "__main__":

@@ -361,7 +361,7 @@ class CliTests(Case):
         self.assertEqual(self.run_cli("ship", "check", self.repo, "--base", "origin/main", "--checks", report)[0], 2)
         code, out, _ = self.run_cli("context", "ship", self.repo, "--base", "main")
         self.assertEqual(code, 0)
-        self.assertIn("ne lance pas de déploiement", out)
+        self.assertIn("does not start a deployment", out)
 
     def test_the_command_writes_nothing(self):
         self.commit("app/b.py", "b\n", "feat: x")

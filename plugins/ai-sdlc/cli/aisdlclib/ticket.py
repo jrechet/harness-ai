@@ -169,8 +169,8 @@ def zones_for(table: dict[str, Any], repo: str, base: str) -> tuple[list[dict[st
     try:
         return size_mod.zones(table, repo, base), None
     except Refused as exc:
-        default = points_mod.default_text(table["points"]["zones-sensibles"]) or ""
-        return size_mod.parse_zones(default, "socle"), f"zones de l'équipe non lues ({exc})"
+        default = points_mod.default_text(table["points"]["sensitive-zones"]) or ""
+        return size_mod.parse_zones(default, "base"), f"zones de l'équipe non lues ({exc})"
 
 
 def render_md(result: dict[str, Any], warning: str | None = None) -> str:

@@ -209,7 +209,7 @@ class CliTests(Case):
         ticket_md = os.path.join(FIXTURE, "tasks", "quantite-nulle", "ticket.md")
         code, out, err = self.run_cli("ticket", "render", bad, self.repo, "--ticket", ticket_md, "--base", "main")
         self.assertEqual((code, out), (2, ""))
-        self.assertIn("avis refusé", err)
+        self.assertIn("opinion refused", err)
 
 
 if __name__ == "__main__":

@@ -249,7 +249,7 @@ class FixtureTests(unittest.TestCase):
             dest, made = self.build(name)
             data = context.assemble(points.load(), dest, "review", made["base"])
             self.assertTrue(data["gate"])
-            self.assertIn("equipe", [b["origin"] for b in data["blocks"]])
+            self.assertIn("team", [b["origin"] for b in data["blocks"]])
 
     def test_the_author_review_renders_and_passes(self):
         for name in fixture_names():

@@ -265,7 +265,7 @@ def investigation(table: dict[str, Any], repo: str, base: str, data: Any, eviden
     from . import context as context_mod
     commit = resolve_base(repo, base)
     blocks = context_mod.assemble(table, repo, "run", base)["blocks"]
-    runbook = guard.team_commands("\n".join(b["text"] for b in blocks if b["origin"] == "equipe"))
+    runbook = guard.team_commands("\n".join(b["text"] for b in blocks if b["origin"] == "team"))
     evidence = read_evidence(evidence_paths, repo)
     errors = check(data, evidence, repo, commit, runbook)
     if errors:

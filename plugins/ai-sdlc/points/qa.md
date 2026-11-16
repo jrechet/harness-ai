@@ -1,5 +1,5 @@
-Les tests d'un changement tiennent quand :
-- chaque critère d'acceptation du ticket a au moins un test qui échouerait sans le changement, ou une raison écrite de ne pas en avoir ;
-- la suite passe plusieurs fois de suite : un test qui passe une fois sur deux ne prouve rien ;
-- aucun test n'est désactivé, sauté ou supprimé pour faire passer la suite ;
-- les lignes ajoutées sont exécutées par les tests, quand le dépôt sait mesurer sa couverture.
+The tests of a change hold when:
+- each acceptance criterion of the ticket has at least one test that would fail without the change, or a written reason for not having one;
+- the suite passes several times in a row: a test that passes one time out of two proves nothing;
+- no test is disabled, skipped or deleted to make the suite pass;
+- the added lines are executed by the tests, when the repository can measure its coverage.

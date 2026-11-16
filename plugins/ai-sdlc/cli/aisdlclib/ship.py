@@ -410,7 +410,7 @@ def proposal(table: dict[str, Any], repo: str, base: str, since: str | None, che
     result = check(table, repo, base, since, checks)
     previous = since if since is not None else last_version(repo)[0]
     blocks = context_mod.assemble(table, repo, "ship", base)["blocks"]
-    procedure = "\n".join(b["text"] for b in blocks if b["point"] == "livraison" and b["origin"] == "equipe")
+    procedure = "\n".join(b["text"] for b in blocks if b["point"] == "delivery" and b["origin"] == "team")
     errors = check_proposal(prop, result, procedure, messages(repo, previous), breaking_shas(repo, previous))
     if errors:
         raise Refused("proposition refusée :\n- " + "\n- ".join(errors))

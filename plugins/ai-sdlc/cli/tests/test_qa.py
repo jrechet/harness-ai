@@ -271,7 +271,7 @@ class CliTests(Case):
     def test_the_qa_phase_serves_the_framework_convention(self):
         code, out, _ = run(["context", "qa", self.repo, "--base", "main"])
         self.assertEqual(code, 0)
-        self.assertIn("plusieurs fois de suite", out)
+        self.assertIn("several times in a row", out)
 
 
 if __name__ == "__main__":

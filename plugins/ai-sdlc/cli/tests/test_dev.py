@@ -49,7 +49,7 @@ class GlobTests(unittest.TestCase):
                 size.parse_zones(line + "\n", "equipe")
 
     def test_the_shipped_zones_parse(self):
-        zones = size.parse_zones(points.default_text(points.load()["points"]["zones-sensibles"]), "socle")
+        zones = size.parse_zones(points.default_text(points.load()["points"]["sensitive-zones"]), "base")
         self.assertIn("migrations/**", [z["glob"] for z in zones])
 
 
@@ -83,13 +83,13 @@ class SizeTests(RepoCase):
         self.commit("migrations/002.sql", "x\n")
         result = self.size()
         self.assertEqual(result["size"], "L")
-        self.assertEqual(result["sensitive"][0]["origin"], "socle")
+        self.assertEqual(result["sensitive"][0]["origin"], "base")
 
     def test_the_team_zones_are_read_on_the_base_branch(self):
         self.commit("facturation/t.py", "x\n")
         self.assertEqual(self.size()["size"], "XS")
         self.commit("docs/agents/zones-sensibles.md", ZONES)      # posée par la PR : ne compte pas pour elle
-        self.assertFalse([h for h in self.size()["sensitive"] if h["origin"] == "equipe"])
+        self.assertFalse([h for h in self.size()["sensitive"] if h["origin"] == "team"])
         git(self.repo, "checkout", "-q", "main")
         self.commit("docs/agents/zones-sensibles.md", ZONES)
         git(self.repo, "checkout", "-q", "-b", "pr2")
@@ -228,7 +228,7 @@ class BodyTests(RepoCase):
         self.assertEqual(code, 0)
         self.assertIn("XS", out)
         code, out, _ = run(["size", self.repo, "--base", "main", "--paths", "infra/main.tf"])
-        self.assertIn("Taille : L", out)
+        self.assertIn("Size: L", out)
 
 
 if __name__ == "__main__":
