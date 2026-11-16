@@ -138,7 +138,12 @@ def added(repo: str, base: str) -> tuple[dict[str, list[tuple[int, str]]], list[
 
 
 def _secret_kinds(text: str) -> list[str]:
-    kinds = [kind for kind, pattern in _SECRETS if pattern.search(text)]
+    kinds = []
+    for kind, pattern in _SECRETS:
+        match = pattern.search(text)
+        # le seul motif à groupe est l'URL : son mot de passe peut être une variable, pas une valeur
+        if match and not (match.groups() and _PLACEHOLDER.search(match[1])):
+            kinds.append(kind)
     for match in _ASSIGN.finditer(text):
         if not _PLACEHOLDER.search(match[1]):
             kinds.append("valeur en dur sous un nom de secret")
@@ -167,8 +172,8 @@ def gate_secrets(lines: dict[str, list[tuple[int, str]]], paths: list[str], adde
 
 def gate_muted(lines: dict[str, list[tuple[int, str]]], paths: list[str]) -> dict[str, Any]:
     title = "Aucun scanner n'est réduit au silence"
-    hits = [f"{_where(path, number)}" for path, rows in sorted(lines.items()) for number, text in rows
-            if _MUTED.search(text[:MAX_LINE])]
+    hits = [f"{_where(path, number)}" for path, rows in sorted(lines.items()) if not path.lower().endswith(_PROSE)
+            for number, text in rows if _MUTED.search(text[:MAX_LINE])]
     config = [_where(p) for p in paths if _SCANNER_CONFIG.search(p)]
     if hits:
         return _gate("neutralises", title, FAIL, "exception posée dans le code : " + _shown(hits),

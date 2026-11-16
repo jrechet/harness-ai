@@ -88,7 +88,8 @@ class SecretsTests(Case):
     def test_placeholders_and_lookups_are_not_secrets(self):
         lines = ['password = "changeme-please-now"', 'api_key = os.environ["API_KEY_PROD_VALUE"]', 'token = "${GITHUB_TOKEN_VALUE}"',
                  'secret = "<à-remplir-par-vous>"', 'password = "xxxxxxxxxxxxxxxx"', 'token = settings.TOKEN', 'mot = "un texte ordinaire"',
-                 'api_key = "example-key-not-real"', "password_field_name = 'mot_de_passe_utilisateur'"]
+                 'api_key = "example-key-not-real"', 'DSN = f"postgres://app:{mot_de_passe}@db.interne/x"',
+                 'URL = "https://user:${DB_PASSWORD}@hote.example/x"', "password_field_name = 'mot_de_passe_utilisateur'"]
         gates = self.change("app/conf.py", "\n".join(lines) + "\n")
         self.assertEqual(gates["secrets"]["status"], secu.OK, gates["secrets"]["evidence"])
 
@@ -127,6 +128,9 @@ class MutedTests(Case):
             with self.subTest(name=name):
                 self.setUp()
                 self.assertEqual(self.change(name, "x\n")["neutralises"]["status"], secu.UNKNOWN)
+
+    def test_prose_that_names_a_marker_mutes_nothing(self):
+        self.assertEqual(self.change("docs/secu.md", "N'écrivez jamais `# nosec` ni `nosemgrep`.\n")["neutralises"]["status"], secu.OK)
 
     def test_ordinary_code_is_ok(self):
         self.assertEqual(self.change("app/x.py", "x = 1  # noqa: E501\n# pas de sécurité ici\n")["neutralises"]["status"], secu.OK)
