@@ -4,7 +4,9 @@ Five levels, each earned by checks **measured** on the repository, never declare
 
 A level is reached when all its checks pass and the previous level is reached. Each failing check carries the next action.
 
-**A level is a place where you can stay.** The owner declares the one they aim for with `harness target <n>`, written in `.harness/config.json`. Up to that level, the state says what to do next; beyond it, it proposes nothing, and when the target level is held it says "target reached". Without a target level, the state shows the whole ladder and says so. Each step is led by the `harness-step` skill, one per invocation.
+**A level is a place where you can stay.** The owner declares the one they aim for with `harness target <n>`, written in `.harness/config.json`. Up to that level, the state says what to do next; beyond it, it proposes nothing, and when the target level is held it says "target reached". The `harness-step` skill then offers the next level once, as a plain choice where staying is the default. Without a target level, the state shows the whole ladder and says so. Each step is led by the `harness-step` skill, one per invocation.
+
+`harness status --map <repo>` prints the same measurement in plain words: the ladder with "you are here", the target, what the next level still needs, and the next step. Every skill shows this map before it asks the user anything.
 
 | Level | Name | What it means | Checks |
 |---|---|---|---|
