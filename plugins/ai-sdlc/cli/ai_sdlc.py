@@ -10,6 +10,7 @@
   ai_sdlc.py ticket render <avis.json> [repo] --ticket <ticket.md> [--base REF]   l'avis du skill, s'il est bien formé
   ai_sdlc.py qa gate [repo] [--base REF] [--run CMD] [--coverage F] [--ticket F --trace F]   les portes de /qa
   ai_sdlc.py secu gate [repo] [--base REF] [--report SARIF…]   les portes de /secu
+  ai_sdlc.py ship check [repo] [--base REF] [--since REF] [--checks relevé.json]   les prérequis d'une livraison
   ai_sdlc.py fixture init <fixture> <dest>         monte une PR piégée de fixtures/review en dépôt git
   ai_sdlc.py fixture grade <revue.json> --expected <expected.json>   note une revue contre son corrigé
   ai_sdlc.py fixture grade-dev <dépôt> --task <dossier du ticket> [--body corps.json]   note un travail de /dev
@@ -21,7 +22,7 @@ Codes de sortie de `context` : 0 servi, 2 refusé (surcharge invalide, phase ou 
 n'est imprimé sur la sortie standard, la raison est sur la sortie d'erreur. `status` sort 0 et montre une
 surcharge invalide dans son tableau : il décrit, il ne sert pas de porte. `review render` : 0 rendu, 2 refusé
 (forme incomplète, constat hors du diff). `ticket check` : 0 prêt, 1 pas prêt, 2 illisible. `ticket render` : 0 rendu, 2 refusé. `qa gate` : 0 les quatre
-portes passent, 1 une porte en échec, 3 rien en échec mais une porte non mesurée, 2 refusé ; `secu gate` suit les mêmes codes. `fixture grade` : 0 conforme, 1 non conforme, 2 fichier illisible.
+portes passent, 1 une porte en échec, 3 rien en échec mais une porte non mesurée, 2 refusé ; `secu gate` et `ship check` suivent les mêmes codes. `fixture grade` : 0 conforme, 1 non conforme, 2 fichier illisible.
 
 Python 3.10+, bibliothèque standard uniquement."""
 from __future__ import annotations
@@ -33,7 +34,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import context, dev, devgrade, points, qa, qagrade, review, secu, secugrade, size, ticket, ticketgrade  # noqa: E402
+from aisdlclib import context, dev, devgrade, points, qa, qagrade, review, secu, secugrade, ship, size, ticket, ticketgrade  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,7 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
     sgate = sgate.add_parser("gate", help="les quatre portes : secrets, neutralisés, scanner, surface")
     sgate.add_argument("--report", nargs="+", metavar="SARIF", default=[],
                        help="les rapports SARIF des scanners de l'équipe, produits sur cette branche")
-    for sp in (ctx, status, render, sized, body, tck, avis, gate, sgate):
+    shp = sub.add_parser("ship", help="ce que /ship vérifie").add_subparsers(dest="action", required=True)
+    shp = shp.add_parser("check", help="les prérequis d'une livraison, une version et des notes proposées")
+    shp.add_argument("--since", metavar="REF", help="la version précédente (défaut : le dernier tag atteignable)")
+    shp.add_argument("--checks", metavar="FICHIER", help="le relevé de la CI du commit, en JSON (gh run list --commit … --json …)")
+    for sp in (ctx, status, render, sized, body, tck, avis, gate, sgate, shp):
         sp.add_argument("repo", nargs="?", default=".")
         sp.add_argument("--base", default="origin/HEAD", help="branche de base (défaut : origin/HEAD)")
         sp.add_argument("--format", choices=["md", "json"], default="md")
@@ -144,6 +149,9 @@ def main(argv: list[str] | None = None) -> int:
             data = qa.run_gates(table, args.repo, args.base, args.run, args.runs, args.coverage, ticket_text,
                                 review.load(args.trace) if args.trace else None)
             text, code = qa.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)
+        elif args.command == "ship":
+            data = ship.check(table, args.repo, args.base, args.since, review.load(args.checks) if args.checks else None)
+            text, code = ship.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)
         elif args.command == "secu":
             data = secu.run_gates(table, args.repo, args.base, args.report)
             text, code = secu.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)

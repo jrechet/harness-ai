@@ -19,6 +19,6 @@
     "qa": {"read_by": ["qa"], "replaceable": true, "branch": "base", "default": "points/qa.md"},
     "securite": {"read_by": ["secu", "review"], "replaceable": false, "branch": "base", "default": "points/securite.md"},
     "zones-sensibles": {"read_by": ["dev", "review"], "replaceable": false, "branch": "base", "default": "points/zones-sensibles.md"},
-    "livraison": {"read_by": ["ship"], "replaceable": true, "branch": "base", "default": null}
+    "livraison": {"read_by": ["ship"], "replaceable": true, "branch": "base", "default": "points/livraison.md"}
   }
 }
