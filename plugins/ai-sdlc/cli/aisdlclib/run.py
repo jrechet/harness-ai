@@ -310,5 +310,6 @@ def render_changes(result: dict[str, Any]) -> str:
     out += [f"- {c['date']} {c['sha']} {c['subject']}" for c in result["commits"]]
     if result["sensitive"]:
         out += ["", "En zone sensible :", *(f"- {s['path']} ({s['glob']})" for s in result["sensitive"])]
-    out += ["", "Un changement dans la fenêtre n'est pas une cause : c'est une piste, à confronter aux pièces."]
+    out += ["", "Les dates sont celles des commits, pas celles de leur mise en production.",
+            "Un changement dans la fenêtre n'est pas une cause : c'est une piste, à confronter aux pièces."]
     return "\n".join(out) + "\n"
