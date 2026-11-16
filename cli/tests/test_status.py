@@ -461,6 +461,61 @@ class BilingualTests(TempRepo):
         self.assertEqual(self.state()["facts"]["instructions"]["source"]["rules_total"], 0)
 
 
+class MapTests(TempRepo):
+    """`status --map`: the few plain lines the skills show before doing or asking anything."""
+
+    def test_every_check_and_level_has_plain_words(self):
+        s = self.state()
+        ids = {c["id"] for l in s["levels"] for c in l["checks"]}
+        self.assertEqual(ids, set(maturity.CHECK_PLAIN))
+        self.assertEqual(set(maturity.LEVEL_PLAIN), {num for num, _, _ in maturity.LEVELS})
+
+    def test_empty_repo_is_here_at_level_0_and_the_step_is_the_instruction_file(self):
+        m = maturity.render_map(self.state())
+        self.assertRegex(m, r"0 None .*← you are here")
+        self.assertIn("Target: none chosen yet", m)
+        self.assertIn("What level 1 still needs:", m)
+        self.assertIn("Next step: write a short AGENTS.md", m)
+
+    def test_no_check_id_or_signal_code_reaches_the_user(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        m = maturity.render_map(self.state())
+        self.assertNotRegex(m, r"\bL\d\.|\bS\d\b|harvest|guardrail")
+        self.assertRegex(m, r"✓ 1 Framed .*← you are here")
+        self.assertIn("review remarks become rules", m)
+
+    def test_target_reached_offers_the_next_level_as_a_choice(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 1}))
+        m = maturity.render_map(self.state())
+        self.assertIn("Target: level 1, Framed — reached.", m)
+        self.assertIn("level 2 (Looped) would bring this", m)
+        self.assertIn("(beyond your target)", m)
+        self.assertNotIn("still needs", m)
+
+    def test_a_waiting_level_says_time_and_the_step_goes_to_the_level_above(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 3}))
+        m = maturity.render_map(self.state())
+        self.assertIn("(comes with time, not with work)", m)
+        self.assertIn("(towards level 3)", m)
+
+    def test_broken_references_come_first(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL4)
+        m = maturity.render_map(self.state())
+        self.assertIn("Broken references", m)
+        self.assertIn("Next step: fix or remove", m)
+
+    def test_map_flag_prints_only_the_map_and_still_writes_the_state(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(status.main([self.repo, "--map", "--today", "2026-11-09"]), 0)
+        self.assertTrue(out.getvalue().startswith("Where this repository stands"))
+        self.assertNotIn("Level reached", out.getvalue())
+        self.assertTrue(os.path.exists(os.path.join(self.repo, ".harness", "state.json")))
+
+
 class CliTests(TempRepo):
     def test_writes_state_json_and_renders_markdown(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL1)

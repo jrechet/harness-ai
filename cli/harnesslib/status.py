@@ -18,6 +18,8 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     p.add_argument("--audit", help="audit JSON to use (default: <harness-dir>/audit.json)")
     p.add_argument("--harvest", help="harvest JSON to use (default: <harness-dir>/harvest.json)")
     p.add_argument("--format", choices=["md", "json"], default="md")
+    p.add_argument("--map", action="store_true",
+                   help="prints only the short plain-words map of the levels (what the skills show first)")
     p.add_argument("--no-write", action="store_true", help="does not write <harness-dir>/state.json")
     p.add_argument("--today", help="YYYY-MM-DD, for reproducible outputs")
     return p
@@ -60,7 +62,9 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         with open(os.path.join(out_dir, "state.json"), "w", encoding="utf-8") as fh:
             json.dump(state, fh, ensure_ascii=False, indent=2)
             fh.write("\n")
-    if args.format == "json":
+    if args.map:
+        sys.stdout.write(maturity.render_map(state))
+    elif args.format == "json":
         json.dump(state, sys.stdout, ensure_ascii=False, indent=2)
         sys.stdout.write("\n")
     else:

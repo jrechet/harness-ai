@@ -1,42 +1,46 @@
-# Format de la PR de harvest
+# Harvest PR format
 
-Branche : `harvest/<AAAA-MM-JJ>`. Un commit par candidat, dans l'ordre PUSH_DOWN → REMOVE → SHORTEN → ADD → CONTRACT, puis un dernier commit qui met à jour le marqueur. Les ASK ne produisent pas de commit, seulement une section dans la description.
+Branch: `harvest/<YYYY-MM-DD>`. One commit per candidate, in the order PUSH_DOWN → REMOVE → SHORTEN → ADD → CONTRACT, then a last commit that updates the marker. ASKs produce no commit, only a section in the description.
 
-Message de commit : `harvest(<VERDICT>): <règle ou tâche en une phrase>`, corps avec les liens des évidences.
+Commit message: `harvest(<VERDICT>): <rule or task in one sentence>`, body with the links to the evidence.
 
-## Description de la PR
+## PR description
+
+Written in the repository's language. Each signal code and verdict comes with its plain meaning the first time.
 
 ```markdown
-# Harvest du <date> — fenêtre <date début> → <date fin>
+# Harvest of <date> — window <start date> → <end date>
 
-**Mode du repo** : délégation | assistance · **Évidences collectées** : <n> (GitHub : <n>, …) · **Candidats** : <n> · **Ignorés** : <n>
+**Where this leaves the repository**: <the output of `harness status --map`, or its two key lines: you are here, next step>
 
-## Candidats
+**Repo mode**: delegation | assistance · **Evidence collected**: <n> (GitHub: <n>, …) · **Candidates**: <n> · **Ignored**: <n>
 
-### 1. [<VERDICT>] <règle ou tâche en une phrase>
-- **Preuves** : <lien>, <lien> (signal S<n>)
-- **Pourquoi ce verdict** : <une phrase ; pour PUSH_DOWN, l'outil nommé ; pour REMOVE, depuis combien de harvests sans évidence>
-- **Commit** : <sha court>
+## Candidates
 
-## Questions à l'équipe (ASK)
-- <signal réel mais règle non formulable : ce qu'on a vu, ce qu'on propose de trancher>
+### 1. [<VERDICT>] <rule or task in one sentence>
+- **Evidence**: <link>, <link> (<what it is in plain words>, signal S<n>)
+- **Why this verdict**: <one sentence; for PUSH_DOWN, the tool named; for REMOVE, for how many harvests without evidence>
+- **Commit**: <short sha>
 
-## Ignoré volontairement
-- <évidence> — <raison : convention devinée sans incident / préférence isolée / déjà refusé au harvest du <date> / règle déjà appliquée par le modèle>
+## Questions for the team (ASK)
+- <real signal but the rule cannot be stated: what was seen, what we propose to decide, the proposed default>
 
-## Règles confirmées par l'absence d'incident
-- <règle> — vérifiée par <garde-fou> ; peut être raccourcie au prochain harvest si toujours sans évidence.
+## Deliberately ignored
+- <evidence> — <reason: convention guessed without incident / isolated preference / already refused at the harvest of <date> / rule already applied by the model>
 
-## Non collecté
-- <source ou période non lue, et pourquoi>  (ou « Aucun »)
+## Rules confirmed by the absence of incidents
+- <rule> — enforced by <guardrail>; can be shortened at the next harvest if still without evidence.
+
+## Not collected
+- <source or period not read, and why>  (or "None")
 ```
 
-## Marqueur de harvest
+## Harvest marker
 
-Dernier commit de la PR, dans la section « Maintenance de ce fichier » de AGENTS.md :
+Last commit of the PR, in the "Maintaining this file" section of AGENTS.md:
 
 ```
-<!-- harvest: last=<AAAA-MM-JJ> ref=<url de cette PR> -->
+<!-- harvest: last=<YYYY-MM-DD> ref=<url of this PR> -->
 ```
 
-Une seule ligne de marqueur dans le fichier ; le précédent est remplacé, pas empilé.
+A single marker line in the file; the previous one is replaced, not stacked.
