@@ -169,7 +169,7 @@ To try without installing: `claude --plugin-dir /path/to/harness-ai`.
 
 ## The ai-sdlc plugin: from ticket to production
 
-A second plugin, in [plugins/ai-sdlc/](plugins/ai-sdlc/), tools the phases of the development cycle. It ships a base convention for each phase, which each team completes in its own repository with a file `docs/agents/<point>.md`, one per extension point: `definition-of-ready`, `definition-of-done`, `review`, `qa`, `security`, `sensitive-zones`, `delivery`, `operations`. These additions are read on the target branch, not in the PR: a PR cannot lighten its own review. Its design is in [docs/ai-sdlc/](docs/ai-sdlc/) (`proposal.md`).
+A second plugin, in [plugins/ai-sdlc/](plugins/ai-sdlc/), tools the phases of the development cycle. It ships a base convention for each phase, which each team completes in its own repository with a file `docs/agents/<point>.md`, one per extension point: `definition-of-ready`, `definition-of-done`, `review`, `qa`, `security`, `sensitive-zones`, `delivery`, `operations`. These additions are read on the target branch, not in the PR: a PR cannot lighten its own review. Its design is in [docs/ai-sdlc/proposal.md](docs/ai-sdlc/proposal.md).
 
 Each phase is a skill that does one thing and states what it never does. Its result goes through the plugin's CLI, which refuses a result that does not hold (a finding that cites no line of the diff, a fact not quoted from its evidence, a delivery command not taken from the team's procedure).
 
@@ -249,7 +249,7 @@ Both suites pass on a fresh clone, from Python 3.10 to 3.14. The repository's ru
 | `plugins/ai-sdlc/` | The second plugin: skills `ticket`, `dev`, `qa`, `secu`, `review`, `ship` and `run`, and its CLI |
 | `fixtures/` | Sample projects, trapped cases, answer keys, recorded runs |
 | `app/` | The progress page served by `harness serve` |
-| `docs/` | What the repository can do ([capabilities.md](docs/capabilities.md)), the requirements, the maturity model, the study and an interactive course (`docs/ai-sdlc/course/`) |
+| `docs/` | What the repository can do ([capabilities.md](docs/capabilities.md)), the requirements, the maturity model, the study and an [interactive course](docs/ai-sdlc/course/index.html) |
 | `.harness/` | This repository's state, measured by itself |
 
 ## Licence
