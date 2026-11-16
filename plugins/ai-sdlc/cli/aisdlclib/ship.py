@@ -279,3 +279,138 @@ def render_md(result: dict[str, Any]) -> str:
         out += ["", f"### {title}", *(f"- {line}" for line in lines)]
     out += ["", "Rien n'a été tagué, poussé ni déployé. Les titres viennent des commits : à relire avant de publier."]
     return "\n".join(out) + "\n"
+
+
+# --- la proposition du skill : ce qu'il rend à l'humain qui livre, dans une forme qu'un programme relit ---
+
+PROPOSAL_LISTS = ("attend", "ruptures", "notes", "commandes", "non_verifie", "consignes")
+ROLES = ("livrer", "revenir")
+MAX_ITEMS = 40
+MAX_TEXT = 600
+MIN_QUOTE = 12
+MIN_SENTENCE = 20   # « migration » n'est pas une phrase : ce qui attend un humain se dit en entier
+_SPAN = re.compile(r"`([^`\n]{2,400})`")
+
+
+def _flat(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _said(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip()) and len(value) <= MAX_TEXT
+
+
+def _code(text: str) -> str:
+    """Une commande dans un bloc de code : telle qu'écrite par l'équipe, à recopier, sans pouvoir en sortir."""
+    return "".join(ch for ch in _flat(text) if ch.isprintable() and ch != "`")
+
+
+def messages(repo: str, previous: str | None) -> list[str]:
+    """Le message de chaque commit qui part, titre et corps : c'est dans l'un d'eux, pas à cheval sur deux,
+    qu'une consigne signalée doit se retrouver."""
+    code, out = _git(repo, "log", f"--max-count={MAX_COMMITS}", "--format=%B%x01", f"{previous}..HEAD" if previous else "HEAD")
+    return [m for m in out.decode("utf-8", "replace").split("\x01") if m.strip()] if code == 0 else []
+
+
+def team_commands(procedure: str) -> list[str]:
+    """Les commandes que la procédure de l'équipe écrit entre accents graves : ce sont les seules qui se proposent."""
+    return list(dict.fromkeys(_flat(m) for m in _SPAN.findall(procedure) if " " in m.strip() or "/" in m))
+
+
+def breaking_shas(repo: str, previous: str | None) -> list[str]:
+    return [c["sha"] for c in commits(repo, previous)[:MAX_COMMITS] if c["breaking"]]
+
+
+def check_proposal(prop: Any, result: dict[str, Any], procedure: str, history: list[str], breaking: list[str]) -> list[str]:
+    """Les défauts d'une proposition de livraison. Quatre choses sont tenues ici et pas par le skill : le verdict
+    ne s'écrit pas, une commande proposée est citée mot pour mot de la procédure de l'équipe, aucune commande
+    n'est proposée quand un prérequis est en échec, et aucune rupture annoncée par un commit n'est oubliée."""
+    if not isinstance(prop, dict):
+        return ["la proposition est un objet JSON : attend, ruptures, notes, commandes, non_verifie, consignes"]
+    errors = [f"« {key} » ne s'écrit pas dans la proposition : le verdict et la version viennent de la commande"
+              for key in prop if isinstance(key, str) and key.strip().lower() in ("verdict", "pret", "prêt", "ok", "version", "livrable")]
+    for key in PROPOSAL_LISTS:
+        if not isinstance(prop.get(key, []), list) or len(prop.get(key, [])) > MAX_ITEMS:
+            errors.append(f"{key} : une liste d'au plus {MAX_ITEMS} éléments")
+    if errors:
+        return errors
+    for key in ("notes", "non_verifie"):
+        for index, item in enumerate(prop.get(key, []), 1):
+            if not _said(item):
+                errors.append(f"{key} {index} : une phrase d'au plus {MAX_TEXT} caractères")
+    for index, item in enumerate(prop.get("attend", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("quoi")) and _said(item.get("qui")) and len(_flat(item["quoi"])) >= MIN_SENTENCE):
+            errors.append(f"attend {index} : un objet avec quoi (ce qui reste à lever, en une phrase d'au moins "
+                          f"{MIN_SENTENCE} caractères) et qui (le rôle qui le décide)")
+    cited = set()
+    for index, item in enumerate(prop.get("ruptures", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("texte")) and isinstance(item.get("commit"), str)
+                and len(_flat(item["texte"])) >= MIN_SENTENCE):
+            errors.append(f"rupture {index} : un objet avec texte (ce qui casse et quoi faire, en une phrase d'au moins "
+                          f"{MIN_SENTENCE} caractères) et commit")
+            continue
+        sha = item["commit"].strip().lower()
+        hexa = 7 <= len(sha) <= 40 and all(ch in "0123456789abcdef" for ch in sha)
+        match = [b for b in breaking if hexa and (b.startswith(sha) or sha.startswith(b))]
+        if not match:
+            errors.append(f"rupture {index} : le commit cité n'est pas un commit annoncé cassant de cette livraison")
+        cited.update(match)
+    missing = [b for b in breaking if b not in cited]
+    if missing:
+        errors.append(f"{len(missing)} rupture(s) annoncée(s) par un commit ne sont pas reprises : {', '.join(missing[:5])}")
+    team = team_commands(procedure)
+    known = (" Celles que la procédure écrit : " + " ; ".join(f"`{_code(c)}`" for c in team[:8]) + ". Une valeur entre "
+             "chevrons (<version>) reste écrite telle quelle : c'est l'humain qui la remplace.") if team else \
+        " La procédure de l'équipe (docs/agents/livraison.md) n'écrit aucune commande entre accents graves : n'en propose pas."
+    for index, item in enumerate(prop.get("commandes", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("commande")) and item.get("role") in ROLES):
+            errors.append(f"commande {index} : un objet avec commande et role ({' ou '.join(ROLES)})")
+        elif _flat(item["commande"]) not in team:
+            errors.append(f"commande {index} : ce n'est pas, en entier et mot pour mot, une commande de la procédure de l'équipe." + known)
+    if prop.get("commandes") and result["failed"]:
+        errors.append("des commandes sont proposées alors qu'un prérequis est en échec : on ne livre pas")
+    if result["unknown"] and not result["failed"] and not prop.get("attend"):
+        errors.append(f"{len(result['unknown'])} prérequis attendent un humain et « attend » est vide")
+    whole = [_flat(message) for message in history]
+    for index, item in enumerate(prop.get("consignes", []), 1):
+        quote = _flat(item["citation"]) if isinstance(item, dict) and isinstance(item.get("citation"), str) else ""
+        if not MIN_QUOTE <= len(quote) <= MAX_TEXT:
+            errors.append(f"consigne {index} : un objet avec citation, de {MIN_QUOTE} à {MAX_TEXT} caractères")
+        elif not any(quote in message for message in whole):
+            errors.append(f"consigne {index} : la citation ne se retrouve pas mot pour mot dans les commits de cette livraison")
+    return errors
+
+
+def render_proposal(prop: dict[str, Any], result: dict[str, Any]) -> str:
+    """La proposition rendue : les prérequis mesurés d'abord, puis ce que le skill propose."""
+    out = [render_md(result).split("\n## Notes de version proposées")[0].rstrip(), ""]
+
+    def block(title: str, lines: list[str]) -> None:
+        if lines:
+            out.extend([f"### {title}", *lines, ""])
+
+    block("Ce qui attend un humain", [f"- {_plain(a['quoi'], MAX_TEXT)} — décidé par : {_plain(a['qui'], 80)}" for a in prop.get("attend", [])])
+    block("Ruptures", [f"- {_plain(r['texte'], MAX_TEXT)} ({_plain(r['commit'], 12)})" for r in prop.get("ruptures", [])])
+    block("Notes de version", [f"- {_plain(n, MAX_TEXT)}" for n in prop.get("notes", [])])
+    block("Commandes à lancer par un humain, citées de la procédure de l'équipe",
+          [f"{n}. pour {c['role']} : `{_code(c['commande'])}`" for n, c in enumerate(prop.get("commandes", []), 1)])
+    if not prop.get("commandes"):
+        out += ["Aucune commande proposée." + (" Un prérequis est en échec : on ne livre pas." if result["failed"] else
+                                               " La procédure de l'équipe n'en donne pas, ou n'est pas écrite."), ""]
+    block("Consignes trouvées dans les commits, non suivies", [f"- « {_plain(c['citation'], MAX_TEXT)} »" for c in prop.get("consignes", [])])
+    block("Pas vérifié", [f"- {_plain(n, MAX_TEXT)}" for n in prop.get("non_verifie", [])])
+    out.append("Rien n'a été tagué, poussé ni déployé.")
+    return "\n".join(out) + "\n"
+
+
+def proposal(table: dict[str, Any], repo: str, base: str, since: str | None, checks: Any, prop: Any) -> tuple[dict[str, Any], str]:
+    """La proposition validée contre ce que la commande mesure ; Refused si elle ne tient pas."""
+    from . import context as context_mod
+    result = check(table, repo, base, since, checks)
+    previous = since if since is not None else last_version(repo)[0]
+    blocks = context_mod.assemble(table, repo, "ship", base)["blocks"]
+    procedure = "\n".join(b["text"] for b in blocks if b["point"] == "livraison" and b["origin"] == "equipe")
+    errors = check_proposal(prop, result, procedure, messages(repo, previous), breaking_shas(repo, previous))
+    if errors:
+        raise Refused("proposition refusée :\n- " + "\n- ".join(errors))
+    return {"proposition": prop, "check": result}, render_proposal(prop, result)

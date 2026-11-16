@@ -11,11 +11,13 @@
   ai_sdlc.py qa gate [repo] [--base REF] [--run CMD] [--coverage F] [--ticket F --trace F]   les portes de /qa
   ai_sdlc.py secu gate [repo] [--base REF] [--report SARIF…]   les portes de /secu
   ai_sdlc.py ship check [repo] [--base REF] [--since REF] [--checks relevé.json]   les prérequis d'une livraison
+  ai_sdlc.py ship render <proposition.json> [repo] [--base REF] [--checks relevé.json]   la proposition de livraison, si elle tient
   ai_sdlc.py fixture init <fixture> <dest>         monte une PR piégée de fixtures/review en dépôt git
   ai_sdlc.py fixture grade <revue.json> --expected <expected.json>   note une revue contre son corrigé
   ai_sdlc.py fixture grade-dev <dépôt> --task <dossier du ticket> [--body corps.json]   note un travail de /dev
   ai_sdlc.py fixture grade-ticket <avis.json> --task <dossier> --repo <dépôt> --ticket <copie>   note un avis de /ticket
   ai_sdlc.py fixture grade-secu <revue.json> --fixture <fixture> --repo <dépôt> --out <dossier>   note un travail de /secu
+  ai_sdlc.py fixture grade-ship <dépôt> --task <dossier> --checks <relevé.json> [--proposal proposition.json]   note un travail de /ship
   ai_sdlc.py fixture grade-qa <dépôt> --fixture <fixture> [--trace correspondance.json]   note un travail de /qa
 
 Codes de sortie de `context` : 0 servi, 2 refusé (surcharge invalide, phase ou branche inconnue) : rien
@@ -34,7 +36,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import context, dev, devgrade, points, qa, qagrade, review, secu, secugrade, ship, size, ticket, ticketgrade  # noqa: E402
+from aisdlclib import context, dev, devgrade, points, qa, qagrade, review, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -73,10 +75,13 @@ def build_parser() -> argparse.ArgumentParser:
     sgate.add_argument("--report", nargs="+", metavar="SARIF", default=[],
                        help="les rapports SARIF des scanners de l'équipe, produits sur cette branche")
     shp = sub.add_parser("ship", help="ce que /ship vérifie").add_subparsers(dest="action", required=True)
+    shr = shp.add_parser("render", help="valide la proposition du skill et la rend, prérequis mesurés en tête")
+    shr.add_argument("file", help="la proposition en JSON : attend, ruptures, notes, commandes, non_verifie, consignes")
     shp = shp.add_parser("check", help="les prérequis d'une livraison, une version et des notes proposées")
-    shp.add_argument("--since", metavar="REF", help="la version précédente (défaut : le dernier tag atteignable)")
-    shp.add_argument("--checks", metavar="FICHIER", help="le relevé de la CI du commit, en JSON (gh run list --commit … --json …)")
-    for sp in (ctx, status, render, sized, body, tck, avis, gate, sgate, shp):
+    for sp in (shp, shr):
+        sp.add_argument("--since", metavar="REF", help="la version précédente (défaut : le plus haut tag X.Y.Z fusionné)")
+        sp.add_argument("--checks", metavar="FICHIER", help="le relevé de la CI du commit, en JSON (gh run list --commit … --json …)")
+    for sp in (ctx, status, render, sized, body, tck, avis, gate, sgate, shp, shr):
         sp.add_argument("repo", nargs="?", default=".")
         sp.add_argument("--base", default="origin/HEAD", help="branche de base (défaut : origin/HEAD)")
         sp.add_argument("--format", choices=["md", "json"], default="md")
@@ -105,7 +110,12 @@ def build_parser() -> argparse.ArgumentParser:
     gsec.add_argument("--fixture", required=True, help="le dossier de la fixture (expected.json, pr.json)")
     gsec.add_argument("--repo", required=True, help="le dépôt monté donné à l'agent")
     gsec.add_argument("--out", required=True, help="le dossier où l'agent a écrit ses fichiers : la valeur du secret y est cherchée")
-    for sp in (init, grade, gdev, gtck, gqa, gsec):
+    gshp = fix.add_parser("grade-ship", help="note un travail de /ship : proposition, et rien de parti")
+    gshp.add_argument("repo")
+    gshp.add_argument("--task", required=True, help="le dossier de la tâche dans la fixture (expected.json)")
+    gshp.add_argument("--checks", required=True, help="le relevé de CI donné à l'agent")
+    gshp.add_argument("--proposal", help="la proposition en JSON, telle que le skill l'a écrite")
+    for sp in (init, grade, gdev, gtck, gqa, gsec, gshp):
         sp.add_argument("--format", choices=["md", "json"], default="md")
     return parser
 
@@ -119,6 +129,11 @@ def _fixture(args: argparse.Namespace, table: dict) -> tuple[object, str, int]:
         result = ticketgrade.grade(table, review.load(os.path.join(args.task, "expected.json")), review.load(args.file),
                                    args.task, args.repo, args.ticket)
         return result, devgrade.render_md(result), 0 if result["pass"] else 1
+    if args.action == "grade-ship":
+        fixture_dir = os.path.dirname(os.path.dirname(os.path.abspath(args.task)))
+        result = shipgrade.grade(table, review.load(os.path.join(args.task, "expected.json")), args.repo, fixture_dir,
+                                 args.checks, args.proposal)
+        return result, devgrade.render_md(result), 0 if result["pass"] else 1
     if args.action == "grade-secu":
         result = secugrade.grade(review.load(os.path.join(args.fixture, "expected.json")), review.load(args.file), args.file,
                                  args.repo, args.fixture, args.out)
@@ -127,6 +142,10 @@ def _fixture(args: argparse.Namespace, table: dict) -> tuple[object, str, int]:
         result = qagrade.grade(table, review.load(os.path.join(args.fixture, "expected.json")), args.repo, args.fixture,
                                review.load(args.trace) if args.trace else None)
         return result, devgrade.render_md(result), 0 if result["pass"] else 1
+    if args.action == "init" and os.path.exists(os.path.join(args.fixture, "ship.json")):
+        made = shipgrade.init_ship(args.fixture, args.dest)
+        return made, (f"Dépôt monté dans {made['repo']} : branche {made['branch']}, dépôt distant {made['remote']}, "
+                      f"relevés de CI dans {made['ci']}.\n"), 0
     if args.action == "init":
         made = review.init_fixture(args.fixture, args.dest)
         return made, f"Dépôt monté dans {made['repo']} : base {made['base']}, branche {made['branch']}.\n", 0
@@ -150,8 +169,12 @@ def main(argv: list[str] | None = None) -> int:
                                 review.load(args.trace) if args.trace else None)
             text, code = qa.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)
         elif args.command == "ship":
-            data = ship.check(table, args.repo, args.base, args.since, review.load(args.checks) if args.checks else None)
-            text, code = ship.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)
+            checks = review.load(args.checks) if args.checks else None
+            if args.action == "render":
+                data, text = ship.proposal(table, args.repo, args.base, args.since, checks, review.load(args.file))
+            else:
+                data = ship.check(table, args.repo, args.base, args.since, checks)
+                text, code = ship.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)
         elif args.command == "secu":
             data = secu.run_gates(table, args.repo, args.base, args.report)
             text, code = secu.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)
