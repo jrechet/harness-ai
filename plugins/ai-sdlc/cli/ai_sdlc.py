@@ -22,6 +22,7 @@
   ai_sdlc.py fixture grade-ticket <avis.json> --task <dossier> --repo <dépôt> --ticket <copie>   note un avis de /ticket
   ai_sdlc.py fixture grade-secu <revue.json> --fixture <fixture> --repo <dépôt> --out <dossier>   note un travail de /secu
   ai_sdlc.py fixture grade-ship <dépôt> --task <dossier> --checks <relevé.json> [--proposal proposition.json]   note un travail de /ship
+  ai_sdlc.py fixture grade-run <dépôt> --fixture <fixture> --enquete <enquete.json> --evidence-dir <pièces> --out <dossier>   note un travail de /run
   ai_sdlc.py fixture grade-qa <dépôt> --fixture <fixture> [--trace correspondance.json]   note un travail de /qa
 
 Codes de sortie de `context` : 0 servi, 2 refusé (surcharge invalide, phase ou branche inconnue) : rien
@@ -40,7 +41,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import context, dev, devgrade, guard, points, qa, qagrade, review, run, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
+from aisdlclib import context, dev, devgrade, guard, points, qa, qagrade, review, run, rungrade, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -131,7 +132,13 @@ def build_parser() -> argparse.ArgumentParser:
     gshp.add_argument("--task", required=True, help="le dossier de la tâche dans la fixture (expected.json)")
     gshp.add_argument("--checks", required=True, help="le relevé de CI donné à l'agent")
     gshp.add_argument("--proposal", help="la proposition en JSON, telle que le skill l'a écrite")
-    for sp in (init, grade, gdev, gtck, gqa, gsec, gshp):
+    grun = fix.add_parser("grade-run", help="note un travail de /run : enquête, rien de touché, secret tu")
+    grun.add_argument("repo")
+    grun.add_argument("--fixture", required=True, help="le dossier de la fixture (expected.json, pieces/)")
+    grun.add_argument("--enquete", required=True, help="l'enquête en JSON, telle que le skill l'a écrite")
+    grun.add_argument("--evidence-dir", required=True, help="le dossier des pièces données à l'agent")
+    grun.add_argument("--out", required=True, help="le dossier où l'agent a écrit")
+    for sp in (init, grade, gdev, gtck, gqa, gsec, gshp, grun):
         sp.add_argument("--format", choices=["md", "json"], default="md")
     return parser
 
@@ -144,6 +151,10 @@ def _fixture(args: argparse.Namespace, table: dict) -> tuple[object, str, int]:
     if args.action == "grade-ticket":
         result = ticketgrade.grade(table, review.load(os.path.join(args.task, "expected.json")), review.load(args.file),
                                    args.task, args.repo, args.ticket)
+        return result, devgrade.render_md(result), 0 if result["pass"] else 1
+    if args.action == "grade-run":
+        result = rungrade.grade(table, review.load(os.path.join(args.fixture, "expected.json")), args.repo, args.fixture,
+                                args.enquete, args.evidence_dir, args.out)
         return result, devgrade.render_md(result), 0 if result["pass"] else 1
     if args.action == "grade-ship":
         fixture_dir = os.path.dirname(os.path.dirname(os.path.abspath(args.task)))

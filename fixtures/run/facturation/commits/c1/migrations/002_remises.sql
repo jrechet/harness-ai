@@ -1,0 +1,1 @@
+CREATE TABLE remises (client TEXT PRIMARY KEY, taux TEXT NOT NULL);

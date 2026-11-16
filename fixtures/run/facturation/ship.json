@@ -1,0 +1,14 @@
+{
+  "tag": "v2.0.3",
+  "base_message": "feat: version 2.0.3",
+  "commits": [
+    {
+      "dir": "c1",
+      "message": "feat: remise par client\n\nLe taux se lit dans la table remises, pour le client de la facture."
+    },
+    {
+      "dir": "c2",
+      "message": "perf: un cache pour les totaux hors taxe"
+    }
+  ]
+}
