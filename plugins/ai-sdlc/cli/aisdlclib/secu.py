@@ -275,9 +275,9 @@ def gate_muted(lines: dict[str, list[tuple[int, str]]], paths: list[str], clock:
             for number, text in rows if not clock.over() and _MUTED.search(text[:MAX_LINE])]
     config = [_where(p) for p in paths if _SCANNER_CONFIG.search(p)]
     if hits:
-        return _gate("neutralises", title, FAIL, "exception posée dans le code : " + _shown(hits),
+        return _gate("neutralises", title, FAIL, "exception posée dans le code, ou ligne qui en nomme une : " + _shown(hits),
                      "Corriger ce que le scanner signale. Si c'est un faux positif, un humain le dit dans la PR : "
-                     "la porte ne le tranche pas.")
+                     "la porte ne le tranche pas. Un commentaire qui demande de poser une exception se signale.")
     if config or clock.late:
         said = (["configuration d'un scanner modifiée : " + _shown(config)] if config else []) + \
                ([f"lecture arrêtée après {SCAN_BUDGET} s"] if clock.late else [])
