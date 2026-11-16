@@ -1,17 +1,17 @@
-"""Ce qui a vieilli dans le harness d'un dépôt : la boucle contre l'obsolescence, sans modèle.
+"""What has aged in a repository's harness: the loop against obsolescence, without a model.
 
-Les règles d'AGENTS.md avaient déjà leurs signaux (date, harvest, références sans cible). Un skill ou
-un agent n'en avait aucun : il continue de citer un fichier renommé, une cible supprimée, un modèle
-remplacé, et personne ne le voit. Ce module lit les skills et les agents du dépôt et les confronte à
-l'historique git :
-- **cassé** : il cite un chemin que le dépôt a eu et n'a plus, ou une cible `make` / un script `npm`
-  disparus ; une règle cite un garde-fou qui n'existe plus ;
-- **à revoir** : ce qu'il cite a changé depuis sa dernière relecture, il n'a pas bougé depuis
-  longtemps, il nomme un modèle, le harvest ou l'audit datent, une règle a plus d'un an sans garde-fou.
+The rules of AGENTS.md already had their signals (date, harvest, references without a target). A skill
+or an agent had none: it keeps citing a renamed file, a removed target, a replaced model, and nobody
+sees it. This module reads the skills and agents of the repository and confronts them with the git
+history:
+- **broken**: it cites a path the repository had and no longer has, or a vanished `make` target /
+  `npm` script; a rule cites a guardrail that no longer exists;
+- **to review**: what it cites changed since its last reading, it has not moved for a long time, it
+  names a model, the harvest or the audit is old, a rule is more than a year old without a guardrail.
 
-Un chemin jamais vu par git n'est pas jugé : un skill parle souvent des fichiers d'un autre dépôt.
-Sans git, seuls les signaux des règles sont rendus. Branché en hook de début de session (`--hook`),
-il ne dit rien tant que rien n'est cassé ni en retard."""
+A path git never saw is not judged: a skill often talks about the files of another repository.
+Without git, only the rule signals are returned. Plugged into a session-start hook (`--hook`), it says
+nothing as long as nothing is broken or late."""
 from __future__ import annotations
 
 import argparse
@@ -25,12 +25,12 @@ from typing import Any
 
 from . import facts, maturity, rules
 
-LAG_DAYS = 30          # ce qu'un skill cite a changé depuis plus longtemps que ça sans qu'il soit relu
-IDLE_DAYS = 180        # un skill ou un agent que personne n'a touché depuis
-AUDIT_DAYS = 180       # un audit plus vieux ne décrit plus le dépôt
-MAX_PROBES = 20        # au plus tant de recherches dans l'historique d'un Makefile ou d'un manifeste
-RULE_DAYS = 365        # une règle sans garde-fou de plus d'un an repasse en revue de pertinence
-STATES = ("cassé", "à revoir")
+LAG_DAYS = 30          # what a skill cites changed longer ago than this without the skill being reread
+IDLE_DAYS = 180        # a skill or an agent nobody touched since
+AUDIT_DAYS = 180       # an older audit no longer describes the repository
+MAX_PROBES = 20        # at most this many searches in the history of a Makefile or a manifest
+RULE_DAYS = 365        # a rule without a guardrail older than a year goes back to the relevance review
+STATES = ("broken", "to review")
 _CODE = re.compile(r"```.*?```|`[^`\n]+`", re.DOTALL)
 _SKIP_TOKEN = re.compile(r"[<>*${}|=…]|^-|^~|://|^@")
 _MODEL = re.compile(r"\bclaude-(?:\d|opus|sonnet|haiku|fable|instant)[\w.-]*|\b(?:opus|sonnet|haiku)[ -]?\d(?:\.\d)?\b"
@@ -50,14 +50,14 @@ def _git(repo: str, *args: str, stdin: bytes | None = None) -> str | None:
 
 
 def is_repo(repo: str) -> bool:
-    """Un dépôt git qui a au moins un commit : sans historique, rien ne se confronte."""
+    """A git repository with at least one commit: without history, nothing can be confronted."""
     return bool((_git(repo, "rev-parse", "--verify", "--quiet", "HEAD") or "").strip())
 
 
 def last_dates(repo: str, paths: list[str], deleted_only: bool = False) -> dict[str, str]:
-    """La date du dernier commit qui touche chacun de ces chemins (ou qui les supprime, avec
-    `deleted_only`). Un seul appel, borné aux chemins demandés : le coût suit le nombre de citations,
-    pas la taille de l'historique lu en entier."""
+    """The date of the last commit that touches each of these paths (or deletes them, with
+    `deleted_only`). A single call, limited to the requested paths: the cost follows the number of
+    citations, not the size of the whole history."""
     found: dict[str, str] = {}
     for start in range(0, len(paths), 400):
         args = ["--literal-pathspecs", "log", "--no-renames", "-z", "--name-only", "--relative", "--format=%x01%cs%x01"]
@@ -72,7 +72,7 @@ def last_dates(repo: str, paths: list[str], deleted_only: bool = False) -> dict[
 
 
 def ignored(repo: str, paths: list[str]) -> set[str]:
-    """Ceux de ces chemins que .gitignore écarte : un fichier produit localement n'est pas un fichier disparu."""
+    """Those of these paths that .gitignore excludes: a locally produced file is not a vanished file."""
     if not paths:
         return set()
     out = _git(repo, "check-ignore", "-z", "--stdin", stdin="\0".join(paths).encode("utf-8")) or ""
@@ -80,7 +80,7 @@ def ignored(repo: str, paths: list[str]) -> set[str]:
 
 
 def tools(repo: str) -> list[dict[str, str]]:
-    """Les skills et les agents du dépôt, hors données de test et hors copies du dépôt (worktrees, sous-dépôts)."""
+    """The skills and agents of the repository, outside test data and copies of the repository (worktrees, sub-repositories)."""
     found = []
     for root, dirs, names in os.walk(repo):
         dirs[:] = sorted(d for d in dirs if d not in facts.SKIP_DIRS and d != "worktrees"
@@ -106,8 +106,8 @@ def _read(repo: str, rel: str) -> str:
 
 
 def cited_paths(text: str) -> list[str]:
-    """Ce qui, dans le code d'un texte ou la cible d'un lien, a la forme d'un chemin relatif : au moins
-    un `/`, pas de variable."""
+    """What, in the code of a text or the target of a link, has the shape of a relative path: at least
+    one `/`, no variable."""
     seen: list[str] = []
     spans = [span.strip("`") for span in _CODE.findall(text)] + re.findall(r"\]\(([^)\s#]+)", text)
     for span in spans:
@@ -119,7 +119,7 @@ def cited_paths(text: str) -> list[str]:
 
 
 def _bases(rel: str) -> list[str]:
-    """D'où un chemin cité peut partir : la racine, le dossier de l'outil, la racine de son plugin."""
+    """Where a cited path can start from: the root, the tool's folder, the root of its plugin."""
     folder = os.path.dirname(rel)
     plugin = os.path.dirname(os.path.dirname(folder)) if os.path.basename(rel) == "SKILL.md" else os.path.dirname(folder)
     out = []
@@ -141,8 +141,8 @@ def _days(day: str | None, today: date) -> int | None:
 
 
 def _gone_targets(repo: str, code: str, cache: dict[str, bool]) -> list[str]:
-    """Les cibles `make` et scripts `npm run` cités que le dépôt a eus et n'a plus. Jugés seulement
-    quand ils se lisent sans ambiguïté : Makefile racine sans `include`, commande sans `-C`."""
+    """The cited `make` targets and `npm run` scripts that the repository had and no longer has. Judged
+    only when they read unambiguously: root Makefile without `include`, command without `-C`."""
     gone = []
     makefile = _read(repo, "Makefile") if os.path.isfile(os.path.join(repo, "Makefile")) else None
     if makefile is not None and not re.search(r"^-?include\b", makefile, re.MULTILINE):
@@ -168,7 +168,7 @@ def _gone_targets(repo: str, code: str, cache: dict[str, bool]) -> list[str]:
 
 
 def collect(repo: str, today: date | None = None, fast: bool = False) -> dict[str, Any]:
-    """`fast` (le hook) saute ce qui coûte un appel git par règle ou par cible."""
+    """`fast` (the hook) skips what costs one git call per rule or per target."""
     today = today or date.today()
     repo = os.path.abspath(repo)
     has_git = is_repo(repo)
@@ -192,7 +192,7 @@ def collect(repo: str, today: date | None = None, fast: bool = False) -> dict[st
     if has_git:
         wanted = sorted({c for _, _, _, missing in plans for cs in missing.values() for c in cs})
         gone = last_dates(repo, wanted, deleted_only=True)
-        # suivi par git mais absent du disque : supprimé sans que ce soit encore commité
+        # tracked by git but absent from disk: deleted, not committed yet
         tracked = _git(repo, "--literal-pathspecs", "ls-files", "-z", "--", *wanted[:400]) or ""
         gone.update({p: "" for p in tracked.split("\0") if p and not os.path.exists(os.path.join(repo, p))})
         skipped = ignored(repo, wanted)
@@ -207,29 +207,29 @@ def collect(repo: str, today: date | None = None, fast: bool = False) -> dict[st
 
         models = sorted({m.group(0) for m in _MODEL.finditer(text)})
         if models:
-            add("à revoir", "modele", "Il nomme un modèle", ", ".join(models[:4]),
-                "Retirer le nom du modèle, ou le relire à chaque changement de modèle : la consigne a pu devenir inutile.")
+            add("to review", "model", "It names a model", ", ".join(models[:4]),
+                "Remove the model name, or reread it at every model change: the instruction may have become useless.")
         if not has_git:
             continue
         dead = [token for token, candidates in missing.items()
                 if any(c not in skipped and (c in gone or any(g.startswith(c.rstrip("/") + "/") for g in gone)) for c in candidates)]
         if dead:
-            add("cassé", "reference", "Il cite ce que le dépôt a eu et n'a plus", ", ".join(dead[:5]),
-                "Corriger la référence (le fichier a été renommé ou supprimé), ou retirer l'étape qui en dépend.")
+            add("broken", "reference", "It cites what the repository had and no longer has", ", ".join(dead[:5]),
+                "Fix the reference (the file was renamed or deleted), or remove the step that depends on it.")
         targets = [] if fast else _gone_targets(repo, "\n".join(_CODE.findall(text)), probes)
         if targets:
-            add("à revoir", "cible", "Il cite une cible ou un script que le dépôt a eu et n'a plus", ", ".join(targets[:5]),
-                "Vérifier s'il parle de ce dépôt : si oui, corriger la commande.")
+            add("to review", "target", "It cites a target or a script the repository had and no longer has", ", ".join(targets[:5]),
+                "Check whether it talks about this repository: if so, fix the command.")
         mine = dates.get(tool["path"])
         moved = [f"{a} ({dates[a]})" for a in dict.fromkeys(alive) if a in dates and mine and dates[a] > mine
                  and (_days(mine, today) or 0) - (_days(dates[a], today) or 0) > LAG_DAYS]
         if moved:
-            add("à revoir", "change", f"Ce qu'il cite a changé depuis sa dernière relecture ({mine})", ", ".join(moved[:4]),
-                "Relire l'outil à côté de ces fichiers : une étape décrit peut-être un comportement qui n'existe plus.")
+            add("to review", "change", f"What it cites changed since its last reading ({mine})", ", ".join(moved[:4]),
+                "Reread the tool next to these files: a step may describe a behaviour that no longer exists.")
         idle = _days(mine, today)
         if idle is not None and idle > IDLE_DAYS:
-            add("à revoir", "immobile", f"Personne n'y a touché depuis {idle} jours", mine or "",
-                "Le rejouer sur un cas réel ou une fixture : s'il sert encore tel quel, noter la date de la vérification.")
+            add("to review", "idle", f"Nobody touched it for {idle} days", mine or "",
+                "Replay it on a real case or a fixture: if it still serves as is, note the date of the check.")
 
     def note(state: str, signal: str, path: str, what: str, evidence: str, action: str) -> None:
         items.append({"state": state, "signal": signal, "kind": "instructions", "path": path, "what": what,
@@ -239,21 +239,21 @@ def collect(repo: str, today: date | None = None, fast: bool = False) -> dict[st
     state = maturity.evaluate(collected)
     source = collected["instructions"]["source"].get("path") or "AGENTS.md"
     for ref in state["dangling"]:
-        note("cassé", "garde-fou", f"{source}:{ref.get('line')}", "Une règle cite un garde-fou ou un contrat qui n'existe pas",
-             str(ref.get("ref")), "Réparer la référence, ou marquer la règle (non vérifiée) : elle ne l'est plus.")
+        note("broken", "guardrail", f"{source}:{ref.get('line')}", "A rule cites a guardrail or a contract that does not exist",
+             str(ref.get("ref")), "Repair the reference, or mark the rule (unverified): it no longer is.")
     age = collected.get("harvest_marker_age_days")
     if isinstance(age, int) and age > maturity.MAX_MARKER_AGE_DAYS:
-        note("à revoir", "harvest", source, f"Le dernier harvest a {age} jours", f"seuil : {maturity.MAX_MARKER_AGE_DAYS} jours",
-             "Lancer harness-harvest : les incidents récents ne sont pas encore devenus des règles.")
+        note("to review", "harvest", source, f"The last harvest is {age} days old", f"threshold: {maturity.MAX_MARKER_AGE_DAYS} days",
+             "Run harness-harvest: recent incidents have not become rules yet.")
     audit_age = _days((collected.get("audit") or {}).get("date"), today)
     if audit_age is not None and audit_age > AUDIT_DAYS:
-        note("à revoir", "audit", ".harness/audit.json", f"Le dernier audit a {audit_age} jours", f"seuil : {AUDIT_DAYS} jours",
-             "Relancer harness-audit, au moins sa revue de pertinence.")
+        note("to review", "audit", ".harness/audit.json", f"The last audit is {audit_age} days old", f"threshold: {AUDIT_DAYS} days",
+             "Run harness-audit again, at least its relevance review.")
     old = [r for r in rules.collect(repo, today, blame=not fast) if (r["age_days"] or 0) > RULE_DAYS and not r["guarded"]]
     if old:
-        note("à revoir", "regles", old[0]["file"], f"{len(old)} règle(s) de plus d'un an sans garde-fou",
+        note("to review", "rules", old[0]["file"], f"{len(old)} rule(s) more than a year old without a guardrail",
              ", ".join(f"{r['file']}:{r['line']}" for r in old[:4]),
-             "Les passer à la revue de pertinence de harness-audit : changent-elles encore ce que fait l'agent ?")
+             "Put them through the relevance review of harness-audit: do they still change what the agent does?")
     order = {s: n for n, s in enumerate(STATES)}
     items.sort(key=lambda i: (order[i["state"]], i["path"], i["signal"]))
     return {"date": today.isoformat(), "git": has_git, "tools": len(found),
@@ -262,41 +262,41 @@ def collect(repo: str, today: date | None = None, fast: bool = False) -> dict[st
 
 def render_md(result: dict[str, Any]) -> str:
     counts = result["counts"]
-    out = [f"Fraîcheur du harness au {result['date']} : {counts['cassé']} cassé(s), {counts['à revoir']} à revoir, "
-           f"sur {result['tools']} skill(s) et agent(s) et les instructions."]
+    out = [f"Harness freshness on {result['date']}: {counts['broken']} broken, {counts['to review']} to review, "
+           f"over {result['tools']} skill(s) and agent(s) and the instructions."]
     if not result["git"]:
-        out.append("Pas de dépôt git, ou pas encore de commit : les skills et les agents ne sont pas confrontés à l'historique.")
+        out.append("No git repository, or no commit yet: the skills and agents are not confronted with the history.")
     for item in result["items"]:
         out += [f"- **{item['state']}** — `{item['path']}` : {item['what']}" + (f" ({item['evidence']})" if item["evidence"] else "") + ".",
                 f"  {item['action']}"]
     if not result["items"]:
-        out.append("Rien n'a vieilli d'après ce qui se mesure. Ce qui ne se mesure pas : une consigne juste hier, inutile aujourd'hui.")
+        out.append("Nothing has aged according to what is measured. What is not measured: an instruction right yesterday, useless today.")
     return "\n".join(out) + "\n"
 
 
-LABELS = {"reference": "skill(s) ou agent(s) citent un fichier que le dépôt n'a plus",
-          "garde-fou": "règle(s) citent un garde-fou introuvable",
-          "harvest": "harvest en retard", "audit": "audit trop ancien"}
+LABELS = {"reference": "skill(s) or agent(s) cite a file the repository no longer has",
+          "guardrail": "rule(s) cite a guardrail that cannot be found",
+          "harvest": "harvest late", "audit": "audit too old"}
 
 
 def render_hook(result: dict[str, Any]) -> str:
-    """Deux lignes au plus, et rien du tout si rien n'est cassé ni en retard : un rappel qui parle à
-    chaque session n'est plus lu. Des comptes seulement : aucun texte du dépôt n'entre ainsi dans le
-    contexte de la session, un nom de fichier pourrait y porter une consigne."""
+    """Two lines at most, and nothing at all if nothing is broken or late: a reminder that speaks at
+    every session is no longer read. Counts only: no text from the repository enters the session's
+    context this way, a file name could carry an instruction."""
     counts = {signal: sum(i["signal"] == signal for i in result["items"]) for signal in LABELS}
-    said = [f"{n} {LABELS[signal]}" if signal in ("reference", "garde-fou") else LABELS[signal]
+    said = [f"{n} {LABELS[signal]}" if signal in ("reference", "guardrail") else LABELS[signal]
             for signal, n in counts.items() if n]
     if not said:
         return ""
-    return f"harness fresh : {' ; '.join(said)}.\nDétail et marche à suivre : python3 cli/harness.py fresh\n"
+    return f"harness fresh: {'; '.join(said)}.\nDetails and what to do: python3 cli/harness.py fresh\n"
 
 
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("repo", nargs="?", default=".")
     p.add_argument("--format", choices=["md", "json"], default="md")
-    p.add_argument("--hook", action="store_true", help="sortie courte pour un hook de début de session, vide si rien ne presse")
-    p.add_argument("--strict", action="store_true", help="sort en 1 si quelque chose est cassé (pour un job planifié)")
+    p.add_argument("--hook", action="store_true", help="short output for a session-start hook, empty if nothing is urgent")
+    p.add_argument("--strict", action="store_true", help="exits with 1 if something is broken (for a scheduled job)")
     p.add_argument("--today", help=argparse.SUPPRESS)
     return p
 
@@ -306,23 +306,23 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
     try:
         today = date.fromisoformat(args.today) if args.today else None
     except ValueError:
-        print(f"harness fresh : --today {args.today!r} n'est pas une date AAAA-MM-JJ", file=sys.stderr)
+        print(f"harness fresh: --today {args.today!r} is not a YYYY-MM-DD date", file=sys.stderr)
         return 2
     if not os.path.isdir(args.repo):
-        print(f"harness fresh : {args.repo} n'est pas un dossier", file=sys.stderr)
+        print(f"harness fresh: {args.repo} is not a directory", file=sys.stderr)
         return 0 if args.hook else 2
     if args.hook:
-        try:  # un hook de début de session ne doit jamais empêcher de travailler, ni sortir autre chose que 0
+        try:  # a session-start hook must never prevent work, nor exit with anything but 0
             text = render_hook(collect(args.repo, today, fast=True))
-            raw = getattr(sys.stdout, "buffer", None)   # en octets : une console ASCII ne fait pas échouer le hook
+            raw = getattr(sys.stdout, "buffer", None)   # as bytes: an ASCII console does not make the hook fail
             if raw is None:
                 sys.stdout.write(text)
             else:
                 raw.write(text.encode("utf-8", "replace"))
                 raw.flush()
         except Exception as exc:
-            print(f"harness fresh : mesure impossible ({type(exc).__name__})", file=sys.stderr)
+            print(f"harness fresh: measurement impossible ({type(exc).__name__})", file=sys.stderr)
         return 0
     result = collect(args.repo, today)
     sys.stdout.write(json.dumps(result, ensure_ascii=False, indent=2) + "\n" if args.format == "json" else render_md(result))
-    return 1 if args.strict and result["counts"]["cassé"] else 0
+    return 1 if args.strict and result["counts"]["broken"] else 0

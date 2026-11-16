@@ -1,10 +1,13 @@
-"""Collecte des faits mesurables d'un dépôt : fichiers d'instructions, règles,
-boucle de retour, contrats, garde-fous, et les derniers JSON d'audit et de
-harvest. Aucun jugement ici : des nombres, des booléens, des chemins.
+"""Collects the measurable facts of a repository: instruction files, rules,
+feedback loop, contracts, guardrails, and the latest audit and harvest JSON.
+No judgement here: numbers, booleans, paths.
 
-Convention : les sorties des skills vivent dans `<repo>/.harness/` —
-`audit.json` (bloc machine de harness-audit), `harvest.json` (évidences de
-harness-harvest), `state.json` (écrit par `harness status`)."""
+Convention: the skills' outputs live in `<repo>/.harness/`:
+`audit.json` (machine block of harness-audit), `harvest.json` (evidence from
+harness-harvest), `state.json` (written by `harness status`).
+
+The instruction files are written by a team, in French or in English: every
+heading and marker below is read in both languages."""
 from __future__ import annotations
 
 import json
@@ -20,7 +23,7 @@ CURSOR_RULES_DIR = ".cursor/rules"
 CONTRACT_DIRS = [".claude/skills", ".agents/skills"]
 WORKFLOW_DIR = ".github/workflows"
 
-# Fichiers dont la présence signale un garde-fou L3 (lint, archi, hooks, formats).
+# Files whose presence signals an L3 guardrail (lint, architecture, hooks, formats).
 GUARDRAIL_MARKERS = {
     "eslint": [".eslintrc", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json", "eslint.config.js", "eslint.config.mjs"],
     "stylelint": [".stylelintrc", ".stylelintrc.json", "stylelint.config.js"],
@@ -35,7 +38,7 @@ GUARDRAIL_MARKERS = {
     "pr-template": [".github/pull_request_template.md", ".github/PULL_REQUEST_TEMPLATE.md"],
     "codeowners": [".github/CODEOWNERS", "CODEOWNERS"],
 }
-GUARDRAIL_CONTENT_HINTS = {          # motifs cherchés dans les fichiers de build
+GUARDRAIL_CONTENT_HINTS = {          # patterns looked for in the build files
     "archunit": r"archunit",
     "spotless": r"spotless",
     "checkstyle": r"checkstyle",
@@ -43,22 +46,27 @@ GUARDRAIL_CONTENT_HINTS = {          # motifs cherchés dans les fichiers de bui
 }
 BUILD_FILES = ["build.gradle", "build.gradle.kts", "pom.xml", "package.json", "pyproject.toml"]
 
+# "Mode : délégation | assistance" (French) or "Mode: delegation | assistance".
 MODE_RE = re.compile(r"^\s*(?:[-*]\s*)?Mode\s*:\s*\**\s*(d[ée]l[ée]gation|assistance)\b", re.I | re.M)
 MARKER_RE = re.compile(r"<!--\s*harvest:\s*last=(\d{4}-\d{2}-\d{2})(?:\s+ref=(\S+))?\s*-->")
 GUARDED_RE = re.compile(r"v[ée]rifi[ée]e?\s+par\s*:|guarded\s+by\s*:|enforced\s+by\s*:", re.I)
 UNGUARDED_RE = re.compile(r"\(non\s+v[ée]rifi[ée]e?\)|\(unverified\)", re.I)
 WHY_RE = re.compile(r"pourquoi\s*:|why\s*:|incident|issue\s*#?\d+|#\d+|https?://", re.I)
-# « Git Workflow » d'un fichier généré n'est pas un processus de travail : « workflow » seul, ou qualifié.
+# The "Git Workflow" of a generated file is not a working process: "workflow" alone, or qualified.
 PROCESS_HEADING_RE = re.compile(r"processus de travail|working process|working agreements?|^(?:agent |working )?workflow$", re.I)
-# Date d'une règle : `[2026-11]` ou `[2026-11-10]` en fin de puce. Sans elle, « sans incident depuis
-# six mois » ne se calcule pas et rien ne dit pour quelle génération de modèles la règle fut écrite.
+# Date of a rule: `[2026-11]` or `[2026-11-10]` at the end of the bullet. Without it, "no incident for
+# six months" cannot be computed and nothing says for which generation of models the rule was written.
 RULE_DATE_RE = re.compile(r"\[(\d{4}-\d{2}(?:-\d{2})?)\]")
 DELEGATED_HEADING_RE = re.compile(r"t[âa]ches d[ée]l[ée]gu[ée]es|delegated tasks", re.I)
-# Les données de test portent parfois des fichiers d'instructions factices : ce ne sont pas ceux du dépôt.
+# Test data sometimes carries fake instruction files: they are not the repository's own.
 SKIP_DIRS = {".git", "node_modules", "vendor", "dist", "build", ".harness", "runs", "__pycache__", ".venv",
              "fixtures", "testdata"}
 INSTRUCTION_NAMES = {"AGENTS.md", "CLAUDE.md", "SKILL.md", "copilot-instructions.md"}
 RULE_CONVENTION_RE = re.compile(r"`rule:`|\brule:\s", re.I)
+# "Maintenance de ce fichier", "Maintenance", "Maintaining this file".
+MAINTENANCE_HEADING_RE = re.compile(r"maintenance|maintaining", re.I)
+# "Interdits", "Forbidden", "Never do".
+FORBIDDEN_HEADING_RE = re.compile(r"interdits?|never do|forbidden", re.I)
 
 
 def _read(path: str) -> str | None:
@@ -74,7 +82,7 @@ def _exists(repo: str, rel: str) -> bool:
 
 
 def resolve_includes(repo: str, text: str, depth: int = 0) -> str:
-    """Remplace les lignes `@chemin` (inclusion Claude Code) par le fichier visé."""
+    """Replaces the `@path` lines (Claude Code include) with the file they point to."""
     if depth > 3:
         return text
     out = []
@@ -112,7 +120,7 @@ def instruction_facts(repo: str) -> dict[str, Any]:
     files[CURSOR_RULES_DIR] = {"exists": os.path.isdir(cursor),
                                "files": sorted(os.listdir(cursor)) if os.path.isdir(cursor) else []}
 
-    # Le fichier « source » : AGENTS.md, sinon CLAUDE.md s'il n'est pas un stub.
+    # The "source" file: AGENTS.md, otherwise CLAUDE.md if it is not a stub.
     source_rel = None
     if files["AGENTS.md"]["exists"]:
         source_rel = "AGENTS.md"
@@ -134,9 +142,9 @@ def instruction_facts(repo: str) -> dict[str, Any]:
             "rules_justified": sum(1 for r in rules if WHY_RE.search(r)),
             "rules_dated": sum(1 for r in rules if rule_date(r)),
             "oldest_rule_date": min((d for d in map(rule_date, rules) if d), default=None),
-            "has_maintenance_section": any(re.search(r"maintenance", h, re.I) for h in headings),
+            "has_maintenance_section": any(MAINTENANCE_HEADING_RE.search(h) for h in headings),
             "has_process_section": any(PROCESS_HEADING_RE.search(h) for h in headings),
-            "has_forbidden_section": any(re.search(r"interdits?|never do|forbidden", h, re.I) for h in headings),
+            "has_forbidden_section": any(FORBIDDEN_HEADING_RE.search(h) for h in headings),
             "mentions_rule_convention": bool(RULE_CONVENTION_RE.search(text)),
             "harvest_marker": {"date": marker.group(1), "ref": marker.group(2)} if marker else None,
         })
@@ -144,14 +152,14 @@ def instruction_facts(repo: str) -> dict[str, Any]:
 
 
 def rule_date(rule: str) -> str | None:
-    """La date portée par une règle (`[AAAA-MM]` ou `[AAAA-MM-JJ]`), la dernière si plusieurs."""
+    """The date carried by a rule (`[YYYY-MM]` or `[YYYY-MM-DD]`), the last one if several."""
     found = RULE_DATE_RE.findall(rule)
     return found[-1] if found else None
 
 
 def instruction_corpus(repo: str, names: set[str] | None = None, resolve: bool = True) -> dict[str, str]:
-    """Le texte d'instructions d'un dépôt, par chemin relatif : AGENTS.md et CLAUDE.md à tout niveau,
-    contrats (SKILL.md), stub Copilot, règles Cursor ; `@inclusions` résolues sauf `resolve=False`."""
+    """The instruction text of a repository, by relative path: AGENTS.md and CLAUDE.md at any level,
+    contracts (SKILL.md), Copilot stub, Cursor rules; `@includes` resolved unless `resolve=False`."""
     names = names or INSTRUCTION_NAMES
     corpus: dict[str, str] = {}
     for root, dirs, files in os.walk(repo):
@@ -168,7 +176,7 @@ def instruction_corpus(repo: str, names: set[str] | None = None, resolve: bool =
 
 
 def config_facts(hdir: str) -> dict[str, Any]:
-    """`.harness/config.json` : ce que le propriétaire a décidé, à commencer par le palier visé."""
+    """`.harness/config.json`: what the owner decided, starting with the target level."""
     config = load_json(os.path.join(hdir, "config.json")) or {}
     target = config.get("target_level")
     return {"target_level": target if isinstance(target, int) and 1 <= target <= 4 else None}
@@ -187,7 +195,7 @@ def _repo_files(repo: str, limit: int = 20000) -> list[str]:
 
 
 def workflow_jobs(repo: str) -> set[str] | None:
-    """Les identifiants de jobs des workflows GitHub du dépôt ; None s'il n'y a pas de workflow."""
+    """The job ids of the repository's GitHub workflows; None if there is no workflow."""
     wf_dir = os.path.join(repo, WORKFLOW_DIR)
     files = sorted(f for f in os.listdir(wf_dir) if f.endswith((".yml", ".yaml"))) if os.path.isdir(wf_dir) else []
     if not files:
@@ -211,11 +219,11 @@ def workflow_jobs(repo: str) -> set[str] | None:
 
 
 def dangling_facts(repo: str, source_text: str | None) -> list[dict[str, Any]]:
-    """Références du fichier source qui ne mènent nulle part : un contrat cité sous « Tâches
-    déléguées » sans SKILL.md, un chemin cité après « Vérifiée par » qui n'existe pas, un job de CI
-    cité qu'aucun workflow ne définit (le garde-fou a disparu, la phrase est restée). Un nom de règle
-    de linter (`eslint/no-raw-fetch`) n'est pas un chemin : on ne juge qu'un jeton avec une extension,
-    ou un chemin dont le premier segment existe à la racine."""
+    """References of the source file that lead nowhere: a contract cited under "Delegated tasks"
+    ("Tâches déléguées") without a SKILL.md, a path cited after "Enforced by" ("Vérifiée par") that
+    does not exist, a CI job cited that no workflow defines (the guardrail is gone, the sentence stayed).
+    A linter rule name (`eslint/no-raw-fetch`) is not a path: only a token with an extension, or a path
+    whose first segment exists at the root, is judged."""
     if not source_text:
         return []
     dangling: list[dict[str, Any]] = []
@@ -251,7 +259,7 @@ def dangling_facts(repo: str, source_text: str | None) -> list[dict[str, Any]]:
 
 
 def cited_path_exists(repo: str, token: str, files: list[str] | None = None) -> bool:
-    """Un chemin cité existe s'il est là tel quel, ou si un fichier du dépôt porte ce nom ou ce suffixe."""
+    """A cited path exists if it is there as is, or if a file of the repository has this name or this suffix."""
     if _exists(repo, token):
         return True
     files = _repo_files(repo) if files is None else files

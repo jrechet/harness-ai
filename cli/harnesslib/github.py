@@ -563,7 +563,7 @@ class Harvester:
         }
 
 
-NON_RULE_HEADINGS = re.compile(r"^#{1,6}\s+(maintenance|t[âa]ches|tasks|ce que fait|what this|installation|commandes|commands|processus|working process|workflow)", re.I)
+NON_RULE_HEADINGS = re.compile(r"^#{1,6}\s+(maintenance|maintaining|t[âa]ches|tasks|delegated tasks|ce que fait|what this|installation|commandes|commands|processus|working process|workflow)", re.I)
 
 
 def iter_rules(agents_md: str) -> list[tuple[int, str]]:

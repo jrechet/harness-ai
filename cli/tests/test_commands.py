@@ -1,5 +1,5 @@
-"""Tests de `harness commands` : ce que la CI lance vraiment, là où ça s'écarte de la commande que
-l'écosystème laisse deviner. Ce sont des lignes candidates pour AGENTS.md, pas des lignes écrites."""
+"""Tests of `harness commands`: what the CI really runs, where it departs from the command the
+ecosystem suggests. These are candidate lines for AGENTS.md, not written lines."""
 from __future__ import annotations
 
 import contextlib
@@ -21,14 +21,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Dépendances
+      - name: Dependencies
         run: mvn -B -q dependency:go-offline
       - run: mvn -B verify
-      - name: Intégration
+      - name: Integration
         run: |
           docker compose up -d db
           make it
-      - run: SPRING_PROFILES_ACTIVE=ci ./mvnw -Pintegration verify -DskipITs=false && echo fini
+      - run: SPRING_PROFILES_ACTIVE=ci ./mvnw -Pintegration verify -DskipITs=false && echo done
 """
 
 
@@ -70,7 +70,7 @@ class CandidateTests(RepoCase):
         self.write("pom.xml", "<project/>")
         self.write(".github/workflows/ci.yml", CI)
         found = self.by_command()
-        self.assertEqual(found["make it"]["kind"], "enveloppe")
+        self.assertEqual(found["make it"]["kind"], "wrapper")
         self.assertEqual(found["make it"]["source"], ".github/workflows/ci.yml:14")
         self.assertIn("mvn verify", found["make it"]["obvious"])
         self.assertFalse(found["make it"]["documented"])
@@ -106,7 +106,7 @@ class CandidateTests(RepoCase):
         self.write("Makefile", ".PHONY: it lint\nVAR := 1\nit: build\n\tmvn verify -Pit\nlint:\n\t./lint.sh\nbuild:\n\tmvn package\n%.o: %.c\n\tcc $<\n")
         self.write("package.json", json.dumps({"scripts": {"test": "jest", "e2e": "playwright test", "prepare": "husky"}}))
         found = self.by_command()
-        self.assertEqual(found["make it"]["kind"], "cible")
+        self.assertEqual(found["make it"]["kind"], "target")
         self.assertEqual(found["make it"]["source"], "Makefile:3")
         self.assertIn("make lint", found)
         self.assertIn("npm run e2e", found)
@@ -139,8 +139,8 @@ class CandidateTests(RepoCase):
                    'jobs:\n  d:\n    steps:\n      - run: ./deploy/apply.sh "${{ inputs.environment }}"\n')
         found = self.by_command()
         command = './deploy/apply.sh "${{ inputs.environment }}"'
-        self.assertEqual(found[command]["kind"], "livraison")
-        self.assertIn("Interdit", commands.render_md(self.found()))
+        self.assertEqual(found[command]["kind"], "delivery")
+        self.assertIn("Forbidden", commands.render_md(self.found()))
 
     def wf(self, body: str, name: str = "ci.yml") -> dict:
         self.write(f".github/workflows/{name}", body)
@@ -151,20 +151,25 @@ class CandidateTests(RepoCase):
                         "  prod:\n    environment: production\n    steps:\n      - run: make go\n"
                         "  misc:\n    steps:\n      - run: make deploy\n      - run: ./mvnw -Prelease verify\n")
         self.write("Makefile", "deploy:\n\tx\n")
-        self.assertEqual(found["make it"]["kind"], "enveloppe")
+        self.assertEqual(found["make it"]["kind"], "wrapper")
         for command in ("make ship", "make go", "make deploy"):
-            self.assertEqual(found[command]["kind"], "livraison", command)
-        self.assertEqual(self.by_command()["make deploy"]["kind"], "livraison")
+            self.assertEqual(found[command]["kind"], "delivery", command)
+        self.assertEqual(self.by_command()["make deploy"]["kind"], "delivery")
 
     def test_a_command_an_ordinary_job_also_runs_is_not_delivery(self):
         self.write(".github/workflows/deploy.yml", "jobs:\n  d:\n    steps:\n      - run: npm run build\n")
         found = self.wf("jobs:\n  t:\n    steps:\n      - run: npm run build\n")
-        self.assertEqual(found["npm run build"]["kind"], "enveloppe")
+        self.assertEqual(found["npm run build"]["kind"], "wrapper")
+
+    def test_a_delivery_job_named_in_french_is_delivery_too(self):
+        found = self.wf("jobs:\n  test:\n    steps:\n      - run: make it\n  livraison:\n    steps:\n      - run: make envoi\n")
+        self.assertEqual(found["make it"]["kind"], "wrapper")
+        self.assertEqual(found["make envoi"]["kind"], "delivery")
 
     def test_a_delivery_target_of_the_makefile_is_listed_as_delivery(self):
         self.write("Makefile", "test lint: deps\n\tx\npublish:\n\tx\n")
         found = self.by_command()
-        self.assertEqual(found["make publish"]["kind"], "livraison")
+        self.assertEqual(found["make publish"]["kind"], "delivery")
         self.assertIn("make test", found)
         self.assertIn("make lint", found)
 
@@ -172,14 +177,14 @@ class CandidateTests(RepoCase):
         self.wf("jobs:\n  t:\n    steps:\n      - run: make it\n")
         self.write("AGENTS.md", "Please make it work with `make it-fast`, then make test-all.\n")
         self.assertFalse(self.by_command()["make it"]["documented"])
-        self.write("AGENTS.md", "Lance `make it`.\n")
+        self.write("AGENTS.md", "Run `make it`.\n")
         self.assertTrue(self.by_command()["make it"]["documented"])
 
     def test_common_shapes_of_run_are_read(self):
         self.write("pom.xml", "<project/>")
         found = self.wf('jobs:\n  t:\n    steps:\n      - "run": make quoted\n      - run: >-\n          make\n          folded\n'
                         "      - run: |\n          mvn verify \\\n            -Pintegration\n          if [ -f x ]; then make cond; fi\n"
-                        "          (cd api && make sub)\n          make it # commentaire\n          mvn -B verify | tee out.log\n"
+                        "          (cd api && make sub)\n          make it # comment\n          mvn -B verify | tee out.log\n"
                         "          cat <<EOF > f\n          make bogus\n          EOF\n          make ${{ matrix.t || 'x' }}\n")
         for command in ("make quoted", "make folded", "make cond", "cd api && make sub", "make it", "make ${{ matrix.t || 'x' }}"):
             self.assertIn(command, found)
@@ -193,7 +198,7 @@ class CandidateTests(RepoCase):
         found = self.by_command()
         for command in ("make composite", "make block", "make plain"):
             self.assertIn(command, found)
-        self.assertEqual(found["make push"]["kind"], "livraison")
+        self.assertEqual(found["make push"]["kind"], "delivery")
 
     def test_environment_runners_and_the_working_directory_are_kept(self):
         self.write("pyproject.toml", "")
@@ -210,7 +215,7 @@ class CandidateTests(RepoCase):
 
     def test_an_empty_repo_has_no_candidate_and_does_not_crash(self):
         self.assertEqual(self.found()["candidates"], [])
-        self.write(".github/workflows/casse.yml", "run: |\n\t\x00\n  run:\n")
+        self.write(".github/workflows/broken.yml", "run: |\n\t\x00\n  run:\n")
         self.write("package.json", "{")
         self.found()
 
