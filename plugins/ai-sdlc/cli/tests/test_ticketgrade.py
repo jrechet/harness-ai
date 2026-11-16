@@ -200,7 +200,7 @@ class CliTests(Case):
         self.assertIn("**Prêt sur la forme**", out)
         self.assertIn("Taille L annoncée", out)
         code, out, _ = self.run_cli("fixture", "grade-ticket", avis, "--task", task, "--repo", self.repo, "--ticket", ticket_md)
-        self.assertEqual((code, out.splitlines()[0][:8]), (0, "CONFORME"))
+        self.assertEqual((code, out.splitlines()[0][:4]), (0, "PASS"))
 
     def test_render_refuses_a_bad_opinion_with_code_2(self):
         bad = os.path.join(self.tmp.name, "avis.json")

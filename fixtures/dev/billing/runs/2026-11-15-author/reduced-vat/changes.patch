@@ -1,0 +1,49 @@
+diff --git a/billing/totals.py b/billing/totals.py
+--- a/billing/totals.py
++++ b/billing/totals.py
+@@ -2,7 +2,7 @@
+ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+ 
+ CENT = Decimal("0.01")
+-VAT = Decimal("0.20")
++VAT = {"standard": Decimal("0.20"), "reduced": Decimal("0.055")}
+ 
+ 
+ def amount(text: str) -> Decimal:
+@@ -16,6 +16,13 @@
+     return sum((amount(line["price"]) * line["quantity"] for line in lines), Decimal("0"))
+ 
+ 
++def vat_rate(line: dict) -> Decimal:
++    name = line.get("vat", "standard")
++    if name not in VAT:
++        raise ValueError(f"unknown VAT rate: {name!r}")
++    return VAT[name]
++
++
+ def total_incl_tax(lines: list[dict]) -> Decimal:
+-    excl_tax = total_excl_tax(lines)
+-    return (excl_tax * (1 + VAT)).quantize(CENT, rounding=ROUND_HALF_UP)
++    incl_tax = sum((amount(line["price"]) * line["quantity"] * (1 + vat_rate(line)) for line in lines), Decimal("0"))
++    return incl_tax.quantize(CENT, rounding=ROUND_HALF_UP)
+diff --git a/tests/test_totals.py b/tests/test_totals.py
+--- a/tests/test_totals.py
++++ b/tests/test_totals.py
+@@ -16,3 +16,17 @@
+     def test_an_unreadable_amount_is_refused(self):
+         with self.assertRaises(ValueError):
+             total_incl_tax([{"price": "twelve", "quantity": 1}])
++
++    def test_a_line_at_the_reduced_rate(self):
++        self.assertEqual(total_incl_tax([{"price": "100", "quantity": 1, "vat": "reduced"}]), Decimal("105.50"))
++
++    def test_standard_and_reduced_in_the_same_invoice(self):
++        lines = [{"price": "100", "quantity": 1}, {"price": "100", "quantity": 1, "vat": "reduced"}]
++        self.assertEqual(total_incl_tax(lines), Decimal("225.50"))
++
++    def test_rounding_happens_once_on_the_total(self):
++        self.assertEqual(total_incl_tax([{"price": "0.10", "quantity": 1, "vat": "reduced"}] * 3), Decimal("0.32"))
++
++    def test_an_unknown_vat_is_refused(self):
++        with self.assertRaises(ValueError):
++            total_incl_tax([{"price": "1", "quantity": 1, "vat": "luxury"}])

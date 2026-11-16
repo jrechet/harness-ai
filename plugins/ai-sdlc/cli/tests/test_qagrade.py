@@ -209,7 +209,7 @@ class ExpectedTests(Case):
             with self.subTest(bad=str(bad)[:50]), self.assertRaises(context.Refused):
                 qagrade.grade(self.table, bad, self.repo, FIXTURE, self.trace)
         with self.assertRaises(context.Refused):   # une fixture de /dev n'a ni changement monté ni variantes
-            qagrade.grade(self.table, self.expected, self.repo, os.path.join(FIXTURE, "..", "..", "dev", "facturation"), self.trace)
+            qagrade.grade(self.table, self.expected, self.repo, os.path.join(FIXTURE, "..", "..", "dev", "billing"), self.trace)
 
 
 if __name__ == "__main__":

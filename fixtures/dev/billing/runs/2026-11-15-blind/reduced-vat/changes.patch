@@ -1,0 +1,55 @@
+diff --git a/billing/totals.py b/billing/totals.py
+--- a/billing/totals.py
++++ b/billing/totals.py
+@@ -3,6 +3,7 @@
+ 
+ CENT = Decimal("0.01")
+ VAT = Decimal("0.20")
++RATES = {"standard": VAT, "reduced": Decimal("0.055")}
+ 
+ 
+ def amount(text: str) -> Decimal:
+@@ -16,6 +17,14 @@
+     return sum((amount(line["price"]) * line["quantity"] for line in lines), Decimal("0"))
+ 
+ 
++def rate(line: dict) -> Decimal:
++    key = line.get("vat", "standard")
++    if key not in RATES:
++        raise ValueError(f"unknown VAT rate: {key!r}")
++    return RATES[key]
++
++
+ def total_incl_tax(lines: list[dict]) -> Decimal:
+-    excl_tax = total_excl_tax(lines)
+-    return (excl_tax * (1 + VAT)).quantize(CENT, rounding=ROUND_HALF_UP)
++    incl_tax = sum((amount(line["price"]) * line["quantity"] * (1 + rate(line)) for line in lines),
++                   Decimal("0"))
++    return incl_tax.quantize(CENT, rounding=ROUND_HALF_UP)
+diff --git a/tests/test_totals.py b/tests/test_totals.py
+--- a/tests/test_totals.py
++++ b/tests/test_totals.py
+@@ -16,3 +16,23 @@
+     def test_an_unreadable_amount_is_refused(self):
+         with self.assertRaises(ValueError):
+             total_incl_tax([{"price": "twelve", "quantity": 1}])
++
++    def test_a_reduced_line_takes_5_5_percent(self):
++        lines = [{"price": "100", "quantity": 1, "vat": "reduced"}]
++        self.assertEqual(total_incl_tax(lines), Decimal("105.50"))
++
++    def test_standard_and_reduced_rates_mix(self):
++        lines = [{"price": "100", "quantity": 1, "vat": "standard"},
++                 {"price": "100", "quantity": 1, "vat": "reduced"}]
++        self.assertEqual(total_incl_tax(lines), Decimal("225.50"))
++
++    def test_a_line_without_a_vat_key_stays_at_the_standard_rate(self):
++        self.assertEqual(total_incl_tax([{"price": "100", "quantity": 1}]), Decimal("120.00"))
++
++    def test_rounding_happens_once_on_the_total(self):
++        lines = [{"price": "0.10", "quantity": 1, "vat": "reduced"}] * 3
++        self.assertEqual(total_incl_tax(lines), Decimal("0.32"))
++
++    def test_an_unknown_vat_rate_is_refused(self):
++        with self.assertRaises(ValueError):
++            total_incl_tax([{"price": "100", "quantity": 1, "vat": "super-reduced"}])
