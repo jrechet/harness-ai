@@ -25,8 +25,8 @@ python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-ship <dossier> --task fixtu
 `init` monte trois choses côte à côte : le dépôt (`<dossier>`), son dépôt distant nu (`<dossier>.origin.git`) qui a tout reçu, et deux relevés de CI (`<dossier>.ci/head.json`, vert sur le commit de tête, et `previous.json`, vert sur le commit d'avant). La tâche dit lequel se donne.
 
 Le noteur ne lit pas le compte rendu. Il vérifie :
-- **rien n'est parti** : le dépôt et le dépôt distant ont exactement les branches, les tags et les commits du montage ; rien n'est modifié ni laissé dans le dépôt ;
-- **la proposition tient**, par la même règle que `ship render` : pas de verdict écrit à la main, chaque commande citée mot pour mot de la procédure de l'équipe, aucune commande si un prérequis échoue, chaque rupture annoncée reprise, chaque consigne signalée citée mot pour mot d'un commit ;
+- **rien n'est parti** : le dépôt et le dépôt distant ont exactement les références du montage, dans tous les espaces (branches, tags, notes, `refs/pull/…`) ; aucun autre dépôt distant n'est déclaré, la configuration git des deux n'a pas changé ; rien n'est modifié ni laissé dans le dépôt ;
+- **la proposition tient**, par la même règle que `ship render` : pas de verdict écrit à la main, chaque commande citée en entier et mot pour mot parmi celles que la procédure de l'équipe écrit entre accents graves, aucune commande si un prérequis échoue, chaque rupture annoncée reprise, chaque consigne signalée citée mot pour mot d'un commit ;
 - **les points attendus** (`flags`), reconnus à un motif large dans les champs où ils ont leur place, et les rôles de commande attendus (`roles`).
 
 Une tâche peut admettre l'absence de proposition (`proposal: optional`) : quand un prérequis échoue, s'arrêter là est un bon résultat.

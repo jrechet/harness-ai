@@ -288,6 +288,8 @@ ROLES = ("livrer", "revenir")
 MAX_ITEMS = 40
 MAX_TEXT = 600
 MIN_QUOTE = 12
+MIN_SENTENCE = 20   # « migration » n'est pas une phrase : ce qui attend un humain se dit en entier
+_SPAN = re.compile(r"`([^`\n]{2,400})`")
 
 
 def _flat(text: str) -> str:
@@ -303,24 +305,30 @@ def _code(text: str) -> str:
     return "".join(ch for ch in _flat(text) if ch.isprintable() and ch != "`")
 
 
-def messages(repo: str, previous: str | None) -> str:
-    """Le texte des commits qui partent, titres et corps : c'est là qu'une consigne signalée doit se retrouver."""
-    code, out = _git(repo, "log", f"--max-count={MAX_COMMITS}", "--format=%B", f"{previous}..HEAD" if previous else "HEAD")
-    return out.decode("utf-8", "replace") if code == 0 else ""
+def messages(repo: str, previous: str | None) -> list[str]:
+    """Le message de chaque commit qui part, titre et corps : c'est dans l'un d'eux, pas à cheval sur deux,
+    qu'une consigne signalée doit se retrouver."""
+    code, out = _git(repo, "log", f"--max-count={MAX_COMMITS}", "--format=%B%x01", f"{previous}..HEAD" if previous else "HEAD")
+    return [m for m in out.decode("utf-8", "replace").split("\x01") if m.strip()] if code == 0 else []
+
+
+def team_commands(procedure: str) -> list[str]:
+    """Les commandes que la procédure de l'équipe écrit entre accents graves : ce sont les seules qui se proposent."""
+    return list(dict.fromkeys(_flat(m) for m in _SPAN.findall(procedure) if " " in m.strip() or "/" in m))
 
 
 def breaking_shas(repo: str, previous: str | None) -> list[str]:
     return [c["sha"] for c in commits(repo, previous)[:MAX_COMMITS] if c["breaking"]]
 
 
-def check_proposal(prop: Any, result: dict[str, Any], procedure: str, history: str, breaking: list[str]) -> list[str]:
+def check_proposal(prop: Any, result: dict[str, Any], procedure: str, history: list[str], breaking: list[str]) -> list[str]:
     """Les défauts d'une proposition de livraison. Quatre choses sont tenues ici et pas par le skill : le verdict
     ne s'écrit pas, une commande proposée est citée mot pour mot de la procédure de l'équipe, aucune commande
     n'est proposée quand un prérequis est en échec, et aucune rupture annoncée par un commit n'est oubliée."""
     if not isinstance(prop, dict):
         return ["la proposition est un objet JSON : attend, ruptures, notes, commandes, non_verifie, consignes"]
     errors = [f"« {key} » ne s'écrit pas dans la proposition : le verdict et la version viennent de la commande"
-              for key in ("verdict", "pret", "prêt", "ok", "version", "livrable") if key in prop]
+              for key in prop if isinstance(key, str) and key.strip().lower() in ("verdict", "pret", "prêt", "ok", "version", "livrable")]
     for key in PROPOSAL_LISTS:
         if not isinstance(prop.get(key, []), list) or len(prop.get(key, [])) > MAX_ITEMS:
             errors.append(f"{key} : une liste d'au plus {MAX_ITEMS} éléments")
@@ -331,38 +339,44 @@ def check_proposal(prop: Any, result: dict[str, Any], procedure: str, history: s
             if not _said(item):
                 errors.append(f"{key} {index} : une phrase d'au plus {MAX_TEXT} caractères")
     for index, item in enumerate(prop.get("attend", []), 1):
-        if not (isinstance(item, dict) and _said(item.get("quoi")) and _said(item.get("qui"))):
-            errors.append(f"attend {index} : un objet avec quoi (ce qui reste à lever) et qui (le rôle qui le décide)")
+        if not (isinstance(item, dict) and _said(item.get("quoi")) and _said(item.get("qui")) and len(_flat(item["quoi"])) >= MIN_SENTENCE):
+            errors.append(f"attend {index} : un objet avec quoi (ce qui reste à lever, en une phrase d'au moins "
+                          f"{MIN_SENTENCE} caractères) et qui (le rôle qui le décide)")
     cited = set()
     for index, item in enumerate(prop.get("ruptures", []), 1):
-        if not (isinstance(item, dict) and _said(item.get("texte")) and isinstance(item.get("commit"), str)):
-            errors.append(f"rupture {index} : un objet avec texte (ce qui casse et quoi faire) et commit")
+        if not (isinstance(item, dict) and _said(item.get("texte")) and isinstance(item.get("commit"), str)
+                and len(_flat(item["texte"])) >= MIN_SENTENCE):
+            errors.append(f"rupture {index} : un objet avec texte (ce qui casse et quoi faire, en une phrase d'au moins "
+                          f"{MIN_SENTENCE} caractères) et commit")
             continue
         sha = item["commit"].strip().lower()
-        match = [b for b in breaking if len(sha) >= 7 and (b.startswith(sha) or sha.startswith(b))]
+        hexa = 7 <= len(sha) <= 40 and all(ch in "0123456789abcdef" for ch in sha)
+        match = [b for b in breaking if hexa and (b.startswith(sha) or sha.startswith(b))]
         if not match:
             errors.append(f"rupture {index} : le commit cité n'est pas un commit annoncé cassant de cette livraison")
         cited.update(match)
     missing = [b for b in breaking if b not in cited]
     if missing:
         errors.append(f"{len(missing)} rupture(s) annoncée(s) par un commit ne sont pas reprises : {', '.join(missing[:5])}")
-    team = _flat(procedure)
+    team = team_commands(procedure)
+    known = (" Celles que la procédure écrit : " + " ; ".join(f"`{_code(c)}`" for c in team[:8]) + ". Une valeur entre "
+             "chevrons (<version>) reste écrite telle quelle : c'est l'humain qui la remplace.") if team else \
+        " La procédure de l'équipe (docs/agents/livraison.md) n'écrit aucune commande entre accents graves : n'en propose pas."
     for index, item in enumerate(prop.get("commandes", []), 1):
         if not (isinstance(item, dict) and _said(item.get("commande")) and item.get("role") in ROLES):
             errors.append(f"commande {index} : un objet avec commande et role ({' ou '.join(ROLES)})")
-        elif len(_flat(item["commande"])) < 4 or _flat(item["commande"]) not in team:
-            errors.append(f"commande {index} : elle ne se retrouve pas mot pour mot dans la procédure de l'équipe "
-                          "(docs/agents/livraison.md) : une commande de livraison ne s'invente pas")
+        elif _flat(item["commande"]) not in team:
+            errors.append(f"commande {index} : ce n'est pas, en entier et mot pour mot, une commande de la procédure de l'équipe." + known)
     if prop.get("commandes") and result["failed"]:
         errors.append("des commandes sont proposées alors qu'un prérequis est en échec : on ne livre pas")
     if result["unknown"] and not result["failed"] and not prop.get("attend"):
         errors.append(f"{len(result['unknown'])} prérequis attendent un humain et « attend » est vide")
-    whole = _flat(history)
+    whole = [_flat(message) for message in history]
     for index, item in enumerate(prop.get("consignes", []), 1):
         quote = _flat(item["citation"]) if isinstance(item, dict) and isinstance(item.get("citation"), str) else ""
         if not MIN_QUOTE <= len(quote) <= MAX_TEXT:
             errors.append(f"consigne {index} : un objet avec citation, de {MIN_QUOTE} à {MAX_TEXT} caractères")
-        elif quote not in whole:
+        elif not any(quote in message for message in whole):
             errors.append(f"consigne {index} : la citation ne se retrouve pas mot pour mot dans les commits de cette livraison")
     return errors
 

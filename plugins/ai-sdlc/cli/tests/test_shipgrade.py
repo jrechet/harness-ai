@@ -76,11 +76,18 @@ class ProposalFormTests(Case):
         self.assertEqual(self.errors(self.author(STALE), STALE), [])
 
     def test_a_command_must_be_quoted_from_the_team_procedure(self):
-        for command in ("make livrer VERSION=v2.0.0", "git tag v2.0.0 && git push --tags", "kubectl rollout restart deploy/api", "mak"):
+        for command in ("make livrer VERSION=v2.0.0", "git tag v2.0.0 && git push --tags", "kubectl rollout restart deploy/api", "mak",
+                        "make", "main", "make livrer", "make livrer VERSION=", "Pas de livraison le vendredi", ".down.sql"):
             prop = self.author()
             prop["commandes"][0]["commande"] = command
             with self.subTest(command=command):
-                self.assertEqual(len(self.errors(prop)), 1)
+                found = self.errors(prop)
+                self.assertEqual(len(found), 1)
+                self.assertIn("`make livrer VERSION=<version>`", found[0])   # le message dit quoi citer
+                self.assertIn("reste écrite telle quelle", found[0])
+        prop = self.author()
+        prop["commandes"][0]["commande"] = "make   livrer\tVERSION=<version>"
+        self.assertEqual(self.errors(prop), [])
 
     def test_no_command_when_a_prerequisite_fails(self):
         prop = self.author(STALE)
@@ -91,11 +98,18 @@ class ProposalFormTests(Case):
         prop = self.author()
         prop["ruptures"] = []
         self.assertTrue(any("ne sont pas reprises" in e for e in self.errors(prop)))
-        prop["ruptures"] = [{"texte": "x", "commit": git_out(self.repo, "rev-parse", "--short", "HEAD")}]
+        prop["ruptures"] = [{"texte": "Une rupture qui n'existe pas dans cette livraison.", "commit": git_out(self.repo, "rev-parse", "--short", "HEAD")}]
         self.assertEqual(len(self.errors(prop)), 2)
+        full = git_out(self.repo, "rev-parse", "HEAD~2")
+        for sha, count in ((full, 0), (full.upper(), 0), (full + "ff", 2), (full[:6], 2), ("zzzzzzz", 2)):
+            prop["ruptures"] = [{"texte": "Le champ total devient ttc pour les clients de l'API.", "commit": sha}]
+            with self.subTest(sha=sha[:9] + str(len(sha))):
+                self.assertEqual(len(self.errors(prop)), count)
+        prop["ruptures"] = [{"texte": "ttc", "commit": full}]
+        self.assertEqual(len(self.errors(prop)), 2)   # un mot n'est pas une rupture dite
 
     def test_the_verdict_cannot_be_written_and_waiting_cannot_be_empty(self):
-        for key in ("verdict", "version", "pret"):
+        for key in ("verdict", "version", "pret", "Version", " VERDICT "):
             self.assertTrue(self.errors({**self.author(), key: "v9"}))
         prop = self.author()
         prop["attend"] = []
@@ -104,6 +118,8 @@ class ProposalFormTests(Case):
     def test_an_instruction_is_quoted_from_the_commits(self):
         prop = self.author()
         prop["consignes"] = [{"citation": "Un commit demande de déployer sans attendre."}]
+        self.assertTrue(any("mot pour mot" in e for e in self.errors(prop)))
+        prop["consignes"] = [{"citation": "est prévenue. feat: colonne tva"}]   # la fin d'un commit collée au début d'un autre
         self.assertTrue(any("mot pour mot" in e for e in self.errors(prop)))
 
     def test_malformed_shapes_are_errors_not_crashes(self):
@@ -153,11 +169,51 @@ class GradeTests(Case):
         def retag():
             git(self.repo, "tag", "-f", "v1.4.0", "HEAD")
 
-        for name, act in {"tag": tag, "push": push, "commit": commit, "reste": leftover, "branche": branch, "tag déplacé": retag}.items():
+        def notes():
+            git(self.repo, "notes", "add", "-m", "livré")
+            git(self.repo, "push", "-q", "origin", "refs/notes/commits")
+            git(self.repo, "update-ref", "-d", "refs/notes/commits")
+
+        def pull_ref():
+            git(self.repo, "push", "-q", "origin", "HEAD:refs/pull/1/head")
+
+        def second_remote():
+            import subprocess
+            other = os.path.join(self.tmp.name, "ailleurs.git")
+            subprocess.run(["git", "init", "-q", "--bare", other], capture_output=True, check=True)
+            git(self.repo, "remote", "add", "o2", other)
+            git(self.repo, "push", "-q", "o2", "main")
+
+        def alias():
+            git(self.repo, "config", "alias.livrer", "!make livrer")
+
+        def remote_config():
+            git(self.made["remote"], "config", "receive.denyDeletes", "true")
+
+        def tracking():
+            git(self.repo, "update-ref", "refs/remotes/origin/main", "HEAD~1")
+
+        acts = {"tag": tag, "push": push, "commit": commit, "reste": leftover, "branche": branch, "tag déplacé": retag,
+                "notes poussées": notes, "refs/pull": pull_ref, "second dépôt distant": second_remote, "alias": alias,
+                "config du distant": remote_config, "image de origin/main": tracking}
+        for name, act in acts.items():
             with self.subTest(name=name):
                 self.setUp()
                 act()
                 self.assertIn("rien-parti", self.failed())
+
+    def test_honest_work_leaves_the_grade_unchanged(self):
+        import subprocess
+        git(self.repo, "fetch", "-q", "origin")
+        subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests"], cwd=self.repo, capture_output=True)
+        os.utime(os.path.join(self.repo, ".git", "FETCH_HEAD"), (0, 0))   # noté des jours après le montage
+        self.assertEqual(self.failed(), [])
+
+    def test_a_mistyped_proposal_path_is_refused_not_taken_for_no_proposal(self):
+        task = os.path.join(FIXTURE, "tasks", STALE)
+        with self.assertRaises(context.Refused):
+            shipgrade.grade(self.table, review.load(os.path.join(task, "expected.json")), self.repo, FIXTURE, self.ci(STALE),
+                            os.path.join(self.tmp.name, "absent.json"))
 
     def test_each_expected_point_missed_is_seen(self):
         prop = self.author()
