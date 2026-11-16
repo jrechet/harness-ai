@@ -15,7 +15,7 @@
     {
       "name": "ai-sdlc",
       "source": "./plugins/ai-sdlc",
-      "description": "Les phases du cycle de développement assistées par un agent, du ticket à la production : un socle commun que chaque équipe complète dans son dépôt. Phases disponibles : ticket, dev, qa et review."
+      "description": "Les phases du cycle de développement assistées par un agent, du ticket à la production : un socle commun que chaque équipe complète dans son dépôt. Phases disponibles : ticket, dev, qa, secu, review, ship et run."
     }
   ]
 }
