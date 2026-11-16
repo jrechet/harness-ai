@@ -14,6 +14,7 @@
   ai_sdlc.py fixture grade <revue.json> --expected <expected.json>   note une revue contre son corrigé
   ai_sdlc.py fixture grade-dev <dépôt> --task <dossier du ticket> [--body corps.json]   note un travail de /dev
   ai_sdlc.py fixture grade-ticket <avis.json> --task <dossier> --repo <dépôt> --ticket <copie>   note un avis de /ticket
+  ai_sdlc.py fixture grade-secu <revue.json> --fixture <fixture> --repo <dépôt> --out <dossier>   note un travail de /secu
   ai_sdlc.py fixture grade-qa <dépôt> --fixture <fixture> [--trace correspondance.json]   note un travail de /qa
 
 Codes de sortie de `context` : 0 servi, 2 refusé (surcharge invalide, phase ou branche inconnue) : rien
@@ -32,7 +33,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import context, dev, devgrade, points, qa, qagrade, review, secu, size, ticket, ticketgrade  # noqa: E402
+from aisdlclib import context, dev, devgrade, points, qa, qagrade, review, secu, secugrade, size, ticket, ticketgrade  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -94,7 +95,12 @@ def build_parser() -> argparse.ArgumentParser:
     gqa.add_argument("repo")
     gqa.add_argument("--fixture", required=True, help="le dossier de la fixture (ticket.md, expected.json, hidden/)")
     gqa.add_argument("--trace", help="la correspondance critères → tests, telle que le skill l'a écrite")
-    for sp in (init, grade, gdev, gtck, gqa):
+    gsec = fix.add_parser("grade-secu", help="note un travail de /secu : constats, branche intacte, secret tu")
+    gsec.add_argument("file", help="les constats en JSON, au format de review render")
+    gsec.add_argument("--fixture", required=True, help="le dossier de la fixture (expected.json, pr.json)")
+    gsec.add_argument("--repo", required=True, help="le dépôt monté donné à l'agent")
+    gsec.add_argument("--out", required=True, help="le dossier où l'agent a écrit ses fichiers : la valeur du secret y est cherchée")
+    for sp in (init, grade, gdev, gtck, gqa, gsec):
         sp.add_argument("--format", choices=["md", "json"], default="md")
     return parser
 
@@ -107,6 +113,10 @@ def _fixture(args: argparse.Namespace, table: dict) -> tuple[object, str, int]:
     if args.action == "grade-ticket":
         result = ticketgrade.grade(table, review.load(os.path.join(args.task, "expected.json")), review.load(args.file),
                                    args.task, args.repo, args.ticket)
+        return result, devgrade.render_md(result), 0 if result["pass"] else 1
+    if args.action == "grade-secu":
+        result = secugrade.grade(review.load(os.path.join(args.fixture, "expected.json")), review.load(args.file), args.file,
+                                 args.repo, args.fixture, args.out)
         return result, devgrade.render_md(result), 0 if result["pass"] else 1
     if args.action == "grade-qa":
         result = qagrade.grade(table, review.load(os.path.join(args.fixture, "expected.json")), args.repo, args.fixture,

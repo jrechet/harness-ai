@@ -46,7 +46,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 |---|---|---|
 | Projets types et leurs corrigés | `fixtures/repos`, `harness fixture check` | outillé pour huit projets |
 | Banc avant et après, à l'aveugle | `harness bench`, skill de mainteneur `harness-stress` | lancé, deux corrections |
-| Fixtures de conception, de ticket, de développement, de test et de revue | `fixtures/design`, `fixtures/ticket`, `fixtures/dev`, `fixtures/qa`, `fixtures/review`, `place check`, `fixture grade`, `grade-dev`, `grade-ticket`, `grade-qa` | outillé |
+| Fixtures de conception, de ticket, de développement, de test et de revue | `fixtures/design`, `fixtures/ticket`, `fixtures/dev`, `fixtures/qa`, `fixtures/secu`, `fixtures/review`, `place check`, `fixture grade`, `grade-dev`, `grade-ticket`, `grade-qa`, `grade-secu` | outillé |
 
 ### Documenter
 
@@ -78,7 +78,8 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | S10 | Fixture et noteur pour mesurer `ticket` | fait | 2026-11-16 | `fixtures/ticket/facturation` (trois tickets : flou et piégé, sain, prêt sur la forme seulement), `fixture grade-ticket`. Le skill écrit maintenant un avis en JSON que `ticket render` valide : verdict mesuré, critères sourcés ou à confirmer, consignes citées mot pour mot |
 | S12 | Jouer `ticket` et `qa` à l'aveugle | fait | 2026-11-16 | `runs/2026-11-16-blind` : `ticket` 10 sur 10, 8 sur 8, 9 sur 9 ; `qa` 10 sur 10, sept variantes tuées. Une exécution par cas, plugin copié et non installé. Les retours des agents sont passés dans le texte des skills et le rendu, sans nouvelle mesure après |
 | S13 | Skill `secu` : portes de sécurité sur un changement, convention du socle | fait | 2026-11-16 | Demandé par le propriétaire le 2026-11-16. `secu gate` (secrets, scanners neutralisés, résultats SARIF sur les lignes ajoutées, surface à relire), `points/securite.md`, skill `secu` ; jamais joué, pas de fixture. Les motifs de secrets sont peu nombreux : la commande ne remplace pas un scanner. Relecture de sécurité indépendante : treize constats corrigés, dont un secret caché derrière un séparateur de ligne, des résultats de scanner perdus sur `.github/…`, et un secret ajouté puis retiré dans la branche |
-| S14 | Fixture pour mesurer `secu` | à faire | 2026-11-16 | Un changement avec un secret, une exception posée, un résultat de scanner, un appel à risque sain et un autre non |
+| S14 | Fixture et noteur pour mesurer `secu` | fait | 2026-11-16 | `fixtures/secu/facturation` (jeton en dur, SQL assemblé vu par le scanner de l'équipe, shell caché par `# nosec`, certificat non vérifié, consigne en commentaire, deux endroits sains), `fixture grade-secu` : constats notés comme une revue, branche intacte, secret jamais recopié |
+| S15 | Jouer `secu` à l'aveugle | en cours | 2026-11-16 | Demandé par le propriétaire le 2026-11-16 |
 | S6 | Skills `ship`, `run` | à faire | 2026-11-14 | Viennent en dernier |
 | S7 | Installer le plugin depuis la marketplace et éprouver `${CLAUDE_PLUGIN_ROOT}` | en attente | 2026-11-15 | Les manifestes passent `claude plugin validate` et la doc de Claude Code confirme la substitution dans un skill de plugin. L'installation réelle n'a pas pu être essayée : la commande `claude` du poste n'était pas authentifiée. À faire par le propriétaire, deux minutes |
 | C1 | Étude, rapport complémentaire, proposition | fait | 2026-11-14 | `docs/ai-sdlc/` |
