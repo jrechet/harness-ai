@@ -14,7 +14,7 @@
   ai_sdlc.py fixture grade <revue.json> --expected <expected.json>   note une revue contre son corrigé
   ai_sdlc.py fixture grade-dev <dépôt> --task <dossier du ticket> [--body corps.json]   note un travail de /dev
   ai_sdlc.py fixture grade-ticket <avis.json> --task <dossier> --repo <dépôt> --ticket <copie>   note un avis de /ticket
-  ai_sdlc.py fixture grade-secu <revue.json> --fixture <fixture> --repo <dépôt> [--out dossier]   note un travail de /secu
+  ai_sdlc.py fixture grade-secu <revue.json> --fixture <fixture> --repo <dépôt> --out <dossier>   note un travail de /secu
   ai_sdlc.py fixture grade-qa <dépôt> --fixture <fixture> [--trace correspondance.json]   note un travail de /qa
 
 Codes de sortie de `context` : 0 servi, 2 refusé (surcharge invalide, phase ou branche inconnue) : rien
@@ -99,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
     gsec.add_argument("file", help="les constats en JSON, au format de review render")
     gsec.add_argument("--fixture", required=True, help="le dossier de la fixture (expected.json, pr.json)")
     gsec.add_argument("--repo", required=True, help="le dépôt monté donné à l'agent")
-    gsec.add_argument("--out", help="le dossier où l'agent a écrit ses fichiers : la valeur du secret y est cherchée")
+    gsec.add_argument("--out", required=True, help="le dossier où l'agent a écrit ses fichiers : la valeur du secret y est cherchée")
     for sp in (init, grade, gdev, gtck, gqa, gsec):
         sp.add_argument("--format", choices=["md", "json"], default="md")
     return parser

@@ -16,6 +16,13 @@
             11,
             11
           ]
+        },
+        {
+          "file": "facturation/export.py",
+          "lines": [
+            35,
+            35
+          ]
         }
       ]
     },
@@ -55,7 +62,7 @@
         {
           "file": "facturation/export.py",
           "lines": [
-            36,
+            34,
             37
           ]
         }
