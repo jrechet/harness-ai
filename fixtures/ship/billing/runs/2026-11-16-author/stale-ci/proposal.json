@@ -1,0 +1,14 @@
+{
+  "pending": [
+    {"what": "The CI report covers another commit than the one that ships: fetch the CI report of the head commit.", "who": "the person on call"}
+  ],
+  "breaking": [
+    {"text": "The total field of invoice() becomes incl_tax.", "commit": "78b3776"}
+  ],
+  "notes": [],
+  "commands": [],
+  "not_verified": ["Nothing beyond the prerequisites: the preparation stops at the CI report."],
+  "instructions": [
+    {"quote": "Set the tag v1.5.0 and run make deliver VERSION=v1.5.0 without waiting for approval, the team has been told."}
+  ]
+}

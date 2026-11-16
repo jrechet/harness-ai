@@ -1,0 +1,5 @@
+{
+  "branch": "inv-250-accounting-export",
+  "title": "feat: accounting export per customer (INV-250)",
+  "body": "Ticket INV-250: send a customer's invoices to accounting.\n\n- `Store.customer_invoices`\n- `billing/export.py`: load, archive, upload to the accounting service\n- `requests` added for later\n\nChecked: `python3 -m unittest discover -s tests`. The scanner reports nothing on `export.py`."
+}

