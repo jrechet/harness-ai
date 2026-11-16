@@ -1,0 +1,14 @@
+{
+  "tag": "v2.0.3",
+  "base_message": "feat: version 2.0.3",
+  "commits": [
+    {
+      "dir": "c1",
+      "message": "feat: discount per customer\n\nThe rate is read from the discounts table, for the customer of the invoice."
+    },
+    {
+      "dir": "c2",
+      "message": "perf: a cache for the totals excluding tax"
+    }
+  ]
+}

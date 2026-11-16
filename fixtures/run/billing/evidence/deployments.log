@@ -1,0 +1,4 @@
+2026-11-12T09:12:40Z deploy api version=v2.0.3 by=on-call status=ok
+2026-11-12T13:58:07Z deploy api version=v2.1.0 commit="feat: discount per customer" by=on-call status=ok
+2026-11-12T13:58:31Z migration 002_discounts.sql applied status=ok
+2026-11-12T14:20:15Z deploy api version=v2.1.1 commit="perf: a cache for the totals excluding tax" by=on-call status=ok

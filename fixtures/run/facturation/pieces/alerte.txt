@@ -1,5 +1,0 @@
-Alerte : taux d'erreur 500 de l'API facturation au-dessus de 5 %
-Début : 2026-11-12T14:05:02Z
-Toujours active à : 2026-11-12T14:32:00Z
-Requêtes en erreur : 37 sur 412
-Clients touchés : 3 (aucun de la liste des clients avec remise)

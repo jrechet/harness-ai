@@ -1,12 +1,12 @@
-# La CI du dépôt. Dépôt privé : elle tourne sur le serveur, jamais sur un runner GitHub facturé.
+# The CI of the repository. Private repository: it runs on the server, never on a billed GitHub runner.
 #
-# Deux choses à savoir avant d'y toucher :
-# - Elle exécute le code de la pull request (les tests) sur un runner qui n'est pas jetable. C'est
-#   admis parce que le dépôt est privé et que ses PR viennent de son propriétaire. Le jour où le
-#   dépôt devient public, ce fichier ne doit plus viser ce runner.
-# - Tant qu'aucun runner n'est enregistré pour ce dépôt, le job est sauté : la variable de dépôt
-#   CI_RUNNER vaut « pret » une fois le runner en place (gh variable set CI_RUNNER --body pret).
-#   Un check sauté compte pour réussi : ne pas le rendre obligatoire avant que le runner existe.
+# Two things to know before touching it:
+# - It runs the code of the pull request (the tests) on a runner that is not disposable. This is
+#   accepted because the repository is private and its PRs come from its owner. The day the
+#   repository becomes public, this file must no longer target this runner.
+# - As long as no runner is registered for this repository, the job is skipped: the repository
+#   variable CI_RUNNER is set to "ready" once the runner is in place (gh variable set CI_RUNNER --body ready).
+#   A skipped check counts as passed: do not make it required before the runner exists.
 name: CI
 
 on:
@@ -23,10 +23,10 @@ permissions:
   contents: read
 
 jobs:
-  verifier:
-    # jamais le code d'un autre dépôt (une PR venue d'un fork) sur le runner du serveur
+  verify:
+    # never the code of another repository (a PR coming from a fork) on the server's runner
     if: >-
-      vars.CI_RUNNER == 'pret' &&
+      vars.CI_RUNNER == 'ready' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, jre-server]
     timeout-minutes: 30
@@ -35,16 +35,21 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: La branche cible, pour jouer les portes avec son code
+      - name: The target branch, to run the gates with its code
         if: github.event_name == 'pull_request'
         uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref }}
-          path: .cible
+          path: .base-branch
           persist-credentials: false
-      - name: Tests, plan et portes
+      # The script of the target branch runs when it has one; verifier.sh is its name before the English rename.
+      # PORTES_DE is the former name of GATES_FROM, read by that older script.
+      - name: Tests, plan and gates
         env:
           BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
-          PORTES_DE: ${{ github.event_name == 'pull_request' && '.cible' || '' }}
+          GATES_FROM: ${{ github.event_name == 'pull_request' && '.base-branch' || '' }}
+          PORTES_DE: ${{ github.event_name == 'pull_request' && '.base-branch' || '' }}
         run: |
-          if [ -f .cible/scripts/ci/verifier.sh ]; then sh .cible/scripts/ci/verifier.sh; else sh scripts/ci/verifier.sh; fi
+          if [ -f .base-branch/scripts/ci/verify.sh ]; then sh .base-branch/scripts/ci/verify.sh
+          elif [ -f .base-branch/scripts/ci/verifier.sh ]; then sh .base-branch/scripts/ci/verifier.sh
+          else sh scripts/ci/verify.sh; fi

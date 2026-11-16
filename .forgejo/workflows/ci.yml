@@ -1,5 +1,5 @@
-# La même vérification, sur la forge. Ce dossier existe aussi pour que la forge n'exécute jamais
-# .github/workflows/ : dès qu'il est là, elle l'ignore.
+# The same verification, on the forge. This folder also exists so that the forge never runs
+# .github/workflows/: as soon as it is there, the forge ignores that one.
 name: CI
 
 on:
@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 jobs:
-  verifier:
+  verify:
     runs-on: [self-hosted, jre-server]
     timeout-minutes: 30
     steps:
@@ -20,16 +20,21 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: La branche cible, pour jouer les portes avec son code
+      - name: The target branch, to run the gates with its code
         if: github.event_name == 'pull_request'
         uses: actions/checkout@v4
         with:
           ref: ${{ github.base_ref }}
-          path: .cible
+          path: .base-branch
           persist-credentials: false
-      - name: Tests, plan et portes
+      # The script of the target branch runs when it has one; verifier.sh is its name before the English rename.
+      # PORTES_DE is the former name of GATES_FROM, read by that older script.
+      - name: Tests, plan and gates
         env:
           BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
-          PORTES_DE: ${{ github.event_name == 'pull_request' && '.cible' || '' }}
+          GATES_FROM: ${{ github.event_name == 'pull_request' && '.base-branch' || '' }}
+          PORTES_DE: ${{ github.event_name == 'pull_request' && '.base-branch' || '' }}
         run: |
-          if [ -f .cible/scripts/ci/verifier.sh ]; then sh .cible/scripts/ci/verifier.sh; else sh scripts/ci/verifier.sh; fi
+          if [ -f .base-branch/scripts/ci/verify.sh ]; then sh .base-branch/scripts/ci/verify.sh
+          elif [ -f .base-branch/scripts/ci/verifier.sh ]; then sh .base-branch/scripts/ci/verifier.sh
+          else sh scripts/ci/verify.sh; fi

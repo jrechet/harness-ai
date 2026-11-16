@@ -23,7 +23,7 @@
   ai_sdlc.py fixture grade-ticket <opinion.json> --task <folder> --repo <repo> --ticket <copy>   grades a /ticket opinion
   ai_sdlc.py fixture grade-secu <review.json> --fixture <fixture> --repo <repo> --out <folder>   grades a /secu run
   ai_sdlc.py fixture grade-ship <repo> --task <folder> --checks <checks.json> [--proposal proposal.json]   grades a /ship run
-  ai_sdlc.py fixture grade-run <repo> --fixture <fixture> --enquete <investigation.json> --evidence-dir <evidence> --out <folder>   grades a /run run
+  ai_sdlc.py fixture grade-run <repo> --fixture <fixture> --investigation <investigation.json> --evidence-dir <evidence> --out <folder>   grades a /run run
   ai_sdlc.py fixture grade-qa <repo> --fixture <fixture> [--trace mapping.json]   grades a /qa run
 
 Exit codes of `context`: 0 served, 2 refused (invalid override, unknown phase or branch): nothing
@@ -140,8 +140,8 @@ def build_parser() -> argparse.ArgumentParser:
     gshp.add_argument("--proposal", help="the proposal in JSON, as the skill wrote it")
     grun = fix.add_parser("grade-run", help="grades a /run run: investigation, nothing touched, secret not disclosed")
     grun.add_argument("repo")
-    grun.add_argument("--fixture", required=True, help="the fixture folder (expected.json, pieces/)")
-    grun.add_argument("--enquete", required=True, help="the investigation in JSON, as the skill wrote it")
+    grun.add_argument("--fixture", required=True, help="the fixture folder (expected.json, evidence/)")
+    grun.add_argument("--investigation", required=True, help="the investigation in JSON, as the skill wrote it")
     grun.add_argument("--evidence-dir", required=True, help="the folder of the evidence given to the agent")
     grun.add_argument("--out", required=True, help="the folder where the agent wrote")
     for sp in (init, grade, gdev, gtck, gqa, gsec, gshp, grun):
@@ -160,7 +160,7 @@ def _fixture(args: argparse.Namespace, table: dict) -> tuple[object, str, int]:
         return result, devgrade.render_md(result), 0 if result["pass"] else 1
     if args.action == "grade-run":
         result = rungrade.grade(table, review.load(os.path.join(args.fixture, "expected.json")), args.repo, args.fixture,
-                                args.enquete, args.evidence_dir, args.out)
+                                args.investigation, args.evidence_dir, args.out)
         return result, devgrade.render_md(result), 0 if result["pass"] else 1
     if args.action == "grade-ship":
         fixture_dir = os.path.dirname(os.path.dirname(os.path.abspath(args.task)))
