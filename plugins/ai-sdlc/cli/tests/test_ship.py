@@ -285,6 +285,7 @@ class ChecksTests(Case):
         stale = self.check(self.green(headSha=git(self.repo, "rev-parse", "HEAD~1")))["verifications"]
         self.assertEqual(stale["status"], ship.FAIL)
         self.assertIn("autre commit", stale["evidence"])
+        self.assertIn(git(self.repo, "rev-parse", "HEAD~1")[:7], stale["evidence"])   # le relevé dit de quel commit il parle
         mixed = self.green() + self.green(name="vieux", headSha="0" * 40)
         self.assertEqual(self.check(mixed)["verifications"]["status"], ship.FAIL)
         nameless = [{"name": "tests", "conclusion": "success"}]

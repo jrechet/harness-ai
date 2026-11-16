@@ -168,8 +168,9 @@ def gate_checks(repo: str, checks: Any) -> dict[str, Any]:
         if None in shas:
             return _gate("verifications", title, UNKNOWN, "le relevé ne dit pas sur quel commit il porte",
                          "Le relever avec headSha, pour ce commit précis.")
-        return _gate("verifications", title, FAIL, f"le relevé porte sur un autre commit que {head[:7]}",
-                     "Relever la CI de ce commit : une CI verte hier ne dit rien d'aujourd'hui.")
+        other = sorted(s[:7] for s in shas if s and all(ch in "0123456789abcdef" for ch in s) and not head.startswith(s))
+        return _gate("verifications", title, FAIL, f"le relevé porte sur un autre commit que {head[:7]}" + (f" : {', '.join(other[:3])}" if other else ""),
+                     "Relever la CI de ce commit précis : une CI verte sur un commit voisin ne dit rien de celui-ci.")
     bad, waiting, ran = [], [], 0
     for item in checks:
         name = _plain(str(item.get("name") or "sans nom"), 50)
