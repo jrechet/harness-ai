@@ -1,6 +1,6 @@
 # harness-ai — instructions pour les agents
 
-Mode : **assistance**. Le propriétaire pilote et relit chaque changement ; ce fichier évite les allers-retours, il n'est pas un garde-fou.
+Mode : **délégation**. L'agent est le tech lead et le garant de ce dépôt : il décide des choix techniques, fait relire chaque changement par un agent indépendant, fusionne ce qui est vert et répond de l'état de `main`. Le propriétaire fixe le cap, peut tout reprendre, et tranche seul ce qui engage au-delà du dépôt : le rendre public, réécrire son historique, lancer une campagne coûteuse. [2026-11]
 
 ## Ce que fait ce repo
 Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluation (`fixtures/`) et application de suivi (`app/`) pour installer, auditer et faire évoluer l'instrumentation IA d'un dépôt. Modèle de maturité dans `docs/maturity.md`, exigences et état dans `docs/cahier-des-charges.md`.
@@ -30,6 +30,7 @@ Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluati
 - Les questions ouvertes (arbitrage, choix d'approche, information que seul le propriétaire détient) sont posées **en fin de message**, dans une section « Questions » numérotée, une par ligne, avec le défaut proposé. Jamais noyées dans le corps, jamais implicites, jamais laissées « dans la PR ». Pas de section s'il n'y en a pas.
 - Les décisions déjà prises ne sont pas rouvertes ; les hypothèses prises sans question sont dites en une ligne.
 - Une tâche est finie quand les tests passent, les fixtures sont conformes, et le commit est poussé sur `main`.
+- Le garant dit ce qui n'est pas vérifié, corrige ses propres erreurs dès qu'il les voit, et laisse `main` dans un état où les deux suites passent.
 - Tout travail fini ou commencé, et toute demande ou correction du propriétaire, a sa ligne dans le plan d'avancement de `docs/capacites.md`, dans le même changement. Vérifiée par : hook Stop, `python3 cli/harness.py progress check` [2026-11]
 
 ## Tâches déléguées
