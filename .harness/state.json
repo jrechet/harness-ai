@@ -1,7 +1,7 @@
 {
   "schema": "harness-state/1",
-  "repo": "/home/user/harness-ai",
-  "date": "2026-11-10",
+  "repo": "/Users/jre/dev/harness-ai/.claude/worktrees/ai-sdlc-framework-a5cfb7",
+  "date": "2026-11-16",
   "level": {
     "reached": 1,
     "name": "Cadré",
@@ -35,21 +35,24 @@
           "label": "Un fichier d'instructions existe (AGENTS.md)",
           "passed": true,
           "value": "AGENTS.md",
-          "next_action": null
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L1.mode",
           "label": "La ligne « Mode : délégation | assistance » est présente",
           "passed": true,
-          "value": "assistance",
-          "next_action": null
+          "value": "delegation",
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L1.short",
           "label": "Le fichier chargé fait au plus 60 lignes",
           "passed": true,
-          "value": 39,
-          "next_action": null
+          "value": 43,
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L1.single_source",
@@ -58,17 +61,19 @@
           "value": {
             "exists": true,
             "lines": 1,
-            "loaded_lines": 39,
+            "loaded_lines": 43,
             "is_stub": true
           },
-          "next_action": null
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L1.forbidden",
           "label": "Une section « Interdits » dit ce qu'un agent ne fait jamais",
           "passed": true,
           "value": true,
-          "next_action": null
+          "next_action": null,
+          "waits": false
         }
       ],
       "passed_checks": 5,
@@ -86,28 +91,32 @@
           "label": "Une section Maintenance dit comment le fichier évolue",
           "passed": true,
           "value": true,
-          "next_action": null
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L2.rule_convention",
           "label": "La convention `rule:` en review est documentée",
           "passed": true,
           "value": true,
-          "next_action": null
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L2.marker_fresh",
           "label": "Un harvest a tourné depuis moins de 45 jours",
           "passed": true,
-          "value": 1,
-          "next_action": null
+          "value": 7,
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L2.signal",
           "label": "Le dernier harvest a trouvé au moins un signal réel (S1–S4)",
           "passed": false,
           "value": null,
-          "next_action": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore."
+          "next_action": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore.",
+          "waits": true
         }
       ],
       "passed_checks": 3,
@@ -125,28 +134,32 @@
           "label": "Une CI existe (workflows ou .gitlab-ci.yml)",
           "passed": false,
           "value": [],
-          "next_action": "Sans CI, aucune règle ne peut être garantie : en poser une."
+          "next_action": "Sans CI, aucune règle ne peut être garantie : en poser une.",
+          "waits": false
         },
         {
           "id": "L3.guarded",
           "label": "Au moins 50 % des règles sont « Vérifiée par » un outil",
           "passed": false,
           "value": 0.0,
-          "next_action": "Pousser les règles racontées en L3 : lint custom, test d'architecture, check de PR."
+          "next_action": "Pousser les règles racontées en L3 : lint custom, test d'architecture, check de PR.",
+          "waits": false
         },
         {
           "id": "L3.justified",
           "label": "Au moins 50 % des règles disent pourquoi",
           "passed": true,
           "value": 0.71,
-          "next_action": null
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L3.audit",
           "label": "Un harness-audit existe et n'a aucun P1 ouvert",
           "passed": false,
           "value": null,
-          "next_action": "Lancer harness-audit, écrire son JSON dans .harness/audit.json, traiter les P1."
+          "next_action": "Lancer harness-audit, écrire son JSON dans .harness/audit.json, traiter les P1.",
+          "waits": false
         }
       ],
       "passed_checks": 1,
@@ -162,40 +175,45 @@
         {
           "id": "L4.mode",
           "label": "Le mode est délégation",
-          "passed": false,
-          "value": "assistance",
-          "next_action": "Passer en délégation avec harness-init quand les garde-fous sont là."
+          "passed": true,
+          "value": "delegation",
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L4.process",
           "label": "Une section « Processus de travail » cadre l'agent",
           "passed": true,
           "value": true,
-          "next_action": null
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L4.contracts",
           "label": "Au moins un contrat de tâche existe et est référencé",
           "passed": true,
           "value": 1,
-          "next_action": null
+          "next_action": null,
+          "waits": false
         },
         {
           "id": "L4.clean_prs",
           "label": "Le dernier harvest voit des PRs d'agent sans correction après coup",
           "passed": false,
           "value": null,
-          "next_action": "Chaque correction après coup (S2) est une règle ou un garde-fou manquant : les traiter."
+          "next_action": "Chaque correction après coup (S2) est une règle ou un garde-fou manquant : les traiter.",
+          "waits": true
         },
         {
           "id": "L4.cut_the_agent",
           "label": "Le test « coupe l'agent » de l'audit passe",
           "passed": false,
           "value": null,
-          "next_action": "Pousser en L3/L4 les étapes qui n'existent que dans des prompts."
+          "next_action": "Pousser en L3/L4 les étapes qui n'existent que dans des prompts.",
+          "waits": false
         }
       ],
-      "passed_checks": 2,
+      "passed_checks": 3,
       "total_checks": 5
     }
   ],
@@ -222,24 +240,29 @@
     "hint": "Lancer harness-audit pour une vue par couche mesurée."
   },
   "next_actions": [
-    "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore."
+    "Sans CI, aucune règle ne peut être garantie : en poser une.",
+    "Pousser les règles racontées en L3 : lint custom, test d'architecture, check de PR.",
+    "Lancer harness-audit, écrire son JSON dans .harness/audit.json, traiter les P1."
+  ],
+  "waiting": [
+    "L2.signal"
   ],
   "dangling": [],
   "facts": {
-    "repo": "/home/user/harness-ai",
-    "date": "2026-11-10",
+    "repo": "/Users/jre/dev/harness-ai/.claude/worktrees/ai-sdlc-framework-a5cfb7",
+    "date": "2026-11-16",
     "instructions": {
       "files": {
         "AGENTS.md": {
           "exists": true,
-          "lines": 39,
-          "loaded_lines": 39,
+          "lines": 43,
+          "loaded_lines": 43,
           "is_stub": false
         },
         "CLAUDE.md": {
           "exists": true,
           "lines": 1,
-          "loaded_lines": 39,
+          "loaded_lines": 43,
           "is_stub": true
         },
         ".github/copilot-instructions.md": {
@@ -252,8 +275,8 @@
       },
       "source": {
         "path": "AGENTS.md",
-        "mode": "assistance",
-        "lines": 39,
+        "mode": "delegation",
+        "lines": 43,
         "rules_total": 7,
         "rules_guarded": 0,
         "rules_unguarded_marked": 3,
@@ -287,7 +310,7 @@
     },
     "audit": null,
     "harvest": null,
-    "harvest_marker_age_days": 1,
+    "harvest_marker_age_days": 7,
     "config": {
       "target_level": null
     },
