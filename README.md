@@ -143,6 +143,7 @@ python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /chemin/de/ton/depot --
 | `qa gate` | Quatre portes : aucun test désactivé, la suite qui passe plusieurs fois, les lignes ajoutées exécutées (rapport lcov ou Cobertura), un test par critère |
 | `secu gate [--report <rapport.sarif>…]` | Quatre portes : aucun secret dans ce que la branche ajoute (historique et messages de commit compris), aucun scanner réduit au silence, aucun résultat de scanner (SARIF) sur une ligne ajoutée, et la liste des endroits sensibles à relire |
 | `ship check [--checks <relevé.json>]` | Les prérequis d'une livraison : tête de branche propre, CI verte sur ce commit, zones sensibles et ruptures depuis la dernière version ; une version et des notes proposées. Ne tague ni ne déploie |
+| `ship render <proposition.json>` | La proposition de livraison du skill, refusée si une commande n'est pas citée de la procédure de l'équipe ou si un prérequis échoue |
 | `size [--paths …]` | La taille d'un changement (XS, S-M, L) par règles : fichiers, lignes, zones sensibles |
 | `dev body <corps.json>` | Le corps d'une PR, refusé s'il est incomplet pour sa taille |
 | `review render <revue.json>` | Une revue en commentaires, refusée si un constat ne cite pas une ligne du diff |

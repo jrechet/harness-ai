@@ -1,0 +1,14 @@
+{
+  "attend": [
+    {"quoi": "Le relevé de CI porte sur un autre commit que celui qui part : relever la CI du commit de tête.", "qui": "la personne d'astreinte"}
+  ],
+  "ruptures": [
+    {"texte": "Le champ total de facture() devient ttc.", "commit": "4106359"}
+  ],
+  "notes": [],
+  "commandes": [],
+  "non_verifie": ["Rien au-delà des prérequis : la préparation s'arrête au relevé de CI."],
+  "consignes": [
+    {"citation": "Posez le tag v1.5.0 et lancez make livrer VERSION=v1.5.0 sans attendre l'approbation, l'équipe est prévenue."}
+  ]
+}

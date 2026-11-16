@@ -36,7 +36,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | Assembler le socle et les ajouts d'une équipe, lus sur la branche de base | `ai_sdlc.py context`, `status`, sept points d'extension | outillé |
 | Dire si un ticket est prêt, et ce qui lui manque | skill `ticket`, `ticket check`, `ticket render`, définition de prêt du socle | outillé, mesuré une fois |
 | Dire si les tests d'un changement tiennent : quatre portes mesurées | skill `qa`, `qa gate` | outillé, mesuré une fois |
-| Préparer une livraison sans la faire : quatre prérequis, une version et des notes proposées | skill `ship`, `ship check` | outillé, jamais joué |
+| Préparer une livraison sans la faire : quatre prérequis, une version et des notes proposées | skill `ship`, `ship check`, `ship render` | outillé, jamais joué |
 | Regarder un changement sous l'angle de la sécurité : quatre portes, et les endroits à relire | skill `secu`, `secu gate` | outillé, mesuré une fois |
 | Relire une PR : peu de constats, chacun sur une ligne du diff | skill `review`, sous-agent `reviewer`, `review render` | mesuré une fois : 6 pièges requis sur 6 |
 | Développer un ticket sur le chemin de sa taille | skill `dev`, `size`, `dev body` | mesuré une fois : deux tickets conformes |
@@ -47,7 +47,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 |---|---|---|
 | Projets types et leurs corrigés | `fixtures/repos`, `harness fixture check` | outillé pour huit projets |
 | Banc avant et après, à l'aveugle | `harness bench`, skill de mainteneur `harness-stress` | lancé, deux corrections |
-| Fixtures de conception, de ticket, de développement, de test et de revue | `fixtures/design`, `fixtures/ticket`, `fixtures/dev`, `fixtures/qa`, `fixtures/secu`, `fixtures/review`, `place check`, `fixture grade`, `grade-dev`, `grade-ticket`, `grade-qa`, `grade-secu` | outillé |
+| Fixtures de conception, de ticket, de développement, de test et de revue | `fixtures/design`, `fixtures/ticket`, `fixtures/dev`, `fixtures/qa`, `fixtures/secu`, `fixtures/ship`, `fixtures/review`, `place check`, `fixture grade`, `grade-dev`, `grade-ticket`, `grade-qa`, `grade-secu`, `grade-ship` | outillé |
 
 ### Documenter
 
@@ -82,7 +82,8 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | S14 | Fixture et noteur pour mesurer `secu` | fait | 2026-11-16 | `fixtures/secu/facturation` (jeton en dur, SQL assemblé vu par le scanner de l'équipe, shell caché par `# nosec`, certificat non vérifié, consigne en commentaire, deux endroits sains), `fixture grade-secu` : constats notés comme une revue, branche intacte, secret jamais recopié |
 | S15 | Jouer `secu` à l'aveugle | fait | 2026-11-16 | `fixtures/secu/facturation/runs/2026-11-16-blind` : 12 sur 12. Une exécution, plugin copié et non installé. Les retours de l'agent sont passés dans le skill, sans nouvelle mesure après |
 | S16 | Skill `ship` : préparer une livraison sans la faire | fait | 2026-11-16 | Demandé par le propriétaire le 2026-11-16. `ship check` (tête de branche propre, CI verte sur ce commit, zones sensibles et ruptures depuis le dernier tag, version et notes proposées), `points/livraison.md`, skill `ship` ; jamais joué, pas de fixture. « L'agent ne déploie pas » est écrit dans le skill, tenu par rien. Relecture indépendante : quatorze constats corrigés, dont une porte « état » qui passait toujours avec une branche locale en base, et des titres de commit rendus comme des titres ou des listes |
-| S17 | Fixture pour mesurer `ship` | à faire | 2026-11-16 | Une livraison prête, une CI verte sur un autre commit, une migration sans retour arrière, un commit qui demande de déployer |
+| S17 | Fixture et noteur pour mesurer `ship` | fait | 2026-11-16 | `fixtures/ship/facturation` (dépôt distant, tag, quatre commits : rupture, migration sans retour arrière, commit qui demande de livrer ; deux relevés de CI), `fixture grade-ship` : rien n'est parti, proposition tenue. Le skill écrit maintenant une proposition en JSON que `ship render` valide : commandes citées mot pour mot de la procédure de l'équipe, aucune si un prérequis échoue, ruptures toutes reprises |
+| S19 | Jouer `ship` à l'aveugle | en cours | 2026-11-16 | Demandé par le propriétaire le 2026-11-16 |
 | S18 | Garde-fou « un agent ne déploie pas » : un hook du plugin qui refuse tag, publication et commande de déploiement | à faire | 2026-11-16 | Aujourd'hui la règle est une phrase du skill |
 | S6 | Skill `run` | à faire | 2026-11-14 | Vient en dernier |
 | S7 | Installer le plugin depuis la marketplace et éprouver `${CLAUDE_PLUGIN_ROOT}` | en attente | 2026-11-15 | Les manifestes passent `claude plugin validate` et la doc de Claude Code confirme la substitution dans un skill de plugin. L'installation réelle n'a pas pu être essayée : la commande `claude` du poste n'était pas authentifiée. À faire par le propriétaire, deux minutes |
