@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version: "1.22" }
+        with: { go-version: "1.27" }
       - run: go vet ./...
       - run: go test ./...
 
@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version: "1.22" }
+        with: { go-version: "1.27" }
       - run: go run ./tools/archcheck
 
   lint:
@@ -29,4 +29,4 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: golangci/golangci-lint-action@v6
-        with: { version: v1.61 }
+        with: { version: v1.64 }
