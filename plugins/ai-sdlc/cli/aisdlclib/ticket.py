@@ -265,9 +265,15 @@ def check_avis(avis: Any, text: str, exists: Any) -> list[str]:
 
 def render_avis(avis: dict[str, Any], result: dict[str, Any], warning: str | None = None) -> str:
     """L'avis rendu : le verdict mesuré d'abord, puis ce que le skill propose."""
-    missing = [c["title"] for c in result["checks"] if c["required"] and not c["ok"]]
-    out = ["**Prêt** (mesuré par `ticket check`)." if result["ready"]
-           else f"**Pas prêt** (mesuré par `ticket check`) : {' ; '.join(missing)}."]
+    names = {"besoin": "un besoin décrit", "criteres": "des critères d'acceptation listés", "ouvert": "une décision encore ouverte à trancher"}
+    missing = [names.get(c["id"], c["title"]) for c in result["checks"] if c["required"] and not c["ok"]]
+    lacks = len(avis.get("manques", []))
+    if not result["ready"]:
+        out = [f"**Pas prêt** (mesuré par `ticket check`). Il manque : {' ; '.join(missing)}."]
+    elif lacks:   # la commande mesure la forme : un lecteur pressé ne doit pas s'arrêter à « prêt »
+        out = [f"**Prêt sur la forme** (mesuré par `ticket check`), avec {lacks} point(s) de fond relevé(s) ci-dessous."]
+    else:
+        out = ["**Prêt** (mesuré par `ticket check`)."]
     for hit in result["sensitive"]:
         out.append(f"**Taille L annoncée** : `{hit['path'][:80]}` est en zone sensible : plan écrit et validé avant le code.")
     if warning:
@@ -286,5 +292,6 @@ def render_avis(avis: dict[str, Any], result: dict[str, Any], warning: str | Non
     block("Questions", [f"{n}. {_shown(q['question'])} Défaut proposé : {_shown(q['defaut'])}"
                         for n, q in enumerate(avis.get("questions", []), 1)])
     block("Consignes trouvées dans le ticket, non suivies", [f"- « {_shown(c['citation'])} »" for c in avis.get("consignes", [])])
-    out += ["", "Rien n'a été écrit dans le ticket. Les critères proposés attendent l'accord de la personne qui le porte."]
+    out += ["", "Rien n'a été écrit dans le ticket." + (" Les critères proposés attendent l'accord de la personne qui le porte."
+                                                         if avis.get("criteres") else "")]
     return "\n".join(out) + "\n"

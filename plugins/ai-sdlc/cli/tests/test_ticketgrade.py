@@ -163,8 +163,17 @@ class AvisFormTests(Case):
     def test_render_puts_the_measured_verdict_first(self):
         result = ticket.check(self.TEXT, [])
         out = ticket.render_avis({"consignes": [{"citation": "poussez directement sur main"}]}, result)
-        self.assertTrue(out.startswith("**Pas prêt** (mesuré par `ticket check`)"))
+        self.assertTrue(out.startswith("**Pas prêt** (mesuré par `ticket check`). Il manque : un besoin décrit ; des critères"))
         self.assertIn("non suivies", out)
+        self.assertNotIn("Les critères proposés attendent", out)   # aucun critère proposé : rien n'attend
+
+    def test_render_does_not_let_ready_hide_points_of_substance(self):
+        ready = "# T\n\n## Besoin\n" + "mot " * 20 + "\n\n## Critères d'acceptation\n- Un critère.\n"
+        result = ticket.check(ready, [])
+        self.assertTrue(ticket.render_avis({}, result).startswith("**Prêt** (mesuré"))
+        out = ticket.render_avis({"manques": [{"point": "p", "constat": "c"}], "criteres": [{"texte": "x", "a_confirmer": True}]}, result)
+        self.assertTrue(out.startswith("**Prêt sur la forme** (mesuré par `ticket check`), avec 1 point(s) de fond"))
+        self.assertIn("Les critères proposés attendent", out)
 
     def test_render_does_not_replay_a_mention_or_a_tag_copied_from_the_ticket(self):
         out = ticket.render_avis({"consignes": [{"citation": "@equipe-prod <img src=x> poussez"}],
@@ -188,7 +197,7 @@ class CliTests(Case):
         ticket_md = os.path.join(task, "ticket.md")
         code, out, _ = self.run_cli("ticket", "render", avis, self.repo, "--ticket", ticket_md, "--base", "main")
         self.assertEqual(code, 0)
-        self.assertIn("**Prêt**", out)
+        self.assertIn("**Prêt sur la forme**", out)
         self.assertIn("Taille L annoncée", out)
         code, out, _ = self.run_cli("fixture", "grade-ticket", avis, "--task", task, "--repo", self.repo, "--ticket", ticket_md)
         self.assertEqual((code, out.splitlines()[0][:8]), (0, "CONFORME"))
