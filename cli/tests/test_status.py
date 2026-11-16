@@ -493,6 +493,23 @@ class MapTests(TempRepo):
         self.assertIn("(beyond your target)", m)
         self.assertNotIn("still needs", m)
 
+    def test_a_level_held_above_the_target_offers_the_level_above_it(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 1}))
+        state = self.state()
+        levels = [{**l, "achieved": l["level"] <= 3} for l in state["levels"]]
+        m = maturity.render_map({**state, "levels": levels, "level": {**state["level"], "reached": 3}})
+        self.assertIn("level 4 (Delegated) would bring this", m)
+        self.assertNotIn("level 2 (Looped) would bring this", m)
+        self.assertNotIn("✓ 2 Looped", m.split("(beyond your target)")[0].splitlines()[-1])
+
+    def test_every_level_reached_without_a_target_says_so(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        state = self.state()
+        levels = [{**l, "achieved": True} for l in state["levels"]]
+        m = maturity.render_map({**state, "levels": levels, "level": {**state["level"], "reached": 4}, "dangling": []})
+        self.assertIn("every level is reached", m)
+
     def test_a_waiting_level_says_time_and_the_step_goes_to_the_level_above(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
         write(self.repo, ".harness/config.json", json.dumps({"target_level": 3}))

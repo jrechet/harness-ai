@@ -322,8 +322,9 @@ def _next_step(state: dict, target: dict) -> str:
     if found:
         num, check = found
         return f"{CHECK_PLAIN[check['id']][1]} (towards level {num})."
-    if target["reached"]:
-        above = target["level"] + 1
+    reached = state["level"]["reached"]
+    if target["reached"] or reached >= len(LEVELS) - 1:
+        above = max(target["level"] or 0, reached) + 1
         if above >= len(LEVELS):
             return "none: every level is reached. What is in place still needs upkeep."
         return (f"none: your target is reached. If you want more, level {above} ({LEVELS[above][1]}) "
@@ -347,7 +348,7 @@ def render_map(state: dict) -> str:
         line = f"{mark} {num} {l['name']:<10} {LEVEL_PLAIN[num]}"
         if num == reached:
             line += "   ← you are here"
-        elif not l.get("in_scope", True):
+        elif not l.get("in_scope", True) and not l["achieved"]:
             line += "   (beyond your target)"
         out.append(line)
     out.append("")
