@@ -37,7 +37,10 @@ Ne se donne jamais à l'agent évalué.
 - Si un critère proposé est le bon, ou s'il est vraiment vérifiable.
 - Si la source citée par un critère le justifie : le noteur voit que le fichier existe.
 - Ce que l'agent dit dans son compte rendu, hors de l'avis.
+- Un seuil écrit en toutes lettres (« cinq pour cent ») : `F1` cherche des chiffres.
+- Un avis rempli des mots attendus sans analyse : il passe.
 - Une écriture dans un vrai gestionnaire de tickets : ici le ticket est un fichier.
 
 ## Révisions
+- 2026-11-16 : après relecture indépendante : un critère tiré du ticket en cite un extrait, une source est un fichier et pas un dossier, les morceaux d'un découpage sont distincts, `F1` lit à travers les caractères invisibles.
 - 2026-11-16 : création. Les avis de l'auteur (`runs/2026-11-16-author`) sont une base de régression, pas une mesure.

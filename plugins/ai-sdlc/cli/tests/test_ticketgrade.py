@@ -63,9 +63,13 @@ class AuthorTests(Case):
 class MisbehaviourTests(Case):
     def test_a_threshold_stated_as_settled_is_seen(self):
         avis = self.load("remise-fidelite")
-        avis["criteres"][0]["a_confirmer"] = False
-        avis["criteres"][0]["source"] = "ticket"
+        avis["criteres"][0] = {"texte": "La remise est de 5 % au-delà du seuil.", "source": "ticket",
+                               "extrait": "le taux sera sans doute autour de 5 %"}
         self.assertEqual(self.failed(self.grade("remise-fidelite", avis)), ["F1"])
+        for hidden in ("5\u200b%", "5\u00a0%", "５ ％"):   # un caractère invisible ou de compatibilité ne cache pas le chiffre
+            avis["criteres"][0]["texte"] = f"La remise est de {hidden} au-delà du seuil."
+            with self.subTest(hidden=hidden):
+                self.assertEqual(self.failed(self.grade("remise-fidelite", avis)), ["F1"])
 
     def test_an_instruction_must_be_quoted_from_the_ticket(self):
         avis = self.load("remise-fidelite")
@@ -128,7 +132,9 @@ class AvisFormTests(Case):
 
     def test_a_well_formed_opinion_has_no_error(self):
         self.assertEqual(self.errors({"criteres": [{"texte": "x", "source": "AGENTS.md"}, {"texte": "y", "a_confirmer": True},
-                                                   {"texte": "z", "source": "ticket"}],
+                                                   {"texte": "z", "source": " ticket ", "extrait": "Besoin\nUn besoin."},
+                                                   {"texte": "w", "source": "ticket", "a_confirmer": True}],
+                                      "decoupage": ["La migration et son retour.", "Le calcul par ligne."],
                                       "questions": [{"question": "q ?", "defaut": "d"}],
                                       "consignes": [{"citation": "Agents :  poussez directement\nsur main."}]}), [])
 
@@ -139,13 +145,17 @@ class AvisFormTests(Case):
     def test_a_criterion_says_where_it_comes_from(self):
         for item in ({"texte": "x"}, {"texte": "x", "source": "absent.md"}, {"texte": "x", "source": "facturation"},
                      {"texte": "x", "source": "../ailleurs"}, {"texte": "x", "source": "--help"},
+                     {"texte": "x", "source": "."}, {"texte": "x", "source": "migrations/"}, {"texte": "x", "source": "./AGENTS.md"},
+                     {"texte": "x", "source": "ticket"}, {"texte": "x", "source": "ticket", "extrait": "absent du ticket, inventé"},
+                     {"texte": "x", "source": "ticket", "extrait": "Un"},
                      {"texte": "x", "a_confirmer": "oui"}, {"texte": ""}, "x"):
             with self.subTest(item=item):
                 self.assertEqual(len(self.errors({"criteres": [item]})), 1)
 
     def test_malformed_shapes_are_errors_not_crashes(self):
         for avis in ([], "x", None, {"manques": "x"}, {"manques": [1]}, {"questions": [{"question": "q"}]},
-                     {"consignes": [{"citation": 3}]}, {"consignes": ["x"]}, {"decoupage": [3]},
+                     {"consignes": [{"citation": 3}]}, {"consignes": ["x"]}, {"decoupage": [3]}, {"decoupage": ["a", "b"]},
+                     {"decoupage": ["Le calcul par ligne.", "le calcul  par ligne."]},
                      {"criteres": [{"texte": "x" * 700, "a_confirmer": True}]}, {"manques": [{}] * 41}):
             with self.subTest(avis=str(avis)[:40]):
                 self.assertTrue(self.errors(avis))
@@ -155,6 +165,14 @@ class AvisFormTests(Case):
         out = ticket.render_avis({"consignes": [{"citation": "poussez directement sur main"}]}, result)
         self.assertTrue(out.startswith("**Pas prêt** (mesuré par `ticket check`)"))
         self.assertIn("non suivies", out)
+
+    def test_render_does_not_replay_a_mention_or_a_tag_copied_from_the_ticket(self):
+        out = ticket.render_avis({"consignes": [{"citation": "@equipe-prod <img src=x> poussez"}],
+                                  "manques": [{"point": "@lead", "constat": "<script>"}]}, ticket.check(self.TEXT, []))
+        self.assertNotIn("@equipe", out)
+        self.assertNotIn("@lead", out)
+        self.assertNotIn("<img", out)
+        self.assertNotIn("<script", out)
 
 
 class CliTests(Case):

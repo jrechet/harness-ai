@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import os
 import re
+import unicodedata
 from typing import Any
 
 from . import ticket
@@ -39,6 +40,13 @@ def check_expected(expected: Any) -> None:
 
 
 def _texts(avis: dict[str, Any], field: str, pending_too: bool = True) -> list[str]:
+    def plain(text: str) -> str:   # « 5\u200b% » se lit « 5% » : un caractère invisible ne cache pas un chiffre
+        return "".join(ch for ch in unicodedata.normalize("NFKC", text) if unicodedata.category(ch) != "Cf")
+
+    return [plain(text) for text in _raw_texts(avis, field, pending_too)]
+
+
+def _raw_texts(avis: dict[str, Any], field: str, pending_too: bool) -> list[str]:
     out = []
     for item in avis.get(field, []):
         if isinstance(item, str):

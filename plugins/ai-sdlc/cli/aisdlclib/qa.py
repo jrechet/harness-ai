@@ -29,7 +29,7 @@ RUN_TIMEOUT = 600      # par passage
 RUN_BUDGET = 1800      # pour tous les passages
 MAX_REPORT = 50_000_000
 MIN_REASON = 15
-_SKIP = re.compile(r"unittest\.skip|\bskipTest\b|\bSkipTest\b|pytest\.mark\.(?:skip|xfail)|pytest\.(?:skip|xfail)\(|importorskip|"
+_SKIP = re.compile(r"unittest\.skip|(?:^|\s)@skip\w*\b|\bimport\s+.*\bskip\w*\b|\bskipTest\b|\bSkipTest\b|pytest\.mark\.(?:skip|xfail)|pytest\.(?:skip|xfail)\(|importorskip|"
                    r"expectedFailure|\b(?:it|test|describe|context)\.(?:skip|todo|only|fixme|fail)\b|\b[xf](?:it|describe|test)\(|"
                    r"@Disabled\w*\b|@Ignore\b|\[Ignore\b|Skip\s*=|enabled\s*=\s*false|assumeTrue\(false\)|"
                    r"\bt\.Skip(?:f|Now)?\(|#\[ignore\b|\bpending\(|__test__\s*=\s*False|collect_ignore|--deselect")
@@ -46,6 +46,16 @@ _TEST_NAME = re.compile(r"\bdef\s+(test\w*)|\bfunc\s+(Test\w+)|\bfn\s+(test\w*)|
 _SHELL = {"&&", "||", "|", ";", "&", ">", ">>", "<", "2>&1"}
 _SECRET = re.compile(r"TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|API_?KEY|PRIVATE", re.IGNORECASE)
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+
+
+def _comment(line: str) -> bool:
+    text = line.lstrip()
+    return text.startswith(("//", "/*", "*", "--")) or (text.startswith("#") and not text.startswith(("#[", "#!")))
+
+
+def skips(lines: list[str]) -> bool:
+    """Une de ces lignes saute ou désactive un test. Une ligne de commentaire qui en parle ne saute rien."""
+    return any(_SKIP.search(line) for line in lines if not _comment(line))
 
 
 def is_test(path: str) -> bool:
@@ -72,7 +82,7 @@ def gate_disabled(repo: str, base: str, paths: list[str]) -> dict[str, Any]:
         if not (is_test(path) or _TEST_CONFIG.search(path)):
             continue
         added, removed = _changed_lines(repo, base, path, "+"), _changed_lines(repo, base, path, "-")
-        if any(_SKIP.search(line) for line in added):
+        if skips(added):
             skipped.append(path)
         lost = sorted(_names(removed) - _names(added))
         if lost and os.path.exists(os.path.join(repo, path)):
@@ -300,6 +310,9 @@ def gate_criteria(repo: str, ticket_text: str | None, mapping: Any) -> dict[str,
         for ref in tests:
             path, _, name = ref.partition("::")
             path, name = path.strip(), name.split("::")[-1].strip()
+            if "\0" in path or len(path) > 300:
+                problems.append(f"critère {number} : chemin de test illisible")
+                continue
             full = os.path.realpath(os.path.join(repo, path))
             if not name:
                 problems.append(f"critère {number} : {ref} ne nomme pas de test (chemin::nom)")

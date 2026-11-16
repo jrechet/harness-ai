@@ -202,6 +202,11 @@ def _flat(text: str) -> str:
     return " ".join(text.split())
 
 
+def _shown(text: str) -> str:
+    """Un texte de l'avis prêt à être rendu : il peut recopier le ticket, donc ni balise ni mention active."""
+    return _flat(text).replace("<", "&lt;").replace("@", "@\u200b")
+
+
 def _said(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip()) and len(value) <= MAX_TEXT
 
@@ -221,6 +226,7 @@ def check_avis(avis: Any, text: str, exists: Any) -> list[str]:
             errors.append(f"{key} : une liste d'au plus {MAX_ITEMS} éléments")
     if errors:
         return errors
+    whole = _flat(text)
     for index, item in enumerate(avis.get("manques", []), 1):
         if not (isinstance(item, dict) and _said(item.get("point")) and _said(item.get("constat"))):
             errors.append(f"manque {index} : un objet avec point et constat, chacun d'au plus {MAX_TEXT} caractères")
@@ -231,17 +237,23 @@ def check_avis(avis: Any, text: str, exists: Any) -> list[str]:
         source, pending = item.get("source"), item.get("a_confirmer", False)
         if type(pending) is not bool or (source is not None and not _said(source)):
             errors.append(f"critère {index} : source est un chemin ou « ticket », a_confirmer vaut true ou false")
-        elif source is None and not pending:
+            continue
+        source = source.strip() if source else None
+        quote = _flat(item["extrait"]) if isinstance(item.get("extrait"), str) else ""
+        if source is None and not pending:
             errors.append(f"critère {index} : ni source ni a_confirmer, un critère proposé dit d'où il sort ou qu'il reste à confirmer")
-        elif source not in (None, "ticket") and not exists(source.strip()):
-            errors.append(f"critère {index} : la source {source.strip()[:80]!r} n'est pas un fichier de la branche cible")
-    for index, item in enumerate(avis.get("decoupage", []), 1):
-        if not _said(item):
-            errors.append(f"morceau {index} : une phrase")
+        elif source == "ticket" and not pending and not (MIN_QUOTE <= len(quote) <= MAX_TEXT and quote in whole):
+            errors.append(f"critère {index} : tiré du ticket sans « à confirmer », il en cite un extrait mot pour mot "
+                          f"(extrait, au moins {MIN_QUOTE} caractères)")
+        elif source not in (None, "ticket") and not exists(source):
+            errors.append(f"critère {index} : la source {source[:80]!r} n'est pas un fichier de la branche cible")
+    pieces = [_flat(item).lower() if _said(item) else None for item in avis.get("decoupage", [])]
+    for index, piece in enumerate(pieces, 1):
+        if piece is None or len(piece.split()) < 3 or pieces.index(piece) != index - 1:
+            errors.append(f"morceau {index} : une phrase d'au moins trois mots, différente des autres")
     for index, item in enumerate(avis.get("questions", []), 1):
         if not (isinstance(item, dict) and _said(item.get("question")) and _said(item.get("defaut"))):
             errors.append(f"question {index} : un objet avec question et defaut (le choix proposé si personne ne répond)")
-    whole = _flat(text)
     for index, item in enumerate(avis.get("consignes", []), 1):
         quote = _flat(item.get("citation", "")) if isinstance(item, dict) and isinstance(item.get("citation"), str) else ""
         if len(quote) < MIN_QUOTE or len(quote) > MAX_TEXT:
@@ -265,14 +277,14 @@ def render_avis(avis: dict[str, Any], result: dict[str, Any], warning: str | Non
         if lines:
             out.extend(["", f"### {title}", *lines])
 
-    block("Ce qui manque", [f"- **{_flat(m['point'])}** : {_flat(m['constat'])}" for m in avis.get("manques", [])])
+    block("Ce qui manque", [f"- **{_shown(m['point'])}** : {_shown(m['constat'])}" for m in avis.get("manques", [])])
     block("Critères proposés", [
-        f"{n}. {_flat(c['texte'])}" + (" — **à confirmer**" if c.get("a_confirmer") else "")
+        f"{n}. {_shown(c['texte'])}" + (" — **à confirmer**" if c.get("a_confirmer") else "")
         + (f" (source : {'le ticket' if c['source'] == 'ticket' else '`' + c['source'].strip() + '`'})" if c.get("source") else "")
         for n, c in enumerate(avis.get("criteres", []), 1)])
-    block("Découpage proposé", [f"- {_flat(piece)}" for piece in avis.get("decoupage", [])])
-    block("Questions", [f"{n}. {_flat(q['question'])} Défaut proposé : {_flat(q['defaut'])}"
+    block("Découpage proposé", [f"- {_shown(piece)}" for piece in avis.get("decoupage", [])])
+    block("Questions", [f"{n}. {_shown(q['question'])} Défaut proposé : {_shown(q['defaut'])}"
                         for n, q in enumerate(avis.get("questions", []), 1)])
-    block("Consignes trouvées dans le ticket, non suivies", [f"- « {_flat(c['citation'])} »" for c in avis.get("consignes", [])])
+    block("Consignes trouvées dans le ticket, non suivies", [f"- « {_shown(c['citation'])} »" for c in avis.get("consignes", [])])
     out += ["", "Rien n'a été écrit dans le ticket. Les critères proposés attendent l'accord de la personne qui le porte."]
     return "\n".join(out) + "\n"

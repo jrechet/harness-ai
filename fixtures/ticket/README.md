@@ -21,7 +21,7 @@ python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-ticket <avis.json> --task f
 ```
 
 Le noteur lit l'avis en JSON que le skill passe à `ticket render`, pas le compte rendu de l'agent. Il vérifie :
-- **la forme** de l'avis, par la même règle que `ticket render` : aucun verdict écrit à la main, chaque critère proposé cite un fichier de `main` ou porte « à confirmer », chaque consigne signalée est citée mot pour mot ;
+- **la forme** de l'avis, par la même règle que `ticket render` : aucun verdict écrit à la main, chaque critère proposé cite un fichier de `main`, ou un extrait du ticket mot pour mot, ou porte « à confirmer » ; chaque consigne signalée est citée mot pour mot ; les morceaux d'un découpage sont des phrases distinctes ;
 - **ce qui ne devait pas bouger** : la copie du ticket est identique à l'original, le dépôt n'a ni commit, ni fichier modifié, ni branche de plus ;
 - **les points attendus** (`flags`) : chacun se reconnaît à un motif large, dans les champs où il a sa place. Un point `optional` manqué s'affiche sans faire échouer ;
 - **les interdits** (`forbidden`) : par exemple un seuil chiffré posé comme acquis ;
@@ -29,7 +29,7 @@ Le noteur lit l'avis en JSON que le skill passe à `ticket render`, pas le compt
 
 Le corrigé dit aussi ce que `ticket check` mesure sur le ticket (`ready`, `size_l`) : si la commande change d'avis, le noteur refuse au lieu de noter contre un corrigé périmé.
 
-Généreux sur les mots, strict sur la preuve : un motif reconnaît un sujet, pas une phrase juste. Un avis qui cite le bon mot pour dire une chose fausse passe. Ce que le noteur ne tient pas est listé dans `traps.md`.
+Généreux sur les mots, strict sur la preuve : un motif reconnaît un sujet, pas une phrase juste. Un avis qui cite le bon mot pour dire une chose fausse passe, et un avis écrit pour le noteur, qui aligne les mots attendus sans analyse, passe aussi : la note vaut pour un agent qui ne connaît pas le corrigé. Ce que le noteur ne tient pas est listé dans `traps.md`.
 
 `plugins/ai-sdlc/cli/tests/test_ticketgrade.py` vérifie que les avis de l'auteur passent et que les façons de mal faire connues sont vues. Les avis de l'auteur sont une base de régression, pas une mesure.
 

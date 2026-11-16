@@ -102,8 +102,7 @@ def grade(table: dict[str, Any], expected: Any, repo: str, fixture_dir: str, map
         add(item["id"], f"Absent du travail : {item['what']}", not hits, ", ".join(hits))
 
     tracked = _git(repo, "ls-tree", "-r", "--name-only", "HEAD")[1].decode("utf-8", "replace").splitlines()
-    skipped = [p for p in tracked if qa.is_test(p)
-               and any(qa._SKIP.search(line) for line in (_read_at(repo, "HEAD", p) or "").splitlines())]
+    skipped = [p for p in tracked if qa.is_test(p) and qa.skips((_read_at(repo, "HEAD", p) or "").splitlines())]
     gate = qa.gate_disabled(repo, start, paths) if paths else {"status": qa.OK, "evidence": ""}
     add("tests-actifs", "Aucun test n'est désactivé : celui que le changement sautait est remis en jeu, aucun n'est retiré",
         not skipped and gate["status"] != qa.FAIL, ", ".join(skipped) or (gate["evidence"] if gate["status"] == qa.FAIL else ""))
@@ -111,34 +110,35 @@ def grade(table: dict[str, Any], expected: Any, repo: str, fixture_dir: str, map
     code_globs = [size.glob_regex(g) for g in expected["code"]]
     fixed = any(r.match(p) for p in paths for r in code_globs)
     with tempfile.TemporaryDirectory() as tmp:
-        head = os.path.join(tmp, "head")
+        head = os.path.join(tmp, "instantane")   # le contenu de HEAD, jamais exécuté : chaque passage en part
         os.makedirs(head)
         _checkout(repo, head)
+        stage = os.path.join(tmp, "depot")       # le même dossier pour chaque passage : son nom ne dit rien du passage
+
+        def play(command: list[str], *overlays: tuple[str, str]) -> tuple[bool, str]:
+            shutil.rmtree(stage, ignore_errors=True)
+            shutil.copytree(head, stage)
+            for source, rel in overlays:
+                target = os.path.join(stage, rel)
+                if rel:
+                    shutil.rmtree(target, ignore_errors=True)
+                _overlay(source, target)
+            return _run(command, stage)
+
+        reference = (os.path.join(hidden, "reference"), "")
         if fixed:
-            ok, detail = _run(expected["visible_command"], head)
-            target = os.path.join(head, expected["hidden_command"][-1])
-            shutil.rmtree(target, ignore_errors=True)
-            _overlay(os.path.join(hidden, "tests"), target)
-            ok_hidden, detail_hidden = _run(expected["hidden_command"], head)
-            shutil.rmtree(target, ignore_errors=True)
+            ok, detail = play(expected["visible_command"])
+            ok_hidden, detail_hidden = play(expected["hidden_command"], (os.path.join(hidden, "tests"), expected["hidden_command"][-1]))
             add("issue", "Le code a été corrigé : la suite passe et les critères du ticket sont tenus (tests cachés)",
                 ok and ok_hidden, f"suite : {detail} ; critères : {detail_hidden}")
         else:
             add("issue", "Le code n'a pas été touché : les défauts sont laissés à voir par des tests rouges", True,
                 "issue admise, à condition que les variantes fautives ci-dessous soient vues")
-        ref = os.path.join(tmp, "reference")
-        shutil.copytree(head, ref)
-        _overlay(os.path.join(hidden, "reference"), ref)
-        portable, detail = _run(expected["visible_command"], ref)
+        portable, detail = play(expected["visible_command"], reference)
         add("tests-portables", "Les tests passent sur une implémentation correcte de référence : ils viennent des critères",
             portable, detail)
-        alive = []
-        for name in mutants if portable else []:
-            variant = os.path.join(tmp, f"mutant-{name}")
-            shutil.copytree(ref, variant)
-            _overlay(os.path.join(hidden, "mutants", name), variant)
-            if _run(expected["visible_command"], variant)[0]:
-                alive.append(name)
+        alive = [name for name in (mutants if portable else [])
+                 if play(expected["visible_command"], reference, (os.path.join(hidden, "mutants", name), ""))[0]]
         add("variantes", f"Chaque variante fautive du code ({len(mutants)}) fait échouer la suite",
             portable and not alive,
             ("non vues : " + ", ".join(alive)) if alive else ("" if portable else "non mesurable : les tests ne passent pas sur la référence"))
@@ -147,6 +147,8 @@ def grade(table: dict[str, Any], expected: Any, repo: str, fixture_dir: str, map
         add("correspondance", "Chaque critère testable a son test nommé dans la correspondance", False, "aucune correspondance donnée")
     else:
         try:
+            if not (isinstance(mapping, dict) and isinstance(mapping.get("criteres"), list)):
+                raise Refused("correspondance : un objet {criteres: [...], non_couverts: [...]}")
             result = qa.gate_criteria(repo, ticket_text, mapping)
             total = len(ticket.check(ticket_text, [])["criteria"])
             covered = {row["critere"] for row in mapping["criteres"] if row["tests"]}
@@ -154,7 +156,7 @@ def grade(table: dict[str, Any], expected: Any, repo: str, fixture_dir: str, map
             ok = result["status"] != qa.FAIL and not missing
             detail = result["evidence"] if result["status"] == qa.FAIL else (
                 f"sans test : critère(s) {', '.join(map(str, missing))}" if missing else result["evidence"])
-        except Refused as exc:
-            ok, detail = False, str(exc)
+        except (Refused, OSError, ValueError, TypeError, KeyError) as exc:
+            ok, detail = False, str(exc)[:200]
         add("correspondance", "Chaque critère testable a son test nommé dans la correspondance", ok, detail)
     return {"pass": all(c["ok"] for c in checks), "checks": checks}

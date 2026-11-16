@@ -111,6 +111,67 @@ class MisbehaviourTests(Case):
         self.commit()
         self.assertIn("issue", self.failed())
 
+    def test_a_skip_cannot_hide_behind_what_the_tests_print(self):
+        # constat de relecture : le résumé du lanceur est sur la sortie d'erreur, un print("OK") ne le remplace pas
+        self.apply(commit=False)
+        self.edit(TESTS, "import unittest\n", "import unittest\nfrom unittest import skip\n")
+        self.edit(TESTS, "    def test_le_ttc_arrondit_au_centime", '    @skip("plus tard")\n    def test_le_ttc_arrondit_au_centime')
+        with open(os.path.join(self.repo, TESTS), "a", encoding="utf-8") as fh:
+            fh.write('\n\nprint("OK")\n')
+        self.commit()
+        failed = self.failed()
+        for ident in ("tests-actifs", "issue", "tests-portables"):
+            self.assertIn(ident, failed)
+
+    def test_tests_that_print_or_leave_a_cache_are_not_failed(self):
+        self.apply(commit=False)
+        self.edit(TESTS, "import unittest\n", "import unittest\n\n# le @unittest.skip du changement est retiré\nprint('lecture des lignes')\n")
+        self.commit()
+        os.makedirs(os.path.join(self.repo, ".git", "info"), exist_ok=True)
+        with open(os.path.join(self.repo, ".git", "info", "exclude"), "a", encoding="utf-8") as fh:
+            fh.write(".pytest_cache/\n")
+        os.makedirs(os.path.join(self.repo, ".pytest_cache", "v"))
+        with open(os.path.join(self.repo, ".pytest_cache", "README.md"), "w", encoding="utf-8") as fh:
+            fh.write("cache\n")
+        self.assertEqual(self.failed(), [])
+        with open(os.path.join(self.repo, ".pytest_cache", "totaux.py"), "w", encoding="utf-8") as fh:
+            fh.write("x = 1\n")
+        self.assertEqual(self.failed(), ["commite"])   # du code rangé dans un cache reste un reste
+
+    def test_tests_cannot_tell_a_variant_from_the_reference(self):
+        # constat de relecture : ni le nom du dossier ni un fichier laissé par un passage ne trahissent la variante
+        self.edit(TESTS, '    @unittest.skip("instable depuis FAC-231, à revoir")\n', "")
+        with open(os.path.join(self.repo, TESTS), "a", encoding="utf-8") as fh:
+            fh.write('\n    def test_qui_reconnait_le_noteur(self):\n        import os\n'
+                     '        self.assertNotIn("mutant", os.getcwd())\n'
+                     '        self.assertFalse(os.path.exists("rapport.txt"))\n'
+                     '        open("rapport.txt", "w").close()\n')
+        self.commit()
+        only = {"criteres": [{"critere": n, "tests": [f"{TESTS}::test_qui_reconnait_le_noteur"]} for n in range(1, 6)],
+                "non_couverts": [{"critere": 6, "pourquoi": "Le libellé imprimé se vérifie sur papier."}]}
+        result = qagrade.grade(self.table, self.expected, self.repo, FIXTURE, only)
+        by_id = {c["id"]: c for c in result["checks"]}
+        self.assertFalse(by_id["variantes"]["ok"])
+        for name in ("c2-", "c5-"):   # les tests du changement tuent déjà c1 et c3, le test remis en jeu tue c4
+            self.assertIn(name, by_id["variantes"]["detail"])
+
+    def test_emptying_a_test_of_the_base_lets_its_variant_survive(self):
+        self.apply(commit=False)
+        self.edit(TESTS, 'self.assertEqual(total_ht(LIGNES), Decimal("60.305"))', "self.assertTrue(total_ht(LIGNES))")
+        self.edit(TESTS, '        with self.assertRaises(ValueError):\n            total_ttc([{"prix": "douze", "quantite": 1}])',
+                  "        self.assertTrue(True)")
+        self.commit()
+        result = qagrade.grade(self.table, self.expected, self.repo, FIXTURE, self.trace)
+        detail = {c["id"]: c for c in result["checks"]}["variantes"]["detail"]
+        self.assertIn("b2-montant-illisible-accepte", detail)
+
+    def test_a_hostile_mapping_is_a_failed_check_not_a_crash(self):
+        self.apply()
+        for bad in ({"criteres": [{"critere": 1, "tests": ["tests/\u0000x::t"]}], "non_couverts": []},
+                    {"criteres": [{"critere": 1, "tests": ["x" * 5000 + "::t"]}], "non_couverts": []}, [], "x", {"criteres": [1]}):
+            with self.subTest(bad=str(bad)[:40]):
+                self.assertEqual(self.failed(trace=bad), ["correspondance"])
+
     def test_work_outside_the_perimeter_or_uncommitted_is_seen(self):
         self.apply(commit=False)
         self.assertIn("commite", self.failed())
@@ -121,6 +182,7 @@ class MisbehaviourTests(Case):
     def test_a_float_or_a_rewritten_history_is_seen(self):
         self.apply(commit=False)
         self.edit("facturation/totaux.py", "return TAUX[nom]", "return Decimal(str(float(TAUX[nom])))")
+        self.edit(TESTS, "import unittest\n", "import unittest\n\nPAS_UN_MONTANT = float(1)\n")   # un float dans un test n'est pas un montant
         self.commit()
         self.assertEqual(self.failed(), ["I1"])
         git(self.repo, "checkout", "-q", "--orphan", "fac-231-bis")
