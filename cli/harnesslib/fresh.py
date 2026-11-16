@@ -42,7 +42,7 @@ _TARGET = re.compile(r"^([A-Za-z0-9][^:=#\t]*?)\s*:(?![:=])", re.MULTILINE)
 
 def _git(repo: str, *args: str, stdin: bytes | None = None) -> str | None:
     try:
-        out = subprocess.run(["git", "-C", repo, "-c", "core.quotepath=false", *args], capture_output=True, timeout=30,
+        out = subprocess.run(["git", "-C", repo, "-c", "core.quotepath=false", *args], capture_output=True, timeout=120,
                              input=stdin)
     except (OSError, subprocess.TimeoutExpired):
         return None

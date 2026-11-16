@@ -53,7 +53,7 @@ def parse(text: str) -> tuple[list[dict[str, str]], list[str]]:
 
 def _git(repo: str, *args: str) -> tuple[int, str]:
     try:
-        out = subprocess.run(["git", "-C", repo, "-c", "core.quotepath=false", *args], capture_output=True, timeout=20)
+        out = subprocess.run(["git", "-C", repo, "-c", "core.quotepath=false", *args], capture_output=True, timeout=120)
     except (OSError, subprocess.TimeoutExpired):
         return 1, ""
     return out.returncode, out.stdout.decode("utf-8", "replace")
