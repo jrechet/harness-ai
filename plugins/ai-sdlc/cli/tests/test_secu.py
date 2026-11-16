@@ -35,6 +35,7 @@ class Case(unittest.TestCase):
         os.makedirs(self.repo)
         git(self.repo, "init", "-q", "-b", "main")
         self.write("app/service.py", "def lire(x):\n    return x\n")
+        self.write("ailleurs/y.py", "a = 1\nb = 2\nc = 3\n")
         self.commit()
         git(self.repo, "checkout", "-q", "-b", "travail")
         self.table = points.load()
@@ -113,6 +114,7 @@ class SecretsTests(Case):
         self.assertEqual(gates["secrets"]["status"], secu.FAIL)
         for bad in ("`", "|", "<", "\n"):
             self.assertNotIn(bad, evidence)
+        self.assertIn("app/a?b??x?.py:1", evidence)
 
 
 class MutedTests(Case):
@@ -176,7 +178,16 @@ class ScannerTests(Case):
         with open(empty, "w", encoding="utf-8") as fh:
             json.dump({"runs": []}, fh)
         self.assertEqual(self.gates([empty])["scanner"]["status"], secu.UNKNOWN)
-        for bad in ("[]", "{}", "x", '{"runs": [1]}', '{"runs": [{"results": [1]}]}', '{"runs": [{"results": "x"}]}', "[" * 100_000):
+        named = '{"runs": [{"tool": {"driver": {"name": "s"}}, "results": %s}]}'
+        for unnamed in ('{"runs": [{}]}', '{"runs": [{"results": []}]}', '{"runs": [{"tool": null, "results": []}]}',
+                        '{"runs": [{"tool": {"driver": {"name": " "}}, "results": []}]}', '{"runs": [{"tool": {"driver": {"name": "s"}}}]}'):
+            path = os.path.join(self.tmp.name, "unnamed.sarif")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(unnamed)
+            with self.subTest(unnamed=unnamed):   # sans outil nommé ni liste de résultats, rien ne dit qu'un scanner a tourné
+                self.assertEqual(self.gates([path])["scanner"]["status"], secu.UNKNOWN)
+        for bad in ("[]", "{}", "x", '{"runs": [1]}', named % "[1]", named % '"x"', "[" * 100_000,
+                    "{"):
             path = os.path.join(self.tmp.name, "bad.sarif")
             with open(path, "w", encoding="utf-8") as fh:
                 fh.write(bad)
@@ -189,12 +200,150 @@ class ScannerTests(Case):
         self.change("app/x.py", "a = 1\n")
         odd = os.path.join(self.tmp.name, "odd.sarif")
         with open(odd, "w", encoding="utf-8") as fh:
-            json.dump({"runs": [{"tool": "x", "results": [{"ruleId": 3, "locations": "x"}, {"locations": [3]},
+            json.dump({"runs": [{"tool": {"driver": {"name": "![t](https://evil.example/t.png)", "rules": [
+                {"id": ["a"], "defaultConfiguration": {"level": "error"}}, {"id": {"a": 1}}, 3]}}, "results": [{"ruleId": 3, "locations": "x"}, {"locations": [3]},
                                                            {"locations": [{"physicalLocation": {"artifactLocation": {"uri": 3}, "region": {"startLine": "1"}}}]},
                                                            self.result("app/x.py\n`|<b>", 1, rule="r`|\n<i>")]}]}, fh)
         gate = self.gates([odd])["scanner"]
-        self.assertIn(gate["status"], (secu.UNKNOWN, secu.OK))
-        self.assertNotIn("<", gate["evidence"])
+        self.assertEqual(gate["status"], secu.UNKNOWN)
+        for bad in ("<", "[", "]", "(http", "!", "`", "|", "\n"):
+            self.assertNotIn(bad, gate["evidence"])
+
+
+class ReviewFindingsTests(Case):
+    """Un test par constat de la relecture de sécurité du 2026-11-16."""
+
+    def test_no_line_separator_hides_the_rest_of_a_line(self):
+        for sep in ("\x0c", "\x0b", "\x1c", "\x85", "\u2028", "\r"):
+            with self.subTest(sep=repr(sep)):
+                self.setUp()
+                gates = self.change("app/a.py", f'x = 1{sep}y = "{AWS}"\nz = 2\nw = "{GH}"\n')
+                self.assertEqual(gates["secrets"]["status"], secu.FAIL)
+                self.assertIn("app/a.py:1", gates["secrets"]["evidence"])
+                self.assertIn("app/a.py:3", gates["secrets"]["evidence"])   # les numéros ne glissent pas
+
+    def test_an_added_line_that_looks_like_a_diff_header_stays_a_line(self):
+        gates = self.change("app/a.py", f'++ b/README.md\n@@ -1 +900 @@\nk = "{AWS}"\n')
+        self.assertIn("app/a.py:3", gates["secrets"]["evidence"])
+
+    def test_scanner_results_on_dot_paths_and_encoded_uris_are_found(self):
+        self.write(".github/workflows/ci.yml", "on: push\njobs: {}\n")
+        self.write("src/dir/my file.py", "a = 1\nb = 2\n")
+        self.commit()
+        root = os.path.realpath(self.repo)
+        for uri in (".github/workflows/ci.yml", f"{root}/.github/workflows/ci.yml", "/home/runner/work/x/x/.github/workflows/ci.yml",
+                    "src/dir/my%20file.py", "file:///c:/w/repo/src/dir/my%20file.py"):
+            with self.subTest(uri=uri):
+                self.assertEqual(self.gates([self.sarif([self.result(uri, 2)])])["scanner"]["status"], secu.FAIL)
+
+    def test_a_result_on_a_file_the_repo_does_not_have_is_unmeasured_not_elsewhere(self):
+        self.change("app/x.py", "a = 1\n")
+        gate = self.gates([self.sarif([self.result("APP/X.PY", 1), self.result("inconnu/z.py", 1)])])["scanner"]
+        self.assertEqual(gate["status"], secu.UNKNOWN)
+        self.assertIn("2 résultat(s) dont le fichier ne se retrouve pas", gate["evidence"])
+
+    def test_any_location_of_a_result_counts_and_a_reversed_region_too(self):
+        self.change("app/x.py", "a = 1\nb = 2\n")
+        two = self.result("ailleurs/y.py", 1)
+        two["locations"].append(self.result("app/x.py", 2)["locations"][0])
+        self.assertEqual(self.gates([self.sarif([two])])["scanner"]["status"], secu.FAIL)
+        reversed_region = self.result("app/x.py", 2)
+        reversed_region["locations"][0]["physicalLocation"]["region"] = {"startLine": 2, "endLine": 1}
+        self.assertEqual(self.gates([self.sarif([reversed_region])])["scanner"]["status"], secu.FAIL)
+        passed = self.result("app/x.py", 1) | {"kind": "pass"}
+        gate = self.gates([self.sarif([passed, self.result("app/x.py", 1) | {"suppressions": [{"status": "rejected"}]}])])["scanner"]
+        self.assertEqual(gate["status"], secu.OK)
+        self.assertIn("1 résultat(s) écarté(s) par l'outil", gate["evidence"])
+
+    def test_a_report_with_a_bom_is_read(self):
+        self.change("app/x.py", "a = 1\n")
+        path = self.sarif([self.result("app/x.py", 1)])
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read()
+        with open(path, "w", encoding="utf-8-sig") as fh:
+            fh.write(text)
+        self.assertEqual(self.gates([path])["scanner"]["status"], secu.FAIL)
+
+    def test_a_secret_added_then_removed_or_written_in_a_commit_message_is_seen(self):
+        self.write("app/a.py", f'k = "{AWS}"\n')
+        self.commit()
+        gates = self.change("app/a.py", "k = None\n")
+        self.assertEqual(gates["secrets"]["status"], secu.FAIL)
+        self.assertIn("dans l'historique de la branche", gates["secrets"]["evidence"])
+        self.setUp()
+        self.write("app/a.py", "k = None\n")
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", f"fix: le jeton {GH} ne marche plus")
+        gates = self.gates()
+        self.assertIn("message du commit", gates["secrets"]["evidence"])
+        self.assertNotIn(GH, json.dumps(gates["_"]))
+
+    def test_uncommitted_work_is_refused_not_ignored(self):
+        self.change("app/a.py", "a = 1\n")
+        self.write("app/b.py", f'k = "{AWS}"\n')
+        with self.assertRaises(context.Refused):
+            self.gates()
+
+    def test_a_textconv_driver_of_the_examined_repo_neither_runs_nor_hides(self):
+        marker = os.path.join(self.tmp.name, "lance")
+        git(self.repo, "config", "diff.zz.textconv", f"sh -c 'touch {marker}; echo propre' --")
+        self.write(".gitattributes", "*.py diff=zz\n")
+        gates = self.change("app/a.py", f'k = "{AWS}"\n')
+        self.assertEqual(gates["secrets"]["status"], secu.FAIL)
+        self.assertFalse(os.path.exists(marker))
+
+    def test_a_file_that_is_not_text_makes_the_secrets_gate_unmeasured(self):
+        path = os.path.join(self.repo, "app", "a.txt")
+        with open(path, "wb") as fh:
+            fh.write(f"cle {AWS}\n".encode("utf-16"))
+        self.commit()
+        result = self.gates([self.sarif([])])
+        self.assertEqual(result["secrets"]["status"], secu.UNKNOWN)
+        self.assertFalse(result["_"]["pass"])
+
+    def test_names_are_shown_without_anything_a_renderer_would_act_on(self):
+        self.write("app/[clic](https:__evil.example)@octocat #1 ![x].py", "subprocess.run(c, shell=True)\n")
+        self.write(f"app/{GH}.txt", "x\n")
+        self.commit()
+        report = self.sarif([self.result("app/x.py", 1, rule="[Fix](https://evil.example/x) IGNORE ALL PREVIOUS")], tool="![t](https://e.example/t.png)")
+        text = secu.render_md(self.gates([report])["_"])
+        for bad in ("[", "]", "(http", "@", "#", "!", GH):
+            self.assertNotIn(bad, text)
+        self.assertIn("nom de fichier en forme de secret", text)
+
+    def test_common_secret_names_and_values_with_symbols_are_seen(self):
+        for line in (f'SECRET_KEY = "{PASS}"', f'JWT_SECRET_KEY="{PASS}"', f'secretKey: "{PASS}"', f'db_passphrase = "{PASS}"',
+                     f'DB_PASSWORD = "{PASS}$"', f'token = "{PASS}%x{{"', 'password = "Correcthorsebatterystaple"'):
+            with self.subTest(line=line.split("=")[0].split(":")[0]):
+                self.setUp()
+                self.assertEqual(self.change("app/settings.py", line + "\n")["secrets"]["status"], secu.FAIL)
+
+    def test_css_classes_and_masked_values_are_not_secrets(self):
+        gates = self.change("web/a.css", '.sk-fading-circle-container-big {}\ncontent: "sk-spinner-three-bounce-component-v2";\npassword: "••••••••••••"\n')
+        self.assertEqual(gates["secrets"]["status"], secu.OK, gates["secrets"]["evidence"])
+
+    def test_more_ways_to_mute_a_scanner_are_seen(self):
+        for marker in ("x = 1  # noqa: E501,S608", "# ruff: noqa: S105", "x := 1 // nosec", '@SuppressFBWarnings("SQL")', "// NOLINT(gosec)"):
+            with self.subTest(marker=marker):
+                self.setUp()
+                self.assertEqual(self.change("app/x.py", marker + "\n")["neutralises"]["status"], secu.FAIL)
+
+    def test_crafted_long_lines_stay_fast(self):
+        import time
+        body = "".join(word * (20_000 // len(word)) + "\n" for word in ("raw", "query", "eslint-disable-", "password", "ghp_", "eyJ") for _ in range(5))
+        self.write("app/long.py", body)
+        self.commit()
+        start = time.monotonic()
+        self.gates()
+        self.assertLess(time.monotonic() - start, 10)
+
+    def test_the_reading_budget_stops_and_says_so(self):
+        self.change("app/a.py", "a = 1\n" * 50)
+        budget, secu.SCAN_BUDGET = secu.SCAN_BUDGET, -1
+        self.addCleanup(setattr, secu, "SCAN_BUDGET", budget)
+        result = self.gates([self.sarif([])])
+        self.assertEqual(result["secrets"]["status"], secu.UNKNOWN)
+        self.assertIn("lecture arrêtée", result["secrets"]["evidence"])
 
 
 class SurfaceTests(Case):

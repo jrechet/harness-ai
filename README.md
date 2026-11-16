@@ -140,7 +140,7 @@ python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /chemin/de/ton/depot --
 | `ticket check <ticket.md>` | Un ticket est-il prêt : besoin décrit, critères listés, rien d'ouvert, et la taille annoncée par les chemins cités |
 | `ticket render <avis.json> --ticket <ticket.md>` | L'avis du skill, verdict mesuré en tête, refusé si un critère proposé n'a ni source ni « à confirmer » |
 | `qa gate` | Quatre portes : aucun test désactivé, la suite qui passe plusieurs fois, les lignes ajoutées exécutées (rapport lcov ou Cobertura), un test par critère |
-| `secu gate [--report <rapport.sarif>…]` | Quatre portes : aucun secret dans les lignes ajoutées, aucun scanner réduit au silence, aucun résultat de scanner (SARIF) sur une ligne ajoutée, et la liste des endroits sensibles à relire |
+| `secu gate [--report <rapport.sarif>…]` | Quatre portes : aucun secret dans ce que la branche ajoute (historique et messages de commit compris), aucun scanner réduit au silence, aucun résultat de scanner (SARIF) sur une ligne ajoutée, et la liste des endroits sensibles à relire |
 | `size [--paths …]` | La taille d'un changement (XS, S-M, L) par règles : fichiers, lignes, zones sensibles |
 | `dev body <corps.json>` | Le corps d'une PR, refusé s'il est incomplet pour sa taille |
 | `review render <revue.json>` | Une revue en commentaires, refusée si un constat ne cite pas une ligne du diff |

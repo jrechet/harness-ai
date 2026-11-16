@@ -25,7 +25,7 @@ Cherche dans `AGENTS.md`, puis dans la CI, les scanners que l'équipe utilise : 
 Si le dépôt n'en déclare aucun, continue sans rapport : la porte restera « non mesurée », et c'est la première chose à dire.
 
 ### 3. Les portes
-Le changement est commité. Puis :
+Le changement est commité : la commande refuse une copie de travail qui ne l'est pas, parce qu'elle ne lit que ce qui est commité. Puis :
 
 `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" secu gate . --base <base> --report <rapport.sarif> [<autre.sarif> …]`
 
@@ -33,15 +33,15 @@ Le changement est commité. Puis :
 |---|---|---|
 | 0 | Les quatre portes passent | Rends la sortie |
 | 1 | Une porte est en échec | Voir ci-dessous, porte par porte. Jamais la porte elle-même |
-| 3 | Rien en échec, une porte non mesurée | C'est le cas ordinaire : passe à l'étape 4 |
+| 3 | Rien en échec, une porte non mesurée | C'est le cas ordinaire : pas de scanner, un endroit sensible à relire, la configuration d'un scanner modifiée, un fichier illisible comme du texte. Passe à l'étape 4 |
 | 2 | Refusé : rapport illisible, pas de changement | Corrige l'entrée |
 
-- **Secrets en échec** : arrête-toi. Donne le chemin, la ligne et la nature, pas la valeur. Dis que le secret est à révoquer par son propriétaire. Ne réécris pas l'historique : c'est une décision de l'équipe.
+- **Secrets en échec** : arrête-toi. La porte lit aussi chaque commit de la branche et son message : un secret ajouté puis retiré y est encore. Donne le chemin, la ligne et la nature, pas la valeur. Dis que le secret est à révoquer par son propriétaire. Ne réécris pas l'historique : c'est une décision de l'équipe.
 - **Neutralisés en échec** : le changement pose une exception dans le code. Si c'est toi qui l'as écrite, retire-la et corrige la cause. Sinon rapporte-la : un humain dit si elle est voulue.
 - **Scanner en échec** : chaque résultat cité est sur une ligne du changement. Lis-le dans le rapport, corrige-le s'il est à toi, rapporte-le sinon. Un résultat que tu crois faux se dit avec sa raison, il ne se cache pas.
 - **Surface non mesurée** : la commande a listé des endroits. C'est l'étape 4.
 
-La commande ne lit que les lignes ajoutées, avec peu de motifs : elle ne remplace pas un scanner et ne lit pas le code.
+La commande ne lit que ce que la branche ajoute, avec peu de motifs : elle ne remplace pas un scanner et ne lit pas le code. Elle ne voit pas une valeur sans guillemets, un secret coupé en morceaux, ni une valeur qui a l'air d'un exemple. Le rapport d'un scanner est cru sur parole : rien ne vérifie qu'il porte sur cette branche.
 
 ### 4. Relire ce que la commande désigne
 Seulement les endroits listés par la porte « surface » : fichiers en zone sensible, dépendances, appels à risque. Pour chacun, une question : *d'où vient la donnée qui arrive ici, et qui peut la choisir ?* Remonte jusqu'à l'entrée (requête, fichier, variable d'environnement, texte d'un tiers) avant de conclure.
