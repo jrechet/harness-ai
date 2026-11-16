@@ -1,0 +1,8 @@
+{
+  "ticket": "FAC-241",
+  "ready": true,
+  "size_l": false,
+  "flags": [],
+  "forbidden": [],
+  "max": {"manques": 1, "criteres": 2, "decoupage": 0, "questions": 2, "consignes": 0}
+}

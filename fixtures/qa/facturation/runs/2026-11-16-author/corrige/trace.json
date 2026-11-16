@@ -1,0 +1,7 @@
+{"criteres": [
+  {"critere": 1, "tests": ["tests/test_totaux.py::test_une_ligne_reduite_est_a_5_5_pour_cent"]},
+  {"critere": 2, "tests": ["tests/test_totaux.py::test_une_ligne_normale_et_une_reduite"]},
+  {"critere": 3, "tests": ["tests/test_totaux.py::test_une_ligne_sans_cle_tva_reste_a_20_pour_cent", "tests/test_totaux.py::test_le_ttc_arrondit_au_centime"]},
+  {"critere": 4, "tests": ["tests/test_totaux.py::test_l_arrondi_se_fait_une_fois_sur_le_total"]},
+  {"critere": 5, "tests": ["tests/test_totaux.py::test_une_tva_inconnue_est_refusee"]}],
+ "non_couverts": [{"critere": 6, "pourquoi": "Le libellé imprimé se vérifie sur papier par la recette ; l'impression n'est pas dans ce dépôt."}]}

@@ -1,0 +1,23 @@
+{
+  "manques": [
+    {"point": "Taille L", "constat": "Le ticket exige une migration : zone sensible, il faut un plan écrit et validé avant le code."},
+    {"point": "Règle du dépôt contredite", "constat": "Les critères 1 et 2 demandent REAL et float pour un taux qui entre dans un montant ; AGENTS.md interdit qu'un montant passe par un float."},
+    {"point": "Critère invérifiable", "constat": "« Les performances restent bonnes » ne donne ni mesure ni seuil."},
+    {"point": "Critère ambigu", "constat": "« Une clé tva par facture » alors que le taux est par ligne : quelle valeur ? Et le format de l'API ne change pas sans docs/api.md."}
+  ],
+  "criteres": [
+    {"texte": "La migration 002 arrive avec son 002_tva.down.sql.", "source": "docs/agents/revue.md", "a_confirmer": false},
+    {"texte": "Le taux est stocké en texte décimal et lu en Decimal, jamais en float.", "source": "AGENTS.md", "a_confirmer": true},
+    {"texte": "docs/api.md décrit la nouvelle clé dans la même PR que le changement de format.", "source": "AGENTS.md", "a_confirmer": false}
+  ],
+  "decoupage": [
+    "La migration et son retour arrière, avec un plan validé.",
+    "Le calcul par ligne dans facturation/totaux.py, une fois la colonne en place.",
+    "La clé tva dans l'API et docs/api.md."
+  ],
+  "questions": [
+    {"question": "Que vaut la clé tva d'une facture dont les lignes ont des taux différents ?", "defaut": "Pas de clé par facture : un taux par ligne dans le détail."},
+    {"question": "Quel seuil pour les performances ?", "defaut": "Retirer ce critère."}
+  ],
+  "consignes": []
+}

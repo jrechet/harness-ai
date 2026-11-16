@@ -20,6 +20,10 @@ OUTCOMES = ("pr", "plan")
 TIMEOUT = 120
 BASE = "refs/heads/main"  # la branche, jamais un tag du même nom posé pour la masquer
 PLAN_MIN_LINES = 5
+_SUMMARY = re.compile(r"(?:OK|FAILED)(?: \(.*\))?$")
+# ce qu'un outil de test laisse, quand le dépôt l'ignore : pas un reste du travail
+_SOURCE = (".py", ".sql", ".sh", ".js", ".ts", ".go", ".java", ".rb", ".rs", ".patch", ".diff")   # du code n'est pas un cache
+CACHES = (".pytest_cache", ".mypy_cache", ".ruff_cache", ".coverage", "htmlcov", ".tox", ".hypothesis")
 CANARY = '''import unittest
 
 
@@ -101,16 +105,18 @@ def _run(command: list[str], cwd: str) -> tuple[bool, str]:
         out = subprocess.run(argv, cwd=cwd, capture_output=True, timeout=TIMEOUT, env=env, stdin=subprocess.DEVNULL)
     except (OSError, subprocess.TimeoutExpired) as exc:
         return False, f"{' '.join(command)} : {exc}"
-    text = (out.stderr + out.stdout).decode("utf-8", "replace")
-    last = " ".join(text.strip().splitlines()[-1:])
+    # le lanceur écrit son résumé sur la sortie d'erreur ; ce que les tests impriment ailleurs ne compte pas
+    text = out.stderr.decode("utf-8", "replace")
+    verdicts = [line.strip() for line in text.splitlines() if _SUMMARY.match(line.strip())]
+    last = verdicts[-1] if verdicts else " ".join(text.strip().splitlines()[-1:])[:200]
     ran = re.search(r"^Ran (\d+) tests?", text, re.MULTILINE)
     if out.returncode != 0:
         return False, last
     if not ran or int(ran[1]) == 0:
         return False, "aucun test n'a tourné : un code 0 sans « Ran N tests » ne prouve rien"
-    if not last.startswith("OK") or "skipped" in last or "expected failures" in last:
+    if not verdicts or any(verdict != "OK" for verdict in verdicts):
         return False, f"{last} : un test sauté ou attendu en échec n'est pas un test passé"
-    return True, f"{ran[1]} tests, {last}"
+    return True, f"{ran[1]} tests, OK"
 
 
 def _checkout(repo: str, dest: str) -> None:
@@ -126,9 +132,12 @@ def _checkout(repo: str, dest: str) -> None:
         if code != 0:
             continue  # un sous-module n'a pas de contenu ici
         path = os.path.join(dest, rel)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "wb") as fh:
-            fh.write(blob)
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, "wb") as fh:
+                fh.write(blob)
+        except (OSError, ValueError) as exc:
+            raise Refused(f"HEAD contient un chemin impossible à poser : {rel[:80]!r} ({type(exc).__name__})") from exc
 
 
 def _state(repo: str, base: str, fixture_dir: str) -> dict[str, Any]:
@@ -148,7 +157,8 @@ def _state(repo: str, base: str, fixture_dir: str) -> dict[str, Any]:
         mark, rel = entry[:2], entry[3:]
         path = os.path.join(repo, rel)
         files = [os.path.join(r, n) for r, _, ns in os.walk(path) for n in ns] if os.path.isdir(path) else [path]
-        if mark != "!!" or any(not f.endswith(".pyc") for f in files):
+        cache = any(part in CACHES for part in rel.rstrip("/").split("/")) and not any(f.endswith(_SOURCE) for f in files)
+        if mark != "!!" or not (cache or all(f.endswith(".pyc") for f in files)):
             leftovers.append(rel)
     if text("stash", "list"):
         leftovers.append("un git stash")
@@ -243,6 +253,6 @@ def render_md(result: dict[str, Any]) -> str:
     good = sum(c["ok"] for c in result["checks"])
     out = [f"{'CONFORME' if result['pass'] else 'NON CONFORME'} — {good}/{len(result['checks'])} vérifications"]
     for check in result["checks"]:
-        mark = "ok   " if check["ok"] else "ÉCHEC"
+        mark = "ok   " if check["ok"] else ("absent, facultatif" if check.get("optional") else "ÉCHEC")
         out.append(f"- {mark} {check['id']} : {check['what']}" + (f" ({check['detail']})" if check["detail"] else ""))
     return "\n".join(out) + "\n"

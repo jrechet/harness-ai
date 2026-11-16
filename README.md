@@ -137,6 +137,7 @@ python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /chemin/de/ton/depot --
 | `status` | Les sept points d'extension : convention du socle, surchargé, ou invalide |
 | `context <phase>` | Le socle et les ajouts de l'équipe, avec leur provenance |
 | `ticket check <ticket.md>` | Un ticket est-il prêt : besoin décrit, critères listés, rien d'ouvert, et la taille annoncée par les chemins cités |
+| `ticket render <avis.json> --ticket <ticket.md>` | L'avis du skill, verdict mesuré en tête, refusé si un critère proposé n'a ni source ni « à confirmer » |
 | `qa gate` | Quatre portes : aucun test désactivé, la suite qui passe plusieurs fois, les lignes ajoutées exécutées (rapport lcov ou Cobertura), un test par critère |
 | `size [--paths …]` | La taille d'un changement (XS, S-M, L) par règles : fichiers, lignes, zones sensibles |
 | `dev body <corps.json>` | Le corps d'une PR, refusé s'il est incomplet pour sa taille |

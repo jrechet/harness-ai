@@ -20,7 +20,7 @@ class Refused(ValueError):
 
 def _git(repo: str, *args: str) -> tuple[int, bytes]:
     try:
-        out = subprocess.run(["git", "-C", repo, *args], capture_output=True, timeout=20)
+        out = subprocess.run(["git", "-C", repo, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", *args], capture_output=True, timeout=20)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise Refused(f"git {args[0]} n'a pas répondu dans {repo} : {exc}") from exc
     return out.returncode, out.stdout
@@ -63,6 +63,17 @@ def _read_at(repo: str, commit: str, rel: str) -> str | None:
     if code != 0:
         raise Refused(f"{rel} : lecture impossible dans {commit}")
     return _decode(out, rel)
+
+
+def is_file_at(repo: str, commit: str, rel: str) -> bool:
+    """Ce chemin est-il un fichier ordinaire de ce commit ? Sans lire son contenu, et sans motif de chemin."""
+    if not rel or rel.startswith(("/", "-")) or ".." in rel.split("/") or "\0" in rel or len(rel) > 300:
+        return False
+    if rel.endswith("/") or "." in (rel, *rel.split("/")) or "" in rel.split("/"):
+        return False
+    code, out = _git(repo, "--literal-pathspecs", "ls-tree", "-z", commit, "--", rel)
+    entries = [e for e in out.decode("utf-8", "replace").split("\0") if e] if code == 0 else []
+    return len(entries) == 1 and entries[0].startswith("100") and entries[0].partition("\t")[2] == rel
 
 
 def _read_worktree(repo: str, rel: str) -> str | None:

@@ -1,0 +1,14 @@
+{
+  "ticket": "FAC-242",
+  "ready": true,
+  "size_l": true,
+  "flags": [
+    {"id": "T1", "what": "la taille L : une migration est en zone sensible, il faut un plan validé", "any": ["(?i)taille L|zone sensible|plan\\b"], "in": ["manques", "decoupage", "questions"]},
+    {"id": "T2", "what": "le taux en `float` ou en `REAL` contredit la règle du dépôt sur les montants", "any": ["(?i)float|\\bREAL\\b|decimal"], "in": ["manques", "questions", "criteres"]},
+    {"id": "T3", "what": "« les performances restent bonnes » ne se vérifie pas", "any": ["(?i)performan"], "in": ["manques", "questions", "criteres"]},
+    {"id": "T4", "what": "la migration arrive avec son retour arrière (règle de revue de l'équipe)", "any": ["(?i)\\bdown\\b|retour arri[èe]re|rollback"], "in": ["manques", "questions", "criteres", "decoupage"], "optional": true},
+    {"id": "T5", "what": "le format de l'API change : `docs/api.md` est à mettre à jour, et « une clé par facture » ne dit pas quel taux", "any": ["(?i)docs/api\\.md|par facture|format"], "in": ["manques", "questions", "criteres", "decoupage"], "optional": true}
+  ],
+  "forbidden": [],
+  "min": {"decoupage": 2}
+}
