@@ -62,7 +62,7 @@ Trois niveaux de confiance, toujours les mêmes mots : **éprouvé** (lancé sur
 | Tirer des règles de ce qui s'est passé dans tes PR | `harness-harvest` | écrit, jamais joué |
 | Savoir si un ticket est prêt, et ce qui lui manque | `ticket` (plugin `ai-sdlc`) | mesuré une fois : trois tickets conformes |
 | Faire écrire les tests qui viennent des critères du ticket, et faire dire par un programme s'ils tiennent | `qa` (plugin `ai-sdlc`) | mesuré une fois : sept défauts plantés sur sept vus par les tests écrits |
-| Regarder un changement sous l'angle de la sécurité : secrets, scanners, endroits sensibles à relire | `secu` (plugin `ai-sdlc`) | écrit |
+| Regarder un changement sous l'angle de la sécurité : secrets, scanners, endroits sensibles à relire | `secu` (plugin `ai-sdlc`) | mesuré une fois : quatre défauts plantés sur quatre, deux endroits sains laissés tranquilles |
 | Faire relire une PR : peu de commentaires, chacun sur une ligne du diff | `review` (plugin `ai-sdlc`) | mesuré une fois : 6 pièges sur 6 |
 | Faire développer un ticket jusqu'à la PR, sur le chemin de sa taille | `dev` (plugin `ai-sdlc`) | mesuré une fois : deux tickets conformes |
 
