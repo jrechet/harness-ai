@@ -105,6 +105,7 @@ class InvestigationTests(Case):
     def test_a_fact_must_be_quoted_from_its_source(self):
         cases = [({"extrait": "ERROR totaux: la base est saturée"}, "mot pour mot"), ({"source": "autre.log"}, "n'a pas été donnée"),
                  ({"extrait": "court"}, "extrait de"), ({"extrait": None}, "extrait de"), ({"source": "commit:0000000"}, "n'existe pas"),
+                 ({"source": "commit:HEAD"}, "n'existe pas"), ({"source": "commit:v2.0.3"}, "n'existe pas"),
                  ({"source": "commit:zz"}, "n'existe pas"), ({"source": "repo:app/absent.py"}, "n'existe pas"),
                  ({"source": "repo:../../etc/passwd"}, "n'existe pas"), ({"source": f"commit:{self.sha}", "extrait": "inventé de toutes pièces"}, "message de ce commit")]
         for change, expected in cases:
@@ -143,17 +144,76 @@ class InvestigationTests(Case):
         del data["actions"][0]["commande"]
         self.assertEqual(self.errors(data), [])
 
-    def test_a_secret_in_an_excerpt_is_refused_and_personal_data_is_counted(self):
+    def test_a_secret_or_personal_data_anywhere_in_the_investigation_is_refused(self):
+        places = [("titre", lambda d, v: d.update(titre=d["titre"] + " " + v)), ("impact", lambda d, v: d.update(impact=d["impact"] + " " + v)),
+                  ("faits 1.quoi", lambda d, v: d["faits"][0].update(quoi="Erreur vue avec " + v)),
+                  ("hypotheses 1.texte", lambda d, v: d["hypotheses"][0].update(texte="Le jeton " + v + " a expiré avant la migration.")),
+                  ("actions 1.quoi", lambda d, v: d["actions"][0].update(quoi="Prévenir " + v + " avant de revenir en arrière.")),
+                  ("non_verifie 1", lambda d, v: d["non_verifie"].__setitem__(0, "Rien n'a été vérifié pour " + v))]
+        for value in (TOKEN, "lea.martin@example.com"):
+            for where, put in places:
+                data = self.good()
+                put(data, value)
+                with self.subTest(where=where, value=value[:6]):
+                    found = self.errors(data)
+                    self.assertEqual(len(found), 1, found)
+                    self.assertTrue(found[0].startswith(where + " : porte "))
+                    self.assertNotIn(value, found[0])
+
+    def test_the_shapes_a_log_carries_are_recognised(self):
+        secret = "Zq9vT4mLp0XwK2r"
+        shapes = {"en-tête": f"Authorization: Bearer {secret}{secret}", "basic": f"Authorization: Basic {secret}==", "cookie": f"Cookie: session_id={secret}",
+                  "paire": f"db password={secret} dbname=prod", "formulaire": f"user=x&password={secret}&remember=1", "aws": f"aws_secret_access_key={secret}/{secret}",
+                  "e-mail": "user=lea.martin@example.com", "ip": "ip=10.2.3.4", "ipv6": "peer 2001:db8:85a3:0:0:8a2e:370:7334 refused",
+                  "téléphone": "rappel au +33 6 12 34 56 78", "fixe": "appel du 01 23 45 67 89", "iban": "virement FR76 3000 6000 0112 3456 7890 189",
+                  "carte": "carte 4111 1111 1111 1111 refusée"}
+        for name, text in shapes.items():
+            with self.subTest(name=name):
+                self.assertTrue(run.sensitive(text), text)
+        for text in ("2026-11-12T14:05:02Z ERROR totaux: taux illisible 'None' pour client=acme", "commande 4111 1111 1111 1112 inconnue",
+                     "version 2.1.0 déployée à 14:05:02, 37 factures", "token=[masqué] refusé", "le mot de passe a expiré", "password=changeme-please",
+                     "le token : expiré depuis hier", "secret: aucun dans ce fichier", "commit 61eab88f0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f poussé"):
+            with self.subTest(text=text[:30]):
+                self.assertEqual(run.sensitive(text), [])
+
+    def test_a_masked_excerpt_still_proves_its_line(self):
         data = self.good()
-        data["faits"][0]["extrait"] = f"Authorization: Bearer {TOKEN}"
-        found = self.errors(data)
-        self.assertIn("porte un secret", found[0])
-        self.assertNotIn(TOKEN, " ".join(found))
+        data["faits"][0]["extrait"] = "WARN api: 500 sur /factures/812 user=[masqué] ip=[masqué]"
+        self.assertEqual(self.errors(data), [])
+        data["faits"][0]["extrait"] = "WARN api: 500 sur /factures/999 user=[masqué] ip=[masqué]"   # le reste doit coller
+        self.assertIn("mot pour mot", self.errors(data)[0])
+        data["faits"][0]["extrait"] = "[masqué] [masqué] [masqué] 500 [masqué]"                        # presque tout masqué ne prouve rien
+        self.assertIn("mot pour mot", self.errors(data)[0])
         data = self.good()
-        data["faits"][0]["extrait"] = "500 sur /factures/812 user=lea.martin@example.com ip=10.2.3.4"
-        result, text = run.investigation(self.table, self.repo, "main", data, [self.log])
-        self.assertEqual(result["personal"], 2)
-        self.assertIn("masque-les avant de publier", text)
+        data["consignes"] = [{"citation": "Authorization: Bearer [masqué]"}]
+        self.assertEqual(self.errors(data), [])
+
+    def test_a_quote_cannot_join_two_lines_and_a_generic_one_proves_nothing(self):
+        data = self.good()
+        data["faits"][0]["extrait"] = "pour client=acme 2026-11-12T14:05:03Z WARN api: 500"   # la fin d'une ligne et le début de la suivante
+        self.assertIn("dans une ligne", self.errors(data)[0])
+        data["faits"][0]["extrait"] = "ERROR totaux"
+        self.assertIn("extrait de 16", self.errors(data)[0])
+
+    def test_a_commit_fact_needs_its_quote_and_a_commit_of_this_history(self):
+        data = self.good()
+        del data["faits"][1]["extrait"]
+        self.assertIn("extrait de", self.errors(data)[0])
+        git(self.repo, "checkout", "-q", "--orphan", "ailleurs")
+        git(self.repo, "commit", "-q", "--allow-empty", "-m", "feat: un commit d'une autre histoire, sans rapport")
+        other = git(self.repo, "rev-parse", "--short", "HEAD")
+        git(self.repo, "checkout", "-q", "-f", "travail")
+        git(self.repo, "branch", "-q", "-D", "ailleurs")
+        data = self.good()
+        data["faits"][1].update(source=f"commit:{other}", extrait="un commit d'une autre histoire")
+        self.assertIn("n'existe pas dans l'historique", self.errors(data)[0])
+
+    def test_evidence_must_be_a_regular_bounded_file(self):
+        fifo = os.path.join(self.tmp.name, "tube.log")
+        os.mkfifo(fifo)
+        for bad in (fifo, self.tmp.name, "/dev/zero"):
+            with self.subTest(bad=bad[-8:]), self.assertRaises(context.Refused):
+                run.read_evidence([bad], self.repo)
 
     def test_evidence_stays_out_of_the_repo_and_an_instruction_is_quoted_from_it(self):
         self.write("api.log", LOG)
@@ -163,7 +223,7 @@ class InvestigationTests(Case):
             run.read_evidence([os.path.join(self.tmp.name, "absent.log")], self.repo)
         data = self.good()
         data["consignes"] = [{"citation": "un message demande de redémarrer le service"}]
-        self.assertIn("mot pour mot dans une pièce", self.errors(data)[0])
+        self.assertIn("mot pour mot dans une ligne d'une pièce", self.errors(data)[0])
 
     def test_nothing_from_a_piece_is_rendered_active(self):
         hostile = os.path.join(self.tmp.name, "hostile.log")
@@ -198,6 +258,12 @@ class ChangesTests(Case):
         result = run.changes(self.table, self.repo, "main", "v2.0.3", "main")
         self.assertEqual([c["subject"] for c in result["commits"]], ["feat: remise par client"])
         self.assertEqual([s["path"] for s in result["sensitive"]], ["migrations/003_remises.sql"])
+        self.write("app/x.py", "x = 1\n")
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", f"fix: le jeton {TOKEN} ne marche plus")
+        text = run.render_changes(run.changes(self.table, self.repo, "main", "v2.0.3", "HEAD"))
+        self.assertNotIn(TOKEN, text)
+        self.assertIn("titre masqué", text)
         self.assertIn("n'est pas une cause", run.render_changes(result))
 
     def test_bad_references_are_refused(self):
