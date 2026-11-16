@@ -552,7 +552,7 @@ class AskedOwnerTests(BenchCase):
 
         def fake_agent(workdir, prompt, spec):
             self.seen.update(prompt=prompt, spec=spec)
-            client = re.search(r"python3 (\S+proprietaire\.py)", prompt)
+            client = re.search(r"python3 (\S+ask_owner\.py)", prompt)
             replies = ""
             if client and questions:
                 replies = subprocess.run([sys.executable, client.group(1), *questions], capture_output=True,
@@ -566,20 +566,20 @@ class AskedOwnerTests(BenchCase):
 
     def test_the_agent_gets_a_way_to_ask_and_none_of_the_answers(self):
         self.init([])
-        self.assertIn("proprietaire.py", self.seen["prompt"])
+        self.assertIn("ask_owner.py", self.seen["prompt"])
         self.assertIn("Je tiens ce dépôt.", self.seen["prompt"])
         self.assertNotIn("X-Rejoue", self.seen["prompt"])
         self.assertNotIn("Délégation.", self.seen["prompt"])
-        self.assertTrue(any(r.endswith("proprietaire.py *") for r in self.seen["spec"]["agent_bash"]))
+        self.assertTrue(any(r.endswith("ask_owner.py *") for r in self.seen["spec"]["agent_bash"]))
 
     def test_a_question_gets_only_the_answers_it_triggers(self):
         done = self.init(["Mode : délégation ou assistance ?", "Quelle base de données ?"])
-        self.assertIn("R : Délégation.", self.seen["replies"])
-        self.assertIn("R : Regardez dans docs/.", self.seen["replies"])
+        self.assertIn("A: Délégation.", self.seen["replies"])
+        self.assertIn("A: Regardez dans docs/.", self.seen["replies"])
         self.assertNotIn("X-Rejoue", self.seen["replies"])
         self.assertEqual(done["interview"], {"questions": 2, "fetched": {}})
         with open(os.path.join(done["out"], "entretien.md"), encoding="utf-8") as fh:
-            self.assertIn("I9, que seul le propriétaire détient : jamais demandé", fh.read())
+            self.assertIn("I9, held only by the owner: never asked", fh.read())
         self.assertIn("I9 jamais demandé", bench.load_results(self.results)[-1]["note"])
 
     def test_asking_for_what_is_written_nowhere_fetches_the_fact(self):
@@ -593,7 +593,7 @@ class AskedOwnerTests(BenchCase):
     def test_given_answers_keep_the_old_way(self):
         done = self.init([], answers="given")
         self.assertIn("X-Rejoue", self.seen["prompt"])
-        self.assertNotIn("proprietaire.py", self.seen["prompt"])
+        self.assertNotIn("ask_owner.py", self.seen["prompt"])
         self.assertIsNone(done["interview"])
 
     def test_asked_without_an_owner_file_is_refused(self):

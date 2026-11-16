@@ -1,5 +1,5 @@
-"""Tests de l'adaptateur GitHub, sans réseau : un collecteur factice sert des
-réponses d'API préparées. Lancer : python3 -m unittest discover -s cli/tests
+"""Tests of the GitHub adapter, without network: a fake fetcher serves prepared
+API responses. Run: python3 -m unittest discover -s cli/tests
 """
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def commit(sha, message, login, date, files=()):
 
 
 class FakeGitHub:
-    """Sert data[path] ; une liste est paginée ; un chemin absent renvoie [] ou {}."""
+    """Serves data[path]; a list is paginated; a missing path returns [] or {}."""
 
     def __init__(self, data: dict, failing: set[str] | None = None):
         self.data = data
@@ -74,33 +74,33 @@ class FakeGitHub:
 
 
 def build_fixture():
-    """Un repo avec, dans la fenêtre : 2 PRs humaines, 5 PRs d'agent, des reviews, des commits."""
+    """A repo with, in the window: 2 human PRs, 5 agent PRs, reviews, commits."""
     base = f"repos/{REPO}"
     data = {base: {"default_branch": "main"}}
     prs = [
-        # S1 : rule: explicite sur une PR humaine
+        # S1: explicit rule: on a human PR (written in French: the team's language is read as is)
         pr(1, "Add payment webhook", "alice", merged="2026-10-05T12:00:00Z"),
-        # S2 : PR d'agent fermée sans merge
+        # S2: agent PR closed without merge
         pr(2, "chore(deps): bump lodash from 4.17.20 to 4.17.21", "claude", branch="claude/deps-1",
            closed="2026-10-07T10:00:00Z"),
-        # S2 fix après merge + S4 check failing ; S6 par titre (deps x3) ; S7 question
+        # S2 fix after merge + S4 failing check; S6 by title (deps x3); S7 question
         pr(3, "chore(deps): bump axios from 1.6.0 to 1.7.0", "claude", branch="claude/deps-2",
            merged="2026-10-10T10:00:00Z", merge_sha="m3",
            body="I assumed the retry policy lives in src/http/client.ts. Not sure about timeouts?"),
         pr(4, "chore(deps): bump react from 18.2 to 18.3", "bob", branch="claude/deps-3",
            merged="2026-10-12T10:00:00Z", merge_sha="m4",
            body="I assumed the retry policy is configured in src/http/client.ts."),
-        # S2 revert d'une PR d'agent ; S3 commentaire récurrent de carol sur 2 PRs
+        # S2 revert of an agent PR; S3 recurring comment by carol on 2 PRs
         pr(5, "Add export endpoint", "claude", merged="2026-10-15T10:00:00Z", merge_sha="m5"),
         pr(6, "Add import endpoint", "dave", labels=["agent"], merged="2026-10-16T10:00:00Z", merge_sha="m6"),
-        # Renovate : ni agent ni tâche récurrente ; son squash-merge touche package.json après la PR 3
+        # Renovate: neither agent nor recurring task; its squash-merge touches package.json after PR 3
         pr(8, "chore(deps): update all non-major dependencies", "alice", branch="renovate/all-minor-patch",
            labels=["dependencies"], created="2026-10-10T11:00:00Z", merged="2026-10-10T12:00:00Z", merge_sha="m8"),
         pr(9, "chore(deps): update all non-major dependencies", "alice", branch="renovate/all-minor-patch",
            labels=["dependencies"], created="2026-10-20T11:00:00Z", merged="2026-10-20T12:00:00Z", merge_sha="m9"),
         pr(10, "chore(deps): update all non-major dependencies", "alice", branch="renovate/all-minor-patch",
            labels=["dependencies"], created="2026-10-25T11:00:00Z", merged="2026-10-25T12:00:00Z", merge_sha="m10"),
-        # hors fenêtre : doit arrêter la pagination
+        # outside the window: must stop the pagination
         pr(7, "Old stuff", "alice", created="2026-09-01T10:00:00Z"),
     ]
     data[f"{base}/pulls"] = prs
@@ -109,36 +109,36 @@ def build_fixture():
              8: ["package.json"], 9: ["package.json"], 10: ["package.json"]}
     for n, fs in files.items():
         data[f"{base}/pulls/{n}/files"] = [{"filename": f} for f in fs]
-    # commits par PR (le trailer rend la PR 6 agent même sans login/branche)
+    # commits per PR (the trailer makes PR 6 an agent PR even without login/branch)
     data[f"{base}/pulls/6/commits"] = [commit("c6a", "feat: import\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
                                               "dave", "2026-10-16T09:00:00Z")]
-    # rafale sur PR 5 : review à 08:00 puis 3 commits en 30 min
+    # burst on PR 5: review at 08:00 then 3 commits in 30 min
     data[f"{base}/pulls/5/reviews"] = [review(50, "carol", "2026-10-15T08:00:00Z")]
     data[f"{base}/pulls/5/commits"] = [commit(f"c5{i}", "fix review", "claude", f"2026-10-15T08:{10*i:02d}:00Z")
                                        for i in range(1, 4)]
-    # commentaires
+    # comments
     data[f"{base}/pulls/1/comments"] = [comment(10, "rule: les appels HTTP sortants passent par le client de src/http, jamais fetch direct",
                                                 "alice", path="src/payments/webhook.ts")]
     data[f"{base}/pulls/5/comments"] = [comment(51, "Please validate the request body with the shared zod schema before handling",
                                                 "carol", path="src/api/export.ts")]
     data[f"{base}/pulls/6/comments"] = [comment(61, "Validate the request body with the shared zod schema before handling it",
                                                 "carol", path="src/api/import.ts")]
-    # notes de l'auteur sur ses propres PRs : jamais une correction de review (S3)
-    data[f"{base}/issues/5/comments"] = [comment(52, "Merge en cours par la session x (demande du propriétaire)", "claude")]
-    data[f"{base}/issues/6/comments"] = [comment(62, "Merge en cours par la session x (demande du propriétaire)", "dave")]
-    # checks : même check en échec sur PR 3 et 4
+    # the author's notes on their own PRs: never a review correction (S3)
+    data[f"{base}/issues/5/comments"] = [comment(52, "Merge in progress by session x (owner's request)", "claude")]
+    data[f"{base}/issues/6/comments"] = [comment(62, "Merge in progress by session x (owner's request)", "dave")]
+    # checks: same check failing on PR 3 and 4
     for n in (3, 4):
         data[f"{base}/commits/head{n}/check-runs"] = {"check_runs": [
             {"name": "lint", "conclusion": "failure", "completed_at": f"2026-10-{8+n:02d}T09:00:00Z",
              "html_url": f"https://gh/check/{n}"}]}
-    # branche par défaut : fix de bob 5 h après merge de PR 3 ; revert de PR 5 ; merge commits
+    # default branch: bob's fix 5 h after PR 3's merge; revert of PR 5; merge commits
     data[f"{base}/commits"] = [
         commit("m3", "Merge pull request #3", "claude", "2026-10-10T10:00:00Z"),
         commit("f1", "fix: restore axios timeout", "bob", "2026-10-10T15:00:00Z"),
         commit("m5", "Merge pull request #5", "claude", "2026-10-15T10:00:00Z"),
         commit("r1", "Revert \"Add export endpoint\" (#5)", "carol", "2026-10-15T18:00:00Z"),
         commit("f2", "docs: unrelated", "erin", "2026-10-10T16:00:00Z"),
-        # squash-merge Renovate 2 h après la PR 3, sur package.json : pas une correction
+        # Renovate squash-merge 2 h after PR 3, on package.json: not a correction
         commit("m8", "chore(deps): update all non-major dependencies (#8)", "alice", "2026-10-10T12:00:00Z"),
     ]
     data[f"{base}/commits/m8"] = commit("m8", "chore(deps): update all non-major dependencies (#8)", "alice",
@@ -149,6 +149,7 @@ def build_fixture():
     return data
 
 
+# Written in French: the team's AGENTS.md is read in either language (see AGENTS_MD_EN).
 AGENTS_MD = """# app
 
 Mode : **délégation**.
@@ -158,6 +159,22 @@ Mode : **délégation**.
 - Les migrations ne suppriment jamais une colonne dans la même release. Pourquoi : incident #42. Vérifiée par : `scripts/check-migrations.sh`
 
 ## Maintenance de ce fichier
+- bla
+<!-- harvest: last=2026-10-01 ref=https://gh/pr/1 -->
+"""
+
+AGENTS_MD_EN = """# app
+
+Mode: **delegation**.
+
+## Rules
+- Outgoing HTTP calls go through the client in `src/http/`. Why: centralised retries. (unverified)
+- Migrations never drop a column in the same release. Why: incident #42. Enforced by: `scripts/check-migrations.sh`
+
+## Delegated tasks
+- dependency bumps
+
+## Maintenance of this file
 - bla
 <!-- harvest: last=2026-10-01 ref=https://gh/pr/1 -->
 """
@@ -186,8 +203,8 @@ class HarvesterTests(unittest.TestCase):
         os.unlink(self.tmp.name)
 
     def test_window_stops_pagination_and_classifies_agents(self):
-        self.assertEqual(self.result["prs_scanned"], 9)       # la PR 7 est hors fenêtre
-        self.assertEqual(self.result["agent_prs"], 5)         # login, branche, label, trailer ; pas Renovate
+        self.assertEqual(self.result["prs_scanned"], 9)       # PR 7 is outside the window
+        self.assertEqual(self.result["agent_prs"], 5)         # login, branch, label, trailer; not Renovate
         self.assertEqual(self.result["errors"], [])
 
     def test_s1_explicit_rule(self):
@@ -199,16 +216,16 @@ class HarvesterTests(unittest.TestCase):
 
     def test_s2_after_the_fact(self):
         texts = [e["text"] for e in by_signal(self.result, "S2")]
-        self.assertTrue(any("fermée sans merge" in t for t in texts), texts)
-        self.assertTrue(any("3 commits en 60 min" in t for t in texts), texts)
-        self.assertTrue(any("Revert d'une PR d'agent" in t for t in texts), texts)
-        fix = [e for e in by_signal(self.result, "S2") if "Correction" in e["text"]]
+        self.assertTrue(any("closed without merge" in t for t in texts), texts)
+        self.assertTrue(any("3 commits in 60 min" in t for t in texts), texts)
+        self.assertTrue(any("Revert of an agent PR" in t for t in texts), texts)
+        fix = [e for e in by_signal(self.result, "S2") if e["text"].startswith("Fix ")]
         self.assertEqual(len(fix), 1)
         self.assertEqual(fix[0]["files"], ["src/http/client.ts"])
-        self.assertIn("5 h après", fix[0]["text"])
-        # le commit docs d'erin ne touche pas les fichiers de la PR : pas d'évidence
+        self.assertIn("5 h after", fix[0]["text"])
+        # erin's docs commit does not touch the PR's files: no evidence
         self.assertFalse(any("unrelated" in t for t in texts))
-        # le squash-merge Renovate sur package.json n'est pas une correction
+        # the Renovate squash-merge on package.json is not a correction
         self.assertFalse(any("non-major" in t for t in texts), texts)
 
     def test_s3_recurring_review_comment(self):
@@ -226,13 +243,26 @@ class HarvesterTests(unittest.TestCase):
         s5 = by_signal(self.result, "S5")
         self.assertEqual(len(s5), 1)
         self.assertIn("migrations", s5[0]["text"])
-        # la règle HTTP est liée au rule: d'alice et au fix de bob sur src/http/client.ts
+        # the HTTP rule is linked to alice's rule: and to bob's fix on src/http/client.ts
         linked = [e for e in self.result["evidence"] if e["related_rule"] and "HTTP" in e["related_rule"]]
+        self.assertGreaterEqual(len(linked), 2)
+
+    def test_s5_reads_an_english_agents_md_the_same_way(self):
+        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as fh:
+            fh.write(AGENTS_MD_EN)
+        try:
+            result, _ = run_harvester(build_fixture(), agents_md=fh.name)
+        finally:
+            os.unlink(fh.name)
+        s5 = by_signal(result, "S5")
+        self.assertEqual(len(s5), 1)
+        self.assertIn("Migrations", s5[0]["text"])
+        linked = [e for e in result["evidence"] if e["related_rule"] and "HTTP" in e["related_rule"]]
         self.assertGreaterEqual(len(linked), 2)
 
     def test_s6_recurring_task(self):
         s6 = by_signal(self.result, "S6")
-        self.assertEqual(len(s6), 3)                          # les 3 Renovate sont exclues
+        self.assertEqual(len(s6), 3)                          # the 3 Renovate PRs are excluded
         keys = {e["group_key"] for e in s6}
         self.assertEqual(len(keys), 1)
         self.assertIn("bump", keys.pop())
@@ -258,7 +288,7 @@ class RobustnessTests(unittest.TestCase):
         result, _ = run_harvester(build_fixture(), failing={f"repos/{REPO}/commits"})
         self.assertEqual(len(result["errors"]), 1)
         self.assertIn("commits", result["errors"][0])
-        self.assertTrue(by_signal(result, "S1"))              # le reste est collecté
+        self.assertTrue(by_signal(result, "S1"))              # the rest is collected
 
     def test_thresholds_are_options(self):
         result, _ = run_harvester(build_fixture(), min_recurrence=3, min_task_count=4)
@@ -275,10 +305,40 @@ class RobustnessTests(unittest.TestCase):
 
 class HelpersTests(unittest.TestCase):
     def test_parse_rules(self):
-        self.assertEqual(len(g.parse_rules(AGENTS_MD)), 2)    # la puce de Maintenance est exclue
+        self.assertEqual(len(g.parse_rules(AGENTS_MD)), 2)    # the Maintenance bullet is excluded
         self.assertEqual(g.parse_rules("# x\n## Pièges\n- a\n  suite de a\n- b\n## Tâches déléguées\n- c\n\ntexte"),
                          ["a suite de a", "b"])
         self.assertEqual(g.parse_rules("## Règles\n- r\n## Interdits\n- i\n## Processus de travail\n- p\n"), ["r", "i"])
+
+    def test_parse_rules_reads_english_headings_too(self):
+        self.assertEqual(len(g.parse_rules(AGENTS_MD_EN)), 2)
+        self.assertEqual(g.parse_rules("## Rules\n- r\n## Forbidden\n- i\n## Working process\n- p\n"
+                                       "## Delegated tasks\n- d\n## Maintaining this file\n- m\n"
+                                       "## What this repository does\n- w\n## Commands\n- c\n"), ["r", "i"])
+
+    def test_rule_comments_in_either_language(self):
+        for body in ("rule: les appels HTTP sortants passent par src/http",
+                     "Rule: outgoing HTTP calls go through src/http",
+                     "  RULE : outgoing HTTP calls go through src/http"):
+            with self.subTest(body=body):
+                self.assertTrue(g.RULE_PREFIX.match(body))
+        self.assertFalse(g.RULE_PREFIX.match("As a rule: be careful"))
+
+    def test_an_agent_saying_it_guessed_is_heard_in_either_language(self):
+        guessed = ["J'ai supposé que le client HTTP vit dans src/http.",
+                   "Je ne sais pas où se règlent les timeouts.",
+                   "Hypothèse : les retries sont centralisés.",
+                   "I assumed the retry policy lives in src/http.",
+                   "I don't know where the timeouts are set.",
+                   "I don’t know where the timeouts are set.",
+                   "My assumption is that retries are centralised.",
+                   "Working hypothesis: retries are centralised."]
+        for sentence in guessed:
+            with self.subTest(sentence=sentence):
+                self.assertTrue(g.QUESTION_PATTERNS.search(sentence))
+        for sentence in ("Adds the export endpoint.", "Ajoute l'endpoint d'export."):
+            with self.subTest(sentence=sentence):
+                self.assertFalse(g.QUESTION_PATTERNS.search(sentence))
 
     def test_title_similarity(self):
         same = g.jaccard(g.title_words("chore(deps): bump lodash from 4.17.20 to 4.17.21"),
@@ -308,7 +368,7 @@ class HelpersTests(unittest.TestCase):
         with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as fh:
             fh.write("# x\n<!-- harvest: last=2026-11-09 ref=init -->\n")
         try:
-            self.assertIsNone(g.read_marker(fh.name))   # un marqueur d'init n'est pas un harvest
+            self.assertIsNone(g.read_marker(fh.name))   # an init marker is not a harvest
         finally:
             os.unlink(fh.name)
 
@@ -324,7 +384,7 @@ class CliTests(unittest.TestCase):
         payload = json.loads(out.getvalue())
         self.assertEqual(payload["repo"], REPO)
         self.assertIn("S1", payload["counts"])
-        self.assertIn("PRs : 9", err.getvalue())
+        self.assertIn("PRs: 9", err.getvalue())
 
     def test_main_exit_2_on_error(self):
         fake = FakeGitHub(build_fixture(), failing={f"repos/{REPO}/pulls/1/comments"})

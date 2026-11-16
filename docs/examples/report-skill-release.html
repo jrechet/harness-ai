@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-BV0tTc9PSIVI/ZiJp1TAc0nvbXn8/ysA2UVhH/KTGyA='; script-src 'sha256-ySiSng8mdUvXUMO5uvnNMKpt6DU0Otsz2R/XpdoX7DU='; base-uri 'none'; form-action 'none'">
+<meta name="generator" content="harness report">
+<title>Assessment · release</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --paper: #faf9f6; --card: #ffffff; --line: #dedcd3; --ink: #14140f; --ink-2: #55544c; --ink-3: #85837a;
+  --blocker: #b3261e; --gap: #a45c00; --todo: #1f5fbf; --unknown: #6b6a63; --ok: #1a7f37;
+  --blocker-soft: #fbe9e7; --gap-soft: #fdf0d9; --todo-soft: #e4eefc; --unknown-soft: #eeede8; --ok-soft: #e3f4e7;
+  --serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --step: clamp(1rem, 0.6rem + 1.6vw, 1.75rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #151513; --card: #1e1e1b; --line: #3a3934; --ink: #f1efe8; --ink-2: #c2c0b5; --ink-3: #8f8d83;
+    --blocker: #ff8a80; --gap: #f2b45a; --todo: #8ab4f8; --unknown: #b0aea4; --ok: #6fd08c;
+    --blocker-soft: #3b1c1a; --gap-soft: #3a2a12; --todo-soft: #1a2a44; --unknown-soft: #2a2a26; --ok-soft: #16301d;
+  }
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 1rem/1.55 var(--sans); }
+main { max-inline-size: 68rem; margin-inline: auto; padding: var(--step) 1rem 4rem; }
+h1, h2, h3, p, ul, ol, dl, dd { margin: 0; }
+ul, ol { padding: 0; list-style: none; }
+
+.masthead { display: grid; gap: .5rem; padding-block-end: var(--step); border-block-end: 2px solid var(--ink); }
+.kicker { font: 600 .75rem/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+h1 { font: 600 clamp(1.9rem, 1.2rem + 3vw, 3.25rem)/1.05 var(--serif); letter-spacing: -.02em; overflow-wrap: anywhere; }
+.meta { display: flex; flex-wrap: wrap; gap: .25rem 1.25rem; color: var(--ink-3); font-size: .875rem; }
+.meta code, .evidence code { font: .8125rem var(--mono); overflow-wrap: anywhere; }
+.lede { font: 1.2rem/1.45 var(--serif); color: var(--ink-2); max-inline-size: 60ch; padding-block-start: .5rem; }
+
+.overview { display: grid; gap: var(--step); padding-block: var(--step); }
+.tally { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: .5rem; }
+.tally li { padding: .75rem; border-radius: .5rem; background: var(--soft); color: var(--tone); }
+.tally b { display: block; font: 600 2.25rem/1 var(--serif); font-variant-numeric: tabular-nums; }
+.tally span { font-size: .8125rem; font-weight: 600; }
+.tally li[data-zero] { background: transparent; color: var(--ink-3); outline: 1px dashed var(--line); outline-offset: -1px; }
+.first h2, .findings > h2 { font: 600 .75rem/1 var(--sans); letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); padding-block-end: .75rem; }
+.first ol { counter-reset: n; display: grid; gap: .6rem; }
+.first li { counter-increment: n; display: grid; grid-template-columns: 2rem 1fr; align-items: baseline; }
+.first li::before { content: counter(n); font: 600 1.4rem/1 var(--serif); color: var(--tone); }
+.first small { display: block; color: var(--ink-3); }
+.first .none { color: var(--ink-2); font: 1.1rem var(--serif); }
+
+[data-status="blocker"] { --tone: var(--blocker); --soft: var(--blocker-soft); }
+[data-status="gap"] { --tone: var(--gap); --soft: var(--gap-soft); }
+[data-status="todo"] { --tone: var(--todo); --soft: var(--todo-soft); }
+[data-status="unknown"] { --tone: var(--unknown); --soft: var(--unknown-soft); }
+[data-status="ok"] { --tone: var(--ok); --soft: var(--ok-soft); }
+
+.filters { display: flex; flex-wrap: wrap; gap: .5rem; padding-block-end: 1rem; }
+.filters button { font: 600 .8125rem var(--sans); padding: .4rem .8rem; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--ink-2); cursor: pointer; transition: background-color .15s, color .15s; }
+.filters button:hover { border-color: var(--ink-2); color: var(--ink); }
+.filters button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--paper); }
+:focus-visible { outline: 2px solid var(--todo); outline-offset: 2px; }
+
+.findings { container-type: inline-size; display: grid; gap: .75rem; }
+.finding { background: var(--card); border: 1px solid var(--line); border-inline-start: .375rem solid var(--tone); border-radius: .5rem; padding: 1rem 1.25rem; display: grid; gap: .75rem; break-inside: avoid; }
+.finding[hidden] { display: none; }
+.finding header { display: flex; flex-wrap: wrap; align-items: baseline; gap: .5rem 1rem; }
+.finding h3 { font: 600 1.15rem/1.3 var(--serif); flex: 1 1 16rem; overflow-wrap: anywhere; }
+.finding h3 small { display: block; font: 600 .6875rem/1.6 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.chip { font: 600 .75rem/1 var(--sans); padding: .35rem .6rem; border-radius: 999px; background: var(--soft); color: var(--tone); white-space: nowrap; }
+.tag { font: 600 .75rem/1 var(--mono); padding: .35rem .5rem; border-radius: .25rem; border: 1px solid var(--line); color: var(--ink-2); }
+.finding dl { display: grid; gap: .75rem 1.5rem; }
+@container (min-width: 46rem) { .finding dl { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.finding dt { font: 600 .6875rem/1.6 var(--sans); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); }
+.finding dd { overflow-wrap: anywhere; }
+.finding .advice dd { font-weight: 600; }
+.finding[data-status="ok"] .advice dd { font-weight: 400; color: var(--ink-3); }
+.evidence { display: flex; flex-wrap: wrap; gap: .25rem .75rem; color: var(--ink-3); font-size: .8125rem; }
+.evidence b { font-weight: 600; }
+footer { padding-block-start: var(--step); color: var(--ink-3); font-size: .8125rem; }
+
+@media (max-width: 30rem) { .tally { grid-template-columns: repeat(auto-fit, minmax(5.5rem, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+@media print {
+  :root { --paper: #fff; --card: #fff; }
+  .filters { display: none; }
+  .finding[hidden] { display: grid; }
+  main { padding: 0; }
+}
+</style>
+</head>
+<body>
+<main>
+<header class="masthead">
+<p class="kicker">Assessment · Skill</p>
+<h1>release</h1>
+<p class="meta"><span><time datetime="2026-11-15">2026-11-15</time></span> <span>by harness place</span> <span><code>.claude/skills/release/SKILL.md</code></span></p>
+
+</header>
+<section class="overview" aria-label="Overview">
+<ul class="tally">
+<li data-status="blocker"><b>2</b><span>Blocking</span></li>
+<li data-status="gap"><b>1</b><span>Gap</span></li>
+<li data-status="todo"><b>1</b><span>To create</span></li>
+<li data-status="unknown"><b>1</b><span>Not evaluated</span></li>
+<li data-status="ok"><b>1</b><span>Compliant</span></li>
+</ul>
+<div class="first">
+<h2>Do first</h2>
+<ol>
+<li data-status="blocker"><span>Move to: Branch protection, ruleset, protected environment or account rights, on the forge.<small>Never publish from a branch other than main</small></span></li>
+<li data-status="blocker"><span>Move to: A subcommand of the repository&#x27;s CLI (a script if it is truly isolated), with its tests and a JSON output; the skill calls it.<small>Compute the next version</small></span></li>
+<li data-status="gap"><span>Remove: nothing to write.<small>The repository tree</small></span></li>
+</ol>
+</div>
+</section>
+<section class="findings" aria-labelledby="findings-title">
+<h2 id="findings-title">Findings · 6</h2>
+<nav class="filters" aria-label="Filter findings by status" hidden>
+<button type="button" data-filter="all" aria-pressed="true">All</button>
+<button type="button" data-filter="blocker" aria-pressed="false">Blocking · 2</button>
+<button type="button" data-filter="gap" aria-pressed="false">Gap · 1</button>
+<button type="button" data-filter="todo" aria-pressed="false">To create · 1</button>
+<button type="button" data-filter="unknown" aria-pressed="false">Not evaluated · 1</button>
+<button type="button" data-filter="ok" aria-pressed="false">Compliant · 1</button>
+</nav>
+<article class="finding" data-status="blocker">
+<header><h3><small>What is evaluated · 1</small>Never publish from a branch other than main</h3><span class="tag">PUSH_DOWN</span><span class="chip">Blocking</span></header>
+<dl><div><dt>Expected</dt><dd>Server-side protection (L4). A hook or a local permission can be bypassed by hand (--no-verify, another tool); the server refuses for everyone.</dd></div><div><dt>Observed</dt><dd>Today: Skill.</dd></div><div class="advice"><dt>Advice</dt><dd>Move to: Branch protection, ruleset, protected environment or account rights, on the forge.</dd></div></dl>
+<p class="evidence"><b>Evidence</b> <code>.claude/skills/release/SKILL.md:12</code></p>
+</article>
+<article class="finding" data-status="blocker">
+<header><h3><small>What is evaluated · 2</small>Compute the next version</h3><span class="tag">PUSH_DOWN</span><span class="chip">Blocking</span></header>
+<dl><div><dt>Expected</dt><dd>Tested CLI subcommand (L3). A computation written in a prompt is redone every time, and sometimes wrongly; in code, it gives the same result to the agent, the human and CI.</dd></div><div><dt>Observed</dt><dd>Today: Skill.</dd></div><div class="advice"><dt>Advice</dt><dd>Move to: A subcommand of the repository&#x27;s CLI (a script if it is truly isolated), with its tests and a JSON output; the skill calls it.</dd></div></dl>
+<p class="evidence"><b>Evidence</b> <code>.claude/skills/release/SKILL.md:20</code> <code>.claude/skills/release/SKILL.md:31</code></p>
+</article>
+<article class="finding" data-status="gap">
+<header><h3><small>What is evaluated · 3</small>The repository tree</h3><span class="tag">REMOVE</span><span class="chip">Gap</span></header>
+<dl><div><dt>Expected</dt><dd>Nothing to write (-). What the agent finds by reading the repository does not change what it does; writing it costs context in every session and goes stale.</dd></div><div><dt>Observed</dt><dd>Today: A line in AGENTS.md.</dd></div><div class="advice"><dt>Advice</dt><dd>Remove: nothing to write.</dd></div></dl>
+<p class="evidence"><b>Evidence</b> <code>AGENTS.md:8</code></p>
+</article>
+<article class="finding" data-status="todo">
+<header><h3><small>What is evaluated · 4</small>Publish the package</h3><span class="chip">To create</span></header>
+<dl><div><dt>Expected</dt><dd>Delivery workflow (L4). What changes a shared resource runs with audited rights, off the agent&#x27;s machine, with a human stop point before the irreversible.</dd></div><div><dt>Observed</dt><dd>Does not exist yet.</dd></div><div class="advice"><dt>Advice</dt><dd>Set up: A CI workflow or pipeline with a plan mode (dry-run) and a protected environment; the agent triggers it through a CLI subcommand, never through the API directly.</dd></div></dl>
+</article>
+<article class="finding" data-status="unknown">
+<header><h3><small>What is evaluated · 5</small>Write the announcement</h3><span class="chip">Not evaluated</span></header>
+<dl><div><dt>Expected</dt><dd>A place returned by the placement grid.</dd></div><div><dt>Observed</dt><dd>Not placed yet: an answer is missing.</dd></div><div class="advice"><dt>Advice</dt><dd>Answer the question `isolation`: Does this work need to be separated from the session?</dd></div></dl>
+</article>
+<article class="finding" data-status="ok">
+<header><h3><small>What is evaluated · 6</small>Chain tag, publication and announcement</h3><span class="tag">KEEP</span><span class="chip">Compliant</span></header>
+<dl><div><dt>Expected</dt><dd>Skill (L2). A procedure only serves its type of task; loaded in every session, it would cost context everywhere. Each mandatory step of the procedure is a separate piece (rule or computation) that the skill calls.</dd></div><div><dt>Observed</dt><dd>Skill: this is its place.</dd></div><div class="advice"><dt>Advice</dt><dd>Nothing to change.</dd></div></dl>
+<p class="evidence"><b>Evidence</b> <code>.claude/skills/release/SKILL.md:1</code></p>
+</article>
+</section>
+<footer>Generated by <code>harness report</code> from validated data: a gap without evidence is refused. The data is in this file, <code>report-data</code> block.</footer>
+</main>
+<script type="application/json" id="report-data">{"date": "2026-11-15", "items": [{"advice": "Move to: Branch protection, ruleset, protected environment or account rights, on the forge.", "evidence": [".claude/skills/release/SKILL.md:12"], "expected": "Server-side protection (L4). A hook or a local permission can be bypassed by hand (--no-verify, another tool); the server refuses for everyone.", "observed": "Today: Skill.", "scope": "Never publish from a branch other than main", "status": "blocker", "tag": "PUSH_DOWN"}, {"advice": "", "evidence": [".claude/skills/release/SKILL.md:1"], "expected": "Skill (L2). A procedure only serves its type of task; loaded in every session, it would cost context everywhere. Each mandatory step of the procedure is a separate piece (rule or computation) that the skill calls.", "observed": "Skill: this is its place.", "scope": "Chain tag, publication and announcement", "status": "ok", "tag": "KEEP"}, {"advice": "Move to: A subcommand of the repository's CLI (a script if it is truly isolated), with its tests and a JSON output; the skill calls it.", "evidence": [".claude/skills/release/SKILL.md:20", ".claude/skills/release/SKILL.md:31"], "expected": "Tested CLI subcommand (L3). A computation written in a prompt is redone every time, and sometimes wrongly; in code, it gives the same result to the agent, the human and CI.", "observed": "Today: Skill.", "scope": "Compute the next version", "status": "blocker", "tag": "PUSH_DOWN"}, {"advice": "Remove: nothing to write.", "evidence": ["AGENTS.md:8"], "expected": "Nothing to write (-). What the agent finds by reading the repository does not change what it does; writing it costs context in every session and goes stale.", "observed": "Today: A line in AGENTS.md.", "scope": "The repository tree", "status": "gap", "tag": "REMOVE"}, {"advice": "Set up: A CI workflow or pipeline with a plan mode (dry-run) and a protected environment; the agent triggers it through a CLI subcommand, never through the API directly.", "evidence": [], "expected": "Delivery workflow (L4). What changes a shared resource runs with audited rights, off the agent's machine, with a human stop point before the irreversible.", "observed": "Does not exist yet.", "scope": "Publish the package", "status": "todo"}, {"advice": "Answer the question `isolation`: Does this work need to be separated from the session?", "evidence": [], "expected": "A place returned by the placement grid.", "observed": "Not placed yet: an answer is missing.", "scope": "Write the announcement", "status": "unknown"}], "source": "harness place", "subject": {"kind": "skill", "name": "release", "path": ".claude/skills/release/SKILL.md"}}</script>
+<script>
+(() => {
+  const nav = document.querySelector(".filters");
+  const buttons = [...nav.querySelectorAll("button")];
+  const cards = [...document.querySelectorAll(".finding")];
+  const known = new Set(buttons.map((b) => b.dataset.filter));
+  const read = () => {
+    const wanted = new URLSearchParams(location.hash.slice(1)).get("status");
+    return known.has(wanted) ? wanted : "all";
+  };
+  const apply = (wanted) => {
+    for (const b of buttons) b.setAttribute("aria-pressed", String(b.dataset.filter === wanted));
+    for (const c of cards) c.hidden = wanted !== "all" && c.dataset.status !== wanted;
+  };
+  nav.addEventListener("click", (event) => {
+    const button = event.target.closest("button");
+    if (!button) return;
+    const wanted = button.dataset.filter;
+    history.replaceState(null, "", wanted === "all" ? location.pathname + location.search : `#status=${wanted}`);
+    apply(wanted);
+  });
+  addEventListener("hashchange", () => apply(read()));
+  nav.hidden = false;
+  apply(read());
+})();
+</script>
+</body>
+</html>
