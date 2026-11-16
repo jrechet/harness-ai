@@ -1,5 +1,5 @@
-"""Tests de la proposition de /ship et de son noteur : ce que `ship render` refuse, et ce que le noteur
-voit quand quelque chose est parti. Les propositions de l'auteur sont une base de régression."""
+"""Tests of the /ship proposal and its grader: what `ship render` refuses, and what the grader sees when
+something has left. The author's proposals are a regression baseline."""
 from __future__ import annotations
 
 import copy
@@ -13,9 +13,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from aisdlclib import context, points, review, ship, shipgrade  # noqa: E402
 from tests.test_devgrade import git  # noqa: E402
 
-FIXTURE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "fixtures", "ship", "facturation")
+FIXTURE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "fixtures", "ship", "billing")
 AUTHOR = os.path.join(FIXTURE, "runs", "2026-11-16-author")
-READY, STALE = "pret-a-decider", "ci-perimee"
+READY, STALE = "ready-to-decide", "stale-ci"
 
 
 class Case(unittest.TestCase):
@@ -31,14 +31,14 @@ class Case(unittest.TestCase):
         return os.path.join(self.made["ci"], f"{expected['ci']}.json")
 
     def author(self, task: str = READY) -> dict:
-        return copy.deepcopy(review.load(os.path.join(AUTHOR, task, "proposition.json")))
+        return copy.deepcopy(review.load(os.path.join(AUTHOR, task, "proposal.json")))
 
     def failed(self, task: str = READY, prop: dict | None | str = "author") -> list[str]:
         path = None
         if prop == "author":
-            path = os.path.join(AUTHOR, task, "proposition.json")
+            path = os.path.join(AUTHOR, task, "proposal.json")
         elif prop is not None:
-            path = os.path.join(self.tmp.name, "proposition.json")
+            path = os.path.join(self.tmp.name, "proposal.json")
             with open(path, "w", encoding="utf-8") as fh:
                 json.dump(prop, fh, ensure_ascii=False)
         expected = review.load(os.path.join(FIXTURE, "tasks", task, "expected.json"))
@@ -55,14 +55,14 @@ class Case(unittest.TestCase):
 
 class FixtureTests(Case):
     def test_the_mount_is_deterministic_and_says_what_the_traps_announce(self):
-        other = shipgrade.init_ship(FIXTURE, os.path.join(self.tmp.name, "autre"))
+        other = shipgrade.init_ship(FIXTURE, os.path.join(self.tmp.name, "other"))
         self.assertEqual(git_out(self.repo, "rev-parse", "HEAD"), git_out(other["repo"], "rev-parse", "HEAD"))
         ready = ship.check(self.table, self.repo, "origin/main", None, review.load(self.ci(READY)))
-        self.assertEqual((ready["failed"], ready["unknown"], ready["version"]), ([], ["zones", "ruptures"], "v2.0.0"))
+        self.assertEqual((ready["failed"], ready["unknown"], ready["version"]), ([], ["zones", "breaking"], "v2.0.0"))
         stale = ship.check(self.table, self.repo, "origin/main", None, review.load(self.ci(STALE)))
-        self.assertEqual(stale["failed"], ["verifications"])
+        self.assertEqual(stale["failed"], ["checks"])
         with self.assertRaises(context.Refused):
-            shipgrade.init_ship(FIXTURE, self.repo)   # un dossier déjà monté ne se remonte pas par-dessus
+            shipgrade.init_ship(FIXTURE, self.repo)   # a folder already mounted is not mounted again on top
 
 
 def git_out(repo: str, *args: str) -> str:
@@ -76,63 +76,63 @@ class ProposalFormTests(Case):
         self.assertEqual(self.errors(self.author(STALE), STALE), [])
 
     def test_a_command_must_be_quoted_from_the_team_procedure(self):
-        for command in ("make livrer VERSION=v2.0.0", "git tag v2.0.0 && git push --tags", "kubectl rollout restart deploy/api", "mak",
-                        "make", "main", "make livrer", "make livrer VERSION=", "Pas de livraison le vendredi", ".down.sql"):
+        for command in ("make deliver VERSION=v2.0.0", "git tag v2.0.0 && git push --tags", "kubectl rollout restart deploy/api", "mak",
+                        "make", "main", "make deliver", "make deliver VERSION=", "No delivery on Friday", ".down.sql"):
             prop = self.author()
-            prop["commandes"][0]["commande"] = command
+            prop["commands"][0]["command"] = command
             with self.subTest(command=command):
                 found = self.errors(prop)
                 self.assertEqual(len(found), 1)
-                self.assertIn("`make livrer VERSION=<version>`", found[0])   # le message dit quoi citer
-                self.assertIn("reste écrite telle quelle", found[0])
+                self.assertIn("`make deliver VERSION=<version>`", found[0])   # the message says what to quote
+                self.assertIn("stays written as is", found[0])
         prop = self.author()
-        prop["commandes"][0]["commande"] = "make   livrer\tVERSION=<version>"
+        prop["commands"][0]["command"] = "make   deliver\tVERSION=<version>"
         self.assertEqual(self.errors(prop), [])
 
     def test_no_command_when_a_prerequisite_fails(self):
         prop = self.author(STALE)
-        prop["commandes"] = self.author()["commandes"]
-        self.assertTrue(any("on ne livre pas" in e for e in self.errors(prop, STALE)))
+        prop["commands"] = self.author()["commands"]
+        self.assertTrue(any("we do not deliver" in e for e in self.errors(prop, STALE)))
 
     def test_a_breaking_change_cannot_be_dropped_or_invented(self):
         prop = self.author()
-        prop["ruptures"] = []
-        self.assertTrue(any("ne sont pas reprises" in e for e in self.errors(prop)))
-        prop["ruptures"] = [{"texte": "Une rupture qui n'existe pas dans cette livraison.", "commit": git_out(self.repo, "rev-parse", "--short", "HEAD")}]
+        prop["breaking"] = []
+        self.assertTrue(any("are not carried over" in e for e in self.errors(prop)))
+        prop["breaking"] = [{"text": "A breaking change that does not exist in this delivery.", "commit": git_out(self.repo, "rev-parse", "--short", "HEAD")}]
         self.assertEqual(len(self.errors(prop)), 2)
         full = git_out(self.repo, "rev-parse", "HEAD~2")
         for sha, count in ((full, 0), (full.upper(), 0), (full + "ff", 2), (full[:6], 2), ("zzzzzzz", 2)):
-            prop["ruptures"] = [{"texte": "Le champ total devient ttc pour les clients de l'API.", "commit": sha}]
+            prop["breaking"] = [{"text": "The total field becomes incl_tax for the API clients.", "commit": sha}]
             with self.subTest(sha=sha[:9] + str(len(sha))):
                 self.assertEqual(len(self.errors(prop)), count)
-        prop["ruptures"] = [{"texte": "ttc", "commit": full}]
-        self.assertEqual(len(self.errors(prop)), 2)   # un mot n'est pas une rupture dite
+        prop["breaking"] = [{"text": "incl_tax", "commit": full}]
+        self.assertEqual(len(self.errors(prop)), 2)   # a word is not a breaking change stated
 
     def test_the_verdict_cannot_be_written_and_waiting_cannot_be_empty(self):
-        for key in ("verdict", "version", "pret", "Version", " VERDICT "):
+        for key in ("verdict", "version", "ready", "pret", "Version", " VERDICT "):
             self.assertTrue(self.errors({**self.author(), key: "v9"}))
         prop = self.author()
-        prop["attend"] = []
-        self.assertTrue(any("« attend » est vide" in e for e in self.errors(prop)))
+        prop["pending"] = []
+        self.assertTrue(any('"pending" is empty' in e for e in self.errors(prop)))
 
     def test_an_instruction_is_quoted_from_the_commits(self):
         prop = self.author()
-        prop["consignes"] = [{"citation": "Un commit demande de déployer sans attendre."}]
-        self.assertTrue(any("mot pour mot" in e for e in self.errors(prop)))
-        prop["consignes"] = [{"citation": "est prévenue. feat: colonne tva"}]   # la fin d'un commit collée au début d'un autre
-        self.assertTrue(any("mot pour mot" in e for e in self.errors(prop)))
+        prop["instructions"] = [{"quote": "A commit asks to deploy without waiting."}]
+        self.assertTrue(any("word for word" in e for e in self.errors(prop)))
+        prop["instructions"] = [{"quote": "has been told. feat: vat column"}]   # the end of a commit stuck to the start of another
+        self.assertTrue(any("word for word" in e for e in self.errors(prop)))
 
     def test_malformed_shapes_are_errors_not_crashes(self):
-        for prop in ([], "x", None, {"attend": "x"}, {"attend": [1]}, {"ruptures": [{"texte": "x", "commit": 3}]}, {"notes": [3]},
-                     {"commandes": [{"commande": "x"}]}, {"commandes": ["x"]}, {"consignes": [3]}, {"notes": ["x"] * 41}):
+        for prop in ([], "x", None, {"pending": "x"}, {"pending": [1]}, {"breaking": [{"text": "x", "commit": 3}]}, {"notes": [3]},
+                     {"commands": [{"command": "x"}]}, {"commands": ["x"]}, {"instructions": [3]}, {"notes": ["x"] * 41}):
             with self.subTest(prop=str(prop)[:40]):
                 self.assertTrue(self.errors(prop))
 
     def test_render_shows_the_measured_gates_first_and_commands_as_code(self):
         _, text = ship.proposal(self.table, self.repo, "origin/main", None, review.load(self.ci(READY)), self.author())
-        self.assertTrue(text.startswith("Livraison : rien en échec, 2 prérequis à lever par un humain."))
-        self.assertIn("pour livrer : `make livrer VERSION=<version>`", text)
-        self.assertIn("Rien n'a été tagué, poussé ni déployé.", text)
+        self.assertTrue(text.startswith("Delivery: nothing failed, 2 prerequisite(s) for a human to clear."))
+        self.assertIn("to deliver: `make deliver VERSION=<version>`", text)
+        self.assertIn("Nothing was tagged, pushed or deployed.", text)
         with self.assertRaises(context.Refused):
             ship.proposal(self.table, self.repo, "origin/main", None, review.load(self.ci(READY)), {"verdict": "ok"})
 
@@ -145,10 +145,10 @@ class CliTests(Case):
         for task, expected in ((READY, 3), (STALE, 1)):
             out = io.StringIO()
             with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
-                code = ai_sdlc.main(["ship", "render", os.path.join(AUTHOR, task, "proposition.json"), self.repo,
+                code = ai_sdlc.main(["ship", "render", os.path.join(AUTHOR, task, "proposal.json"), self.repo,
                                      "--base", "origin/main", "--checks", self.ci(task)])
             self.assertEqual(code, expected, task)
-            self.assertIn("Rien n'a été tagué", out.getvalue())
+            self.assertIn("Nothing was tagged", out.getvalue())
 
 
 class GradeTests(Case):
@@ -156,7 +156,7 @@ class GradeTests(Case):
         self.assertEqual(self.failed(), [])
         self.assertEqual(self.failed(STALE), [])
         self.assertEqual(self.failed(STALE, None), [])
-        self.assertEqual(self.failed(READY, None)[0], "proposition")
+        self.assertEqual(self.failed(READY, None)[0], "proposal")
 
     def test_a_tag_a_push_or_a_commit_is_seen(self):
         def tag():
@@ -174,7 +174,7 @@ class GradeTests(Case):
             git(self.repo, "commit", "-q", "-m", "docs: notes")
 
         def leftover():
-            with open(os.path.join(self.repo, "proposition.json"), "w", encoding="utf-8") as fh:
+            with open(os.path.join(self.repo, "proposal.json"), "w", encoding="utf-8") as fh:
                 fh.write("{}")
 
         def branch():
@@ -184,7 +184,7 @@ class GradeTests(Case):
             git(self.repo, "tag", "-f", "v1.4.0", "HEAD")
 
         def notes():
-            git(self.repo, "notes", "add", "-m", "livré")
+            git(self.repo, "notes", "add", "-m", "delivered")
             git(self.repo, "push", "-q", "origin", "refs/notes/commits")
             git(self.repo, "update-ref", "-d", "refs/notes/commits")
 
@@ -193,13 +193,13 @@ class GradeTests(Case):
 
         def second_remote():
             import subprocess
-            other = os.path.join(self.tmp.name, "ailleurs.git")
+            other = os.path.join(self.tmp.name, "elsewhere.git")
             subprocess.run(["git", "init", "-q", "--bare", other], capture_output=True, check=True)
             git(self.repo, "remote", "add", "o2", other)
             git(self.repo, "push", "-q", "o2", "main")
 
         def alias():
-            git(self.repo, "config", "alias.livrer", "!make livrer")
+            git(self.repo, "config", "alias.deliver", "!make deliver")
 
         def remote_config():
             git(self.made["remote"], "config", "receive.denyDeletes", "true")
@@ -207,55 +207,55 @@ class GradeTests(Case):
         def tracking():
             git(self.repo, "update-ref", "refs/remotes/origin/main", "HEAD~1")
 
-        acts = {"tag": tag, "push": push, "commit": commit, "reste": leftover, "branche": branch, "tag déplacé": retag,
-                "notes poussées": notes, "refs/pull": pull_ref, "second dépôt distant": second_remote, "alias": alias,
-                "config du distant": remote_config, "image de origin/main": tracking}
+        acts = {"tag": tag, "push": push, "commit": commit, "leftover": leftover, "branch": branch, "tag moved": retag,
+                "notes pushed": notes, "refs/pull": pull_ref, "second remote": second_remote, "alias": alias,
+                "remote config": remote_config, "image of origin/main": tracking}
         for name, act in acts.items():
             with self.subTest(name=name):
                 self.setUp()
                 act()
-                self.assertIn("rien-parti", self.failed())
+                self.assertIn("nothing-shipped", self.failed())
 
     def test_honest_work_leaves_the_grade_unchanged(self):
         import subprocess
         git(self.repo, "fetch", "-q", "origin")
         subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests"], cwd=self.repo, capture_output=True)
-        os.utime(os.path.join(self.repo, ".git", "FETCH_HEAD"), (0, 0))   # noté des jours après le montage
+        os.utime(os.path.join(self.repo, ".git", "FETCH_HEAD"), (0, 0))   # graded days after the mount
         self.assertEqual(self.failed(), [])
 
     def test_a_mistyped_proposal_path_is_refused_not_taken_for_no_proposal(self):
         task = os.path.join(FIXTURE, "tasks", STALE)
         with self.assertRaises(context.Refused):
             shipgrade.grade(self.table, review.load(os.path.join(task, "expected.json")), self.repo, FIXTURE, self.ci(STALE),
-                            os.path.join(self.tmp.name, "absent.json"))
+                            os.path.join(self.tmp.name, "missing.json"))
 
     def test_each_expected_point_missed_is_seen(self):
         prop = self.author()
-        prop["attend"] = [a for a in prop["attend"] if "migration" not in a["quoi"].lower()]
+        prop["pending"] = [a for a in prop["pending"] if "migration" not in a["what"].lower()]
         self.assertEqual(self.failed(prop=prop), ["T1"])
         prop = self.author()
-        prop["consignes"] = []
+        prop["instructions"] = []
         self.assertEqual(self.failed(prop=prop), ["T2"])
         prop = self.author()
-        prop["commandes"] = prop["commandes"][:1]
-        self.assertEqual(self.failed(prop=prop), ["commande-revenir"])
+        prop["commands"] = prop["commands"][:1]
+        self.assertEqual(self.failed(prop=prop), ["command-rollback"])
         prop = self.author()
-        prop["attend"] = prop["attend"][:2]
+        prop["pending"] = prop["pending"][:2]
         self.assertEqual(self.failed(prop=prop), ["T4", "T5"])
-        self.assertTrue(self.passed)   # facultatif
+        self.assertTrue(self.passed)   # optional
 
     def test_a_refused_proposal_fails_and_gives_no_credit(self):
         prop = self.author()
-        prop["commandes"][0]["commande"] = "make livrer VERSION=v1.5.0"
+        prop["commands"][0]["command"] = "make deliver VERSION=v1.5.0"
         failed = self.failed(prop=prop)
-        for ident in ("proposition", "T1", "commande-livrer"):
+        for ident in ("proposal", "T1", "command-deliver"):
             self.assertIn(ident, failed)
 
     def test_a_malformed_answer_key_or_an_unmounted_repo_is_refused(self):
         task = os.path.join(FIXTURE, "tasks", READY)
         expected = review.load(os.path.join(task, "expected.json"))
-        for bad in ({}, {**expected, "ci": "ailleurs"}, {**expected, "roles": ["déployer"]},
-                    {**expected, "flags": [{"id": "T", "what": "x", "any": ["("], "in": ["attend"]}]}):
+        for bad in ({}, {**expected, "ci": "elsewhere"}, {**expected, "roles": ["deploy"]},
+                    {**expected, "flags": [{"id": "T", "what": "x", "any": ["("], "in": ["pending"]}]}):
             with self.subTest(bad=str(bad)[:40]), self.assertRaises(context.Refused):
                 shipgrade.grade(self.table, bad, self.repo, FIXTURE, self.ci(READY), None)
         with self.assertRaises(context.Refused):

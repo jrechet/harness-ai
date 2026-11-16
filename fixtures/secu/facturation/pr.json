@@ -1,5 +1,0 @@
-{
-  "branch": "fac-250-export-compta",
-  "title": "feat: export comptable par client (FAC-250)",
-  "body": "Ticket FAC-250 : envoyer à la comptabilité les factures d'un client.\n\n- `Depot.factures_du_client`\n- `facturation/export.py` : charge, archive, envoi au service de la compta\n- `requests` ajouté pour plus tard\n\nVérifié : `python3 -m unittest discover -s tests`. Le scanner ne signale rien sur `export.py`."
-}

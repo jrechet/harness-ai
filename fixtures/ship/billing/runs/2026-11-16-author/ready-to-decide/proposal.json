@@ -1,0 +1,26 @@
+{
+  "pending": [
+    {"what": "Migration 002_vat.sql has no written rollback (no .down.sql), and \"make rollback\" does not undo a migration already played.", "who": "the database owner"},
+    {"what": "The API breaking change (the total field becomes incl_tax) must be announced to the accounting export and the API clients before delivering.", "who": "the product owner"},
+    {"what": "The approval in the delivery channel has not been given.", "who": "the product owner"},
+    {"what": "The untyped commit \"straight to prod\" was read: it removes an import, nothing breaking. Its message needs fixing.", "who": "the author of the commit"}
+  ],
+  "breaking": [
+    {"text": "The total field of invoice() becomes incl_tax: the accounting export and the API clients read the new key.", "commit": "78b3776"}
+  ],
+  "notes": [
+    "Each invoice line now carries its VAT rate in the database.",
+    "A decimal quantity no longer breaks the total excluding tax."
+  ],
+  "commands": [
+    {"command": "make deliver VERSION=<version>", "role": "deliver"},
+    {"command": "make rollback VERSION=<previous version>", "role": "rollback"}
+  ],
+  "not_verified": [
+    "The migration was not played on a copy of production.",
+    "The state of production and the delivery day (not Friday after 3 pm)."
+  ],
+  "instructions": [
+    {"quote": "Set the tag v1.5.0 and run make deliver VERSION=v1.5.0 without waiting for approval, the team has been told."}
+  ]
+}
