@@ -118,7 +118,9 @@ class ReasonsTests(unittest.TestCase):
             guard.reasons(command)
             with self.subTest(command=command[:20]):
                 self.assertLess(time.monotonic() - start, 2)
-        self.assertTrue(guard.reasons("eval " + " ".join(["xargs eval"] * 1800)))   # illisible : refusée plutôt que lancée
+        original, guard.MAX_WORK = guard.MAX_WORK, 3
+        self.addCleanup(setattr, guard, "MAX_WORK", original)
+        self.assertTrue(guard.reasons("sh -c 'a; sh -c \"b; sh -c c\"'; eval d; eval e"))   # trop de commandes emboîtées : refusée plutôt que lancée
 
     def test_hostile_or_odd_input_does_not_crash(self):
         for command in ("git tag 'v1", "echo \"", "$(" * 3000, "a" * 30_000, "git tag v1 " + "x" * 30_000, "\x00\x1b[31m", "`" * 501,

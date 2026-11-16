@@ -80,7 +80,7 @@ _TOOLS: dict[str, list[tuple[str, ...]]] = {
 }
 _ANYWHERE = {"gcloud", "az", "aws"}
 _FLAGS = {"vercel": {"--prod"}, "docker": {"--push"}, "netlify": {"--prod"}}
-_DRY = re.compile(r"^--dry-run(?:=(?!none$|false$).*)?$|^--snapshot$|^--plan-only$|^-n$")
+_DRY = re.compile(r"^--dry-run(?:=(?!none$|false$).*)?$|^--snapshot$|^--plan-only$")
 _RUNNERS = {"make", "gmake", "just", "task", "rake", "invoke", "nox", "tox"}
 _SCRIPT_RUNNERS = {("npm", "run"), ("npm", "run-script"), ("pnpm", "run"), ("yarn", "run"), ("bun", "run"), ("composer", "run"), ("composer", "run-script")}
 # « lance la suite comme une commande » : après ces mots, la commande recommence
@@ -115,6 +115,28 @@ def _blank_quotes(line: str) -> str:
     return "".join(out)
 
 
+def _blank_single(line: str) -> str:
+    """La ligne où seul ce qui est entre guillemets simples est effacé : entre guillemets doubles, un `$(…)` reste du shell."""
+    out, quote, in_double = [], False, False
+    for ch in line:
+        if quote:
+            quote = ch != "'"
+            out.append(" ")
+        elif ch == "'" and not in_double:
+            quote = True
+            out.append(" ")
+        else:
+            in_double = (not in_double) if ch == '"' else in_double
+            out.append(ch)
+    return "".join(out)
+
+
+def _heredoc_in(line: str) -> re.Match[str] | None:
+    """L'ouverture d'un here-document sur cette ligne, si son `<<` n'est pas dans une chaîne entre guillemets simples."""
+    visible = _blank_single(line)
+    return next((m for m in _HEREDOC.finditer(line) if visible[m.start():m.start() + 2] == "<<"), None)
+
+
 def _without_heredocs(command: str) -> tuple[str, list[str], list[str]]:
     """La commande sans les corps de ses here-documents, puis les corps donnés à un shell (ce sont des commandes),
     puis les corps littéraux (délimiteur entre guillemets : rien n'y est exécuté). Un `<<` n'ouvre un here-document
@@ -124,11 +146,11 @@ def _without_heredocs(command: str) -> tuple[str, list[str], list[str]]:
     while index < len(lines):
         line = lines[index]
         kept.append(line)
-        found = _HEREDOC.search(_blank_quotes(line))
+        found = _heredoc_in(line)
         index += 1
         if not found:
             continue
-        quoted = bool(_HEREDOC.search(line) and _HEREDOC.search(line)[1])
+        quoted = bool(found[1])
         end = next((i for i in range(index, len(lines)) if lines[i].strip() == found[2]), None)
         if end is None:
             continue
@@ -331,6 +353,8 @@ def _one(argv: list[str], team: list[list[str]], tags: set[str]) -> tuple[str | 
                 rest = rest[2:] if rest[0] in ("-p", "--package", "-c", "--call", "--with", "--from", "-u", "-e", "-w") else rest[1:]
             if prefix[-1] == "setup.py":
                 rest = ["setup.py", *rest]
+            if prefix == ("docker", "exec"):
+                rest = rest[1:]   # le nom du conteneur
             return None, rest
     if name == "git":
         return _git(argv, tags), []
@@ -436,9 +460,13 @@ def reasons(command: Any, team: list[str] | None = None, tags: set[str] | None =
     text, to_shell, _literal = _without_heredocs(command)
     if len(text) > MAX_COMMAND:   # trop longue pour être découpée : jugée sur son texte, pas refusée d'office
         return ["la commande est très longue et son texte ressemble à une livraison"] if _CRUDE.search(text) else []
-    inner = _executed_inside(text) + to_shell if depth < MAX_DEPTH else []
+    executed = _executed_inside(text)
+    inner = executed + to_shell if depth < MAX_DEPTH else []
     for piece in inner:
         found += reasons(piece, team, tags, depth + 1, budget)
+    visible = _blank_single(text)
+    if (_TO_SHELL.search(visible) or re.search(r"(?:^|[;&|\s])eval\s", visible)) and any(_CRUDE.search(piece) for piece in executed):
+        found.append("un texte produit par une commande est donné à un shell, et il ressemble à une livraison")
     try:
         segments = _segments(_join_lines(text.replace("\\\n", " ")))
     except ValueError:
