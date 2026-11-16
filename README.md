@@ -28,7 +28,7 @@ python3 harness-ai/cli/harness.py commands /chemin/de/ton/depot
 python3 harness-ai/cli/harness.py medals /chemin/de/ton/depot --page medailles.html
 ```
 
-`commands` liste les commandes que ta CI lance et qu'un agent ne devinerait pas (« `make it`, pas `mvn verify` »). `medals` rend le même niveau en médaille, avec les succès débloqués, et écrit une page à ouvrir dans un navigateur ([exemple](docs/exemples/medailles.html), figé au 2026-11-15).
+`commands` liste les commandes que ta CI lance et qu'un agent ne devinerait pas (« `make it`, pas `mvn verify` »). `medals` rend le même niveau en médaille, avec les succès débloqués, et écrit une page à ouvrir dans un navigateur ([exemple](docs/examples/medals.html), figé au 2026-11-15).
 
 ## Ce que tu peux faire aujourd'hui
 
@@ -48,7 +48,7 @@ Trois niveaux de confiance, toujours les mêmes mots : **éprouvé** (lancé sur
 | Écrire un état des lieux en une page HTML | `harness.py report build <rapport.json> -o <page.html>` | éprouvé |
 | Suivre la progression dans une page locale | `harness.py serve <repo>` | éprouvé, rendu non revu |
 
-`<repo>` est le chemin de ton dépôt ; sans lui, c'est le dossier courant. Les exemples d'entrée sont dans [docs/exemples/](docs/exemples/) : `rapport.json` pour `report build`, `morceaux.json` pour `place plan` et `report from-place`.
+`<repo>` est le chemin de ton dépôt ; sans lui, c'est le dossier courant. Les exemples d'entrée sont dans [docs/examples/](docs/examples/) : `report.json` pour `report build`, `pieces.json` pour `place plan` et `report from-place`.
 
 ### Avec Claude Code
 

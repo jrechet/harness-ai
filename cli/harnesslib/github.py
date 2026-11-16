@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Adaptateur GitHub de harness-harvest.
+"""GitHub adapter of harness-harvest.
 
-Produit sur stdout le JSON d'évidences décrit dans references/signals.md,
-sans LLM : il repère, date, lie et propose une clé de regroupement. Il ne
-décide ni du verdict ni de la formulation d'une règle.
+Writes to stdout the evidence JSON described in references/signals.md,
+without an LLM: it spots, dates, links and proposes a grouping key. It
+decides neither the verdict nor the wording of a rule.
 
-Transport : `gh api` (déjà authentifié sur un poste de dev et dans les
-sessions Claude Code). Les erreurs vont sur stderr ; le code de retour est
-2 si au moins une source n'a pas pu être lue, 0 sinon.
+Reads team-written text in French and in English: `rule:` comments, the
+AGENTS.md section headings it skips, the sentences where an agent says it
+guessed.
 
-Exemple :
+Transport: `gh api` (already authenticated on a dev machine and in
+Claude Code sessions). Errors go to stderr; the exit code is 2 if at
+least one source could not be read, 0 otherwise.
+
+Example:
   python3 cli/harness.py harvest github --repo owner/repo --since 2026-10-08 \
       --agent-login claude --agent-branch-prefix claude/ --agents-md AGENTS.md
 """
@@ -34,7 +38,7 @@ class GhError(RuntimeError):
 
 
 def gh_api(path: str, params: dict[str, Any] | None = None) -> Any:
-    """Un appel `gh api`, sans pagination. Lève GhError si gh échoue."""
+    """One `gh api` call, without pagination. Raises GhError if gh fails."""
     query = "&".join(f"{k}={v}" for k, v in (params or {}).items())
     url = f"{path}?{query}" if query else path
     proc = subprocess.run(
@@ -43,13 +47,13 @@ def gh_api(path: str, params: dict[str, Any] | None = None) -> Any:
         text=True,
     )
     if proc.returncode != 0:
-        raise GhError(proc.stderr.strip() or f"gh api {url} a échoué")
+        raise GhError(proc.stderr.strip() or f"gh api {url} failed")
     return json.loads(proc.stdout or "null")
 
 
 def paginate(fetch: Fetcher, path: str, params: dict[str, Any] | None = None,
              stop: Callable[[dict], bool] | None = None, cap: int = 2000) -> list[dict]:
-    """Pagine un endpoint de liste. `stop(item)` vrai arrête la lecture."""
+    """Paginates a list endpoint. `stop(item)` true stops the reading."""
     out: list[dict] = []
     page = 1
     while len(out) < cap:
@@ -95,7 +99,7 @@ def keywords(text: str, min_len: int = 5) -> set[str]:
 
 
 def comment_words(text: str) -> set[str]:
-    """Mots-clés d'un commentaire, sans code ni liens, pour détecter une récurrence (S3)."""
+    """Keywords of a comment, without code or links, to detect a recurrence (S3)."""
     text = re.sub(r"```.*?```", " ", text, flags=re.S)
     text = re.sub(r"`[^`]*`", " ", text)
     text = re.sub(r"https?://\S+", " ", text)
@@ -103,12 +107,12 @@ def comment_words(text: str) -> set[str]:
 
 
 def title_words(title: str) -> set[str]:
-    """Mots significatifs d'un titre de PR, pour détecter un type de tâche (S6)."""
+    """Significant words of a PR title, to detect a type of task (S6)."""
     t = title.lower()
     t = re.sub(r"\[[^\]]*\]", " ", t)                      # [JIRA-12]
     t = re.sub(r"\b[a-z]+-\d+\b", " ", t)                   # abc-123
-    t = re.sub(r"`[^`]*`|\"[^\"]*\"|'[^']*'", " ", t)         # citations
-    t = re.sub(r"\bv?\d+(\.\d+)*\b", " ", t)                 # versions, nombres
+    t = re.sub(r"`[^`]*`|\"[^\"]*\"|'[^']*'", " ", t)         # quotes
+    t = re.sub(r"\bv?\d+(\.\d+)*\b", " ", t)                 # versions, numbers
     t = re.sub(r"[^a-zà-ÿ ]", " ", t)
     return {w for w in t.split() if len(w) > 2}
 
@@ -117,15 +121,15 @@ def jaccard(a: set[str], b: set[str]) -> float:
     return len(a & b) / len(a | b) if a or b else 0.0
 
 
-TITLE_THRESHOLD = 0.6      # S6 : deux titres sont « la même tâche »
-COMMENT_THRESHOLD = 0.6    # S3 : deux commentaires sont « la même correction »
-QUESTION_THRESHOLD = 0.5   # S7 : deux phrases portent sur « le même sujet »
+TITLE_THRESHOLD = 0.6      # S6: two titles are "the same task"
+COMMENT_THRESHOLD = 0.6    # S3: two comments are "the same correction"
+QUESTION_THRESHOLD = 0.5   # S7: two sentences are about "the same subject"
 
 
 def cluster(sets: list[set[str]], threshold: float) -> list[dict]:
-    """Regroupement glouton : un élément rejoint le premier groupe dont l'ancre
-    lui ressemble assez, sinon il ouvre un groupe. Déterministe, sans apprentissage.
-    Retourne [{"idx": [i…], "common": set}] ; `common` est l'intersection du groupe."""
+    """Greedy grouping: an element joins the first group whose anchor is similar
+    enough, otherwise it opens a group. Deterministic, no learning.
+    Returns [{"idx": [i…], "common": set}]; `common` is the group's intersection."""
     groups: list[dict] = []
     for i, s in enumerate(sets):
         if not s:
@@ -145,10 +149,11 @@ def label(common: set[str], limit: int = 60) -> str:
 
 
 RULE_PREFIX = re.compile(r"^\s*rule\s*:\s*(.+)", re.I | re.S)
+# The forms an agent uses to say it guessed, in French and in English.
 QUESTION_PATTERNS = re.compile(
     r"(j'ai suppos|je n'ai pas trouv|hypoth[èe]se|je ne sais pas|pas s[ûu]r|"
     r"i assumed|assum(ed|ing) that|could not find|couldn't find|not sure|unclear|"
-    r"i guessed|unsure)",
+    r"i guessed|unsure|hypothesis|assumption|i don['’]?t know|i do not know)",
     re.I,
 )
 
@@ -182,7 +187,7 @@ class AgentMarkers:
         return any(t in m for t in self.trailers)
 
     def pr_is_automation(self, pr: dict) -> bool:
-        """PR d'un robot de dépendances : ni agent, ni tâche humaine récurrente."""
+        """PR from a dependency bot: neither an agent nor a recurring human task."""
         ref = ((pr.get("head") or {}).get("ref") or "").lower()
         return any(ref.startswith(p) for p in self.automation_prefixes)
 
@@ -197,7 +202,7 @@ class AgentMarkers:
         return any(self.message_is_agent((c.get("commit") or {}).get("message")) for c in commits)
 
 
-# ------------------------------------------------------------- collecte
+# ------------------------------------------------------------- collection
 
 
 class Evidence:
@@ -244,21 +249,21 @@ class Harvester:
         self.agents_md = agents_md
         self.errors: list[str] = []
         self.ev = Evidence()
-        self.prs: list[dict] = []           # PRs enrichies : _commits, _files, _agent, _reviews…
+        self.prs: list[dict] = []           # enriched PRs: _commits, _files, _agent, _reviews…
         self.default_branch = "main"
 
-    # -- accès API tolérant aux erreurs
+    # -- error-tolerant API access
     def get(self, path: str, params: dict | None = None, default: Any = None,
             paginated: bool = False, stop: Callable[[dict], bool] | None = None) -> Any:
         try:
             if paginated:
                 return paginate(self.fetch, path, params, stop=stop)
             return self.fetch(path, params)
-        except Exception as exc:  # noqa: BLE001 — on veut continuer avec ce qu'on a
+        except Exception as exc:  # noqa: BLE001 — we want to go on with what we have
             self.errors.append(f"{path}: {exc}")
             return default
 
-    # -- étape 1 : PRs de la fenêtre
+    # -- step 1: PRs of the window
     def load_prs(self) -> None:
         repo_info = self.get(f"repos/{self.repo}", default={}) or {}
         self.default_branch = repo_info.get("default_branch") or "main"
@@ -301,7 +306,7 @@ class Harvester:
                             "author": (r.get("user") or {}).get("login"), "files": []})
         return [c for c in out if (c["date"] or "") >= self.since.strftime(ISO)]
 
-    # -- S1 : règles explicites
+    # -- S1: explicit rules
     def s1_explicit_rules(self) -> None:
         for pr in self.prs:
             for c in self.all_comments(pr):
@@ -314,19 +319,19 @@ class Harvester:
                             files=c["files"] or pr["_files"], text=rule, related_rule=None,
                             group_key=f"rule:{label(comment_words(rule))}")
 
-    # -- S2 : corrections après coup
+    # -- S2: after-the-fact corrections
     def s2_after_the_fact(self) -> None:
         agent_prs = [p for p in self.prs if p["_agent"]]
         if not agent_prs:
             return
-        # PR d'agent fermée sans merge
+        # agent PR closed without merge
         for pr in agent_prs:
             if pr.get("closed_at") and not pr.get("merged_at"):
                 self.ev.add("S2", url=pr["html_url"], date=day(pr["closed_at"]),
                             author=(pr.get("user") or {}).get("login"), agent_authored=True,
-                            files=pr["_files"], text=f"PR d'agent fermée sans merge : {pr['title']}",
+                            files=pr["_files"], text=f"Agent PR closed without merge: {pr['title']}",
                             related_rule=None, group_key=f"zone:{self.zone(pr['_files'])}")
-        # rafale de commits après une review
+        # burst of commits after a review
         for pr in agent_prs:
             commit_times = sorted(t for t in (parse_ts(((c.get("commit") or {}).get("committer") or {}).get("date"))
                                               for c in pr["_commits"]) if t)
@@ -339,11 +344,11 @@ class Harvester:
                     self.ev.add("S2", url=r.get("html_url") or pr["html_url"], date=day(r.get("submitted_at")),
                                 author=(r.get("user") or {}).get("login"), agent_authored=True,
                                 files=pr["_files"],
-                                text=f"{len(window)} commits en {self.burst_minutes} min après la review de "
-                                     f"{(r.get('user') or {}).get('login')} sur : {pr['title']}",
+                                text=f"{len(window)} commits in {self.burst_minutes} min after the review by "
+                                     f"{(r.get('user') or {}).get('login')} on: {pr['title']}",
                                 related_rule=None, group_key=f"zone:{self.zone(pr['_files'])}")
                     break
-        # commits de fix et reverts sur la branche par défaut
+        # fix commits and reverts on the default branch
         merged = [p for p in agent_prs if p.get("merged_at")]
         if not merged:
             return
@@ -370,11 +375,11 @@ class Harvester:
                 if target:
                     self.ev.add("S2", url=c.get("html_url"), date=day(when.strftime(ISO)), author=author,
                                 agent_authored=False, files=target["_files"],
-                                text=f"Revert d'une PR d'agent : {target['title']}", related_rule=None,
+                                text=f"Revert of an agent PR: {target['title']}", related_rule=None,
                                 group_key=f"zone:{self.zone(target['_files'])}")
                     continue
-            # squash-merge d'une autre PR de la fenêtre : correction seulement si c'est un fix/revert
-            # ou si elle cite une PR d'agent ; une PR Renovate qui touche build.gradle n'en est pas une
+            # squash-merge of another PR of the window: a correction only if it is a fix/revert
+            # or if it cites an agent PR; a Renovate PR that touches build.gradle is not one
             ref_pr = None
             m_ref = re.search(r"\(#(\d+)\)\s*$", msg.splitlines()[0])
             if m_ref:
@@ -385,7 +390,7 @@ class Harvester:
                                   for p in merged)
                 if ref_pr.get("_automated") or not (re.match(r"^(fix|hotfix|revert)\b", title) or cites_agent):
                     continue
-            # fix dans la fenêtre après merge, sur les mêmes fichiers
+            # fix within the window after merge, on the same files
             candidates = [p for p in merged
                           if parse_ts(p["merged_at"]) and parse_ts(p["merged_at"]) < when <= parse_ts(p["merged_at"]) + self.fix_window]
             if not candidates:
@@ -397,8 +402,8 @@ class Harvester:
                 if overlap:
                     self.ev.add("S2", url=c.get("html_url"), date=day(when.strftime(ISO)), author=author,
                                 agent_authored=False, files=sorted(overlap),
-                                text=f"Correction {msg.splitlines()[0][:120]!r} sur des fichiers de la PR d'agent "
-                                     f"#{p['number']} ({p['title']}) {self.hours_after(p, when)} h après son merge",
+                                text=f"Fix {msg.splitlines()[0][:120]!r} on files of agent PR "
+                                     f"#{p['number']} ({p['title']}) {self.hours_after(p, when)} h after its merge",
                                 related_rule=None, group_key=f"zone:{self.zone(sorted(overlap))}")
 
     @staticmethod
@@ -407,7 +412,7 @@ class Harvester:
 
     @staticmethod
     def zone(files: list[str]) -> str:
-        """Clé de zone : le dossier commun le plus profond des fichiers."""
+        """Zone key: the deepest folder the files share."""
         if not files:
             return "?"
         parts = [f.split("/")[:-1] for f in files]
@@ -419,7 +424,7 @@ class Harvester:
                 break
         return "/".join(common) or "."
 
-    # -- S3 : corrections récurrentes
+    # -- S3: recurring corrections
     def s3_recurring_comments(self) -> None:
         per_author: dict[str, list[tuple[dict, dict]]] = defaultdict(list)
         for pr in self.prs:
@@ -427,7 +432,7 @@ class Harvester:
                 if RULE_PREFIX.match(c["body"]) or self.markers.login_is_agent(c["author"]):
                     continue
                 if c["author"] and c["author"] == (pr.get("user") or {}).get("login"):
-                    continue  # note de l'auteur sur sa propre PR, pas une correction
+                    continue  # the author's note on their own PR, not a correction
                 per_author[c["author"] or "?"].append((pr, c))
         for author, hits in per_author.items():
             sets = [comment_words(c["body"]) for _, c in hits]
@@ -440,7 +445,7 @@ class Harvester:
                                 files=c["files"] or pr["_files"], text=c["body"], related_rule=None,
                                 group_key=f"reviewer:{author}:{label(grp['common'])}")
 
-    # -- S4 : garde-fous ignorés
+    # -- S4: ignored guardrails
     def s4_ignored_checks(self) -> None:
         by_check: dict[str, list[tuple[dict, dict]]] = defaultdict(list)
         for pr in self.prs:
@@ -455,10 +460,10 @@ class Harvester:
             for pr, run in hits:
                 self.ev.add("S4", url=run.get("html_url") or pr["html_url"], date=day(run.get("completed_at")),
                             author=(pr.get("user") or {}).get("login"), agent_authored=True, files=pr["_files"],
-                            text=f"Check '{name}' en échec ({run.get('conclusion')}) sur la PR d'agent #{pr['number']}",
+                            text=f"Check '{name}' failing ({run.get('conclusion')}) on agent PR #{pr['number']}",
                             related_rule=None, group_key=f"check:{name}")
 
-    # -- S5 : règles orphelines
+    # -- S5: orphan rules
     def s5_orphan_rules(self) -> None:
         if not self.agents_md:
             return
@@ -483,7 +488,7 @@ class Harvester:
                             files=paths, text=rule, related_rule=rule[:200],
                             group_key=f"orphan:{' '.join(sorted(kw))[:60]}")
 
-    # -- S6 : tâches récurrentes
+    # -- S6: recurring tasks
     def s6_recurring_tasks(self) -> None:
         emitted: set[tuple[int, str]] = set()
 
@@ -517,7 +522,7 @@ class Harvester:
                 for pr in prs:
                     emit(pr, "label", name)
 
-    # -- S7 : information non découvrable demandée
+    # -- S7: undiscoverable information asked for
     def s7_repeated_questions(self) -> None:
         hits: list[tuple[dict, str]] = []
         for pr in self.prs:
@@ -544,7 +549,7 @@ class Harvester:
         self.s2_after_the_fact()
         self.s3_recurring_comments()
         self.s4_ignored_checks()
-        self.s5_orphan_rules()   # après S1–S4 : il s'appuie dessus
+        self.s5_orphan_rules()   # after S1–S4: it relies on them
         self.s6_recurring_tasks()
         self.s7_repeated_questions()
         counts = defaultdict(int)
@@ -563,15 +568,16 @@ class Harvester:
         }
 
 
-NON_RULE_HEADINGS = re.compile(r"^#{1,6}\s+(maintenance|t[âa]ches|tasks|ce que fait|what this|installation|commandes|commands|processus|working process|workflow)", re.I)
+# Sections that hold no rule, in French and in English.
+NON_RULE_HEADINGS = re.compile(r"^#{1,6}\s+(maintenance|maintaining|t[âa]ches|tasks|delegated tasks|ce que fait|what this|"
+                               r"installation|commandes|commands|processus|working process|workflow)", re.I)
 
 
 def iter_rules(agents_md: str) -> list[tuple[int, str]]:
-    """Les puces d'un AGENTS.md avec leur numéro de ligne (1 = première ligne), lignes de
-    continuation jointes, hors sections de maintenance, de tâches, de commandes et de processus de
-    travail (le processus cadre l'agent, ce n'est pas une règle qu'un incident viole). On ne présume
-    pas d'un titre « Règles » : les fichiers réels rangent leurs règles sous « Pièges », « Base de
-    données », etc."""
+    """The bullets of an AGENTS.md with their line number (1 = first line), continuation lines
+    joined, outside the maintenance, tasks, commands and working-process sections (the process frames
+    the agent, it is not a rule an incident violates). No "Rules" heading is assumed: real files keep
+    their rules under "Pitfalls", "Database", etc."""
     rules: list[tuple[int, str]] = []
     skip = False
     current: list[str] | None = None
@@ -603,7 +609,7 @@ def iter_rules(agents_md: str) -> list[tuple[int, str]]:
 
 
 def parse_rules(agents_md: str) -> list[str]:
-    """Le texte des règles, sans leur ligne : voir `iter_rules`."""
+    """The text of the rules, without their line: see `iter_rules`."""
     return [text for _, text in iter_rules(agents_md)]
 
 
@@ -611,8 +617,8 @@ def parse_rules(agents_md: str) -> list[str]:
 
 
 def read_marker(agents_md: str | None) -> str | None:
-    """La date du dernier harvest. Un marqueur posé par harness-init (`ref=init`)
-    n'est pas un harvest : on l'ignore, la fenêtre par défaut (30 jours) s'applique."""
+    """The date of the last harvest. A marker set by harness-init (`ref=init`)
+    is not a harvest: it is ignored, the default window (30 days) applies."""
     if not agents_md:
         return None
     try:
@@ -628,23 +634,23 @@ def read_marker(agents_md: str | None) -> str | None:
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--repo", required=True, help="owner/repo")
-    p.add_argument("--since", help="AAAA-MM-JJ ; défaut : marqueur harvest de --agents-md, sinon 30 jours")
-    p.add_argument("--agents-md", help="chemin du AGENTS.md (S5 et marqueur de fenêtre)")
-    p.add_argument("--agent-login", action="append", default=[], help="login considéré comme agent (répétable)")
-    p.add_argument("--agent-branch-prefix", action="append", default=[], help="préfixe de branche d'agent (répétable)")
-    p.add_argument("--agent-label", action="append", default=[], help="label marquant une PR d'agent (répétable)")
+    p.add_argument("--since", help="YYYY-MM-DD; default: harvest marker of --agents-md, otherwise 30 days")
+    p.add_argument("--agents-md", help="path of the AGENTS.md (S5 and window marker)")
+    p.add_argument("--agent-login", action="append", default=[], help="login considered an agent (repeatable)")
+    p.add_argument("--agent-branch-prefix", action="append", default=[], help="agent branch prefix (repeatable)")
+    p.add_argument("--agent-label", action="append", default=[], help="label marking an agent PR (repeatable)")
     p.add_argument("--agent-trailer", action="append", default=[],
-                   help="fragment de message de commit marquant un agent, ex. 'Co-Authored-By: Claude' (répétable)")
+                   help="commit message fragment marking an agent, e.g. 'Co-Authored-By: Claude' (repeatable)")
     p.add_argument("--automation-branch-prefix", action="append", default=[],
-                   help="préfixe de branche d'un robot de dépendances, exclu de S6 et des corrections S2 "
-                        "(défaut : renovate/, dependabot/)")
+                   help="branch prefix of a dependency bot, excluded from S6 and from S2 corrections "
+                        "(default: renovate/, dependabot/)")
     p.add_argument("--fix-window-hours", type=int, default=48)
-    p.add_argument("--min-recurrence", type=int, default=2, help="seuil S3, S4, S7")
-    p.add_argument("--min-task-count", type=int, default=3, help="seuil S6")
+    p.add_argument("--min-recurrence", type=int, default=2, help="threshold for S3, S4, S7")
+    p.add_argument("--min-task-count", type=int, default=3, help="threshold for S6")
     p.add_argument("--burst-commits", type=int, default=3)
     p.add_argument("--burst-minutes", type=int, default=60)
     p.add_argument("--max-prs", type=int, default=200)
-    p.add_argument("--summary", action="store_true", help="affiche les compteurs sur stderr")
+    p.add_argument("--summary", action="store_true", help="prints the counters on stderr")
     return p
 
 
@@ -657,7 +663,7 @@ def main(argv: list[str] | None = None, fetch: Fetcher = gh_api,
         since = datetime.strptime(since_s, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     else:
         since = datetime.now(timezone.utc) - timedelta(days=30)
-        print("aucun --since ni marqueur de harvest antérieur (un marqueur ref=init ne compte pas) : fenêtre de 30 jours", file=sys.stderr)
+        print("no --since and no earlier harvest marker (a ref=init marker does not count): 30-day window", file=sys.stderr)
     markers = AgentMarkers(
         logins=args.agent_login or ["claude", "github-actions[bot]"],
         branch_prefixes=args.agent_branch_prefix or ["claude/"],
@@ -673,10 +679,10 @@ def main(argv: list[str] | None = None, fetch: Fetcher = gh_api,
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
     if args.summary or result["errors"]:
-        print(f"PRs : {result['prs_scanned']} (agent : {result['agent_prs']}) ; évidences : {result['counts']}",
+        print(f"PRs: {result['prs_scanned']} (agent: {result['agent_prs']}); evidence: {result['counts']}",
               file=sys.stderr)
     for err in result["errors"]:
-        print(f"erreur : {err}", file=sys.stderr)
+        print(f"error: {err}", file=sys.stderr)
     return 2 if result["errors"] else 0
 
 

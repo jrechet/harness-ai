@@ -1,0 +1,22 @@
+{
+  "subject": {"kind": "skill", "name": "release", "path": ".claude/skills/release/SKILL.md"},
+  "date": "2026-11-15",
+  "source": "example written by hand",
+  "summary": "Two gaps: a check told in prose, a computation in prose.",
+  "items": [
+    {"scope": "Check that the release branch is green before tagging",
+     "expected": "A check a program holds: a blocking check",
+     "observed": "A sentence of the skill, which the agent can skip",
+     "advice": "Write the check as a subcommand, called by a required check",
+     "status": "gap", "evidence": [".claude/skills/release/SKILL.md:13"], "tag": "PUSH_DOWN"},
+    {"scope": "Compute the version number",
+     "expected": "Tested code, which gives the same result every time",
+     "observed": "Three sentences that describe the computation",
+     "advice": "A `version next` subcommand with its tests",
+     "status": "gap", "evidence": [".claude/skills/release/SKILL.md:12"], "tag": "PUSH_DOWN"},
+    {"scope": "Choose the release title",
+     "expected": "A judgment left to the agent",
+     "observed": "The skill says where the agent decides",
+     "status": "ok"}
+  ]
+}

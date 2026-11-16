@@ -45,12 +45,12 @@ class ReadmeTests(unittest.TestCase):
 
     def test_the_examples_run_through_the_commands_it_cites(self):
         with tempfile.TemporaryDirectory() as tmp:
-            examples = os.path.join(ROOT, "docs", "exemples")
+            examples = os.path.join(ROOT, "docs", "examples")
             page = os.path.join(tmp, "p.html")
-            self.assertEqual(run("report", "build", os.path.join(examples, "rapport.json"), "-o", page), 0)
-            self.assertEqual(run("report", "from-place", os.path.join(examples, "morceaux.json"), "--kind", "skill",
+            self.assertEqual(run("report", "build", os.path.join(examples, "report.json"), "-o", page), 0)
+            self.assertEqual(run("report", "from-place", os.path.join(examples, "pieces.json"), "--kind", "skill",
                                  "--name", "release", "-o", page), 0)
-            self.assertEqual(run("place", "plan", os.path.join(examples, "morceaux.json")), 0)
+            self.assertEqual(run("place", "plan", os.path.join(examples, "pieces.json")), 0)
 
     def test_every_skill_it_names_is_shipped_and_finds_its_cli_once_installed(self):
         for name in re.findall(r"^\| [^|]+ \| `([a-z-]+)`", readme(), re.MULTILINE):

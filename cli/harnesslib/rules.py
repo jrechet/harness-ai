@@ -1,6 +1,6 @@
-"""Sous-commande `rules` : les règles des fichiers d'instructions, une par ligne, avec ce qu'un audit
-de pertinence doit savoir sans le deviner — depuis quand la règle existe, si elle dit pourquoi, si un
-garde-fou la porte. La date vient de la règle (`[AAAA-MM]`), à défaut de `git blame`."""
+"""`rules` subcommand: the rules of the instruction files, one per line, with what a relevance audit
+must know without guessing it: since when the rule exists, whether it says why, whether a guardrail
+enforces it. The date comes from the rule (`[YYYY-MM]`), failing that from `git blame`."""
 from __future__ import annotations
 
 import argparse
@@ -18,7 +18,7 @@ RULE_FILES = {"AGENTS.md", "CLAUDE.md"}
 
 
 def _blame_date(repo: str, rel: str, line: int) -> str | None:
-    """La date du dernier commit qui a touché la ligne, ou None hors d'un dépôt git."""
+    """The date of the last commit that touched the line, or None outside a git repository."""
     try:
         out = subprocess.run(["git", "-C", repo, "blame", "--porcelain", "-L", f"{line},{line}", "--", rel],
                              capture_output=True, text=True, timeout=120)
@@ -60,26 +60,26 @@ def collect(repo: str, today: date | None = None, blame: bool = True) -> list[di
 
 def render_markdown(rows: list[dict[str, Any]]) -> str:
     if not rows:
-        return "Aucune règle trouvée dans AGENTS.md ni CLAUDE.md.\n"
-    out = ["| Où | Règle | Depuis | Âge (j) | Garde-fou | Pourquoi |", "|---|---|---|---|---|---|"]
+        return "No rule found in AGENTS.md or CLAUDE.md.\n"
+    out = ["| Where | Rule | Since | Age (d) | Guardrail | Why |", "|---|---|---|---|---|---|"]
     for r in rows:
         text = r["text"] if len(r["text"]) <= 70 else r["text"][:67] + "…"
         since = "?" if not r["since"] else r["since"] + ("" if r["since_source"] == "rule" else " (git)")
-        guard = "oui" if r["guarded"] else ("non, marquée" if r["marked_unguarded"] else "non")
+        guard = "yes" if r["guarded"] else ("no, marked" if r["marked_unguarded"] else "no")
         out.append(f"| {r['file']}:{r['line']} | {text.replace('|', '/')} | {since} | "
-                   f"{'?' if r['age_days'] is None else r['age_days']} | {guard} | {'oui' if r['justified'] else 'non'} |")
+                   f"{'?' if r['age_days'] is None else r['age_days']} | {guard} | {'yes' if r['justified'] else 'no'} |")
     dated = sum(1 for r in rows if r["since_source"] == "rule")
-    out += ["", f"{len(rows)} règle(s), {dated} datée(s) dans le texte, "
-                f"{sum(1 for r in rows if r['guarded'])} avec garde-fou, {sum(1 for r in rows if r['justified'])} justifiée(s)."]
+    out += ["", f"{len(rows)} rule(s), {dated} dated in the text, "
+                f"{sum(1 for r in rows if r['guarded'])} with a guardrail, {sum(1 for r in rows if r['justified'])} justified."]
     return "\n".join(out) + "\n"
 
 
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(description=__doc__)
-    p.add_argument("repo", nargs="?", default=".", help="chemin du dépôt (défaut : .)")
+    p.add_argument("repo", nargs="?", default=".", help="repository path (default: .)")
     p.add_argument("--format", choices=["md", "json"], default="md")
-    p.add_argument("--no-blame", action="store_true", help="ne pas interroger git pour les règles sans date")
-    p.add_argument("--today", help="AAAA-MM-JJ, pour des sorties reproductibles")
+    p.add_argument("--no-blame", action="store_true", help="do not query git for undated rules")
+    p.add_argument("--today", help="YYYY-MM-DD, for reproducible outputs")
     return p
 
 

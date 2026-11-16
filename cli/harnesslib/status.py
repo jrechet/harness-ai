@@ -1,5 +1,5 @@
-"""Sous-commande `status` : collecte les faits, évalue la maturité, écrit
-`.harness/state.json` et affiche un résumé Markdown ou le JSON."""
+"""`status` subcommand: collects the facts, evaluates maturity, writes
+`.harness/state.json` and prints a Markdown summary or the JSON."""
 from __future__ import annotations
 
 import argparse
@@ -13,38 +13,38 @@ from . import facts, maturity
 
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(description=__doc__)
-    p.add_argument("repo", nargs="?", default=".", help="chemin du dépôt (défaut : .)")
-    p.add_argument("--harness-dir", default=".harness", help="dossier des sorties des skills (défaut : .harness)")
-    p.add_argument("--audit", help="JSON d'audit à utiliser (défaut : <harness-dir>/audit.json)")
-    p.add_argument("--harvest", help="JSON de harvest à utiliser (défaut : <harness-dir>/harvest.json)")
+    p.add_argument("repo", nargs="?", default=".", help="repository path (default: .)")
+    p.add_argument("--harness-dir", default=".harness", help="folder of the skills' outputs (default: .harness)")
+    p.add_argument("--audit", help="audit JSON to use (default: <harness-dir>/audit.json)")
+    p.add_argument("--harvest", help="harvest JSON to use (default: <harness-dir>/harvest.json)")
     p.add_argument("--format", choices=["md", "json"], default="md")
-    p.add_argument("--no-write", action="store_true", help="n'écrit pas <harness-dir>/state.json")
-    p.add_argument("--today", help="AAAA-MM-JJ, pour des sorties reproductibles")
+    p.add_argument("--no-write", action="store_true", help="does not write <harness-dir>/state.json")
+    p.add_argument("--today", help="YYYY-MM-DD, for reproducible outputs")
     return p
 
 
 def build_target_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-    parser.add_argument("level", nargs="?", type=int, choices=[1, 2, 3, 4], help="palier visé ; omis : affiche l'objectif")
-    parser.add_argument("repo", nargs="?", default=".", help="chemin du dépôt (défaut : .)")
+    parser.add_argument("level", nargs="?", type=int, choices=[1, 2, 3, 4], help="target level; omitted: shows the target")
+    parser.add_argument("repo", nargs="?", default=".", help="repository path (default: .)")
     parser.add_argument("--harness-dir", default=".harness")
     return parser
 
 
 def target_main(args: argparse.Namespace) -> int:
-    """Écrit le palier visé dans `<harness-dir>/config.json` : au-delà, `status` ne propose rien."""
+    """Writes the target level to `<harness-dir>/config.json`: beyond it, `status` proposes nothing."""
     hdir = os.path.join(os.path.abspath(args.repo), args.harness_dir)
     path = os.path.join(hdir, "config.json")
     config = facts.load_json(path) or {"schema": "harness-config/1"}
     if args.level is None:
         current = facts.config_facts(hdir)["target_level"]
-        print(f"palier visé : {current}" if current else "aucun palier visé")
+        print(f"target level: {current}" if current else "no target level")
         return 0
     config["target_level"] = args.level
     os.makedirs(hdir, exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(config, fh, ensure_ascii=False, indent=2)
         fh.write("\n")
-    print(f"palier visé : {args.level} · {maturity.LEVELS[args.level][1]} (écrit dans {os.path.relpath(path)})")
+    print(f"target level: {args.level} · {maturity.LEVELS[args.level][1]} (written to {os.path.relpath(path)})")
     return 0
 
 

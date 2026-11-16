@@ -1,6 +1,6 @@
 [
   {
-    "piece": "L'arborescence du dépôt",
+    "piece": "The repository tree",
     "answers": {
       "nature": "knowledge",
       "scope": "discoverable"
@@ -11,7 +11,7 @@
     ]
   },
   {
-    "piece": "Calculer la prochaine version depuis les commits",
+    "piece": "Compute the next version from the commits",
     "answers": {
       "nature": "compute",
       "when": "on_demand"
@@ -22,7 +22,7 @@
     ]
   },
   {
-    "piece": "Toute version publiée a son entrée de changelog",
+    "piece": "Every published version has its changelog entry",
     "answers": {
       "nature": "rule",
       "incident": "yes",
@@ -35,7 +35,7 @@
     ]
   },
   {
-    "piece": "Ne jamais publier hors de main",
+    "piece": "Never publish outside main",
     "answers": {
       "nature": "limit",
       "bypass_limit": "dev"
@@ -46,7 +46,7 @@
     ]
   },
   {
-    "piece": "Mettre la version, taguer, pousser",
+    "piece": "Set the version, tag, push",
     "answers": {
       "nature": "procedure"
     },
@@ -56,7 +56,7 @@
     ]
   },
   {
-    "piece": "Publier le paquet avec le jeton du registre",
+    "piece": "Publish the package with the registry token",
     "answers": {
       "nature": "action",
       "access": "deliver"
@@ -67,7 +67,7 @@
     ]
   },
   {
-    "piece": "Rédiger l'annonce",
+    "piece": "Write the announcement",
     "answers": {
       "nature": "judgment",
       "isolation": "none"
@@ -78,7 +78,7 @@
     ]
   },
   {
-    "piece": "Relire l'annonce sans le biais de l'auteur",
+    "piece": "Review the announcement without the author's bias",
     "answers": {
       "nature": "judgment",
       "isolation": "independence"
@@ -89,7 +89,7 @@
     ]
   },
   {
-    "piece": "L'agent ne lit jamais .npmrc.publish",
+    "piece": "The agent never reads .npmrc.publish",
     "answers": {
       "nature": "limit",
       "bypass_limit": "agent"
@@ -100,7 +100,7 @@
     ]
   },
   {
-    "piece": "Les commits suivent Conventional Commits",
+    "piece": "Commits follow Conventional Commits",
     "answers": {
       "nature": "rule",
       "incident": "yes",
@@ -113,7 +113,7 @@
     ]
   },
   {
-    "piece": "Pas de release avec des fichiers non commités",
+    "piece": "No release with uncommitted files",
     "answers": {
       "nature": "rule",
       "incident": "forget",

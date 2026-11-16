@@ -2,182 +2,182 @@
   "root": "nature",
   "questions": {
     "nature": {
-      "text": "Que fait ce morceau ?",
+      "text": "What does this piece do?",
       "options": {
         "action": {
-          "label": "Il agit avec des droits : il lit ou écrit dans un système externe (Jira, une API), ou il livre (build, tag, publication, déploiement).",
+          "label": "It acts with rights: it reads from or writes to an external system (Jira, an API), or it delivers (build, tag, publication, deployment).",
           "ask": "access"
         },
         "limit": {
-          "label": "Il borne ce que l'agent a le droit de faire : outils, commandes, fichiers, réseau, secrets.",
+          "label": "It bounds what the agent is allowed to do: tools, commands, files, network, secrets.",
           "ask": "bypass_limit"
         },
         "rule": {
-          "label": "Il exige quelque chose du résultat : « toute route a un test », « pas de secret dans le code ».",
+          "label": "It requires something of the result: “every route has a test”, “no secret in the code”.",
           "ask": "incident"
         },
         "compute": {
-          "label": "Il produit un résultat entièrement déterminé par ses entrées : version suivante, fichiers touchés, faits collectés.",
+          "label": "It produces a result entirely determined by its inputs: next version, files touched, collected facts.",
           "ask": "when"
         },
         "judgment": {
-          "label": "Il choisit, interprète, rédige ou dialogue : aucune réponse n'est juste d'avance.",
+          "label": "It chooses, interprets, writes or converses: no answer is right in advance.",
           "ask": "isolation"
         },
         "procedure": {
-          "label": "Il enchaîne des étapes pour un type de tâche.",
+          "label": "It chains steps for one type of task.",
           "place": "skill"
         },
         "knowledge": {
-          "label": "C'est un fait ou une convention que l'agent doit connaître.",
+          "label": "It is a fact or a convention the agent must know.",
           "ask": "scope"
         }
       }
     },
     "access": {
-      "text": "Que fait-il avec ces droits ?",
+      "text": "What does it do with those rights?",
       "options": {
         "consult": {
-          "label": "L'agent lit un système externe pendant son travail : ticket, page de documentation, API interne.",
+          "label": "The agent reads an external system during its work: ticket, documentation page, internal API.",
           "place": "mcp"
         },
         "write": {
-          "label": "L'agent écrit dans un système externe pendant son travail : commenter un ticket, poster un message, créer une page.",
+          "label": "The agent writes to an external system during its work: comment on a ticket, post a message, create a page.",
           "place": "mcp"
         },
         "deliver": {
-          "label": "Il construit, étiquette, publie ou déploie : une ressource partagée change.",
+          "label": "It builds, tags, publishes or deploys: a shared resource changes.",
           "place": "pipeline"
         }
       }
     },
     "bypass_limit": {
-      "text": "Qui ne doit pas pouvoir passer outre ?",
+      "text": "Who must not be able to override it?",
       "options": {
         "agent": {
-          "label": "L'agent seul : un développeur peut le faire à la main sans que ce soit un incident.",
+          "label": "The agent alone: a developer may do it by hand without it being an incident.",
           "place": "permission"
         },
         "dev": {
-          "label": "Personne dans le dépôt, développeur compris.",
+          "label": "Nobody in the repository, developers included.",
           "place": "server_protection"
         },
         "team": {
-          "label": "Aucune équipe : l'organisation l'impose à tous les dépôts.",
+          "label": "No team: the organisation imposes it on every repository.",
           "place": "managed"
         }
       }
     },
     "incident": {
-      "text": "Si le résultat ne le respecte pas, qu'est-ce que ça coûte ?",
+      "text": "If the result does not respect it, what does it cost?",
       "options": {
         "yes": {
-          "label": "Un incident : bug livré, faille, non-conformité.",
+          "label": "An incident: shipped bug, vulnerability, non-compliance.",
           "ask": "checkable"
         },
         "forget": {
-          "label": "Du temps perdu, pas un incident ; mais ça ne doit pas pouvoir être oublié.",
+          "label": "Lost time, not an incident; but it must not be possible to forget it.",
           "ask": "checkable"
         },
         "no": {
-          "label": "Rien de mesurable : c'est une préférence, un style.",
+          "label": "Nothing measurable: it is a preference, a style.",
           "ask": "scope"
         }
       }
     },
     "checkable": {
-      "text": "Un programme peut-il le vérifier, avec la même réponse à chaque fois ?",
+      "text": "Can a program check it, with the same answer every time?",
       "options": {
         "yes": {
-          "label": "Oui : un test, un linter, une commande qui échoue.",
+          "label": "Yes: a test, a linter, a command that fails.",
           "ask": "bypass_rule"
         },
         "no": {
-          "label": "Non : il faut juger.",
+          "label": "No: it takes judgment.",
           "place": "judge"
         }
       }
     },
     "bypass_rule": {
-      "text": "Qui ne doit pas pouvoir livrer sans le respecter ?",
+      "text": "Who must not be able to deliver without respecting it?",
       "options": {
         "agent": {
-          "label": "L'agent seul : il doit s'en apercevoir avant de rendre la main.",
+          "label": "The agent alone: it must notice before handing back.",
           "place": "hook_check"
         },
         "dev": {
-          "label": "Personne dans le dépôt : rien ne fusionne sans.",
+          "label": "Nobody in the repository: nothing merges without it.",
           "place": "ci_check"
         },
         "release": {
-          "label": "Personne dans le dépôt, et c'est à la livraison que ça compte : rien ne se publie ni ne se déploie sans.",
+          "label": "Nobody in the repository, and it is at delivery that it counts: nothing is published or deployed without it.",
           "place": "release_gate"
         },
         "team": {
-          "label": "Aucune équipe : l'organisation l'impose à tous les dépôts.",
+          "label": "No team: the organisation imposes it on every repository.",
           "place": "org_check"
         }
       }
     },
     "when": {
-      "text": "Quand doit-il tourner ?",
+      "text": "When must it run?",
       "options": {
         "on_demand": {
-          "label": "Quand l'agent ou un humain en a besoin.",
+          "label": "When the agent or a human needs it.",
           "place": "cli"
         },
         "agent_loop": {
-          "label": "À un moment fixe du travail de l'agent : avant un outil, après une édition, à l'arrêt.",
+          "label": "At a fixed point in the agent's work: before a tool, after an edit, on stop.",
           "place": "hook_compute"
         },
         "repo_event": {
-          "label": "À un événement du dépôt : PR, push, planification.",
+          "label": "On a repository event: PR, push, schedule.",
           "place": "workflow"
         }
       }
     },
     "isolation": {
-      "text": "Ce travail a-t-il besoin d'être séparé de la session ?",
+      "text": "Does this work need to be separated from the session?",
       "options": {
         "none": {
-          "label": "Non : il s'appuie sur ce que la session sait déjà.",
+          "label": "No: it relies on what the session already knows.",
           "place": "session"
         },
         "context": {
-          "label": "Il lit beaucoup (exploration, logs) et encombrerait le contexte de la session.",
+          "label": "It reads a lot (exploration, logs) and would clutter the session's context.",
           "place": "subagent"
         },
         "independence": {
-          "label": "Il doit juger sans le biais de l'auteur : revue, évaluation.",
+          "label": "It must judge without the author's bias: review, evaluation.",
           "place": "subagent"
         },
         "rights": {
-          "label": "Il lui faut d'autres droits que la session, en général moins : lecture seule.",
+          "label": "It needs different rights from the session, usually fewer: read-only.",
           "place": "subagent"
         },
         "parallel": {
-          "label": "Plusieurs parties indépendantes peuvent avancer en même temps.",
+          "label": "Several independent parts can progress at the same time.",
           "place": "subagent"
         }
       }
     },
     "scope": {
-      "text": "Quand l'agent en a-t-il besoin ?",
+      "text": "When does the agent need it?",
       "options": {
         "always": {
-          "label": "À chaque tâche dans ce dépôt, et il ne peut pas le trouver seul.",
+          "label": "On every task in this repository, and it cannot find it alone.",
           "place": "agents_md"
         },
         "zone": {
-          "label": "Seulement quand il travaille dans un dossier ou sur un type de fichier.",
+          "label": "Only when it works in a folder or on a type of file.",
           "place": "agents_md_zone"
         },
         "reference": {
-          "label": "De temps en temps, pour une question précise.",
+          "label": "From time to time, for a precise question.",
           "place": "doc"
         },
         "discoverable": {
-          "label": "Jamais besoin de le lui dire : il le trouve en lisant le dépôt (manifeste, Makefile, arborescence).",
+          "label": "It never needs to be told: it finds it by reading the repository (manifest, Makefile, tree).",
           "place": "nothing"
         }
       }
@@ -185,129 +185,129 @@
   },
   "destinations": {
     "mcp": {
-      "name": "Serveur MCP",
+      "name": "MCP server",
       "layer": "L4",
-      "where": "Un serveur MCP déclaré pour le dépôt ; ses droits (lecture seule, ou écriture bornée à un projet ou à un canal) se règlent sur le compte du serveur, pas dans un prompt.",
-      "why": "Un droit tenu par le serveur vaut quel que soit le prompt. Ce que l'agent y lit est une donnée, pas une instruction : un ticket peut porter une injection.",
-      "also": "Une permission deny sur les outils d'écriture du serveur, en second rideau."
+      "where": "An MCP server declared for the repository; its rights (read-only, or writing bounded to one project or one channel) are set on the server's account, not in a prompt.",
+      "why": "A right held by the server holds whatever the prompt. What the agent reads there is data, not an instruction: a ticket can carry an injection.",
+      "also": "A deny permission on the server's write tools, as a second curtain."
     },
     "pipeline": {
-      "name": "Workflow de livraison",
+      "name": "Delivery workflow",
       "layer": "L4",
-      "where": "Un workflow CI ou pipeline avec un mode plan (dry-run) et un environnement protégé ; l'agent le déclenche par une sous-commande CLI, jamais par l'API directement.",
-      "why": "Ce qui change une ressource partagée s'exécute avec des droits audités, hors de la machine de l'agent, avec un point d'arrêt humain avant l'irréversible."
+      "where": "A CI workflow or pipeline with a plan mode (dry-run) and a protected environment; the agent triggers it through a CLI subcommand, never through the API directly.",
+      "why": "What changes a shared resource runs with audited rights, off the agent's machine, with a human stop point before the irreversible."
     },
     "permission": {
-      "name": "Permission de l'agent",
+      "name": "Agent permission",
       "layer": "L3",
-      "where": "permissions.deny (ou ask) dans les paramètres partagés du dépôt (.claude/settings.json), et un hook PreToolUse si la règle dépend du contenu de la commande.",
-      "why": "Le runtime de l'agent l'applique à chaque appel d'outil ; une phrase dans AGENTS.md peut être oubliée ou contournée.",
-      "also": "Refuse aussi à l'agent l'écriture de ses propres paramètres, sinon il peut lever la règle."
+      "where": "permissions.deny (or ask) in the repository's shared settings (.claude/settings.json), and a PreToolUse hook if the rule depends on the content of the command.",
+      "why": "The agent's runtime applies it on every tool call; a sentence in AGENTS.md can be forgotten or worked around.",
+      "also": "Also deny the agent writing to its own settings, otherwise it can lift the rule."
     },
     "server_protection": {
-      "name": "Protection côté serveur",
+      "name": "Server-side protection",
       "layer": "L4",
-      "where": "Protection de branche, ruleset, environnement protégé ou droits du compte, sur la forge.",
-      "why": "Un hook ou une permission locale se contournent à la main (--no-verify, un autre outil) ; le serveur refuse pour tout le monde.",
-      "also": "La même règle en permission deny, pour que l'agent n'essaie même pas."
+      "where": "Branch protection, ruleset, protected environment or account rights, on the forge.",
+      "why": "A hook or a local permission can be bypassed by hand (--no-verify, another tool); the server refuses for everyone.",
+      "also": "The same rule as a deny permission, so that the agent does not even try."
     },
     "managed": {
-      "name": "Paramètres gérés de l'organisation",
+      "name": "Organisation managed settings",
       "layer": "L4",
-      "where": "Paramètres gérés (managed settings) pour l'agent, rulesets et workflows requis au niveau de l'organisation pour la forge.",
-      "why": "Un fichier du dépôt, l'équipe peut le modifier ; un paramètre géré prime sur tous les autres niveaux et ne se retire pas depuis le dépôt."
+      "where": "Managed settings for the agent; rulesets and required workflows at organisation level for the forge.",
+      "why": "A file in the repository can be changed by the team; a managed setting overrides every other level and cannot be removed from the repository."
     },
     "hook_check": {
-      "name": "Vérification lancée par un hook",
+      "name": "Check run by a hook",
       "layer": "L3",
-      "where": "Une sous-commande CLI, un linter ou un test, appelé par un hook de l'agent : avant l'outil ou la commande qu'il conditionne, après une édition, ou à l'arrêt. Il échoue avec un message qui dit quoi corriger.",
-      "why": "L'agent ne peut pas l'oublier. Un humain peut le sauter : c'est acceptable ici, puisque seul l'oubli de l'agent est en jeu."
+      "where": "A CLI subcommand, a linter or a test, called by an agent hook: before the tool or command it conditions, after an edit, or on stop. It fails with a message that says what to fix.",
+      "why": "The agent cannot forget it. A human can skip it: that is acceptable here, since only the agent forgetting is at stake."
     },
     "ci_check": {
-      "name": "Check bloquant en CI",
+      "name": "Blocking CI check",
       "layer": "L3 + L4",
-      "where": "Une sous-commande CLI, un linter ou un test d'architecture, rendu obligatoire par la protection de branche ; AGENTS.md peut le citer en une ligne avec « Vérifiée par ».",
-      "why": "Seul un check requis empêche la fusion, quels que soient l'outil et la personne. Un job en continue-on-error, un filtre de chemins qui ne le déclenche pas ou un hook local ne garantissent rien.",
-      "also": "Le même check lancé par un hook, pour que l'agent le voie avant d'ouvrir la PR."
+      "where": "A CLI subcommand, a linter or an architecture test, made mandatory by branch protection; AGENTS.md can cite it in one line with “Enforced by”.",
+      "why": "Only a required check prevents the merge, whatever the tool and the person. A job in continue-on-error, a path filter that does not trigger it, or a local hook guarantees nothing.",
+      "also": "The same check run by a hook, so that the agent sees it before opening the PR."
     },
     "release_gate": {
-      "name": "Étape bloquante du workflow de livraison",
+      "name": "Blocking step of the delivery workflow",
       "layer": "L3 + L4",
-      "where": "Une étape du workflow de livraison qui appelle la vérification (sous-commande CLI, script) et échoue avant la première action irréversible.",
-      "why": "Ce qui se juge à la publication ne se voit pas à la fusion : une entrée de changelog, une version, un artefact signé. Le workflow de livraison est le seul passage obligé.",
-      "also": "La même vérification en check de PR, quand elle peut déjà se faire à la fusion."
+      "where": "A step of the delivery workflow that calls the check (CLI subcommand, script) and fails before the first irreversible action.",
+      "why": "What is judged at publication cannot be seen at merge: a changelog entry, a version, a signed artifact. The delivery workflow is the only mandatory passage.",
+      "also": "The same check as a PR check, when it can already be done at merge."
     },
     "org_check": {
-      "name": "Check imposé par l'organisation",
+      "name": "Check imposed by the organisation",
       "layer": "L3 + L4",
-      "where": "La même vérification, en workflow requis ou ruleset au niveau de l'organisation.",
-      "why": "Une équipe ne peut ni le désactiver ni l'affaiblir depuis son dépôt."
+      "where": "The same check, as a required workflow or ruleset at organisation level.",
+      "why": "A team can neither disable nor weaken it from its repository."
     },
     "judge": {
-      "name": "Juge et revue humaine",
+      "name": "Judge and human review",
       "layer": "L1",
-      "where": "Un sous-agent ou un juge en CI qui signale, une revue humaine qui tranche ; une ligne dans AGENTS.md si l'agent doit le viser.",
-      "why": "Un jugement ne se vérifie pas de façon reproductible : aucun code ne le garantit. Découpe d'abord : la part mesurable (une section présente, un lien vers le ticket) repasse dans la grille comme règle vérifiable."
+      "where": "A subagent or a judge in CI that flags, a human review that decides; a line in AGENTS.md if the agent must aim for it.",
+      "why": "A judgment cannot be checked reproducibly: no code guarantees it. Split first: the measurable part (a section present, a link to the ticket) goes back through the grid as a checkable rule."
     },
     "cli": {
-      "name": "Sous-commande CLI testée",
+      "name": "Tested CLI subcommand",
       "layer": "L3",
-      "where": "Une sous-commande du CLI du dépôt (un script si elle est vraiment isolée), avec ses tests et une sortie JSON ; le skill l'appelle.",
-      "why": "Un calcul écrit dans un prompt est refait à chaque fois, et parfois mal ; en code, il donne le même résultat à l'agent, à l'humain et à la CI."
+      "where": "A subcommand of the repository's CLI (a script if it is truly isolated), with its tests and a JSON output; the skill calls it.",
+      "why": "A computation written in a prompt is redone every time, and sometimes wrongly; in code, it gives the same result to the agent, the human and CI."
     },
     "hook_compute": {
-      "name": "Sous-commande appelée par un hook",
+      "name": "Subcommand called by a hook",
       "layer": "L3",
-      "where": "La sous-commande CLI, branchée sur l'événement de l'agent (PreToolUse, PostToolUse, Stop) dans les paramètres partagés du dépôt.",
-      "why": "Un moment fixe de la boucle se tient par le runtime de l'agent, pas par une consigne qu'il doit se rappeler."
+      "where": "The CLI subcommand, wired to the agent event (PreToolUse, PostToolUse, Stop) in the repository's shared settings.",
+      "why": "A fixed point of the loop is held by the agent's runtime, not by an instruction it must remember."
     },
     "workflow": {
-      "name": "Workflow du dépôt",
+      "name": "Repository workflow",
       "layer": "L3 + L4",
-      "where": "Un workflow déclenché par l'événement (PR, push, planification) qui appelle la sous-commande CLI.",
-      "why": "Un événement du dépôt arrive même quand aucun agent ne tourne."
+      "where": "A workflow triggered by the event (PR, push, schedule) that calls the CLI subcommand.",
+      "why": "A repository event happens even when no agent is running."
     },
     "session": {
-      "name": "Jugement de l'agent, dans le skill",
+      "name": "Agent judgment, in the skill",
       "layer": "L1",
-      "where": "Aucun fichier dédié : le skill qui raconte la procédure dit où l'agent décide, entre quelles options, et le CLI fournit ces options.",
-      "why": "Juger est le travail de l'agent ; l'isoler sans besoin coûte du contexte et des allers-retours."
+      "where": "No dedicated file: the skill that tells the procedure says where the agent decides, between which options, and the CLI provides those options.",
+      "why": "Judging is the agent's job; isolating it without need costs context and round trips."
     },
     "subagent": {
-      "name": "Sous-agent",
+      "name": "Subagent",
       "layer": "L1",
-      "where": "Un sous-agent (.claude/agents/<nom>.md) aux outils restreints, qui rend un résultat structuré.",
-      "why": "Un sous-agent part d'un contexte vierge, avec ses propres outils : c'est ce qui lui donne un regard indépendant, des droits plus étroits, de la place pour lire beaucoup, ou la possibilité de tourner en parallèle. Sans l'un de ces besoins, c'est un skill."
+      "where": "A subagent (.claude/agents/<name>.md) with restricted tools, that returns a structured result.",
+      "why": "A subagent starts from a blank context, with its own tools: that is what gives it an independent eye, narrower rights, room to read a lot, or the ability to run in parallel. Without one of these needs, it is a skill."
     },
     "skill": {
       "name": "Skill",
       "layer": "L2",
-      "where": ".claude/skills/<nom>/SKILL.md, chargé à la demande, avec ses références dans references/.",
-      "why": "Une procédure ne sert qu'à son type de tâche ; chargée à chaque session, elle coûterait du contexte partout. Chaque étape obligatoire de la procédure est un morceau à part (règle ou calcul) que le skill appelle."
+      "where": ".claude/skills/<name>/SKILL.md, loaded on demand, with its references in references/.",
+      "why": "A procedure only serves its type of task; loaded in every session, it would cost context everywhere. Each mandatory step of the procedure is a separate piece (rule or computation) that the skill calls."
     },
     "agents_md": {
-      "name": "Une ligne dans AGENTS.md",
+      "name": "A line in AGENTS.md",
       "layer": "L2",
-      "where": "AGENTS.md, une ligne avec son pourquoi et sa date ; « Vérifiée par » si un garde-fou la porte.",
-      "why": "AGENTS.md est chargé à chaque session : n'y entre que ce qui sert à chaque tâche et que l'agent ne trouve pas seul."
+      "where": "AGENTS.md, one line with its why and its date; “Enforced by” if a guardrail carries it.",
+      "why": "AGENTS.md is loaded in every session: only what serves every task and what the agent cannot find alone goes in."
     },
     "agents_md_zone": {
-      "name": "AGENTS.md du dossier",
+      "name": "Folder AGENTS.md",
       "layer": "L2",
-      "where": "Un AGENTS.md dans le dossier concerné, ou une règle par chemin de l'outil.",
-      "why": "Il n'est chargé que quand l'agent travaille dans cette zone : le reste du dépôt n'en paie pas le coût."
+      "where": "An AGENTS.md in the folder concerned, or a per-path rule of the tool.",
+      "why": "It is only loaded when the agent works in that zone: the rest of the repository does not pay its cost."
     },
     "doc": {
-      "name": "Document lu à la demande",
+      "name": "Document read on demand",
       "layer": "L2",
-      "where": "Un fichier dans docs/agents/, pointé depuis AGENTS.md ou depuis le skill qui en a besoin.",
-      "why": "De la référence chargée à chaque session noie les instructions ; pointée, elle n'est lue que quand elle sert."
+      "where": "A file in docs/agents/, pointed to from AGENTS.md or from the skill that needs it.",
+      "why": "Reference material loaded in every session drowns the instructions; pointed to, it is only read when it serves."
     },
     "nothing": {
-      "name": "Rien à écrire",
+      "name": "Nothing to write",
       "layer": "-",
-      "where": "Aucun fichier.",
-      "why": "Ce que l'agent trouve en lisant le dépôt ne change pas ce qu'il fait ; l'écrire coûte du contexte à chaque session et vieillit."
+      "where": "No file.",
+      "why": "What the agent finds by reading the repository does not change what it does; writing it costs context in every session and goes stale."
     }
   }
 }
