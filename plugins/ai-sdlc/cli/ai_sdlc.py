@@ -12,6 +12,8 @@
   ai_sdlc.py secu gate [repo] [--base REF] [--report SARIF…]   les portes de /secu
   ai_sdlc.py ship check [repo] [--base REF] [--since REF] [--checks relevé.json]   les prérequis d'une livraison
   ai_sdlc.py ship render <proposition.json> [repo] [--base REF] [--checks relevé.json]   la proposition de livraison, si elle tient
+  ai_sdlc.py run changes [repo] --since REF [--until REF]   ce qui est parti entre deux versions
+  ai_sdlc.py run render <enquete.json> [repo] [--base REF] [--evidence pièce…]   l'enquête sur un incident, rendue en ticket
   ai_sdlc.py guard check <commande>   dit si une commande shell livre (tag, publication, déploiement) : 0 non, 1 oui
   ai_sdlc.py guard hook   le même contrôle, comme le hook PreToolUse du plugin (cli/guard_hook.py) le fait : 2 refuse
   ai_sdlc.py fixture init <fixture> <dest>         monte une PR piégée de fixtures/review en dépôt git
@@ -38,7 +40,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import context, dev, devgrade, guard, points, qa, qagrade, review, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
+from aisdlclib import context, dev, devgrade, guard, points, qa, qagrade, review, run, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -83,7 +85,14 @@ def build_parser() -> argparse.ArgumentParser:
     for sp in (shp, shr):
         sp.add_argument("--since", metavar="REF", help="la version précédente (défaut : le plus haut tag X.Y.Z fusionné)")
         sp.add_argument("--checks", metavar="FICHIER", help="le relevé de la CI du commit, en JSON (gh run list --commit … --json …)")
-    for sp in (ctx, status, render, sized, body, tck, avis, gate, sgate, shp, shr):
+    rn = sub.add_parser("run", help="ce que /run tient").add_subparsers(dest="action", required=True)
+    rnc = rn.add_parser("changes", help="les commits et les zones sensibles entre deux versions")
+    rnc.add_argument("--since", required=True, metavar="REF", help="la version d'avant l'incident")
+    rnc.add_argument("--until", default="HEAD", metavar="REF", help="la version en production (défaut : HEAD)")
+    rnr = rn.add_parser("render", help="valide l'enquête et la rend en ticket")
+    rnr.add_argument("file", help="l'enquête en JSON")
+    rnr.add_argument("--evidence", nargs="+", default=[], metavar="PIÈCE", help="les journaux et exports cités, hors du dépôt")
+    for sp in (ctx, status, render, sized, body, tck, avis, gate, sgate, shp, shr, rnc, rnr):
         sp.add_argument("repo", nargs="?", default=".")
         sp.add_argument("--base", default="origin/HEAD", help="branche de base (défaut : origin/HEAD)")
         sp.add_argument("--format", choices=["md", "json"], default="md")
@@ -184,6 +193,12 @@ def main(argv: list[str] | None = None) -> int:
             data = qa.run_gates(table, args.repo, args.base, args.run, args.runs, args.coverage, ticket_text,
                                 review.load(args.trace) if args.trace else None)
             text, code = qa.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)
+        elif args.command == "run":
+            if args.action == "changes":
+                data = run.changes(table, args.repo, args.base, args.since, args.until)
+                text = run.render_changes(data)
+            else:
+                data, text = run.investigation(table, args.repo, args.base, review.load(args.file), args.evidence)
         elif args.command == "ship":
             checks = review.load(args.checks) if args.checks else None
             if args.action == "render":
