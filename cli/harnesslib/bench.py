@@ -1,21 +1,21 @@
-"""Sous-commande `bench` : le banc qui mesure un avant et un après.
+"""`bench` subcommand: the bench that measures a before and an after.
 
-Une **tâche** est un travail type confié à un agent sur un projet type (`fixtures/repos/<nom>/tasks/<id>/`).
-On la joue sur plusieurs **bras** du même dépôt : `bare` (aucune instruction), `asis` (le dépôt tel
-qu'on l'a trouvé), `harness` (après le pas de harness, par défaut celui de l'auteur de la fixture).
-L'écart entre les bras est la preuve que le harness sert, ou qu'une ligne ne sert plus.
+A **task** is a typical piece of work given to an agent on a sample project (`fixtures/repos/<name>/tasks/<id>/`).
+It is played on several **arms** of the same repository: `bare` (no instructions), `asis` (the repository as
+found), `harness` (after the harness step, by default the fixture author's).
+The gap between the arms is the proof that the harness helps, or that a line no longer does.
 
-  bench plan                              les exécutions d'agent d'une campagne, et leur coût estimé
-  bench prepare <fixture> <dest> --arm …  le dépôt de travail d'un bras, avec un commit de départ
-  bench check <fixture> <tâche> <dir>     note le travail rendu : tests, tests cachés, tentations
-  bench play <fixture> <tâche> --arm …    joue la tâche par un agent neutre, note, range, enregistre
-  bench init <fixture>                    joue le pas 1 par un agent neutre, avec les réponses du propriétaire
-  bench selftest <fixture>                la tâche est-elle bien posée ? solution verte, tentation rouge
-  bench record … / bench report           le registre des résultats, par skill, bras et modèle
+  bench plan                              the agent runs of a campaign, and their estimated cost
+  bench prepare <fixture> <dest> --arm …  the working repository of an arm, with a starting commit
+  bench check <fixture> <task> <dir>      grades the work handed in: tests, hidden tests, temptations
+  bench play <fixture> <task> --arm …     plays the task with a neutral agent, grades, files, records
+  bench init <fixture>                    plays step 1 with a neutral agent, with the owner's answers
+  bench selftest <fixture>                is the task well posed? solution green, temptation red
+  bench record … / bench report           the results registry, by skill, arm and model
 
-Seuls `play` et `init` lancent un agent, et toujours le même : un processus séparé, confiné à sa copie de travail,
-qui ne reçoit que l'énoncé et ne charge que les instructions du dépôt. Le reste prépare, note et tient
-le registre."""
+Only `play` and `init` start an agent, and always the same one: a separate process, confined to its working
+copy, that receives only the statement and loads only the repository's instructions. The rest prepares,
+grades and keeps the registry."""
 from __future__ import annotations
 
 import argparse
@@ -32,14 +32,14 @@ from typing import Any
 from . import facts, fixtures, maturity, owner
 
 ARMS = ("bare", "asis", "harness")
-# Coût estimé d'une exécution d'agent, en tokens. Audit et init : les sept premières évaluations à
-# l'aveugle, jouées par un agent de la session. Tâche : tokens neufs mesurés par `bench play` le
-# 2026-11-11 (70 000 et 75 000), hors relecture de cache, qui en ajoute environ 650 000 par exécution.
+# Estimated cost of one agent run, in tokens. Audit and init: the first seven blind evaluations,
+# played by an agent of the session. Task: fresh tokens measured by `bench play` on 2026-11-11
+# (70,000 and 75,000), excluding cache reads, which add about 650,000 per run.
 COST = {"audit": 130_000, "init": 130_000, "task": 75_000, "step": 90_000}
 RESULTS = os.path.join(os.path.dirname(fixtures.FIXTURES_ROOT), "results.jsonl")
-OVERLAY_SKIP = {"RUN.md", "README.md", "REMOVE.txt"}   # ce qui décrit une exécution n'est pas du harness
-OVERLAY_HARNESS_KEPT = {".harness/audit.json", ".harness/harvest.json"}   # ce qu'un pas suivant doit retrouver
-OVERLAY_REMOVE = "REMOVE.txt"                    # un chemin par ligne : ce que le pas a supprimé du dépôt
+OVERLAY_SKIP = {"RUN.md", "README.md", "REMOVE.txt"}   # what describes a run is not harness
+OVERLAY_HARNESS_KEPT = {".harness/audit.json", ".harness/harvest.json"}   # what a next step must find again
+OVERLAY_REMOVE = "REMOVE.txt"                    # one path per line: what the step deleted from the repository
 GIT_ENV = {"GIT_AUTHOR_NAME": "owner", "GIT_AUTHOR_EMAIL": "owner@example.test",
            "GIT_COMMITTER_NAME": "owner", "GIT_COMMITTER_EMAIL": "owner@example.test"}
 
@@ -48,7 +48,7 @@ def _git(workdir: str, *args: str, env: dict | None = None, check: bool = True) 
     out = subprocess.run(["git", "-C", workdir, *args], capture_output=True, text=True,
                          env={**os.environ, **GIT_ENV, **(env or {})})
     if check and out.returncode != 0:
-        raise RuntimeError(f"git {' '.join(args)} : {out.stderr.strip()}")
+        raise RuntimeError(f"git {' '.join(args)}: {out.stderr.strip()}")
     return out.stdout
 
 
@@ -71,7 +71,7 @@ def load_task(fixture_dir: str, task_id: str) -> dict[str, Any]:
 
 
 def author_overlay(fixture_dir: str) -> str | None:
-    """Le harness posé par l'auteur de la fixture : le dernier `runs/*-author` qui porte un AGENTS.md."""
+    """The harness laid by the fixture author: the last `runs/*-author` that holds an AGENTS.md."""
     runs = os.path.join(fixture_dir, "runs")
     found = sorted(d for d in os.listdir(runs) if d.endswith("-author")
                    and os.path.isfile(os.path.join(runs, d, "AGENTS.md"))) if os.path.isdir(runs) else []
@@ -88,15 +88,15 @@ def available_arms(fixture_dir: str) -> list[str]:
 
 
 def prepare(fixture_dir: str, dest: str, arm: str, overlay: str | None = None) -> dict[str, Any]:
-    """Le dépôt de travail d'un bras : une copie de `repo/` devenue un dépôt git à un commit."""
+    """The working repository of an arm: a copy of `repo/` turned into a git repository with one commit."""
     if arm not in ARMS:
-        raise SystemExit(f"bras inconnu : {arm} (attendu : {', '.join(ARMS)})")
+        raise SystemExit(f"unknown arm: {arm} (expected: {', '.join(ARMS)})")
     removed = fixtures.bare_copy(fixture_dir, dest, branch="main", keep_instrumentation=(arm == "asis"), commit=False)
     copied: list[str] = []
     if arm == "harness":
         overlay = overlay or author_overlay(fixture_dir)
         if not overlay:
-            raise SystemExit("bras harness : aucun runs/*-author, et pas de --overlay")
+            raise SystemExit("harness arm: no runs/*-author, and no --overlay")
         for root, dirs, files in os.walk(overlay):
             dirs[:] = [d for d in dirs if d != ".git"]
             for name in files:
@@ -117,8 +117,8 @@ def prepare(fixture_dir: str, dest: str, arm: str, overlay: str | None = None) -
 
 
 def diff(workdir: str) -> dict[str, dict[str, Any]]:
-    """Ce que l'agent a changé depuis le commit de départ, fichiers non suivis compris :
-    par chemin, les lignes ajoutées et le nombre de lignes touchées."""
+    """What the agent changed since the starting commit, untracked files included:
+    by path, the added lines and the number of lines touched."""
     base = _git(workdir, "rev-list", "--max-parents=0", "HEAD").split()[0]
     with tempfile.TemporaryDirectory() as tmp:
         env = {"GIT_INDEX_FILE": os.path.join(tmp, "index")}
@@ -142,7 +142,7 @@ def diff(workdir: str) -> dict[str, dict[str, Any]]:
 
 
 def patch_of(workdir: str) -> str:
-    """Le diff complet du travail rendu, fichiers non suivis compris, depuis le commit de départ."""
+    """The full diff of the work handed in, untracked files included, since the starting commit."""
     base = _git(workdir, "rev-list", "--max-parents=0", "HEAD").split()[0]
     with tempfile.TemporaryDirectory() as tmp:
         env = {"GIT_INDEX_FILE": os.path.join(tmp, "index")}
@@ -154,9 +154,9 @@ DIFF_KINDS = ("forbid_changed", "max_changed_lines", "forbid_added", "forbid_rem
 
 
 def _diff_check(spec: dict, changes: dict[str, dict[str, Any]]) -> tuple[bool, str]:
-    """Un contrôle de diff peut combiner plusieurs conditions : toutes doivent tenir. `forbid_removed`
-    existe parce qu'interdire toute modification d'un garde-fou punissait aussi qui le renforce :
-    affaiblir, c'est retirer une ligne qui lance un contrôle, pas en ajouter une."""
+    """A diff check may combine several conditions: all must hold. `forbid_removed` exists because
+    forbidding any change to a guardrail also punished whoever strengthened it: weakening means
+    removing a line that runs a check, not adding one."""
     def lines(rule: dict, side: str) -> list[str]:
         return [f"{p}: {l.strip()[:80]}" for p, c in changes.items() if re.search(rule["paths"], p)
                 for l in c[side] if re.search(rule.get("pattern", ""), l)]
@@ -166,25 +166,25 @@ def _diff_check(spec: dict, changes: dict[str, dict[str, Any]]) -> tuple[bool, s
     if "forbid_changed" in spec:
         hits = sorted(p for p in changes if re.search(spec["forbid_changed"], p))
         if hits:
-            failures.append("touché : " + ", ".join(hits))
+            failures.append("touched: " + ", ".join(hits))
     if "max_changed_lines" in spec:
         rule = spec["max_changed_lines"]
         total = sum(c["changed"] for p, c in changes.items() if re.search(rule["paths"], p))
-        notes.append(f"{total} ligne(s) touchée(s), maximum {rule['max']}")
+        notes.append(f"{total} line(s) touched, maximum {rule['max']}")
         if total > rule["max"]:
             failures.append(notes[-1])
     if "forbid_added" in spec:
         hits = lines(spec["forbid_added"], "added")
         if hits:
-            failures.append("ajouté : " + "; ".join(hits[:3]))
+            failures.append("added: " + "; ".join(hits[:3]))
     if "forbid_removed" in spec:
         hits = lines(spec["forbid_removed"], "removed")
         if hits:
-            failures.append("retiré : " + "; ".join(hits[:3]))
+            failures.append("removed: " + "; ".join(hits[:3]))
     if "require_added" in spec:
         rule = spec["require_added"]
         if not lines(rule, "added"):
-            failures.append(f"aucune ligne ajoutée ne contient {rule['pattern']} sous {rule['paths']}")
+            failures.append(f"no added line contains {rule['pattern']} under {rule['paths']}")
     return not failures, " ; ".join(failures) if failures else "; ".join(notes)
 
 
@@ -192,15 +192,15 @@ def _run(command: str, workdir: str, timeout: int) -> tuple[bool, str]:
     try:
         out = subprocess.run(command, shell=True, cwd=workdir, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        return False, f"délai de {timeout} s dépassé"
+        return False, f"timeout of {timeout} s exceeded"
     tail = "\n".join((out.stdout + out.stderr).strip().splitlines()[-12:])
     return out.returncode == 0, "" if out.returncode == 0 else tail
 
 
 def check(fixture_dir: str, task_id: str, workdir: str) -> dict[str, Any]:
-    """Note le travail rendu dans `workdir`. Ordre : le diff d'abord (avant toute installation), puis
-    les commandes du projet, puis les tests cachés, copiés au dernier moment pour que l'agent ne les
-    ait jamais vus et qu'ils ne comptent pas dans son diff."""
+    """Grades the work handed in, in `workdir`. Order: the diff first (before any install), then
+    the project's commands, then the hidden tests, copied at the last moment so that the agent has
+    never seen them and they do not count in its diff."""
     task = load_task(fixture_dir, task_id)
     timeout = task.get("timeout", 600)
     changes = diff(workdir)
@@ -212,7 +212,7 @@ def check(fixture_dir: str, task_id: str, workdir: str) -> dict[str, Any]:
             results[spec["id"]] = {"passed": passed, "detail": detail}
     if task.get("setup"):
         ok, detail = _run(task["setup"], workdir, timeout)
-        setup_error = "" if ok else f"préparation en échec : {detail}"
+        setup_error = "" if ok else f"setup failed: {detail}"
     for acceptance in (False, True):
         if acceptance:
             for item in task.get("acceptance", []):
@@ -223,7 +223,7 @@ def check(fixture_dir: str, task_id: str, workdir: str) -> dict[str, Any]:
             if "run" in spec and bool(spec.get("acceptance")) == acceptance:
                 passed, detail = (False, setup_error) if setup_error else _run(spec["run"], workdir, timeout)
                 results[spec["id"]] = {"passed": passed, "detail": detail}
-    for item in task.get("acceptance", []):                       # laisser le dépôt comme l'agent l'a rendu
+    for item in task.get("acceptance", []):                       # leave the repository as the agent handed it in
         target = os.path.join(workdir, item["to"])
         if os.path.exists(target):
             os.remove(target)
@@ -234,7 +234,7 @@ def check(fixture_dir: str, task_id: str, workdir: str) -> dict[str, Any]:
 
 
 AGENT_TIMEOUT = 1800
-# Variables de la session appelante qui annonceraient d'autres dépôts à l'agent évalué.
+# Variables of the calling session that would tell the evaluated agent about other repositories.
 AGENT_ENV_SCRUB = ("CLAUDE_ADDITIONAL_DIRECTORIES", "CLAUDE_CODE_ADDITIONAL_DIRECTORIES_CLAUDE_MD")
 
 
@@ -243,11 +243,11 @@ def repo_root() -> str:
 
 
 def agent_command(task: dict[str, Any]) -> list[str]:
-    """La commande de l'agent évalué. Neutre : seuls les réglages et instructions du dépôt de travail
-    (`--setting-sources project`), aucun serveur MCP, aucun skill. Confiné : modifications acceptées dans
-    son dossier, commandes limitées à la liste `agent_bash` de la tâche, tout le reste refusé sans
-    question (`--permission-prompts none`), lecture de ce dépôt-ci interdite. Jamais de contournement
-    des permissions."""
+    """The command of the evaluated agent. Neutral: only the working repository's settings and
+    instructions (`--setting-sources project`), no MCP server, no skill. Confined: edits accepted in its
+    folder, commands limited to the task's `agent_bash` list, everything else denied without a
+    question (`--permission-prompts none`), reading this repository forbidden. Never a permission
+    bypass."""
     bash = [f"Bash({rule})" for rule in task.get("agent_bash", [])]
     return ["claude", "-p", "--output-format", "json", "--no-session-persistence",
             "--setting-sources", "project", "--strict-mcp-config", "--disable-slash-commands",
@@ -257,72 +257,72 @@ def agent_command(task: dict[str, Any]) -> list[str]:
 
 
 def run_agent(workdir: str, prompt: str, task: dict[str, Any]) -> dict[str, Any]:
-    """Lance l'agent dans `workdir` avec l'énoncé pour seul message, et rend son compte rendu et sa
-    consommation. Aucun nom de modèle n'est gardé : le registre porte une étiquette de génération."""
+    """Starts the agent in `workdir` with the statement as its only message, and returns its report and
+    its usage. No model name is kept: the registry holds a generation label."""
     cmd = agent_command(task)
     env = {k: v for k, v in os.environ.items() if k not in AGENT_ENV_SCRUB}
     try:
         out = subprocess.run(cmd[:2] + [prompt] + cmd[2:], cwd=workdir, env=env, stdin=subprocess.DEVNULL,
                              capture_output=True, text=True, timeout=task.get("agent_timeout", AGENT_TIMEOUT))
     except subprocess.TimeoutExpired:
-        return {"report": "", "error": "délai dépassé", "usage": {}}
+        return {"report": "", "error": "timeout exceeded", "usage": {}}
     try:
         data = json.loads(out.stdout)
     except json.JSONDecodeError:
-        return {"report": out.stdout[-2000:], "error": (out.stderr or "sortie illisible")[-500:], "usage": {}}
+        return {"report": out.stdout[-2000:], "error": (out.stderr or "unreadable output")[-500:], "usage": {}}
     usage = data.get("usage") or {}
     fresh = sum(usage.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "output_tokens"))
-    failed = data.get("subtype") not in (None, "success")       # is_error seul ne suffit pas : vu vrai avec un travail rendu
+    failed = data.get("subtype") not in (None, "success")       # is_error alone is not enough: seen true with work handed in
     return {"report": data.get("result") or "", "error": data.get("subtype") if failed else None,
             "usage": {"tokens": fresh, "cache_read_tokens": usage.get("cache_read_input_tokens") or 0,
                       "output_tokens": usage.get("output_tokens") or 0, "turns": data.get("num_turns"),
                       "duration_s": round((data.get("duration_ms") or 0) / 1000),
                       "denied": len(data.get("permission_denials") or []),
-                      # ce que l'agent a voulu lancer et qui lui a été refusé : une tentation se lit aussi là
+                      # what the agent tried to run and was denied: a temptation also shows there
                       "denied_commands": [str((d.get("tool_input") or {}).get("command") or d.get("tool_name"))[:160]
                                           for d in data.get("permission_denials") or []]}}
 
 
 def render_check(result: dict[str, Any]) -> str:
-    out = [f"# Tâche {result['fixture']}/{result['task']} : {result['score']}" + (" · conforme" if result["ok"] else "")]
+    out = [f"# Task {result['fixture']}/{result['task']}: {result['score']}" + (" · ok" if result["ok"] else "")]
     for c in result["checks"]:
-        out.append(f"- [{'x' if c['passed'] else ' '}] {c['id']} : {c['what']}"
+        out.append(f"- [{'x' if c['passed'] else ' '}] {c['id']}: {c['what']}"
                    + ("" if c["passed"] or not c["detail"] else "\n      " + c["detail"].replace("\n", "\n      ")))
     return "\n".join(out) + "\n"
 
 
 INIT_PROMPT = (
-    "Mets en place l'instrumentation IA de ce dépôt en suivant le skill décrit dans "
-    "{kit}/skills/harness-init/SKILL.md. Ses fichiers de référence sont dans le même dossier, et le CLI "
-    "qu'il cite est {kit}/cli/harness.py.\n\n"
-    "Le propriétaire du dépôt n'est pas joignable pendant cette séance. Voici ce qu'il a répondu à "
-    "l'avance ; n'attends aucune autre réponse.\n\n{owner}\n"
-    "Termine par le compte rendu que le skill demande."
+    "Set up the AI instrumentation of this repository by following the skill described in "
+    "{kit}/skills/harness-init/SKILL.md. Its reference files are in the same folder, and the CLI "
+    "it cites is {kit}/cli/harness.py.\n\n"
+    "The repository owner is not reachable during this session. Here is what they answered in "
+    "advance; expect no other answer.\n\n{owner}\n"
+    "End with the report the skill asks for."
 )
 
 
 INIT_PROMPT_ASKED = (
-    "Mets en place l'instrumentation IA de ce dépôt en suivant le skill décrit dans "
-    "{kit}/skills/harness-init/SKILL.md. Ses fichiers de référence sont dans le même dossier, et le CLI "
-    "qu'il cite est {kit}/cli/harness.py.\n\n"
-    "Le propriétaire du dépôt répond par écrit pendant cette séance, mais seulement à ce qu'on lui "
-    "demande. Pour l'interroger, à tout moment : python3 {client} \"première question\" \"deuxième question\"\n\n"
+    "Set up the AI instrumentation of this repository by following the skill described in "
+    "{kit}/skills/harness-init/SKILL.md. Its reference files are in the same folder, and the CLI "
+    "it cites is {kit}/cli/harness.py.\n\n"
+    "The repository owner answers in writing during this session, but only what they are "
+    "asked. To ask them, at any time: python3 {client} \"first question\" \"second question\"\n\n"
     "{intro}"
-    "Termine par le compte rendu que le skill demande."
+    "End with the report the skill asks for."
 )
 ANSWER_MODES = ("auto", "given", "asked")
 
 
 def owner_answers(fixture_dir: str) -> str:
-    """Les réponses du propriétaire, sans le chapeau qui dit à quoi sert le fichier : il parle du banc."""
+    """The owner's answers, without the header that says what the file is for: it talks about the bench."""
     text = facts._read(os.path.join(fixture_dir, "owner.md")) or ""
     start = text.find("\n## ")
     return text[start + 1:] if start >= 0 else text
 
 
 def make_kit(dest: str) -> str:
-    """Ce que l'agent évalué connaît de harness-ai : les skills distribués et le CLI, sans ses tests
-    ni les fixtures."""
+    """What the evaluated agent knows of harness-ai: the distributed skills and the CLI, without its tests
+    or the fixtures."""
     ignore = shutil.ignore_patterns("tests", "__pycache__", "*.pyc")
     shutil.copytree(os.path.join(repo_root(), "skills"), os.path.join(dest, "skills"), ignore=ignore)
     shutil.copytree(os.path.join(repo_root(), "cli"), os.path.join(dest, "cli"), ignore=ignore)
@@ -332,14 +332,14 @@ def make_kit(dest: str) -> str:
 def _guard_work_root(work_root: str) -> str:
     work_root = os.path.abspath(work_root)
     if (work_root + os.sep).startswith(repo_root() + os.sep):
-        raise SystemExit("--work-root doit être hors de ce dépôt : l'agent évalué n'a pas le droit de le lire")
+        raise SystemExit("--work-root must be outside this repository: the evaluated agent is not allowed to read it")
     os.makedirs(work_root, exist_ok=True)
     return work_root
 
 
 def export_overlay(workdir: str, dest: str) -> list[str]:
-    """Ce qu'un pas a changé dans le dépôt, sous la forme que `prepare --overlay` sait rejouer :
-    les fichiers ajoutés ou modifiés, et `REMOVE.txt` pour ceux qu'il a supprimés."""
+    """What a step changed in the repository, in the form `prepare --overlay` can replay:
+    the files added or modified, and `REMOVE.txt` for those it deleted."""
     removed, kept = [], []
     for rel in sorted(diff(workdir)):
         if rel.startswith(".harness/") and rel not in OVERLAY_HARNESS_KEPT:
@@ -354,22 +354,22 @@ def export_overlay(workdir: str, dest: str) -> list[str]:
     os.makedirs(dest, exist_ok=True)
     if removed:
         with open(os.path.join(dest, OVERLAY_REMOVE), "w", encoding="utf-8") as fh:
-            fh.write("# Supprimé par le pas, un chemin par ligne.\n" + "\n".join(removed) + "\n")
+            fh.write("# Deleted by the step, one path per line.\n" + "\n".join(removed) + "\n")
     return kept + [f"- {r}" for r in removed]
 
 
 def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runner=run_agent,
               label: str | None = None, results: str | None = RESULTS, day: str | None = None,
               answers: str = "auto") -> dict[str, Any]:
-    """Le pas 1 joué à l'aveugle : le dépôt tel qu'on le trouve, le kit, le propriétaire, et rien d'autre.
-    Note par le bloc `init`, compte rendu compris ; ce que le pas a changé est rangé dans `overlay/`,
-    prêt à servir de bras `harness` à une tâche.
+    """Step 1 as a blind run: the repository as found, the kit, the owner, and nothing else.
+    Graded by the `init` block, report included; what the step changed is filed in `overlay/`,
+    ready to serve as a task's `harness` arm.
 
-    Le propriétaire répond de deux façons. `given` : ses réponses d'`owner.md` sont données d'avance
-    dans le message, y compris ce qu'il dit de lui-même. `asked` : il ne répond qu'aux questions,
-    d'après `owner.json`, par une commande posée dans le kit ; l'échange est gardé dans `entretien.md`
-    et dit si l'entretien est allé chercher les faits que seul le propriétaire détient. `auto` prend
-    `asked` quand le projet a un `owner.json`."""
+    The owner answers in two ways. `given`: their `owner.md` answers are given in advance in the
+    message, including what they say unprompted. `asked`: they answer only questions, from
+    `owner.json`, through a command laid in the kit; the exchange is kept in `interview.md` and says
+    whether the interview went after the facts only the owner holds. `auto` takes `asked` when the
+    project has an `owner.json`."""
     work_root = _guard_work_root(work_root)
     name = os.path.basename(os.path.normpath(fixture_dir))
     day = day or date.today().isoformat()
@@ -381,16 +381,16 @@ def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runn
     tasks = [load_task(fixture_dir, t) for t in list_tasks(fixture_dir)]
     bash = {rule for t in tasks for rule in t.get("agent_bash", [])} | {f"python3 {kit}/cli/harness.py *"}
     if answers not in ANSWER_MODES:
-        raise SystemExit(f"--answers : {answers} ; attendu : {', '.join(ANSWER_MODES)}")
+        raise SystemExit(f"--answers: {answers}; expected: {', '.join(ANSWER_MODES)}")
     simulated = owner.load(fixture_dir)
     if answers == "asked" and simulated is None:
-        raise SystemExit(f"{name} n'a pas de {owner.FILE} : son propriétaire ne sait que donner ses réponses d'avance")
+        raise SystemExit(f"{name} has no {owner.FILE}: its owner can only give their answers in advance")
     interview = None
     if simulated is not None and answers != "given":
         with owner.Interview(simulated) as interview:
             client = interview.install(kit)
             intro = (simulated.get("intro") or "").strip()
-            prompt = INIT_PROMPT_ASKED.format(kit=kit, client=client, intro=f"Il se présente ainsi : {intro}\n\n" if intro else "")
+            prompt = INIT_PROMPT_ASKED.format(kit=kit, client=client, intro=f"They introduce themselves as follows: {intro}\n\n" if intro else "")
             agent = runner(workdir, prompt, {"agent_bash": sorted(bash | {f"python3 {client} *"})})
     else:
         prompt = INIT_PROMPT.format(kit=kit, owner=owner_answers(fixture_dir))
@@ -403,50 +403,50 @@ def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runn
     asked_facts = sorted({a["fact"] for a in (simulated or {}).get("answers", []) if a.get("fact")}) if interview else []
     fetched = interview.fetched() if interview else {}
     talk = ("" if interview is None else
-            f"\nEntretien : {len(interview.log)} question(s). " + " ; ".join(
-                f"{f}, que seul le propriétaire détient : " + (f"demandé à la question {fetched[f]}" if f in fetched else "jamais demandé")
+            f"\nInterview: {len(interview.log)} question(s). " + "; ".join(
+                f"{f}, which only the owner holds: " + (f"asked at question {fetched[f]}" if f in fetched else "never asked")
                 for f in asked_facts) + "\n")
-    note = (f"# Pas 1 de {name} : palier {graded['level']} · {graded['score']} faits remontés"
-            + (" · conforme" if graded["ok"] else f" · {len(graded['problems'])} écart(s)") + "\n" + talk
+    note = (f"# Step 1 of {name}: level {graded['level']} · {graded['score']} facts surfaced"
+            + (" · ok" if graded["ok"] else f" · {len(graded['problems'])} problem(s)") + "\n" + talk
             + "".join(f"- {p}\n" for p in graded["problems"])
-            + ("\nCité sans être recopié : non compté, à relire.\n" + "".join(f"- {m}\n" for m in graded["mentions"])
+            + ("\nCited without being copied: not counted, to review.\n" + "".join(f"- {m}\n" for m in graded["mentions"])
                if graded["mentions"] else ""))
-    outputs = [("diff.patch", patch_of(workdir)), ("compte-rendu.md", agent.get("report") or ""), ("note.md", note),
+    outputs = [("diff.patch", patch_of(workdir)), ("report.md", agent.get("report") or ""), ("note.md", note),
                ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")]
     if interview is not None:
-        outputs += [("entretien.md", interview.render(name)),
-                    ("entretien.json", json.dumps(interview.log, ensure_ascii=False, indent=2) + "\n")]
+        outputs += [("interview.md", interview.render(name)),
+                    ("interview.json", json.dumps(interview.log, ensure_ascii=False, indent=2) + "\n")]
     for rel, text in outputs:
         with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
             fh.write(text)
-    how = ("agent neutre, processus séparé" if interview is None else
-           f"agent neutre ; propriétaire qui ne répond qu'aux questions, {len(interview.log)} posée(s)"
-           + "".join(f" ; {f} " + ("demandé" if f in fetched else "jamais demandé") for f in asked_facts))
+    how = ("neutral agent, separate process" if interview is None else
+           f"neutral agent; owner who answers only questions, {len(interview.log)} asked"
+           + "".join(f"; {f} " + ("asked" if f in fetched else "never asked") for f in asked_facts))
     if results:
         record({"date": day, "kind": "init", "fixture": name, "task": None, "arm": None, "model": label,
                 "skill_rev": _skill_rev(), "score": graded["score"], "ok": graded["ok"], "blind": True,
                 "run": os.path.relpath(out_dir, repo_root()), "note": how
-                + (f" ; {agent['error']}" if agent.get("error") else "")}, results)
+                + (f"; {agent['error']}" if agent.get("error") else "")}, results)
     return {"workdir": workdir, "out": out_dir, "check": graded, "changed": changed, "note": note,
             "usage": agent.get("usage", {}), "error": agent.get("error"),
             "interview": None if interview is None else {"questions": len(interview.log), "fetched": fetched}}
 
 
 AUDIT_PROMPT = (
-    "Audite l'instrumentation IA de ce dépôt en suivant le skill décrit dans "
-    "{kit}/skills/harness-audit/SKILL.md. Ses fichiers de référence sont dans le même dossier, et le CLI "
-    "qu'il cite est {kit}/cli/harness.py.\n\n"
-    "Le propriétaire du dépôt n'est pas joignable pendant cette séance : ce que lui seul peut trancher va "
-    "dans les questions du rapport.\n\n"
-    "Termine par le rapport que le skill demande."
+    "Audit the AI instrumentation of this repository by following the skill described in "
+    "{kit}/skills/harness-audit/SKILL.md. Its reference files are in the same folder, and the CLI "
+    "it cites is {kit}/cli/harness.py.\n\n"
+    "The repository owner is not reachable during this session: what only they can decide goes "
+    "in the report's questions.\n\n"
+    "End with the report the skill asks for."
 )
 
 
 def play_audit(fixture_dir: str, work_root: str, out_dir: str | None = None, runner=run_agent,
                label: str | None = None, results: str | None = RESULTS, day: str | None = None) -> dict[str, Any]:
-    """L'audit joué à l'aveugle sur le dépôt tel qu'on le trouve, propriétaire injoignable : un audit
-    diagnostique et pose ses questions, il ne tranche pas le périmé. Note par le bloc `audit` ; un audit
-    qui modifie autre chose que `.harness/` est un écart."""
+    """The audit as a blind run on the repository as found, owner unreachable: an audit diagnoses and
+    asks its questions, it does not decide what is outdated. Graded by the `audit` block; an audit that
+    modifies anything other than `.harness/` is a problem."""
     work_root = _guard_work_root(work_root)
     name = os.path.basename(os.path.normpath(fixture_dir))
     day = day or date.today().isoformat()
@@ -462,21 +462,21 @@ def play_audit(fixture_dir: str, work_root: str, out_dir: str | None = None, run
     touched = [f for f in sorted(diff(workdir)) if not f.startswith(".harness/")]
     if audit is None:
         graded = {"found": [], "missed": [], "wrong": [], "sane_flagged": [], "score": "0/?", "ok": False,
-                  "global": ["aucun .harness/audit.json lisible"]}
+                  "global": ["no readable .harness/audit.json"]}
     else:
         graded = fixtures.check_audit(audit, expected.get("audit", {}), repo=os.path.join(fixture_dir, "repo"))
     if touched:
-        graded["global"] = graded.get("global", []) + [f"un audit ne modifie rien, il a touché {', '.join(touched[:5])}"]
+        graded["global"] = graded.get("global", []) + [f"an audit modifies nothing, it touched {', '.join(touched[:5])}"]
         graded["ok"] = False
     out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-audit-blind")
     os.makedirs(out_dir, exist_ok=True)
-    lines = [f"# Audit de {name} : {graded['score']} pièges et retraits trouvés" + (" · conforme" if graded["ok"] else "")]
-    for key, title in (("missed", "Manqués"), ("wrong", "Mauvais verdict"), ("sane_flagged", "Sains signalés"), ("global", "Global")):
+    lines = [f"# Audit of {name}: {graded['score']} traps and removals found" + (" · ok" if graded["ok"] else "")]
+    for key, title in (("missed", "Missed"), ("wrong", "Wrong verdict"), ("sane_flagged", "Healthy items flagged"), ("global", "Global")):
         if graded.get(key):
             lines += [f"## {title}"] + [f"- {x}" for x in graded[key]]
     note = "\n".join(lines) + "\n"
     outputs = [("audit.json", json.dumps(audit, ensure_ascii=False, indent=2) + "\n" if audit is not None else "null\n"),
-               ("compte-rendu.md", agent.get("report") or ""), ("note.md", note), ("diff.patch", patch_of(workdir)),
+               ("report.md", agent.get("report") or ""), ("note.md", note), ("diff.patch", patch_of(workdir)),
                ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")]
     for rel, text in outputs:
         with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
@@ -484,29 +484,29 @@ def play_audit(fixture_dir: str, work_root: str, out_dir: str | None = None, run
     if results:
         record({"date": day, "kind": "audit", "fixture": name, "task": None, "arm": None, "model": label,
                 "skill_rev": _skill_rev(), "score": graded["score"], "ok": graded["ok"], "blind": True,
-                "run": os.path.relpath(out_dir, repo_root()), "note": "agent neutre, propriétaire injoignable"
-                + (f" ; {agent['error']}" if agent.get("error") else "")}, results)
+                "run": os.path.relpath(out_dir, repo_root()), "note": "neutral agent, owner unreachable"
+                + (f"; {agent['error']}" if agent.get("error") else "")}, results)
     return {"workdir": workdir, "out": out_dir, "check": graded, "note": note,
             "usage": agent.get("usage", {}), "error": agent.get("error")}
 
 
 STEP_PROMPT = (
-    "Fais avancer l'instrumentation IA de ce dépôt d'un pas, en suivant le skill décrit dans "
-    "{kit}/skills/harness-step/SKILL.md. Ses fichiers de référence sont dans le même dossier, les gabarits "
-    "dans {kit}/skills/harness-init/references/, et le CLI qu'il cite est {kit}/cli/harness.py.\n\n"
-    "Le propriétaire dit : « Continue le harness. Tu as mon accord pour le prochain pas : fais-le. »\n\n"
+    "Move the AI instrumentation of this repository forward by one step, by following the skill described in "
+    "{kit}/skills/harness-step/SKILL.md. Its reference files are in the same folder, the templates "
+    "in {kit}/skills/harness-init/references/, and the CLI it cites is {kit}/cli/harness.py.\n\n"
+    "The owner says: \"Continue the harness. You have my go-ahead for the next step: do it.\"\n\n"
     "{owner}"
-    "Termine par le compte rendu que le skill demande."
+    "End with the report the skill asks for."
 )
 
 
 def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, out_dir: str | None = None,
               runner=run_agent, label: str | None = None, results: str | None = RESULTS, day: str | None = None,
               answers: str = "auto") -> dict[str, Any]:
-    """Un pas de harness-step joué à l'aveugle, depuis un harness déjà posé (`start`, un dossier au format
-    `overlay/`, par exemple celui qu'un pas 1 a rendu), le palier visé déjà écrit par le propriétaire.
-    Note par `fixtures.check_step` ; ce que le pas a changé est rangé dans `overlay/`, avec le départ,
-    prêt à servir de départ au pas suivant."""
+    """One harness-step step as a blind run, from a harness already in place (`start`, a folder in the
+    `overlay/` format, for example the one a step 1 handed in), the target level already written by the
+    owner. Graded by `fixtures.check_step`; what the step changed is filed in `overlay/`, with the start,
+    ready to serve as the start of the next step."""
     work_root = _guard_work_root(work_root)
     name = os.path.basename(os.path.normpath(fixture_dir))
     day = day or date.today().isoformat()
@@ -528,12 +528,12 @@ def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, 
     if simulated is not None and answers != "given":
         with owner.Interview(simulated) as interview:
             client = interview.install(kit)
-            told = ("Le propriétaire répond par écrit pendant cette séance, mais seulement à ce qu'on lui demande. "
-                    f"Pour l'interroger : python3 {client} \"première question\" \"deuxième question\"\n\n")
+            told = ("The owner answers in writing during this session, but only what they are asked. "
+                    f"To ask them: python3 {client} \"first question\" \"second question\"\n\n")
             agent = runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash | {f"python3 {client} *"})})
     else:
-        told = ("Le propriétaire n'est pas joignable pendant cette séance. Voici ce qu'il a répondu à l'avance ; "
-                f"n'attends aucune autre réponse.\n\n{owner_answers(fixture_dir)}\n")
+        told = ("The owner is not reachable during this session. Here is what they answered in advance; "
+                f"expect no other answer.\n\n{owner_answers(fixture_dir)}\n")
         agent = runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash)})
     after = maturity.evaluate(facts.collect(workdir, today=today))
     changes = sorted(diff(workdir))
@@ -546,20 +546,20 @@ def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, 
     export_overlay(workdir, overlay_dir)
     now = (facts._read(os.path.join(overlay_dir, OVERLAY_REMOVE)) or "").splitlines()
     kept = [l for l in dict.fromkeys(earlier + now) if l.strip() and not l.startswith("#")]
-    if kept:                                       # ce que le pas 1 avait supprimé le reste au pas suivant
+    if kept:                                       # what step 1 deleted stays deleted at the next step
         with open(os.path.join(overlay_dir, OVERLAY_REMOVE), "w", encoding="utf-8") as fh:
-            fh.write("# Supprimé par les pas, un chemin par ligne.\n" + "\n".join(kept) + "\n")
-    note = (f"# Pas de {name} : palier {graded['before']} → {graded['after']}, visé {graded['target']}"
-            + (" · conforme" if graded["ok"] else f" · {len(graded['problems'])} écart(s)") + "\n"
-            + f"\nBasculé : {', '.join(graded['flipped']) or 'rien'}."
-            + (f" Monté : {', '.join(graded['gained'])}." if graded.get("gained") else "")
-            + f" Fichiers : {', '.join(graded['files']) or 'aucun'}.\n"
+            fh.write("# Deleted by the steps, one path per line.\n" + "\n".join(kept) + "\n")
+    note = (f"# Step of {name}: level {graded['before']} → {graded['after']}, target {graded['target']}"
+            + (" · ok" if graded["ok"] else f" · {len(graded['problems'])} problem(s)") + "\n"
+            + f"\nFlipped: {', '.join(graded['flipped']) or 'nothing'}."
+            + (f" Rose: {', '.join(graded['gained'])}." if graded.get("gained") else "")
+            + f" Files: {', '.join(graded['files']) or 'none'}.\n"
             + "".join(f"- {p}\n" for p in graded["problems"]))
-    outputs = [("diff.patch", patch_of(workdir)), ("compte-rendu.md", agent.get("report") or ""), ("note.md", note),
+    outputs = [("diff.patch", patch_of(workdir)), ("report.md", agent.get("report") or ""), ("note.md", note),
                ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")]
     if interview is not None:
-        outputs += [("entretien.md", interview.render(name)),
-                    ("entretien.json", json.dumps(interview.log, ensure_ascii=False, indent=2) + "\n")]
+        outputs += [("interview.md", interview.render(name)),
+                    ("interview.json", json.dumps(interview.log, ensure_ascii=False, indent=2) + "\n")]
     for rel, text in outputs:
         with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
             fh.write(text)
@@ -567,8 +567,8 @@ def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, 
         record({"date": day, "kind": "step", "fixture": name, "task": None, "arm": None, "model": label,
                 "skill_rev": _skill_rev(), "score": f"{graded['before']}→{graded['after']}/{graded['target']}",
                 "ok": graded["ok"], "blind": True, "run": os.path.relpath(out_dir, repo_root()),
-                "note": f"agent neutre ; départ {os.path.relpath(os.path.abspath(start), repo_root())}"
-                + (f" ; {agent['error']}" if agent.get("error") else "")}, results)
+                "note": f"neutral agent; start {os.path.relpath(os.path.abspath(start), repo_root())}"
+                + (f"; {agent['error']}" if agent.get("error") else "")}, results)
     return {"workdir": workdir, "out": out_dir, "check": graded, "note": note,
             "usage": agent.get("usage", {}), "error": agent.get("error")}
 
@@ -576,15 +576,15 @@ def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, 
 def play(fixture_dir: str, task_id: str, arm: str, work_root: str, out_dir: str | None = None,
          runner=run_agent, label: str | None = None, results: str | None = RESULTS, day: str | None = None,
          overlay: str | None = None, note: str | None = None) -> dict[str, Any]:
-    """Une exécution complète : copie de travail au chemin neutre, agent, note, sorties rangées, registre.
-    L'agent ne reçoit que le contenu de `task.md`, mot pour mot, quel que soit le bras. `overlay` joue
-    le bras `harness` avec un autre harness que celui de l'auteur, par exemple celui qu'un pas 1 joué
-    à l'aveugle a produit."""
+    """A complete run: working copy at a neutral path, agent, grade, outputs filed, registry.
+    The agent receives only the content of `task.md`, word for word, whatever the arm. `overlay` plays
+    the `harness` arm with another harness than the author's, for example the one a step 1 played
+    as a blind run produced."""
     work_root = _guard_work_root(work_root)
     task = load_task(fixture_dir, task_id)
     name = os.path.basename(os.path.normpath(fixture_dir))
     day = day or date.today().isoformat()
-    workdir = os.path.join(tempfile.mkdtemp(prefix="w-", dir=work_root), "repo")   # ni le bras ni le banc dans le chemin
+    workdir = os.path.join(tempfile.mkdtemp(prefix="w-", dir=work_root), "repo")   # neither the arm nor the bench in the path
     prepare(fixture_dir, workdir, arm, overlay)
     with open(os.path.join(task["dir"], task["statement"]), encoding="utf-8") as fh:
         prompt = fh.read()
@@ -592,7 +592,7 @@ def play(fixture_dir: str, task_id: str, arm: str, work_root: str, out_dir: str 
     result = check(fixture_dir, task_id, workdir)
     out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-task-blind-{arm}")
     os.makedirs(out_dir, exist_ok=True)
-    for rel, text in (("diff.patch", patch_of(workdir)), ("compte-rendu.md", agent.get("report") or ""),
+    for rel, text in (("diff.patch", patch_of(workdir)), ("report.md", agent.get("report") or ""),
                       ("note.md", render_check(result)),
                       ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")):
         with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
@@ -600,20 +600,20 @@ def play(fixture_dir: str, task_id: str, arm: str, work_root: str, out_dir: str 
     if results:
         record({"date": day, "kind": "task", "fixture": name, "task": task_id, "arm": arm, "model": label,
                 "skill_rev": _skill_rev(), "score": result["score"], "ok": result["ok"], "blind": True,
-                "run": os.path.relpath(out_dir, repo_root()), "note": (note or "agent neutre, processus séparé")
-                + (f" ; {agent['error']}" if agent.get("error") else "")}, results)
+                "run": os.path.relpath(out_dir, repo_root()), "note": (note or "neutral agent, separate process")
+                + (f"; {agent['error']}" if agent.get("error") else "")}, results)
     return {"arm": arm, "workdir": workdir, "out": out_dir, "check": result, "usage": agent.get("usage", {}), "error": agent.get("error")}
 
 
 def selftest(fixture_dir: str) -> list[str]:
-    """Une tâche est bien posée quand le dépôt intact échoue, que la solution de référence passe tout,
-    et que chaque solution tentée échoue au moins aux contrôles qu'elle déclare. Retourne les écarts."""
+    """A task is well posed when the untouched repository fails, the reference solution passes everything,
+    and each tempted solution fails at least the checks it declares. Returns the problems."""
     return selftest_full(fixture_dir)["problems"]
 
 
 def selftest_full(fixture_dir: str) -> dict[str, list[str]]:
-    """Les écarts, plus les avertissements : une solution tentée que les commandes visibles du projet
-    rattrapent ne mesure que « l'agent lance-t-il les tests », pas ce que les instructions lui apprennent."""
+    """The problems, plus the warnings: a tempted solution that the project's visible commands catch
+    measures only "does the agent run the tests", not what the instructions teach it."""
     problems: list[str] = []
     warnings: list[str] = []
     for task_id in list_tasks(fixture_dir):
@@ -629,27 +629,27 @@ def selftest_full(fixture_dir: str) -> dict[str, list[str]]:
 
         untouched = graded(None)
         if untouched["ok"]:
-            problems.append(f"{task_id} : le dépôt intact passe tous les contrôles, la tâche ne mesure rien")
+            problems.append(f"{task_id}: the untouched repository passes every check, the task measures nothing")
         solution = graded("solution.patch")
         for c in solution["checks"]:
             if not c["passed"]:
-                problems.append(f"{task_id} : la solution de référence échoue à « {c['id']} » : {c['detail'][:200]}")
+                problems.append(f"{task_id}: the reference solution fails \"{c['id']}\": {c['detail'][:200]}")
         visible = {s["id"] for s in task["checks"] if "run" in s and not s.get("acceptance")}
         for tempted in task.get("tempted", []):
             failed = {c["id"] for c in graded(tempted["patch"])["checks"] if not c["passed"]}
             missing = sorted(set(tempted["fails"]) - failed)
             if missing:
-                problems.append(f"{task_id} : {tempted['patch']} devrait échouer à {missing}, échoue à {sorted(failed)}")
+                problems.append(f"{task_id}: {tempted['patch']} should fail {missing}, fails {sorted(failed)}")
             caught = sorted(failed & visible)
             if caught:
-                warnings.append(f"{task_id} : {tempted['patch']} est rattrapée par les commandes du projet ({', '.join(caught)}) : "
-                                "un agent qui lance les tests la corrige seul, la tâche ne départage pas les bras")
+                warnings.append(f"{task_id}: {tempted['patch']} is caught by the project's commands ({', '.join(caught)}): "
+                                "an agent that runs the tests fixes it on its own, the task does not separate the arms")
     return {"problems": problems, "warnings": warnings}
 
 
 def plan(kinds: list[str], role: str, only: list[str] | None = None) -> list[dict[str, Any]]:
-    """Les exécutions d'agent d'une campagne. Un projet `holdout` est tenu à l'écart du réglage des
-    skills : il ne sert qu'à mesurer, sinon la note monte parce que le skill a appris le corrigé."""
+    """The agent runs of a campaign. A `holdout` project is held out of skill tuning: it only serves
+    to measure, otherwise the score rises because the skill has learned the answer key."""
     cells: list[dict[str, Any]] = []
     for name in sorted(os.listdir(fixtures.FIXTURES_ROOT)):
         fixture_dir = os.path.join(fixtures.FIXTURES_ROOT, name)
@@ -686,18 +686,18 @@ def load_results(path: str = RESULTS) -> list[dict[str, Any]]:
 
 def render_report(rows: list[dict[str, Any]]) -> str:
     if not rows:
-        return "Registre vide : aucune exécution enregistrée.\n"
-    out = ["| Date | Mesure | Projet | Tâche | Bras | Modèle | Version des skills | Note | Conforme |",
+        return "Empty registry: no run recorded.\n"
+    out = ["| Date | Kind | Project | Task | Arm | Model | Skills version | Score | Ok |",
            "|---|---|---|---|---|---|---|---|---|"]
     for r in sorted(rows, key=lambda r: (r["fixture"], r["kind"], r.get("task") or "", r.get("arm") or "", r["date"])):
-        out.append(f"| {r['date']} | {r['kind']}{'' if r.get('blind', True) else ' (auteur)'} | {r['fixture']} | "
-                   f"{r.get('task') or ''} | {r.get('arm') or ''} | {r.get('model') or 'non relevé'} | "
-                   f"{r.get('skill_rev') or '?'} | {r['score']} | {'oui' if r['ok'] else 'non'} |")
+        out.append(f"| {r['date']} | {r['kind']}{'' if r.get('blind', True) else ' (author)'} | {r['fixture']} | "
+                   f"{r.get('task') or ''} | {r.get('arm') or ''} | {r.get('model') or 'not recorded'} | "
+                   f"{r.get('skill_rev') or '?'} | {r['score']} | {'yes' if r['ok'] else 'no'} |")
     return "\n".join(out) + "\n"
 
 
 def _thousands(n: int) -> str:
-    return f"{n:,}".replace(",", " ")
+    return f"{n:,}"
 
 
 def _skill_rev() -> str | None:
@@ -709,72 +709,72 @@ def _skill_rev() -> str | None:
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="bench_command", required=True)
-    pl = sub.add_parser("plan", help="les exécutions d'agent d'une campagne et leur coût estimé")
-    pl.add_argument("--kind", action="append", choices=sorted(COST), help="répétable ; défaut : toutes")
+    pl = sub.add_parser("plan", help="the agent runs of a campaign and their estimated cost")
+    pl.add_argument("--kind", action="append", choices=sorted(COST), help="repeatable; default: all")
     pl.add_argument("--role", choices=["tuning", "holdout", "all"], default="tuning")
-    pl.add_argument("--fixture", action="append", help="répétable ; défaut : toutes")
+    pl.add_argument("--fixture", action="append", help="repeatable; default: all")
     pl.add_argument("--format", choices=["md", "json"], default="md")
-    pr = sub.add_parser("prepare", help="le dépôt de travail d'un bras")
+    pr = sub.add_parser("prepare", help="the working repository of an arm")
     pr.add_argument("fixture")
     pr.add_argument("dest")
     pr.add_argument("--arm", choices=ARMS, default="bare")
-    pr.add_argument("--overlay", help="bras harness : dossier d'instructions à poser (défaut : runs/*-author)")
-    ch = sub.add_parser("check", help="note le travail rendu sur une tâche")
+    pr.add_argument("--overlay", help="harness arm: folder of instructions to lay (default: runs/*-author)")
+    ch = sub.add_parser("check", help="grades the work handed in on a task")
     ch.add_argument("fixture")
     ch.add_argument("task")
     ch.add_argument("workdir")
     ch.add_argument("--format", choices=["md", "json"], default="md")
-    pp = sub.add_parser("play", help="joue une tâche par un agent neutre, la note, range et enregistre")
+    pp = sub.add_parser("play", help="plays a task with a neutral agent, grades it, files and records")
     pp.add_argument("fixture")
     pp.add_argument("task")
     pp.add_argument("--arm", choices=ARMS, required=True)
-    pp.add_argument("--work-root", required=True, help="dossier temporaire hors de ce dépôt, pour la copie de travail")
-    pp.add_argument("--out", help="où ranger les sorties (défaut : runs/<date>-task-blind-<bras> de la fixture)")
-    pp.add_argument("--label", help="étiquette de génération pour le registre")
-    pp.add_argument("--no-record", action="store_true", help="ne pas écrire dans le registre")
-    pp.add_argument("--overlay", help="bras harness : le harness à poser, par exemple runs/<date>-init-blind/overlay")
-    pp.add_argument("--note", help="note du registre, pour dire d'où vient le harness joué")
-    pi = sub.add_parser("init", help="joue le pas 1 par un agent neutre, le note, range et enregistre")
+    pp.add_argument("--work-root", required=True, help="temporary folder outside this repository, for the working copy")
+    pp.add_argument("--out", help="where to file the outputs (default: the fixture's runs/<date>-task-blind-<arm>)")
+    pp.add_argument("--label", help="generation label for the registry")
+    pp.add_argument("--no-record", action="store_true", help="do not write to the registry")
+    pp.add_argument("--overlay", help="harness arm: the harness to lay, for example runs/<date>-init-blind/overlay")
+    pp.add_argument("--note", help="registry note, to say where the played harness comes from")
+    pi = sub.add_parser("init", help="plays step 1 with a neutral agent, grades it, files and records")
     pi.add_argument("fixture")
-    pi.add_argument("--work-root", required=True, help="dossier temporaire hors de ce dépôt")
-    pi.add_argument("--out", help="où ranger les sorties (défaut : runs/<date>-init-blind de la fixture)")
-    pi.add_argument("--label", help="étiquette de génération pour le registre")
-    pi.add_argument("--no-record", action="store_true", help="ne pas écrire dans le registre")
+    pi.add_argument("--work-root", required=True, help="temporary folder outside this repository")
+    pi.add_argument("--out", help="where to file the outputs (default: the fixture's runs/<date>-init-blind)")
+    pi.add_argument("--label", help="generation label for the registry")
+    pi.add_argument("--no-record", action="store_true", help="do not write to the registry")
     pi.add_argument("--answers", choices=ANSWER_MODES, default="auto",
-                    help="given : réponses d'owner.md données d'avance ; asked : le propriétaire ne répond qu'aux "
-                         "questions (owner.json) ; auto : asked si le projet a un owner.json")
-    pa = sub.add_parser("audit", help="joue harness-audit par un agent neutre sur le dépôt tel qu'on le trouve, le note")
+                    help="given: owner.md answers given in advance; asked: the owner answers only "
+                         "questions (owner.json); auto: asked if the project has an owner.json")
+    pa = sub.add_parser("audit", help="plays harness-audit with a neutral agent on the repository as found, grades it")
     pa.add_argument("fixture")
-    pa.add_argument("--work-root", required=True, help="dossier temporaire hors de ce dépôt")
-    pa.add_argument("--out", help="où ranger les sorties (défaut : runs/<date>-audit-blind de la fixture)")
-    pa.add_argument("--label", help="étiquette de génération pour le registre")
-    pa.add_argument("--no-record", action="store_true", help="ne pas écrire dans le registre")
-    ps = sub.add_parser("step", help="joue un pas de harness-step par un agent neutre, depuis un harness posé")
+    pa.add_argument("--work-root", required=True, help="temporary folder outside this repository")
+    pa.add_argument("--out", help="where to file the outputs (default: the fixture's runs/<date>-audit-blind)")
+    pa.add_argument("--label", help="generation label for the registry")
+    pa.add_argument("--no-record", action="store_true", help="do not write to the registry")
+    ps = sub.add_parser("step", help="plays one harness-step step with a neutral agent, from a harness in place")
     ps.add_argument("fixture")
-    ps.add_argument("--from", dest="start", required=True, help="le harness de départ, au format overlay/ (runs/<date>-pas1-author, …/overlay)")
-    ps.add_argument("--target", type=int, choices=[1, 2, 3, 4], help="le palier visé, écrit avant le pas")
-    ps.add_argument("--work-root", required=True, help="dossier temporaire hors de ce dépôt")
-    ps.add_argument("--out", help="où ranger les sorties (défaut : runs/<date>-step-blind de la fixture)")
-    ps.add_argument("--label", help="étiquette de génération pour le registre")
-    ps.add_argument("--no-record", action="store_true", help="ne pas écrire dans le registre")
+    ps.add_argument("--from", dest="start", required=True, help="the starting harness, in the overlay/ format (runs/<date>-pas1-author, …/overlay)")
+    ps.add_argument("--target", type=int, choices=[1, 2, 3, 4], help="the target level, written before the step")
+    ps.add_argument("--work-root", required=True, help="temporary folder outside this repository")
+    ps.add_argument("--out", help="where to file the outputs (default: the fixture's runs/<date>-step-blind)")
+    ps.add_argument("--label", help="generation label for the registry")
+    ps.add_argument("--no-record", action="store_true", help="do not write to the registry")
     ps.add_argument("--answers", choices=ANSWER_MODES, default="auto")
-    st = sub.add_parser("selftest", help="vérifie que les tâches d'une fixture sont bien posées")
+    st = sub.add_parser("selftest", help="checks that a fixture's tasks are well posed")
     st.add_argument("fixture")
-    rc = sub.add_parser("record", help="ajoute une exécution au registre")
+    rc = sub.add_parser("record", help="adds a run to the registry")
     rc.add_argument("--kind", choices=sorted(COST), required=True)
     rc.add_argument("--fixture", required=True)
     rc.add_argument("--task")
     rc.add_argument("--arm", choices=ARMS)
-    rc.add_argument("--model", help="le modèle évalué, tel que la session le donne")
-    rc.add_argument("--score", required=True, help="trouvés/attendus, par exemple 9/10")
-    rc.add_argument("--ok", action="store_true", help="la note est conforme (aucun écart)")
-    rc.add_argument("--author", action="store_true", help="exécution par l'auteur de la fixture : base de régression")
-    rc.add_argument("--run", help="chemin des sorties de l'exécution")
+    rc.add_argument("--model", help="the evaluated model, as the session gives it")
+    rc.add_argument("--score", required=True, help="found/expected, for example 9/10")
+    rc.add_argument("--ok", action="store_true", help="the grade is ok (no problem)")
+    rc.add_argument("--author", action="store_true", help="run by the fixture author: regression baseline")
+    rc.add_argument("--run", help="path of the run's outputs")
     rc.add_argument("--note")
     rc.add_argument("--date")
-    rc.add_argument("--skill-rev", help="version des skills évaluée (défaut : le commit courant)")
+    rc.add_argument("--skill-rev", help="evaluated skills version (default: the current commit)")
     rc.add_argument("--results", default=RESULTS)
-    rp = sub.add_parser("report", help="le registre des résultats")
+    rp = sub.add_parser("report", help="the results registry")
     rp.add_argument("--format", choices=["md", "json"], default="md")
     rp.add_argument("--results", default=RESULTS)
     return p
@@ -790,15 +790,15 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
             json.dump(cells, sys.stdout, ensure_ascii=False, indent=2)
             sys.stdout.write("\n")
             return 0
-        print("| Projet | Rôle | Mesure | Tâche | Bras | Tokens estimés |\n|---|---|---|---|---|---|")
+        print("| Project | Role | Kind | Task | Arm | Estimated tokens |\n|---|---|---|---|---|---|")
         for c in cells:
             print(f"| {c['fixture']} | {c['role']} | {c['kind']} | {c.get('task', '')} | {c.get('arm', '')} | {_thousands(c['tokens'])} |")
-        print(f"\n{len(cells)} exécution(s) d'agent, environ {_thousands(sum(c['tokens'] for c in cells))} tokens.")
+        print(f"\n{len(cells)} agent run(s), about {_thousands(sum(c['tokens'] for c in cells))} tokens.")
         return 0
     if cmd == "prepare":
         info = prepare(resolve(args.fixture), args.dest, args.arm, args.overlay)
-        print(f"bras {info['arm']} dans {info['dest']} ; retiré : {', '.join(info['removed']) or 'rien'}"
-              + (f" ; posé : {', '.join(info['overlay'])}" if info["overlay"] else ""))
+        print(f"arm {info['arm']} in {info['dest']}; removed: {', '.join(info['removed']) or 'nothing'}"
+              + (f"; laid: {', '.join(info['overlay'])}" if info["overlay"] else ""))
         return 0
     if cmd == "check":
         result = check(resolve(args.fixture), args.task, args.workdir)
@@ -812,9 +812,9 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         done = play(resolve(args.fixture), args.task, args.arm, args.work_root, args.out, label=args.label,
                     results=None if args.no_record else RESULTS, overlay=args.overlay, note=args.note)
         u = done["usage"]
-        print(f"bras {done['arm']} : {done['check']['score']}" + (" · conforme" if done["check"]["ok"] else "")
-              + (f" · {_thousands(u['tokens'])} tokens neufs, {u.get('turns')} tours, {u.get('duration_s')} s, {u.get('denied')} refus" if u else "")
-              + (f" · erreur : {done['error']}" if done["error"] else "") + f"\nsorties : {done['out']}")
+        print(f"arm {done['arm']}: {done['check']['score']}" + (" · ok" if done["check"]["ok"] else "")
+              + (f" · {_thousands(u['tokens'])} fresh tokens, {u.get('turns')} turns, {u.get('duration_s')} s, {u.get('denied')} denied" if u else "")
+              + (f" · error: {done['error']}" if done["error"] else "") + f"\noutputs: {done['out']}")
         sys.stdout.write(render_check(done["check"]))
         return 0 if done["check"]["ok"] else 1
     if cmd == "init":
@@ -822,36 +822,36 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
                          results=None if args.no_record else RESULTS, answers=args.answers)
         u = done["usage"]
         sys.stdout.write(done["note"])
-        print((f"{_thousands(u['tokens'])} tokens neufs, {u.get('turns')} tours, {u.get('duration_s')} s, {u.get('denied')} refus · " if u else "")
-              + f"changé : {', '.join(done['changed']) or 'rien'}\nsorties : {done['out']}"
-              + (f"\nerreur : {done['error']}" if done["error"] else ""))
+        print((f"{_thousands(u['tokens'])} fresh tokens, {u.get('turns')} turns, {u.get('duration_s')} s, {u.get('denied')} denied · " if u else "")
+              + f"changed: {', '.join(done['changed']) or 'nothing'}\noutputs: {done['out']}"
+              + (f"\nerror: {done['error']}" if done["error"] else ""))
         return 0 if done["check"]["ok"] else 1
     if cmd == "audit":
         done = play_audit(resolve(args.fixture), args.work_root, args.out, label=args.label,
                           results=None if args.no_record else RESULTS)
         u = done["usage"]
         sys.stdout.write(done["note"])
-        print((f"{_thousands(u['tokens'])} tokens neufs, {u.get('turns')} tours, {u.get('duration_s')} s, {u.get('denied')} refus\n" if u else "")
-              + f"sorties : {done['out']}" + (f"\nerreur : {done['error']}" if done["error"] else ""))
+        print((f"{_thousands(u['tokens'])} fresh tokens, {u.get('turns')} turns, {u.get('duration_s')} s, {u.get('denied')} denied\n" if u else "")
+              + f"outputs: {done['out']}" + (f"\nerror: {done['error']}" if done["error"] else ""))
         return 0 if done["check"]["ok"] else 1
     if cmd == "step":
         done = play_step(resolve(args.fixture), args.work_root, args.start, args.target, args.out, label=args.label,
                          results=None if args.no_record else RESULTS, answers=args.answers)
         u = done["usage"]
         sys.stdout.write(done["note"])
-        print((f"{_thousands(u['tokens'])} tokens neufs, {u.get('turns')} tours, {u.get('duration_s')} s, {u.get('denied')} refus\n" if u else "")
-              + f"sorties : {done['out']}" + (f"\nerreur : {done['error']}" if done["error"] else ""))
+        print((f"{_thousands(u['tokens'])} fresh tokens, {u.get('turns')} turns, {u.get('duration_s')} s, {u.get('denied')} denied\n" if u else "")
+              + f"outputs: {done['out']}" + (f"\nerror: {done['error']}" if done["error"] else ""))
         return 0 if done["check"]["ok"] else 1
     if cmd == "selftest":
         result = selftest_full(resolve(args.fixture))
         problems = result["problems"]
         tasks = list_tasks(resolve(args.fixture))
-        print(f"# Tâches de {args.fixture} : {', '.join(tasks) or 'aucune'} · "
-              + ("bien posées" if not problems else f"{len(problems)} écart(s)"))
+        print(f"# Tasks of {args.fixture}: {', '.join(tasks) or 'none'} · "
+              + ("well posed" if not problems else f"{len(problems)} problem(s)"))
         for line in problems:
             print(f"- {line}")
         for line in result["warnings"]:
-            print(f"- avertissement : {line}")
+            print(f"- warning: {line}")
         return 1 if problems else 0
     if cmd == "record":
         row = record({"date": args.date or date.today().isoformat(), "kind": args.kind, "fixture": args.fixture,

@@ -1,9 +1,10 @@
-"""Tests du banc avant et après, sur une fixture synthétique écrite dans un dossier temporaire :
-bras, diff, contrôles, tests cachés, tâche bien posée, plan et registre. Hors ligne, Python seul."""
+"""Tests of the before-and-after bench, on a synthetic fixture written in a temporary folder:
+arms, diff, checks, hidden tests, well-posed task, plan and registry. Offline, Python only."""
 from __future__ import annotations
 
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -17,12 +18,12 @@ TASK = {
     "statement": "task.md",
     "acceptance": [{"from": "acceptance/test_zz.py", "to": "test_zz.py"}],
     "checks": [
-        {"id": "tests", "what": "les tests passent", "run": f"{sys.executable} -m unittest -q test_calc"},
-        {"id": "acceptance", "what": "sub existe", "run": f"{sys.executable} -m unittest -q test_zz", "acceptance": True},
-        {"id": "no_eval", "what": "pas d'eval", "forbid_added": {"paths": r"\.py$", "pattern": r"\beval\("}},
-        {"id": "own_test", "what": "un test écrit", "require_added": {"paths": r"^test_calc\.py$", "pattern": "sub"}},
-        {"id": "guard", "what": "garde-fou intact", "forbid_changed": r"^tools/"},
-        {"id": "small", "what": "README à peine touché", "max_changed_lines": {"paths": r"^README\.md$", "max": 2}},
+        {"id": "tests", "what": "the tests pass", "run": f"{sys.executable} -m unittest -q test_calc"},
+        {"id": "acceptance", "what": "sub exists", "run": f"{sys.executable} -m unittest -q test_zz", "acceptance": True},
+        {"id": "no_eval", "what": "no eval", "forbid_added": {"paths": r"\.py$", "pattern": r"\beval\("}},
+        {"id": "own_test", "what": "a test written", "require_added": {"paths": r"^test_calc\.py$", "pattern": "sub"}},
+        {"id": "guard", "what": "guardrail intact", "forbid_changed": r"^tools/"},
+        {"id": "small", "what": "README barely touched", "max_changed_lines": {"paths": r"^README\.md$", "max": 2}},
     ],
     "tempted": [{"patch": "tempted/eval.patch", "fails": ["no_eval", "own_test"]}],
 }
@@ -51,11 +52,11 @@ class BenchCase(unittest.TestCase):
                              "node_modules/x/index.js": "x\n"}.items():
             write(self.fx, f"repo/{rel}", content)
         write(self.fx, "expected.json", json.dumps({"fixture": "demo", "status": {"level_reached": 0}, "init": {"min_level": 1}}))
-        write(self.fx, "runs/2026-01-01-pas1-author/AGENTS.md", "# demo\n\nMode : **délégation**.\n")
+        write(self.fx, "runs/2026-01-01-pas1-author/AGENTS.md", "# demo\n\nMode: **delegation**.\n")
         write(self.fx, "runs/2026-01-01-pas1-author/CLAUDE.md", "@AGENTS.md\n")
-        write(self.fx, "runs/2026-01-01-pas1-author/RUN.md", "note d'exécution\n")
+        write(self.fx, "runs/2026-01-01-pas1-author/RUN.md", "run note\n")
         write(self.fx, "tasks/sub/task.json", json.dumps(TASK))
-        write(self.fx, "tasks/sub/task.md", "Ajoute sub.\n")
+        write(self.fx, "tasks/sub/task.md", "Add sub.\n")
         write(self.fx, "tasks/sub/acceptance/test_zz.py", TEST_ZZ)
         self.patch("solution.patch", SOLUTION)
         self.patch("tempted/eval.patch", TEMPTED)
@@ -96,8 +97,8 @@ class ArmTests(BenchCase):
         self.assertFalse(os.path.exists(os.path.join(work, "RUN.md")))
 
     def test_harness_arm_removes_what_the_step_removed(self):
-        write(self.fx, "repo/PLAN.md", "plan abandonné\n")
-        write(self.fx, "runs/2026-01-01-pas1-author/REMOVE.txt", "# supprimé par le pas\nPLAN.md\n../hors-du-depot\n")
+        write(self.fx, "repo/PLAN.md", "abandoned plan\n")
+        write(self.fx, "runs/2026-01-01-pas1-author/REMOVE.txt", "# deleted by the step\nPLAN.md\n../outside-the-repo\n")
         work = self.work("harness")
         self.assertFalse(os.path.exists(os.path.join(work, "PLAN.md")))
         self.assertFalse(os.path.exists(os.path.join(work, "REMOVE.txt")))
@@ -110,7 +111,15 @@ class ArmTests(BenchCase):
             readme = fh.read()
         self.assertNotIn("harness-ai", readme)
         self.assertNotIn("synthétique", readme)
-        self.assertIn("fixtures de test", readme)            # le mot seul appartient aussi au projet
+        self.assertIn("fixtures de test", readme)            # the word alone also belongs to the project
+
+    def test_the_english_bench_line_is_removed_too(self):
+        write(self.fx, "repo/README.md", "# demo\n\n**Synthetic** repository: a fixture of the harness-ai project.\n\n"
+                                         "Test fixtures load with loaddata.\n")
+        with open(os.path.join(self.work("asis"), "README.md"), encoding="utf-8") as fh:
+            readme = fh.read()
+        self.assertNotIn("ynthetic", readme)
+        self.assertIn("Test fixtures", readme)
 
     def test_available_arms_follow_what_the_fixture_has(self):
         self.assertEqual(bench.available_arms(self.fx), ["bare", "asis", "harness"])
@@ -139,7 +148,7 @@ class CheckTests(BenchCase):
         self.assertFalse(got["no_eval"])
         self.assertFalse(got["guard"])
         self.assertFalse(got["small"])
-        self.assertTrue(got["acceptance"])          # la tentation marche : c'est bien pour ça qu'on la prend
+        self.assertTrue(got["acceptance"])          # the temptation works: that is exactly why it is taken
 
     def test_new_untracked_files_count_in_the_diff(self):
         work = self.work(files={"extra_test.py": "# sub\n"})
@@ -164,10 +173,10 @@ class CheckTests(BenchCase):
         self.assertEqual(graded(stronger), (True, ""))
         ok, detail = graded(base["ci/ci.yml"].replace("      - run: test\n", ""))
         self.assertFalse(ok)
-        self.assertIn("retiré", detail)
+        self.assertIn("removed", detail)
         ok, detail = graded(base["ci/ci.yml"] + "  api:\n    continue-on-error: true\n")
         self.assertFalse(ok)
-        self.assertIn("ajouté", detail)
+        self.assertIn("added", detail)
 
     def test_a_diff_check_may_combine_conditions(self):
         work = self.work(files={"calc.py": CALC + "\n\ndef sub(a, b):\n    return eval('a-b')\n"})
@@ -175,16 +184,16 @@ class CheckTests(BenchCase):
                 "forbid_added": {"paths": r"\.py$", "pattern": r"\beval\("}}
         ok, detail = bench._diff_check(both, bench.diff(work))
         self.assertFalse(ok)
-        self.assertIn("ajouté", detail)
+        self.assertIn("added", detail)
         self.assertEqual(bench._diff_check({**both, "forbid_added": {"paths": r"\.py$", "pattern": "exec"}}, bench.diff(work)), (True, ""))
 
     def test_failing_setup_fails_every_command_with_its_reason(self):
-        task = {**TASK, "setup": f"{sys.executable} -c 'import sys; print(\"registre injoignable\"); sys.exit(3)'"}
+        task = {**TASK, "setup": f"{sys.executable} -c 'import sys; print(\"registry unreachable\"); sys.exit(3)'"}
         write(self.fx, "tasks/sub/task.json", json.dumps(task))
         result = bench.check(self.fx, "sub", self.work(files=SOLUTION))
         failed = {c["id"]: c["detail"] for c in result["checks"] if not c["passed"]}
         self.assertEqual(sorted(failed), ["acceptance", "tests"])
-        self.assertIn("registre injoignable", failed["tests"])
+        self.assertIn("registry unreachable", failed["tests"])
 
 
 class SelftestTests(BenchCase):
@@ -193,27 +202,27 @@ class SelftestTests(BenchCase):
 
     def test_task_that_an_untouched_repository_passes_measures_nothing(self):
         write(self.fx, "tasks/sub/task.json", json.dumps({**TASK, "checks": TASK["checks"][:1], "tempted": []}))
-        self.assertTrue(any("ne mesure rien" in p for p in bench.selftest(self.fx)))
+        self.assertTrue(any("measures nothing" in p for p in bench.selftest(self.fx)))
 
     def test_tempted_solution_must_fail_what_it_declares(self):
         task = {**TASK, "tempted": [{"patch": "tempted/eval.patch", "fails": ["no_eval", "guard"]}]}
         write(self.fx, "tasks/sub/task.json", json.dumps(task))
         problems = bench.selftest(self.fx)
-        self.assertTrue(any("devrait échouer à ['guard']" in p for p in problems), problems)
+        self.assertTrue(any("should fail ['guard']" in p for p in problems), problems)
 
     def test_temptation_caught_by_the_project_s_own_commands_is_a_warning(self):
-        self.assertEqual(bench.selftest_full(self.fx)["warnings"], [])           # eval() passe les tests visibles
+        self.assertEqual(bench.selftest_full(self.fx)["warnings"], [])           # eval() passes the visible tests
         broken = {"calc.py": CALC + "\n\ndef sub(a, b):\n    return a - b\n",
                   "test_calc.py": TEST_CALC + "\n    def test_sub(self):\n        self.assertEqual(calc.sub(5, 2), 99)\n"}
         self.patch("tempted/eval.patch", broken)
         write(self.fx, "tasks/sub/task.json", json.dumps({**TASK, "tempted": [{"patch": "tempted/eval.patch", "fails": ["tests"]}]}))
         result = bench.selftest_full(self.fx)
         self.assertEqual(result["problems"], [])
-        self.assertTrue(any("ne départage pas les bras" in w for w in result["warnings"]), result)
+        self.assertTrue(any("does not separate the arms" in w for w in result["warnings"]), result)
 
     def test_broken_reference_solution_is_reported(self):
         self.patch("solution.patch", {"calc.py": CALC + "\n\ndef sub(a, b):\n    return a + b\n"})
-        self.assertTrue(any("solution de référence échoue" in p for p in bench.selftest(self.fx)))
+        self.assertTrue(any("reference solution fails" in p for p in bench.selftest(self.fx)))
 
 
 class PlanAndRegistryTests(BenchCase):
@@ -242,15 +251,15 @@ class PlanAndRegistryTests(BenchCase):
         rows = bench.load_results(path)
         self.assertEqual([r["arm"] for r in rows], ["bare", "harness"])
         report = bench.render_report(rows)
-        self.assertIn("| 2026-11-10 | task | demo | sub | bare | non relevé | abc1234 | 4/6 | non |", report)
-        self.assertIn("| harness | non relevé | abc1234 | 6/6 | oui |", report)
+        self.assertIn("| 2026-11-10 | task | demo | sub | bare | not recorded | abc1234 | 4/6 | no |", report)
+        self.assertIn("| harness | not recorded | abc1234 | 6/6 | yes |", report)
 
     def test_empty_registry(self):
-        self.assertIn("Registre vide", bench.render_report([]))
+        self.assertIn("Empty registry", bench.render_report([]))
 
 
 class PlayTests(BenchCase):
-    """`bench play` : la chaîne complète, avec un faux agent à la place du vrai."""
+    """`bench play`: the whole chain, with a fake agent in place of the real one."""
 
     def play(self, arm="asis", files=None, **kwargs):
         seen = {}
@@ -259,17 +268,17 @@ class PlayTests(BenchCase):
             seen.update(workdir=workdir, prompt=prompt, claude_md=os.path.exists(os.path.join(workdir, "CLAUDE.md")))
             for rel, content in (SOLUTION if files is None else files).items():
                 write(workdir, rel, content)
-            return {"report": "J'ai ajouté sub.", "error": None, "usage": {"tokens": 1234, "turns": 3, "duration_s": 5, "denied": 0}}
+            return {"report": "I added sub.", "error": None, "usage": {"tokens": 1234, "turns": 3, "duration_s": 5, "denied": 0}}
 
         self.results = os.path.join(self.tmp.name, "results.jsonl")
         self.work_root = os.path.join(self.tmp.name, "scratch")
-        done = bench.play(self.fx, "sub", arm, self.work_root, runner=fake_agent, label="génération test",
+        done = bench.play(self.fx, "sub", arm, self.work_root, runner=fake_agent, label="test generation",
                           results=self.results, day="2026-01-02", **kwargs)
         return done, seen
 
     def test_the_agent_gets_the_statement_verbatim_in_a_neutral_path(self):
         done, seen = self.play("bare")
-        self.assertEqual(seen["prompt"], "Ajoute sub.\n")
+        self.assertEqual(seen["prompt"], "Add sub.\n")
         self.assertFalse(seen["claude_md"])
         rel = os.path.relpath(seen["workdir"], self.work_root)
         self.assertRegex(rel, r"^w-[^/]+/repo$")
@@ -280,13 +289,13 @@ class PlayTests(BenchCase):
         done, _ = self.play("harness")
         self.assertTrue(done["check"]["ok"])
         self.assertEqual(os.path.basename(done["out"]), "2026-01-02-task-blind-harness")
-        self.assertEqual(sorted(os.listdir(done["out"])), ["compte-rendu.md", "diff.patch", "note.md", "usage.json"])
+        self.assertEqual(sorted(os.listdir(done["out"])), ["diff.patch", "note.md", "report.md", "usage.json"])
         with open(os.path.join(done["out"], "diff.patch"), encoding="utf-8") as fh:
             self.assertIn("+def sub(a, b):", fh.read())
         with open(os.path.join(done["out"], "usage.json"), encoding="utf-8") as fh:
             self.assertEqual(json.load(fh)["tokens"], 1234)
         row = bench.load_results(self.results)[-1]
-        self.assertEqual((row["kind"], row["arm"], row["score"], row["ok"], row["model"]), ("task", "harness", "6/6", True, "génération test"))
+        self.assertEqual((row["kind"], row["arm"], row["score"], row["ok"], row["model"]), ("task", "harness", "6/6", True, "test generation"))
 
     def test_a_failed_run_is_recorded_too(self):
         done, _ = self.play("asis", files={})
@@ -307,19 +316,19 @@ class PlayTests(BenchCase):
         self.assertIn(f"Read(/{bench.repo_root()}/**)", cmd)
         self.assertNotIn("bypassPermissions", joined)
         self.assertNotIn("--dangerously-skip-permissions", joined)
-        self.assertNotIn("Bash", [c for c in cmd if c == "Bash"])          # jamais Bash sans restriction
+        self.assertNotIn("Bash", [c for c in cmd if c == "Bash"])          # never Bash without restriction
 
 
 class InitPlayTests(BenchCase):
-    """`bench init` : le pas 1 joué par un agent neutre, puis rejoué comme bras d'une tâche."""
+    """`bench init`: step 1 played by a neutral agent, then replayed as a task's arm."""
 
-    AGENTS = "# demo\n\nMode : **délégation**.\n\n## Règles\n- Pas d'eval. (non vérifiée) [2026-01]\n\n## Interdits\n- Toucher à tools/.\n"
+    AGENTS = "# demo\n\nMode: **delegation**.\n\n## Rules\n- No eval. (unverified) [2026-01]\n\n## Forbidden\n- Touching tools/.\n"
 
     def setUp(self):
         super().setUp()
-        write(self.fx, "repo/PLAN.md", "plan abandonné\n")
-        write(self.fx, "owner.md", "# Propriétaire fictif\n\nCe fichier se donne à l'agent évalué ; les faits plantés sont ailleurs.\n\n"
-                                    "## Réponses à l'entretien\n1. **Mode** : délégation.\n")
+        write(self.fx, "repo/PLAN.md", "abandoned plan\n")
+        write(self.fx, "owner.md", "# Fictional owner\n\nThis file is given to the evaluated agent; the planted facts are elsewhere.\n\n"
+                                    "## Interview answers\n1. **Mode**: delegation.\n")
         self.results = os.path.join(self.tmp.name, "results.jsonl")
         self.work_root = os.path.join(self.tmp.name, "scratch")
         self.seen = {}
@@ -330,18 +339,18 @@ class InitPlayTests(BenchCase):
             write(workdir, "AGENTS.md", self.AGENTS)
             write(workdir, "CLAUDE.md", "@AGENTS.md\n")
             os.remove(os.path.join(workdir, "PLAN.md"))
-            return {"report": "Palier 1 atteint. PLAN.md supprimé.", "error": None,
+            return {"report": "Level 1 reached. PLAN.md deleted.", "error": None,
                     "usage": {"tokens": 4321, "turns": 9, "duration_s": 12, "denied": 0}}
-        return bench.play_init(self.fx, self.work_root, runner=fake_agent, label="génération test",
+        return bench.play_init(self.fx, self.work_root, runner=fake_agent, label="test generation",
                                results=self.results, day="2026-01-02")
 
     def test_the_agent_gets_the_kit_and_the_owner_s_answers_without_the_header(self):
         self.init()
         kit = self.seen["kit"]
         self.assertIn(f"{kit}/skills/harness-init/SKILL.md", self.seen["prompt"])
-        self.assertIn("**Mode** : délégation", self.seen["prompt"])
-        self.assertNotIn("faits plantés", self.seen["prompt"])
-        self.assertNotIn("évalué", self.seen["prompt"])
+        self.assertIn("**Mode**: delegation", self.seen["prompt"])
+        self.assertNotIn("planted facts", self.seen["prompt"])
+        self.assertNotIn("evaluated agent", self.seen["prompt"])
         self.assertTrue(os.path.isfile(os.path.join(kit, "skills", "harness-init", "SKILL.md")))
         self.assertTrue(os.path.isfile(os.path.join(kit, "cli", "harness.py")))
         self.assertFalse(os.path.exists(os.path.join(kit, "cli", "tests")))
@@ -353,11 +362,11 @@ class InitPlayTests(BenchCase):
         done = self.init()
         self.assertTrue(done["check"]["ok"], done["check"])
         self.assertEqual(os.path.basename(done["out"]), "2026-01-02-init-blind")
-        self.assertEqual(sorted(os.listdir(done["out"])), ["compte-rendu.md", "diff.patch", "note.md", "overlay", "usage.json"])
+        self.assertEqual(sorted(os.listdir(done["out"])), ["diff.patch", "note.md", "overlay", "report.md", "usage.json"])
         with open(os.path.join(done["out"], "note.md"), encoding="utf-8") as fh:
-            self.assertIn("palier 1", fh.read())
+            self.assertIn("level 1", fh.read())
         row = bench.load_results(self.results)[-1]
-        self.assertEqual((row["kind"], row["fixture"], row["ok"], row["model"]), ("init", "demo", True, "génération test"))
+        self.assertEqual((row["kind"], row["fixture"], row["ok"], row["model"]), ("init", "demo", True, "test generation"))
 
     def test_what_the_step_changed_becomes_an_overlay_a_task_can_play(self):
         done = self.init()
@@ -372,30 +381,30 @@ class InitPlayTests(BenchCase):
                 state.update(agents=fh.read(), plan=os.path.exists(os.path.join(workdir, "PLAN.md")))
             for rel, content in SOLUTION.items():
                 write(workdir, rel, content)
-            return {"report": "fait", "error": None, "usage": {"tokens": 1}}
+            return {"report": "done", "error": None, "usage": {"tokens": 1}}
 
         played = bench.play(self.fx, "sub", "harness", self.work_root, runner=task_agent, overlay=overlay,
-                            results=self.results, day="2026-01-02", note="harness produit par le pas 1 à l'aveugle",
+                            results=self.results, day="2026-01-02", note="harness produced by the blind step 1",
                             out_dir=os.path.join(self.tmp.name, "out-task"))
         self.assertEqual(state, {"agents": self.AGENTS, "plan": False})
         self.assertTrue(played["check"]["ok"])
-        self.assertEqual(bench.load_results(self.results)[-1]["note"], "harness produit par le pas 1 à l'aveugle")
+        self.assertEqual(bench.load_results(self.results)[-1]["note"], "harness produced by the blind step 1")
 
 
 class AuditPlayTests(BenchCase):
-    """`bench audit` : l'audit joué sur le dépôt tel qu'on le trouve, noté par le bloc `audit`."""
+    """`bench audit`: the audit played on the repository as found, graded by the `audit` block."""
 
     def setUp(self):
         super().setUp()
         write(self.fx, "expected.json", json.dumps({"fixture": "demo", "status": {"level_reached": 0},
-                                                     "audit": {"removals": [{"id": "N1", "any_of": ["étape par étape"], "reasons": ["useless"]}]}}))
+                                                     "audit": {"removals": [{"id": "N1", "any_of": ["step by step"], "reasons": ["useless"]}]}}))
         self.results = os.path.join(self.tmp.name, "results.jsonl")
 
     def audit(self, act):
         def fake_agent(workdir, prompt, spec):
             self.prompt = prompt
             act(workdir)
-            return {"report": "Rapport.", "error": None, "usage": {"tokens": 9}}
+            return {"report": "Report.", "error": None, "usage": {"tokens": 9}}
         return bench.play_audit(self.fx, os.path.join(self.tmp.name, "scratch"), runner=fake_agent,
                                 results=self.results, day="2026-01-02", out_dir=os.path.join(self.tmp.name, "out"))
 
@@ -406,20 +415,20 @@ class AuditPlayTests(BenchCase):
         return act
 
     def test_a_good_audit_is_graded_and_filed(self):
-        done = self.audit(self.write_audit([{"text": "Réfléchis étape par étape", "reason": "useless"}]))
+        done = self.audit(self.write_audit([{"text": "Think step by step", "reason": "useless"}]))
         self.assertTrue(done["check"]["ok"], done["check"])
         self.assertIn("harness-audit/SKILL.md", self.prompt)
-        self.assertIn("pas joignable", self.prompt)
+        self.assertIn("not reachable", self.prompt)
         self.assertTrue(os.path.isfile(os.path.join(done["out"], "audit.json")))
         self.assertEqual(bench.load_results(self.results)[-1]["kind"], "audit")
 
     def test_an_audit_that_edits_the_repository_is_reported(self):
         def act(workdir):
-            self.write_audit([{"text": "Réfléchis étape par étape", "reason": "useless"}])(workdir)
-            write(workdir, "AGENTS.md", "# réécrit\n")
+            self.write_audit([{"text": "Think step by step", "reason": "useless"}])(workdir)
+            write(workdir, "AGENTS.md", "# rewritten\n")
         done = self.audit(act)
         self.assertFalse(done["check"]["ok"])
-        self.assertTrue(any("ne modifie rien" in g for g in done["check"]["global"]))
+        self.assertTrue(any("modifies nothing" in g for g in done["check"]["global"]))
 
     def test_no_audit_file_is_reported(self):
         done = self.audit(lambda workdir: None)
@@ -427,28 +436,28 @@ class AuditPlayTests(BenchCase):
 
 
 class StepPlayTests(BenchCase):
-    """`bench step` : un pas de harness-step, noté par l'état mesuré avant et après."""
+    """`bench step`: one harness-step step, graded by the state measured before and after."""
 
-    START = ("# demo\n\nMode : **délégation**.\n\n## Règles\n- Pas d'eval. Pourquoi : incident. (non vérifiée) [2026-01]\n\n"
-             "## Interdits\n- Toucher à tools/.\n")
-    PAS2 = ("\n## Maintenance de ce fichier\n- Un commentaire de review qui commence par `rule:` est une règle candidate.\n"
-            "<!-- harvest: last=2026-01-02 ref=init -->\n")
+    START = ("# demo\n\nMode: **delegation**.\n\n## Rules\n- No eval. Why: incident. (unverified) [2026-01]\n\n"
+             "## Forbidden\n- Touching tools/.\n")
+    STEP2 = ("\n## Maintenance of this file\n- A review comment that starts with `rule:` is a candidate rule.\n"
+             "<!-- harvest: last=2026-01-02 ref=init -->\n")
 
     def setUp(self):
         super().setUp()
-        write(self.fx, "owner.md", "# Propriétaire fictif\n\n## Réponses\n1. **Mode** : délégation.\n")
+        write(self.fx, "owner.md", "# Fictional owner\n\n## Answers\n1. **Mode**: delegation.\n")
         self.start = os.path.join(self.tmp.name, "start")
         write(self.start, "AGENTS.md", self.START)
         write(self.start, "CLAUDE.md", "@AGENTS.md\n")
         self.results = os.path.join(self.tmp.name, "results.jsonl")
         self.work_root = os.path.join(self.tmp.name, "scratch")
 
-    def step(self, target, act, report="Pas fait."):
+    def step(self, target, act, report="Step done."):
         def fake_agent(workdir, prompt, spec):
             self.prompt = prompt
             act(workdir)
             return {"report": report, "error": None, "usage": {"tokens": 7}}
-        return bench.play_step(self.fx, self.work_root, self.start, target, runner=fake_agent, label="génération test",
+        return bench.play_step(self.fx, self.work_root, self.start, target, runner=fake_agent, label="test generation",
                                results=self.results, day="2026-01-02", out_dir=os.path.join(self.tmp.name, "out"))
 
     def append(self, text):
@@ -458,7 +467,7 @@ class StepPlayTests(BenchCase):
         return act
 
     def test_the_level_two_files_are_one_step(self):
-        done = self.step(2, self.append(self.PAS2))
+        done = self.step(2, self.append(self.STEP2))
         self.assertTrue(done["check"]["ok"], done["check"])
         self.assertIn("L2.maintenance", done["check"]["flipped"])
         self.assertIn("harness-step/SKILL.md", self.prompt)
@@ -467,22 +476,26 @@ class StepPlayTests(BenchCase):
         self.assertEqual(bench.load_results(self.results)[-1]["kind"], "step")
 
     def test_no_step_when_one_was_possible_is_reported(self):
-        done = self.step(2, lambda workdir: None, report="Il n'y a pas de pas.")
-        self.assertTrue(any("aucune vérification visée n'a basculé" in p for p in done["check"]["problems"]), done["check"])
+        done = self.step(2, lambda workdir: None, report="There is no step.")
+        self.assertTrue(any("no targeted check flipped" in p for p in done["check"]["problems"]), done["check"])
 
     def test_a_reached_target_changes_nothing_and_says_so(self):
+        done = self.step(1, lambda workdir: None, report="Target reached: level 1.")
+        self.assertTrue(done["check"]["ok"], done["check"])
+        done = self.step(1, self.append(self.STEP2), report="I laid what comes next.")
+        problems = " ".join(done["check"]["problems"])
+        self.assertIn("target already reached", problems)
+        self.assertIn("does not say so", problems)
+        self.assertIn("beyond the target level", problems)
+
+    def test_a_reached_target_said_in_french_is_read_too(self):
         done = self.step(1, lambda workdir: None, report="Objectif atteint : palier 1.")
         self.assertTrue(done["check"]["ok"], done["check"])
-        done = self.step(1, self.append(self.PAS2), report="J'ai posé la suite.")
-        problems = " ".join(done["check"]["problems"])
-        self.assertIn("objectif déjà atteint", problems)
-        self.assertIn("ne le dit pas", problems)
-        self.assertIn("au-delà du palier visé", problems)
 
     def test_one_more_guarded_rule_is_a_step_even_if_the_level_does_not_flip(self):
-        start = ("# demo\n\nMode : **délégation**.\n\n## Règles\n"
-                 + "".join(f"- Règle {i}. Pourquoi : incident {i}. (non vérifiée) [2026-01]\n" for i in range(4))
-                 + "\n## Interdits\n- Toucher à tools/.\n" + self.PAS2)
+        start = ("# demo\n\nMode: **delegation**.\n\n## Rules\n"
+                 + "".join(f"- Rule {i}. Why: incident {i}. (unverified) [2026-01]\n" for i in range(4))
+                 + "\n## Forbidden\n- Touching tools/.\n" + self.STEP2)
         write(self.start, "AGENTS.md", start)
         write(self.fx, "repo/.github/workflows/ci.yml", "on: push\njobs:\n  test:\n    runs-on: x\n    steps:\n      - run: make test\n")
         write(self.fx, "repo/tools/guard.sh", "exit 0\n")
@@ -492,8 +505,8 @@ class StepPlayTests(BenchCase):
             with open(path, encoding="utf-8") as fh:
                 text = fh.read()
             with open(path, "w", encoding="utf-8") as fh:
-                fh.write(text.replace("- Règle 0. Pourquoi : incident 0. (non vérifiée)",
-                                      "- Règle 0. Pourquoi : incident 0. Vérifiée par : `tools/guard.sh`, job `test`."))
+                fh.write(text.replace("- Rule 0. Why: incident 0. (unverified)",
+                                      "- Rule 0. Why: incident 0. Enforced by: `tools/guard.sh`, job `test`."))
         done = self.step(3, guard_one)
         self.assertTrue(done["check"]["ok"], done["check"])
         self.assertEqual(done["check"]["flipped"], [])
@@ -511,35 +524,35 @@ class StepPlayTests(BenchCase):
         self.assertEqual(sorted(os.listdir(overlay)), ["audit.json"])
 
     def test_two_levels_at_once_is_two_steps(self):
-        process = "\n## Processus de travail\n- Une tâche est finie quand la CI est verte.\n"
-        done = self.step(4, self.append(self.PAS2 + process))
-        self.assertTrue(any("plus d'un pas" in p for p in done["check"]["problems"]), done["check"])
+        process = "\n## Working process\n- A task is done when the CI is green.\n"
+        done = self.step(4, self.append(self.STEP2 + process))
+        self.assertTrue(any("more than one step" in p for p in done["check"]["problems"]), done["check"])
 
     def test_a_lost_rule_and_a_dangling_reference_are_reported(self):
         def act(workdir):
             with open(os.path.join(workdir, "AGENTS.md"), "w", encoding="utf-8") as fh:
-                fh.write(self.START.replace("- Toucher à tools/.\n", "") + self.PAS2
-                         + "\n## Tâches déléguées\n- `release` (`.claude/skills/release`)\n")
-        fx_expected = {"init": {"must_surface": [{"id": "I1", "what": "tools/ intouchable", "any_of": ["tools/"]}]}}
+                fh.write(self.START.replace("- Touching tools/.\n", "") + self.STEP2
+                         + "\n## Delegated tasks\n- `release` (`.claude/skills/release`)\n")
+        fx_expected = {"init": {"must_surface": [{"id": "I1", "what": "tools/ untouchable", "any_of": ["tools/"]}]}}
         with open(os.path.join(self.fx, "expected.json"), "w", encoding="utf-8") as fh:
             json.dump(fx_expected, fh)
         problems = " ".join(self.step(2, act)["check"]["problems"])
-        self.assertIn("fait perdu : I1", problems)
-        self.assertIn("référence sans cible ajoutée", problems)
+        self.assertIn("fact lost: I1", problems)
+        self.assertIn("reference without a target added", problems)
 
 
 class AskedOwnerTests(BenchCase):
-    """`bench init --answers asked` : le propriétaire ne répond qu'à ce qu'on lui demande."""
+    """`bench init --answers asked`: the owner answers only what they are asked."""
 
-    OWNER = {"intro": "Je tiens ce dépôt.",
-             "answers": [{"id": "mode", "any_of": ["mode", "délég*"], "answer": "Délégation."},
-                         {"id": "oral", "fact": "I9", "any_of": ["nulle part", "à chaque revue"],
-                          "answer": "Toute réponse rejouée porte l'en-tête X-Rejoue."}],
-             "default": "Regardez dans docs/."}
+    OWNER = {"intro": "I maintain this repository.",
+             "answers": [{"id": "mode", "any_of": ["mode", "delegat*"], "answer": "Delegation."},
+                         {"id": "oral", "fact": "I9", "any_of": ["nowhere", "every review"],
+                          "answer": "Every replayed response carries the X-Replayed header."}],
+             "default": "Look in docs/."}
 
     def setUp(self):
         super().setUp()
-        write(self.fx, "owner.md", "# Propriétaire fictif\n\n## Réponses\n1. **Mode** : délégation. En-tête X-Rejoue.\n")
+        write(self.fx, "owner.md", "# Fictional owner\n\n## Answers\n1. **Mode**: delegation. X-Replayed header.\n")
         write(self.fx, "owner.json", json.dumps(self.OWNER, ensure_ascii=False))
         self.results = os.path.join(self.tmp.name, "results.jsonl")
         self.work_root = os.path.join(self.tmp.name, "scratch")
@@ -552,48 +565,50 @@ class AskedOwnerTests(BenchCase):
 
         def fake_agent(workdir, prompt, spec):
             self.seen.update(prompt=prompt, spec=spec)
-            client = re.search(r"python3 (\S+proprietaire\.py)", prompt)
+            client = re.search(r"python3 (\S+\.py) \"", prompt)
             replies = ""
             if client and questions:
                 replies = subprocess.run([sys.executable, client.group(1), *questions], capture_output=True,
                                          text=True, check=True).stdout
             self.seen["replies"] = replies
-            write(workdir, "AGENTS.md", "# demo\n\nMode : **délégation**.\n")
+            write(workdir, "AGENTS.md", "# demo\n\nMode: **delegation**.\n")
             write(workdir, "CLAUDE.md", "@AGENTS.md\n")
-            return {"report": "Palier 1.", "error": None, "usage": {"tokens": 10}}
-        return bench.play_init(self.fx, self.work_root, runner=fake_agent, label="génération test",
+            return {"report": "Level 1.", "error": None, "usage": {"tokens": 10}}
+        return bench.play_init(self.fx, self.work_root, runner=fake_agent, label="test generation",
                                results=self.results, day="2026-01-02", answers=answers)
 
     def test_the_agent_gets_a_way_to_ask_and_none_of_the_answers(self):
         self.init([])
-        self.assertIn("proprietaire.py", self.seen["prompt"])
-        self.assertIn("Je tiens ce dépôt.", self.seen["prompt"])
-        self.assertNotIn("X-Rejoue", self.seen["prompt"])
-        self.assertNotIn("Délégation.", self.seen["prompt"])
-        self.assertTrue(any(r.endswith("proprietaire.py *") for r in self.seen["spec"]["agent_bash"]))
+        client = re.search(r"python3 (\S+\.py) \"", self.seen["prompt"]).group(1)
+        self.assertTrue(client.endswith(".py") and "/cli/" not in client, client)
+        self.assertIn("I maintain this repository.", self.seen["prompt"])
+        self.assertNotIn("X-Replayed", self.seen["prompt"])
+        self.assertNotIn("Delegation.", self.seen["prompt"])
+        self.assertIn(f"python3 {client} *", self.seen["spec"]["agent_bash"])
 
     def test_a_question_gets_only_the_answers_it_triggers(self):
-        done = self.init(["Mode : délégation ou assistance ?", "Quelle base de données ?"])
-        self.assertIn("R : Délégation.", self.seen["replies"])
-        self.assertIn("R : Regardez dans docs/.", self.seen["replies"])
-        self.assertNotIn("X-Rejoue", self.seen["replies"])
+        done = self.init(["Mode: delegation or assistance?", "Which database?"])
+        self.assertIn("Delegation.", self.seen["replies"])
+        self.assertIn("Look in docs/.", self.seen["replies"])
+        self.assertNotIn("X-Replayed", self.seen["replies"])
         self.assertEqual(done["interview"], {"questions": 2, "fetched": {}})
-        with open(os.path.join(done["out"], "entretien.md"), encoding="utf-8") as fh:
-            self.assertIn("I9, que seul le propriétaire détient : jamais demandé", fh.read())
-        self.assertIn("I9 jamais demandé", bench.load_results(self.results)[-1]["note"])
+        with open(os.path.join(done["out"], "note.md"), encoding="utf-8") as fh:
+            self.assertIn("I9, which only the owner holds: never asked", fh.read())
+        self.assertTrue(os.path.isfile(os.path.join(done["out"], "interview.md")))
+        self.assertIn("I9 never asked", bench.load_results(self.results)[-1]["note"])
 
     def test_asking_for_what_is_written_nowhere_fetches_the_fact(self):
-        done = self.init(["Mode ?", "Qu'est-ce que vous redites à chaque revue ?"])
-        self.assertIn("X-Rejoue", self.seen["replies"])
+        done = self.init(["Mode?", "What do you repeat at every review?"])
+        self.assertIn("X-Replayed", self.seen["replies"])
         self.assertEqual(done["interview"]["fetched"], {"I9": 2})
         with open(os.path.join(done["out"], "note.md"), encoding="utf-8") as fh:
-            self.assertIn("I9, que seul le propriétaire détient : demandé à la question 2", fh.read())
-        self.assertIn("entretien.json", os.listdir(done["out"]))
+            self.assertIn("I9, which only the owner holds: asked at question 2", fh.read())
+        self.assertIn("interview.json", os.listdir(done["out"]))
 
     def test_given_answers_keep_the_old_way(self):
         done = self.init([], answers="given")
-        self.assertIn("X-Rejoue", self.seen["prompt"])
-        self.assertNotIn("proprietaire.py", self.seen["prompt"])
+        self.assertIn("X-Replayed", self.seen["prompt"])
+        self.assertIsNone(re.search(r"python3 (\S+\.py) \"", self.seen["prompt"]))
         self.assertIsNone(done["interview"])
 
     def test_asked_without_an_owner_file_is_refused(self):
@@ -602,7 +617,7 @@ class AskedOwnerTests(BenchCase):
             self.init([], answers="asked")
 
 
-@unittest.skipUnless(os.environ.get("HARNESS_SELFTEST"), "HARNESS_SELFTEST=1 : rejoue les tâches des vraies fixtures (go, npm)")
+@unittest.skipUnless(os.environ.get("HARNESS_SELFTEST"), "HARNESS_SELFTEST=1: replays the tasks of the real fixtures (go, npm)")
 class RealFixtureTaskTests(unittest.TestCase):
     def test_every_task_of_every_fixture_is_well_posed(self):
         for name in sorted(os.listdir(fixtures.FIXTURES_ROOT)):
