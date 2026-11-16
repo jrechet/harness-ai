@@ -25,9 +25,13 @@ class Refused(ValueError):
     """The request cannot be served as is; the message says what to fix."""
 
 
+# A git command only hangs this long on a stalled disk; a CI runner on spinning disks under load needs
+# far more than a laptop (a plain commit took over 30 s on the first CI run, 2026-11-16).
+GIT_TIMEOUT = 120
+
 def _git(repo: str, *args: str) -> tuple[int, bytes]:
     try:
-        out = subprocess.run(["git", "-C", repo, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", *args], capture_output=True, timeout=20)
+        out = subprocess.run(["git", "-C", repo, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", *args], capture_output=True, timeout=GIT_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise Refused(f"git {args[0]} did not answer in {repo}: {exc}") from exc
     return out.returncode, out.stdout
