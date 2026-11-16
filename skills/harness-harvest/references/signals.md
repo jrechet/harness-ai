@@ -1,46 +1,48 @@
-# Catalogue des signaux
+# Signal catalogue
 
-Ce qu'on cherche, indépendamment de la source. Chaque adaptateur (GitHub d'abord) ne fait que produire ces signaux dans le schéma commun ci-dessous. Un signal qui n'est pas dans ce catalogue n'est pas collecté : on ajoute d'abord ici, puis dans l'adaptateur.
+What we look for, whatever the source. Each adapter (GitHub first) only produces these signals in the common schema below. A signal that is not in this catalogue is not collected: add it here first, then in the adapter.
 
-## Les signaux, du plus fort au plus faible
+The codes S1–S7 are for the files and the JSON. To the user, always say what the signal is, in the words of the "Signal" column.
 
-| Id | Signal | Ce qu'il dit | Force | Verdict typique |
+## The signals, strongest first
+
+| Id | Signal | What it says | Strength | Typical verdict |
 |---|---|---|---|---|
-| **S1** | Règle explicite : commentaire de review commençant par `rule:` | Quelqu'un a déjà formulé la règle et pointe l'incident | Forte, suffit seul | PUSH_DOWN si outil possible, sinon ADD |
-| **S2** | Correction après coup : commit de fix sur des fichiers touchés par une PR d'agent dans les 48 h suivant son merge ; revert ; PR d'agent fermée sans merge ; rafale de commits « fix review » | Il manquait une information ou une règle à l'agent | Forte si répétée, moyenne isolée | ADD ou ASK |
-| **S3** | Correction récurrente : le même motif de commentaire de review (même reviewer ou même zone) au moins deux fois dans la fenêtre | Une règle implicite de l'équipe non écrite | Moyenne | ADD avec les liens, ou PUSH_DOWN |
-| **S4** | Garde-fou ignoré : un check CI qui échoue de façon répétée sur des PRs d'agent | La règle existe en L3 mais l'agent ne la connaît pas ou la découvre trop tard | Moyenne | SHORTEN ou ADD d'une ligne « Vérifiée par » bien placée |
-| **S5** | Règle orpheline : une règle de AGENTS.md sans aucune évidence liée dans la fenêtre | Soit elle est si bien respectée qu'on peut la raccourcir, soit elle est morte | Faible seule, forte après deux harvests | SHORTEN si garde-fou, REMOVE sinon après deux harvests |
-| **S6** | Tâche récurrente : au moins trois PRs du même type dans la fenêtre (titre, label, fichiers) | Un contrat de tâche manque | Moyenne | CONTRACT |
-| **S7** | Information non découvrable demandée : l'agent pose la même question ou fait la même hypothèse dans plusieurs PRs | AGENTS.md ne dit pas une chose qu'on ne peut pas déduire du code | Moyenne | ADD dans « Ce que fait ce repo » ou « Ce qui change → ce qu'on lance » |
+| **S1** | Explicit rule: a review comment starting with `rule:` | Someone already stated the rule and points to the incident | Strong, enough alone | PUSH_DOWN if a tool is possible, otherwise ADD |
+| **S2** | After-the-fact fix: a fix commit on files touched by an agent PR within 48 h after its merge; a revert; an agent PR closed without merge; a burst of "fix review" commits | The agent lacked a piece of information or a rule | Strong if repeated, medium alone | ADD or ASK |
+| **S3** | Recurring correction: the same review comment pattern (same reviewer or same area) at least twice in the window | An implicit, unwritten team rule | Medium | ADD with the links, or PUSH_DOWN |
+| **S4** | Ignored guardrail: a CI check that fails repeatedly on agent PRs | The rule exists in L3 but the agent does not know it or discovers it too late | Medium | SHORTEN or ADD of a well-placed "Enforced by" line |
+| **S5** | Orphan rule: an AGENTS.md rule with no linked evidence in the window | Either it is so well respected it can be shortened, or it is dead | Weak alone, strong after two harvests | SHORTEN if guardrail, REMOVE otherwise after two harvests |
+| **S6** | Recurring task: at least three PRs of the same type in the window (title, label, files) | A task contract is missing | Medium | CONTRACT |
+| **S7** | Non-discoverable information asked for: the agent asks the same question or makes the same assumption in several PRs | AGENTS.md does not say something that cannot be deduced from the code | Medium | ADD under "What this repo does" or "What changes → what to run" |
 
-Ce qu'on ne cherche **pas** : des conventions devinées dans le diff sans incident, le style, les préférences exprimées une fois sans `rule:`.
+What we do **not** look for: conventions guessed from the diff without an incident, style, preferences expressed once without `rule:`.
 
-## Schéma d'évidence commun
+## Common evidence schema
 
-Chaque adaptateur produit un tableau JSON de ce type, une entrée par évidence :
+Each adapter produces a JSON array of this type, one entry per piece of evidence:
 
 ```json
 {
   "id": "<source>-<n>",
   "signal": "S1|S2|S3|S4|S5|S6|S7",
   "source": "github|gitlab|jira|...",
-  "url": "<lien permanent vers la preuve>",
-  "date": "<AAAA-MM-JJ>",
+  "url": "<permanent link to the evidence>",
+  "date": "<YYYY-MM-DD>",
   "author": "<login>",
   "agent_authored": true,
-  "files": ["<chemin>"],
-  "text": "<texte brut utile : le commentaire, le titre de PR, le nom du check>",
-  "related_rule": "<extrait de la règle de AGENTS.md concernée, ou null>",
-  "group_key": "<clé de regroupement proposée par l'adaptateur : zone, reviewer+motif, type de tâche>"
+  "files": ["<path>"],
+  "text": "<useful raw text: the comment, the PR title, the check name>",
+  "related_rule": "<excerpt of the AGENTS.md rule concerned, or null>",
+  "group_key": "<grouping key proposed by the adapter: area, reviewer+pattern, task type>"
 }
 ```
 
-Le script ne juge pas : il ne décide ni du verdict ni de la formulation. Il ne fait que repérer, dater, lier et proposer une clé de regroupement.
+The script does not judge: it decides neither the verdict nor the wording. It only spots, dates, links and proposes a grouping key.
 
-## Adaptateur GitHub — `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" harvest github`
+## GitHub adapter — `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" harvest github`
 
-Python 3 standard, sans dépendance ; transport `gh api` (déjà authentifié sur un poste de dev et dans les sessions Claude Code).
+Standard Python 3, no dependency; `gh api` transport (already authenticated on a dev machine and in Claude Code sessions).
 
 ```
 python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" harvest github --repo owner/repo --agents-md AGENTS.md \
@@ -48,26 +50,26 @@ python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" harvest github --repo owner/repo 
     --agent-trailer "Co-Authored-By: Claude" --summary > .harness/harvest.json
 ```
 
-- Fenêtre : `--since AAAA-MM-JJ`, sinon le marqueur `<!-- harvest: last=… -->` de `--agents-md`, sinon 30 jours (annoncé sur stderr).
-- Marqueurs d'agent, tous répétables : `--agent-login`, `--agent-branch-prefix`, `--agent-label`, `--agent-trailer`. Un login en `[bot]` est toujours un agent.
-- Robots de dépendances (`--automation-branch-prefix`, défaut `renovate/` et `dependabot/`) : ni agent, ni tâche récurrente, et leurs merges ne sont pas des corrections. Un squash-merge d'une autre PR ne compte comme correction (S2) que si cette PR est un fix/revert ou cite la PR d'agent. Les commentaires de l'auteur sur sa propre PR ne comptent jamais en S3.
-- Seuils exposés : `--fix-window-hours 48`, `--min-recurrence 2` (S3, S4, S7), `--min-task-count 3` (S6), `--burst-commits 3`, `--burst-minutes 60`, `--max-prs 200`.
-- Sortie : sur stdout, un objet `{source, repo, since, default_branch, prs_scanned, agent_prs, counts, errors, evidence}` où `evidence` est le tableau du schéma ci-dessus. Erreurs sur stderr ; code de retour 2 si une source n'a pas pu être lue, les autres évidences sont quand même produites.
-- Récurrence (S3, S6, S7) : regroupement glouton par similarité de Jaccard sur les mots-clés, seuils 0,6 / 0,6 / 0,5 en constantes du script. `group_key` porte les mots communs du groupe.
-- Tests : `python3 -m unittest discover -s cli/tests`, sans réseau, sur un dépôt factice qui exerce les sept signaux.
+- Window: `--since YYYY-MM-DD`, otherwise the `<!-- harvest: last=… -->` marker of `--agents-md`, otherwise 30 days (announced on stderr).
+- Agent markers, all repeatable: `--agent-login`, `--agent-branch-prefix`, `--agent-label`, `--agent-trailer`. A login ending in `[bot]` is always an agent.
+- Dependency bots (`--automation-branch-prefix`, default `renovate/` and `dependabot/`): neither agent nor recurring task, and their merges are not fixes. A squash-merge of another PR only counts as a fix (S2) if that PR is a fix/revert or cites the agent PR. The author's comments on their own PR never count as S3.
+- Exposed thresholds: `--fix-window-hours 48`, `--min-recurrence 2` (S3, S4, S7), `--min-task-count 3` (S6), `--burst-commits 3`, `--burst-minutes 60`, `--max-prs 200`.
+- Output: on stdout, an object `{source, repo, since, default_branch, prs_scanned, agent_prs, counts, errors, evidence}` where `evidence` is the array of the schema above. Errors on stderr; exit code 2 if a source could not be read, the other evidence is still produced.
+- Recurrence (S3, S6, S7): greedy grouping by Jaccard similarity on keywords, thresholds 0.6 / 0.6 / 0.5 as constants of the script. `group_key` carries the words common to the group.
+- Tests: `python3 -m unittest discover -s cli/tests`, without network, on a fake repository that exercises the seven signals.
 
-| Signal | Où le trouver | Règle de détection |
+| Signal | Where to find it | Detection rule |
 |---|---|---|
-| S1 | Commentaires de review et de PR | Corps qui commence par `rule:` (insensible à la casse, espaces tolérés) |
-| S2 | Commits sur la branche par défaut, PRs | Commit non-agent touchant un fichier d'une PR d'agent fusionnée moins de 48 h avant ; commit dont le message commence par `Revert` d'une PR d'agent ; PR d'agent fermée sans merge ; au moins trois commits en moins d'une heure après une review sur une PR d'agent |
-| S3 | Commentaires de review | Même auteur et texte normalisé similaire (mêmes mots-clés après suppression du bruit) sur au moins deux PRs |
-| S4 | Checks des PRs d'agent | Même nom de check en échec sur au moins deux PRs d'agent distinctes |
-| S5 | AGENTS.md courant | Pour chaque puce du fichier (hors sections Maintenance, Tâches, Commandes ; lignes de continuation jointes), aucune évidence S1–S4 dont `related_rule` la pointe ; le lien se fait par mots-clés et par fichiers cités |
-| S6 | Titres, labels et fichiers des PRs | Au moins trois PRs dont le titre normalisé ou le label est identique, ou dont les fichiers touchés se recouvrent fortement |
-| S7 | Descriptions de PRs d'agent | Phrases interrogatives ou d'hypothèse (« j'ai supposé », « je n'ai pas trouvé ») sur le même sujet dans au moins deux PRs |
+| S1 | Review and PR comments | Body that starts with `rule:` (case-insensitive, spaces tolerated) |
+| S2 | Commits on the default branch, PRs | Non-agent commit touching a file of an agent PR merged less than 48 h before; commit whose message starts with `Revert` of an agent PR; agent PR closed without merge; at least three commits within an hour after a review on an agent PR |
+| S3 | Review comments | Same author and similar normalised text (same keywords after removing noise) on at least two PRs |
+| S4 | Checks of agent PRs | Same check name failing on at least two distinct agent PRs |
+| S5 | Current AGENTS.md | For each bullet of the file (outside the Maintaining, Tasks, Commands sections, in French or English; continuation lines joined), no S1–S4 evidence whose `related_rule` points to it; the link is made by keywords and by cited files |
+| S6 | PR titles, labels and files | At least three PRs whose normalised title or label is identical, or whose touched files overlap strongly |
+| S7 | Agent PR descriptions | Question or assumption sentences ("I assumed", "I could not find", or the French « j'ai supposé », « je n'ai pas trouvé ») on the same topic in at least two PRs |
 
-Les seuils (48 h, deux, trois) sont des défauts à exposer en options du script, pas des constantes.
+The thresholds (48 h, two, three) are defaults to expose as script options, not constants.
 
-## Adaptateurs suivants
-- **GitLab** : mêmes signaux, mêmes seuils ; les notes de MR remplacent les commentaires de review.
-- **Jira / Linear** : ne produit que S6 et S7 (types de tâches récurrentes, questions répétées dans les tickets). Un ticket ne produit jamais S1 à S5.
+## Next adapters
+- **GitLab**: same signals, same thresholds; MR notes replace review comments.
+- **Jira / Linear**: produces only S6 and S7 (recurring task types, repeated questions in tickets). A ticket never produces S1 to S5.

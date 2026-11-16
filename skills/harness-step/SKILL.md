@@ -1,82 +1,98 @@
 ---
 name: harness-step
-description: Fait avancer l'instrumentation IA d'un dépôt d'un pas, et d'un seul — lit l'état mesuré par `harness status`, demande une fois jusqu'où l'utilisateur veut aller, propose le plus petit pas vers ce palier avec ce qu'il coûte et ce qu'il change, le fait après accord, montre l'avant et l'après, puis s'arrête. Utiliser quand l'utilisateur demande « où j'en suis », « c'est quoi la suite », « le prochain pas », « continue le harness », « monte d'un palier », dit qu'il veut s'arrêter à un palier, ou revient après un harness-init — même sans nommer le skill. Ne pas utiliser pour un audit complet (harness-audit) ni pour collecter les retours de review (harness-harvest) : ce skill les appelle quand le pas le demande.
+description: Moves a repository's AI setup forward by one step, and one only — shows where the repository stands (measured by `harness status --map`), asks once, with context, how far the user wants to go, proposes the smallest step towards that level with what it costs and changes, does it after agreement, shows before and after, then stops; when the target is reached, says so and offers the next level as a plain choice. Use when the user asks "where am I", "what's next", "the next step", "continue the harness", "go up a level", says they want to stop at a level, or comes back after harness-init — also in French: « où j'en suis », « c'est quoi la suite », « le prochain pas », « continue le harness », « monte d'un palier » — even without naming the skill. Do not use for a full audit (harness-audit) or to collect review feedback (harness-harvest): this skill calls them when the step needs it.
 ---
 
-# Harness step — un pas à la fois
+# Harness step — one step at a time
 
-Mettre en place un harness n'est pas un chantier qu'on subit d'un bloc. C'est une suite de petits pas dont chacun se voit, et dont on peut descendre quand on veut. Ce skill en fait **un** par invocation.
+Setting up a harness is not a project you undergo in one block. It is a series of small steps, each visible, and you can get off whenever you want. This skill takes **one** per invocation.
 
-Trois règles qui ne se négocient pas :
-- **Un palier est un endroit où l'on peut rester.** L'utilisateur dit jusqu'où il va. Au-delà, on ne propose rien, on ne suggère rien, on ne laisse rien d'à moitié posé.
-- **Un pas, puis on s'arrête.** Pas de « pendant que j'y suis ». Le pas suivant est une autre invocation, décidée par l'utilisateur.
-- **Chaque pas montre son avant et son après**, mesurés par le CLI, pas racontés.
+Three rules that are not negotiable:
+- **A level is a place where one can stay.** The user says how far they go. Beyond that, nothing is set up and nothing is left half done. When the target is reached, the next level is offered once, as a plain choice, never pushed.
+- **One step, then stop.** No "while I'm at it". The next step is another invocation, decided by the user.
+- **Each step shows its before and after**, measured by the CLI, not told.
 
-## Déroulé
+## Guide the user
 
-### 1. Mesurer
-`python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status <repo>`. Garde la sortie : c'est l'« avant ».
+**Show the map first.** Before any action or question, run `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status --map <repo>` and show, in at most six short lines plus the map it prints:
+- **Goal**: move this repository's AI setup forward by one small step, towards the level you choose.
+- **Plan**: 1. see where we are · 2. choose how far to go (once) · 3. pick the step · 4. do it after your OK · 5. measure again.
+- **Where we are**: the map (levels in plain words, "you are here", target, what the next level needs).
+- **Where we are going**: one step closer to the target, or the target confirmed as reached.
+- **Now**: what you do next, and whether you will ask something.
 
-### 2. L'objectif, demandé une seule fois
-Si `status` dit « aucun palier visé », pose **une** question avec ce tableau, puis écris la réponse avec `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" target <n> <repo>` :
+**Ask with context.** Say why you ask and what the answer changes; give the options in plain words with what each means; give the default and what happens if the user takes it. One decision per question.
 
-| Palier | Ce que ça apporte | Ce que ça demande |
+**Plain words.** The user never reads a check id (`L2.signal`), a signal code (S1–S5), or an undefined internal word. Say "a check that fails the build when the rule is broken", not "guardrail"; "collect what recent reviews taught", not "harvest". A level name comes with its phrase from the map the first time. Speak the language of the conversation; files written in the user's repository follow that repository's language.
+
+## Steps
+
+### 1. Measure
+`python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status --map <repo>` for the user, and `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status <repo>` for you (the detailed checks). Keep both: they are the "before".
+
+### 2. The target, asked once
+If the map says no target is chosen, ask **one** question, right after the map: "How far do you want to go? You can stop at any level; I will not propose anything beyond it." Then this table, then the default:
+
+| Level | What it brings you | What it asks of you |
 |---|---|---|
-| 1 Cadré | L'agent sait où il est et ce qu'il ne touche pas | Une demi-heure, quatre questions |
-| 2 Bouclé | Les remarques de review deviennent des règles | Une habitude : écrire `rule:` en review, et quelques semaines |
-| 3 Vérifié | Les règles obligatoires sont tenues par des outils, plus par du texte | Une CI, et du code de garde-fou règle par règle |
-| 4 Délégué | Des tâches entières partent et reviennent propres | Des contrats de tâche, et des PR d'agent à observer |
+| 1 Framed | The agent knows the project, its rules and what it must never touch | Half an hour, four questions |
+| 2 Looped | Review remarks become rules, so the same mistake is not made twice | A habit: write `rule:` in a review comment to propose a rule; and a few weeks |
+| 3 Verified | Mandatory rules are enforced by tools (tests, lint, CI), not just written | A CI, and some check code, rule by rule |
+| 4 Delegated | Whole tasks go to the agent and come back clean | Written procedures for those tasks, and agent changes to watch over time |
 
-Défaut proposé : le palier 1 pour un dépôt qui démarre, le palier courant plus un sinon. S'arrêter au palier 1 est un choix sain, pas un abandon : en assistance, il suffit souvent.
+Proposed default: level 1 for a repository that starts, the current level plus one otherwise; say which it is and what taking it means ("I set the target to 2; the next steps will only aim at that"). Stopping at level 1 is a sound choice, not a giving up: when a person reviews every change, it is often enough.
 
-Si un palier est déjà visé, ne repose pas la question.
+Write the answer with `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" target <n> <repo>`. If a target is already set, do not ask again.
 
-### 3. Objectif atteint : le dire, et s'arrêter
-Si `status` dit « objectif atteint », réponds-le en une phrase. Ne propose pas le palier suivant. La seule chose qu'on rappelle : ce qui est posé s'entretient, voir « Quand il n'y a plus de pas ».
+### 3. Target reached: say it, offer the next level once, let the user decide
+If the map says the target is reached, say so in one sentence. Then offer the next level **once**, as a plain choice: what it would bring, what it would ask (the table above), and two answers: "stay here" (the default: nothing changes, what is in place still needs upkeep, see "When there is no step left") or "aim for level n+1" (you then run `harness target <n+1>` and pick the first step). Do not argue for it; if the user says nothing or stays, stop. At level 4, there is no next level: say so.
 
-### 4. Choisir le pas
-Le pas est la **première vérification en échec** du premier palier non atteint, dans l'ordre de `status`. Une vérification que seul le temps fait passer, un signal de revue ou des PR d'agent observées, `status` la marque « en attente » : elle n'arrête pas la montée. Si un palier plus haut est visé, le pas est le premier des siens, et le palier en attente comptera quand le temps aura fait son œuvre. `references/pas.md` dit, pour chaque vérification, ce qu'est le pas, ce qu'il coûte et à quoi on reconnaît qu'il est fait. Une « référence sans cible » signalée par `status` passe avant tout : c'est une promesse non tenue de ce qui est déjà posé.
+### 4. Pick the step
+The step is the **first failing check** of the first level not reached, in the order of `status`. A check that only time makes pass, a review signal or observed agent changes, is marked "waiting" by `status`: it does not stop the climb. If a higher level is targeted, the step is the first of its own, and the waiting level will count once time has done its work; tell the user so in plain words. `references/steps.md` says, for each check, what the step is, what it costs and how you know it is done. A "reference without a target" reported by `status` (the instruction file cites something that cannot be found) comes before anything else: it is a broken promise of what is already in place.
 
-Au palier 0, le pas est harness-init : passe-lui la main.
+At level 0, the step is harness-init: hand over to it.
 
-### 5. Annoncer avant de faire
-En quatre lignes : ce que tu vas faire, ce que ça change pour l'agent, ce que ça touche (fichiers, CI, habitudes de l'équipe), ce qu'on verra après. Attends l'accord, sauf si la demande disait déjà d'y aller. Un pas qui demande une information que seul le propriétaire détient commence par la question.
+### 5. Announce before doing
+In four lines: what you will do, what it changes for the agent, what it touches (files, CI, team habits), what we will see afterwards. Wait for agreement, unless the request already said to go ahead. A step that needs information only the owner has starts with the question, asked with context.
 
-### 6. Faire ce pas, et lui seul
-Ne pose rien du pas suivant. Si le pas révèle un problème hors périmètre, note-le pour le compte rendu.
+### 6. Do this step, and only this one
+Set up nothing of the next step. If the step reveals a problem out of scope, note it for the report.
 
-### 7. Mesurer encore
-Relance `status`. Si la vérification visée n'a pas basculé, le pas n'est pas fait : dis pourquoi, ne maquille pas.
+### 7. Measure again
+Run `status --map` and `status` again. If the targeted check did not flip, the step is not done: say why, do not dress it up.
 
-### 8. Compte rendu, puis on s'arrête
-Toujours le même format :
-- **Le pas** : une phrase.
-- **Avant et après** : palier, vérifications passées sur le total du palier, la ligne qui a basculé.
-- **Ce que ça change pour l'agent** : une phrase concrète.
-- **Ce qui n'est pas prouvé** : voir « Ce que la mesure prouve ».
-- **Fichiers** touchés.
-- **Questions**, numérotées, avec le défaut proposé, s'il y en a.
-- **Le pas suivant possible**, en une ligne, seulement s'il est dans l'objectif. Sinon : « objectif atteint ».
+### 8. Report, then stop
+Always the same format:
+- **The map, updated**: the output of `status --map`, then one line: steps done in this run, where we are now.
+- **The step**: one sentence.
+- **Before and after**: level, checks passed out of the level's total, the line that flipped (in plain words).
+- **What it changes for the agent**: one concrete sentence.
+- **What is not proven**: see "What the measure proves".
+- **Files** touched.
+- **Questions**, numbered, each with why it is asked and the proposed default, if there are any.
+- **What comes next**, in one or two lines: the next step if it is within the target; otherwise "target reached", followed by the one-time offer of step 3 (what the next level brings and asks; staying is the default).
 
-## Ce que la mesure prouve, et ce qu'elle ne prouve pas
+## What the measure proves, and what it does not
 
-`status` mesure la **forme** du harness : des fichiers, des sections, des mentions. Un palier gagné dit que le mécanisme est en place, pas que les agents travaillent mieux. Ne laisse jamais l'utilisateur confondre les deux.
+`status` measures the **form** of the harness: files, sections, mentions. A level gained says the mechanism is in place, not that agents work better. Never let the user confuse the two.
 
-La preuve du fond vient d'ailleurs, et prend du temps :
-- **Les PR d'agent du dépôt.** harness-harvest compte les corrections après coup, les checks rouges, les questions répétées. C'est la tendance de ces nombres, d'un harvest à l'autre, qui dit si les agents travaillent mieux. Les paliers 2 et 4 s'appuient dessus : ils ne se gagnent pas en une séance.
-- **Le garde-fou qu'on a vu mordre.** Au palier 3, un garde-fou n'est compté que s'il a été vu rouge sur une violation.
+Proof of substance comes from elsewhere, and takes time:
+- **The repository's agent changes (PRs).** harness-harvest counts after-the-fact fixes, red checks, repeated questions. The trend of these numbers, from one collection to the next, says whether agents work better. Levels 2 and 4 rest on it: they are not won in one session.
+- **The check seen failing.** At level 3, a check only counts if it has been seen red on a violation.
 
-Dans le compte rendu, dis laquelle de ces preuves existe pour ce pas, ou qu'il n'y en a pas encore.
+In the report, say which of these proofs exists for this step, or that there is none yet.
 
-## Quand il n'y a plus de pas
+## When there is no step left
 
-Ce qui est posé vieillit : une règle reçoit un garde-fou, un contexte change, un nouveau modèle n'a plus besoin d'une consigne. Propose une **revue de pertinence** (harness-audit, section du même nom) dans deux cas seulement : le modèle utilisé par l'équipe a changé, ou six mois ont passé depuis la dernière. `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" rules <repo>` donne l'âge de chaque règle. La revue retire ; elle n'ajoute rien.
+What is in place ages: a rule gets an enforcing check, a context changes, a new model no longer needs an instruction. Propose a **relevance review** (harness-audit, section of the same name) in two cases only: the model the team uses has changed, or six months have passed since the last one. `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" rules <repo>` gives each rule's age. The review removes; it adds nothing.
 
-## Pièges fréquents
-- Enchaîner deux pas parce que le second est petit.
-- Proposer le palier suivant à quelqu'un qui a dit où il s'arrêtait.
-- Annoncer un palier gagné comme une preuve que les agents travaillent mieux.
-- Faire d'un pas du palier 2 ou 4 une affaire de fichiers : ces paliers se gagnent sur des PR réelles, dans le temps. Poser la section ne suffit pas, et il faut le dire.
-- S'arrêter sur ce qui attend le temps quand l'objectif est plus haut : l'utilisateur attendrait des semaines un garde-fou qu'on peut poser aujourd'hui.
-- Écrire une règle d'arrêt sans la confronter aux tâches déléguées : en délégation, un agent qui s'arrête n'a personne à qui demander, et la tâche ne revient jamais.
-- Créer la section « Tâches déléguées » avant le contrat qu'elle cite.
+## Common pitfalls
+- Chaining two steps because the second is small.
+- Pushing the next level on someone who said where they stop: offer it once, plainly, and take "stay" for an answer.
+- Stopping silently at "target reached": the user then has to ask "so, what now?". Say it, and offer the choice.
+- Asking for a target with a bare table, before showing where the repository stands.
+- Announcing a level gained as proof that agents work better.
+- Treating a level 2 or 4 step as a matter of files: these levels are won on real PRs, over time. Adding the section is not enough, and it must be said.
+- Stopping on what waits for time when the target is higher: the user would wait weeks for a check that can be set up today.
+- Writing a stop rule without testing it against the delegated tasks: in delegation, an agent that stops has nobody to ask, and the task never comes back.
+- Creating the "Delegated tasks" section before the procedure it cites.

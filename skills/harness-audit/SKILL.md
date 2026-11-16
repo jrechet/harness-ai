@@ -1,134 +1,115 @@
 ---
 name: harness-audit
-description: Audite l'instrumentation IA d'un dépôt ou d'un processus — agents, skills, AGENTS.md / CLAUDE.md / règles Cursor, scripts adossés, CLI, linters et tests d'architecture, GitHub Actions ou autre exécuteur distant — et vérifie que chaque responsabilité est au bon étage (jugement / procédure / logique locale / exécution distante). Produit un rapport à format fixe (Markdown + JSON) avec un verdict par élément et un plan de remédiation priorisé. Utiliser dès que l'utilisateur veut auditer, revoir, critiquer, fiabiliser, nettoyer ou « remettre à plat » des agents, skills, scripts, workflows ou un AGENTS.md (le sien ou celui d'un repo tiers), se demande si un skill fait trop de choses, si une règle devrait devenir un linter ou une commande CLI, si « on peut couper l'agent et que ça marche encore », ou si un fichier ou une ligne d'instructions sert encore depuis que les modèles ont changé — même sans employer le mot audit.
+description: Audits the AI setup of a repository or a process — agents, skills, AGENTS.md / CLAUDE.md / Cursor rules, backing scripts, CLI, linters and architecture tests, GitHub Actions or another remote runner — and checks that each responsibility sits at the right layer (judgement / procedure / local logic / remote execution). Produces a fixed-format report (Markdown + JSON) with one verdict per item and a prioritised remediation plan. Use as soon as the user wants to audit, review, critique, harden, clean up or "flatten out" agents, skills, scripts, workflows or an AGENTS.md (theirs or a third-party repo's), wonders whether a skill does too much, whether a rule should become a linter or a CLI command, whether "we can cut the agent and it still works", or whether a file or an instruction line still serves now that models have changed — also in French: « audite mon AGENTS.md », « revois mes skills », « est-ce que cette règle sert encore » — even without the word audit.
 ---
 
 # Harness audit
 
-Un harness est sain quand **l'agent n'est qu'un accélérateur** : si on le coupe, l'équipe peut encore faire tourner le processus avec le CLI et les workflows. Dès que du processus obligatoire ne vit plus que dans un prompt ou un SKILL.md, il peut être sauté, mal interprété ou halluciné. Le but de cet audit est de trouver ces fuites et de dire précisément où chaque morceau doit aller.
+A harness is healthy when **the agent is only an accelerator**: if you cut it, the team can still run the process with the CLI and the workflows. As soon as mandatory process lives only in a prompt or a SKILL.md, it can be skipped, misread or hallucinated. The goal of this audit is to find these leaks and say precisely where each piece must go.
 
-## Le modèle à quatre couches
+## Guide the user
 
-Classe chaque responsabilité observée dans une couche. Une responsabilité au mauvais étage est un défaut, même si « ça marche aujourd'hui ».
+**Show the map first.** Before any action or question, run `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status --map --no-write <repo>` and show, in at most six short lines plus the map:
+- **Goal**: find what in your AI setup is only written down when it should be enforced, what no longer serves, and say where each piece should go.
+- **Plan**: 1. list everything · 2. "cut the agent" test · 3. judge each item · 4. report and remediation plan. Nothing is changed during the audit.
+- **Where we are**: the map, and what is in scope (folders, files).
+- **Where we are going**: a report with one verdict per item and an ordered plan; `.harness/audit.json` written for `harness status`.
+- **Now**: what you read first, and whether you will ask something (a missing file, the scope).
 
-| Couche | Rôle | Porte-parole typique | Ce qui doit y être |
+**Ask with context.** Say why you ask and what the answer changes; give the options in plain words and the proposed default. One decision per question.
+
+**Plain words.** The report keeps its fixed sections, verdicts and JSON keys (they are compared from one audit to the next), but each verdict and layer is explained in plain words the first time it appears ("PUSH_DOWN: move it from written text into code that enforces it"). No undefined "guardrail" ("a test or CI check that enforces a rule"), no raw check id. Speak the language of the conversation.
+
+## The four-layer model
+
+Classify each observed responsibility in a layer. A responsibility at the wrong layer is a defect, even if "it works today".
+
+| Layer | Role | Typical carrier | What belongs there |
 |---|---|---|---|
-| **L1 Jugement** | Décider : quel type de release, est-ce prêt, que faire si ça casse, demander une validation | Agent (prompt, sous-agents) | Choix entre options, interprétation de retours *structurés*, dialogue humain, points d'arrêt |
-| **L2 Procédure** | Raconter : quand appeler quoi, dans quel ordre, comment lire les résultats | Skill (SKILL.md, références) | Vocabulaire, séquence nominale, cas d'abandon, format attendu des retours |
-| **L3 Logique locale** | Garantir : pré-conditions, calculs, transformations, idempotence | CLI testé (sous-commandes), ou script si vraiment isolé | Tout ce qui est obligatoire, vérifiable, reproductible sans IA |
-| **L4 Exécution distante** | Agir avec les droits : build, tag, publish, deploy | GitHub Actions / pipeline / API | Ce qui touche des ressources partagées, auditées, avec secrets |
+| **L1 Judgement** | Decide: which kind of release, is it ready, what to do if it breaks, ask for approval | Agent (prompt, sub-agents) | Choices between options, interpretation of *structured* feedback, human dialogue, stop points |
+| **L2 Procedure** | Tell: when to call what, in which order, how to read the results | Skill (SKILL.md, references) | Vocabulary, nominal sequence, abort cases, expected format of feedback |
+| **L3 Local logic** | Guarantee: preconditions, computations, transformations, idempotence | Tested CLI (subcommands), or a script if truly isolated | Everything mandatory, checkable, reproducible without AI |
+| **L4 Remote execution** | Act with rights: build, tag, publish, deploy | GitHub Actions / pipeline / API | What touches shared, audited resources, with secrets |
 
-Règles de gravité qui en découlent :
-- Une **pré-condition** racontée en L2 au lieu d'être un `exit 1` en L3 → défaut P1 (l'agent peut passer outre).
-- Une **action L4** déclenchable sans passer par L3 (l'agent appelle l'API directement) → P1 (pas de garde-fou, pas de dry-run uniforme).
-- De la **logique L3 dupliquée** dans plusieurs scripts par skill → P2 (CLI implicite non testé).
-- Un **retour non structuré** (l'agent lit des logs) là où L1 doit décider → P2 (succès hallucinés).
-- Du **jugement L1 codé en dur** dans un script (« si le ticket contient X alors… ») → P3 sauf si ça bloque un cas réel.
+Severity rules that follow:
+- A **precondition** told in L2 instead of being an `exit 1` in L3 → P1 defect (the agent can bypass it).
+- An **L4 action** that can be triggered without going through L3 (the agent calls the API directly) → P1 (no guardrail, no uniform dry-run).
+- **L3 logic duplicated** across several per-skill scripts → P2 (implicit, untested CLI).
+- **Unstructured feedback** (the agent reads logs) where L1 must decide → P2 (hallucinated successes).
+- **L1 judgement hard-coded** in a script ("if the ticket contains X then…") → P3 unless it blocks a real case.
 
-## Déroulé
+## Steps
 
-### 1. Inventaire — ne rien juger avant d'avoir tout vu
-Liste exhaustivement : agents (définitions, prompts système, sous-agents), fichiers d'instructions (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `copilot-instructions.md`, et leurs `@includes` ou équivalents chargés automatiquement), skills (SKILL.md + références + `scripts/`), scripts adossés (`.mjs`, `.sh`, `.py`), commandes CLI existantes, garde-fous L3 (linters custom, Checkstyle, ArchUnit, scripts de check, hooks, templates de PR), workflows (`.github/workflows/*.yml`, inputs, secrets, `workflow_dispatch`), le dossier `.harness/` s'il existe (dernier état, dernier harvest, dernier audit : un signal collecté sans suite est un constat), et le ou les contrats/documents de process s'il y en a. Pour chaque élément, note : chemin, couche *déclarée* (où il est rangé), couche *réelle* (ce qu'il fait vraiment), qui l'appelle, ce qu'il appelle.
+### 1. Inventory — judge nothing before seeing everything
+List exhaustively: agents (definitions, system prompts, sub-agents), instruction files (`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `copilot-instructions.md`, and their `@includes` or equivalents loaded automatically), skills (SKILL.md + references + `scripts/`), backing scripts (`.mjs`, `.sh`, `.py`), existing CLI commands, L3 guardrails (custom linters, Checkstyle, ArchUnit, check scripts, hooks, PR templates), workflows (`.github/workflows/*.yml`, inputs, secrets, `workflow_dispatch`), the `.harness/` folder if it exists (last state, last harvest, last audit: a signal collected and never acted on is a finding), and the process contracts or documents if any. For each item, note: path, *declared* layer (where it is filed), *actual* layer (what it really does), who calls it, what it calls.
 
-Construis le graphe d'appels avant toute analyse. Si un élément n'a aucun appelant, c'est déjà une information (candidat BLOCK ou MERGE).
+Build the call graph before any analysis. If an item has no caller, that is already information (candidate BLOCK or MERGE).
 
-Si des fichiers manquent (un script référencé mais absent, un workflow nommé dans un skill mais introuvable), demande-les plutôt que de supposer ; l'absence elle-même est un constat à reporter.
+If files are missing (a script referenced but absent, a workflow named in a skill but not found), ask for them rather than assume; the absence itself is a finding to report.
 
-### 2. Le test « coupe l'agent »
-Avant le détail, réponds à une question globale : *si on supprime tous les agents et skills, un humain pressé ou un cron peut-il exécuter le processus de bout en bout avec le CLI + les workflows ?* Parcours le processus nominal étape par étape et note chaque étape qui n'existe **que** dans un prompt. Ce parcours alimente directement le score de santé et la section « Fuites de processus » du rapport.
+### 2. The "cut the agent" test
+Before the details, answer one global question: *if we delete all agents and skills, can a hurried human or a cron run the process end to end with the CLI + workflows?* Walk the nominal process step by step and note each step that exists **only** in a prompt. This walk feeds the health score and the "Leaks" section of the report directly.
 
-### 3. Analyse élément par élément
-Pour chaque élément, pose dans l'ordre :
+### 3. Item-by-item analysis
+For each item, ask in order:
 
-1. **Vérité du process** : y a-t-il une étape obligatoire ici qui n'est pas encodée en L3/L4 ?
-2. **Pré-conditions** : sont-elles vérifiées par du code (sortie non nulle, message typé) ou racontées ?
-3. **Retours** : la sortie est-elle structurée (JSON/exit codes/URL du run/artefacts/prochaine action possible) ou un texte libre à interpréter ?
-4. **Dry-run** : peut-on obtenir le plan sans exécuter ? Pour toute action L4 irréversible (tag, publish, deploy prod), existe-t-il un point d'arrêt humain entre plan et exécution ?
-5. **Duplication** : cette logique existe-t-elle ailleurs (autre script, CLI, workflow) ?
-6. **Testabilité** : la logique L3 a-t-elle des tests ? Peut-on l'exécuter hors agent ?
-7. **Droits** : les secrets et permissions sont-ils tenus en L4 uniquement ?
+1. **Process truth**: is there a mandatory step here that is not encoded in L3/L4?
+2. **Preconditions**: are they checked by code (non-zero exit, typed message) or told?
+3. **Feedback**: is the output structured (JSON / exit codes / run URL / artifacts / possible next action) or free text to interpret?
+4. **Dry-run**: can you get the plan without executing? For any irreversible L4 action (tag, publish, prod deploy), is there a human stop point between plan and execution?
+5. **Duplication**: does this logic exist elsewhere (another script, CLI, workflow)?
+6. **Testability**: does the L3 logic have tests? Can it run outside the agent?
+7. **Rights**: are secrets and permissions held in L4 only?
 
 ### 4. Verdict
-Attribue exactement un verdict par élément :
+Give exactly one verdict per item:
 
-| Verdict | Sens | Exemple |
+| Verdict | Meaning | Example |
 |---|---|---|
-| **KEEP** | Bonne couche, bon périmètre | Skill qui décrit la séquence et pointe vers `release plan` / `release run` |
-| **INLINE** | Trop petit pour exister seul, à absorber dans son appelant | Script de 10 lignes qui formate un argument avant d'appeler le CLI |
-| **PUSH_DOWN** | Descend d'une couche (L2→L3, L3→L4) | Vérification « develop est vert » écrite dans le SKILL.md → sous-commande CLI avec `exit 1` |
-| **PROMOTE** | Monte d'une couche (L3→L2, L2→L1) | Script qui décide seul du type de release → décision rendue à l'agent, le script n'expose que les options |
-| **MERGE** | Fusionner avec un autre élément (doublon) | Trois `.mjs` qui appellent `gh workflow run` avec des variations → une seule sous-commande |
-| **SPLIT** | Mélange plusieurs couches, à séparer | Skill qui contient de la procédure *et* du code de calcul de version |
-| **BLOCK** | Dangereux ou mort : à retirer ou neutraliser avant tout | Agent qui peut déclencher le deploy prod sans dry-run ni validation ; script jamais appelé |
-| **REMOVE** | Instruction qui ne change plus ce que fait l'agent, ou qui le dégrade : à retirer, avec son motif | Un CLAUDE.md généré qui paraphrase l'arborescence ; une consigne écrite pour contourner une limite d'outil disparue |
+| **KEEP** | Right layer, right scope | Skill that describes the sequence and points to `release plan` / `release run` |
+| **INLINE** | Too small to exist alone, to absorb into its caller | 10-line script that formats an argument before calling the CLI |
+| **PUSH_DOWN** | Goes down one layer (L2→L3, L3→L4) | "develop is green" check written in the SKILL.md → CLI subcommand with `exit 1` |
+| **PROMOTE** | Goes up one layer (L3→L2, L2→L1) | Script that decides the release type alone → decision given back to the agent, the script only exposes the options |
+| **MERGE** | Merge with another item (duplicate) | Three `.mjs` that call `gh workflow run` with variations → one subcommand |
+| **SPLIT** | Mixes several layers, to separate | Skill that contains procedure *and* version computation code |
+| **BLOCK** | Dangerous or dead: remove or neutralise before anything else | Agent that can trigger the prod deploy without dry-run or approval; script never called |
+| **REMOVE** | Instruction that no longer changes what the agent does, or degrades it: to remove, with its reason | A generated CLAUDE.md that paraphrases the tree; an instruction written to work around a tool limit that is gone |
 
-Attribue une priorité : **P1** = risque de release/deploy incorrect ou non maîtrisé, **P2** = fragilité ou duplication qui finira par casser, **P3** = hygiène.
+Give a priority: **P1** = risk of an incorrect or uncontrolled release/deploy, **P2** = fragility or duplication that will end up breaking, **P3** = hygiene.
 
-BLOCK vise un élément qui agit (script, agent, workflow). REMOVE vise du texte d'instructions, un fichier entier ou une ligne : voir « Revue de pertinence ».
+BLOCK targets an item that acts (script, agent, workflow). REMOVE targets instruction text, a whole file or a line: see "Relevance review".
 
-### 5. Plan de remédiation
-Ordonne par priorité puis par dépendance (on crée la sous-commande CLI *avant* de supprimer les scripts qui la dupliquent). Chaque item : verdict, élément, action concrète (fichier à créer/modifier/supprimer), critère de vérification (comment on saura que c'est fait), et un point d'approbation humaine explicite pour tout BLOCK ou toute suppression. Ne modifie rien toi-même pendant l'audit : le rapport est l'entrée d'une étape de remédiation séparée, item par item.
+### 5. Remediation plan
+Order by priority then by dependency (create the CLI subcommand *before* deleting the scripts that duplicate it). Each item: verdict, item, concrete action (file to create/modify/delete), check criterion (how we will know it is done), and an explicit human approval point for any BLOCK or deletion. Change nothing yourself during the audit: the report is the input of a separate remediation step, item by item.
 
-## Cas particulier : auditer un AGENTS.md / CLAUDE.md
+## Instruction files and relevance review
 
-Un fichier d'instructions de repo est un élément L2 pur. Les mêmes questions s'appliquent, avec quelques spécificités :
+An AGENTS.md / CLAUDE.md is a pure L2 item, audited with its own questions (told rule vs enforced rule, context cost, justification, maintenance, what is missing). And every instruction line goes through the relevance review: does it still change what the agent does? Both are in `references/instruction-files.md`: read it whenever an instruction file is in scope, or when the user asks what no longer serves.
 
-- **Règle racontée vs règle vérifiée.** Pour chaque règle obligatoire (« jamais d'injection par champ », « pas de couleur hors tokens », « toute route a un test d'autorisation »), cherche le garde-fou L3 correspondant : règle eslint/stylelint custom, Checkstyle, ArchUnit, script de check en PR gate, hook, ou job planifié pour une règle de processus (dérive entre branches, PR d'agent en suspens). Un garde-fou ne compte que s'il **bloque** : ouvre le workflow. Un job en `continue-on-error`, un filtre de chemins qui ne le déclenche pas, un hook local, un job que le fichier cite mais qui n'existe plus ne garantissent rien, et la règle redevient une fuite. Une règle avec garde-fou est saine et peut même être raccourcie dans le fichier ; une règle sans garde-fou est une fuite à reporter dans la section « Règles racontées sans vérification » — verdict PUSH_DOWN avec l'outil cible nommé.
-- **Coût de contexte.** Compte les lignes réellement chargées par session (fichier + `@includes`). Sépare instruction (ce qui change le comportement) et référence (commandes, structure des modules, troubleshooting). La référence doit être déportée dans des fichiers chargés à la demande ou des skills ; signale en P3 un fichier dont plus de la moitié est de la référence, en P2 s'il dépasse largement ce qu'un modèle lit avec attention (ordre de grandeur : plusieurs centaines de lignes).
-- **Pertinence.** Chaque ligne est passée à la revue de pertinence ci-dessous : ce qui ne change plus ce que fait l'agent se retire. `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" fresh <repo>` en donne l'entrée mesurable pour les skills et les agents : ceux qui citent un fichier disparu, ceux dont les fichiers cités ont changé depuis, ceux que personne n'a touchés depuis six mois.
-- **Justification.** Note si les règles expliquent *pourquoi* (idéalement avec l'incident ou l'issue à l'origine) ou sont de simples MUST. C'est un point fort à mentionner explicitement, car c'est ce qui fait tenir la règle dans les cas non prévus.
-- **Maintenance.** Le fichier dit-il comment il évolue (ajout dans la même PR qu'un commentaire de review, suppression des règles obsolètes) ? Sans cette clause, il dérive.
-- **Cohérence interne.** Relis les exemples de code et les commandes : une erreur dans un exemple sera copiée fidèlement par l'agent. Vérifie que deux sections ne se contredisent pas.
-- **Ce qui manque et que le dépôt montre.** Un audit juge ce qui est écrit ; une ligne absente n'est pas un élément, et c'est ainsi qu'on rate la plus utile. `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" commands <repo>` liste les commandes que la CI lance et que rien ne laisse deviner (une enveloppe, des options, un script de livraison). Chaque candidate non écrite va dans `owner_questions`, avec sa source et la commande évidente qu'un agent lancerait à sa place : « la CI lance `make it` (ci.yml:14), AGENTS.md n'en dit rien : est-ce la commande à lancer plutôt que `mvn verify` ? ». C'est une question, pas un constat : seul le propriétaire sait si l'écart est voulu.
-- **Ce qui manque souvent** : le processus de travail (quand s'arrêter et demander, critère de « fini », quoi faire face à un test flaky, comment découper une tâche) et des procédures par type de tâche (contrats) plutôt qu'un seul monolithe. L'absence n'est pas un défaut si le repo vise l'assistance humaine ; c'en est un si l'objectif est de déléguer des tâches entières.
+## Report
 
-Dans ce mode, le test « coupe l'agent » devient : *si on supprime le fichier, qu'est-ce que la CI laisse passer qu'elle ne laissait pas passer avant ?* Chaque réponse est une règle à pousser en L3.
+Always produce both outputs, in this order: the Markdown (human reading) then the JSON (machine reading, to follow the evolution from one audit to the next). The exact format is in `references/report-template.md` — read it before writing the report and keep the sections and keys exactly, even if a section is empty (then write "None"). A stable format lets you share and compare two audits; an improvised section breaks that.
 
-## Revue de pertinence — ce qui ne sert plus
+The Markdown report opens with the map: the output of `status --map` after `.harness/audit.json` is written, and one line saying what the audit changes on it (the level that depended on an audit, the urgent items it found).
 
-Les modèles progressent, les dépôts changent : une ligne utile il y a deux ans peut être devenue un poids, ou une gêne. La question posée à chaque fichier et à chaque ligne d'instructions n'est pas « est-ce vrai » mais **« est-ce que ça change encore ce que fait l'agent »**. Cette revue se mène à chaque audit d'un fichier d'instructions, et seule quand l'utilisateur la demande (changement de modèle, fichier qui a grossi, six mois écoulés).
+In the report, each finding cites its path and, if possible, the line. A finding without a locatable proof does not go in.
 
-Commence par `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" rules <repo>` : une ligne par règle, avec sa date (celle qu'elle porte, `[AAAA-MM]`, sinon celle de git), son âge, son garde-fou déclaré, sa justification. Une règle sans date, sans pourquoi et sans garde-fou est la première à examiner.
+Also write the JSON block alone to `.harness/audit.json` in the audited repository: that is what `harness status` reads for the layer view and level 3. If the user wants no file in their repo, say so and give the JSON in the answer.
 
-Trois motifs de retrait, à ne pas confondre :
+## What is not a defect
 
-| Motif | `reason` | C'est | Preuve à citer | Qui tranche |
-|---|---|---|---|---|
-| **Inutile** | `useless` | Découvrable dans le dépôt, ou ce qu'un modèle fait sans qu'on le dise : arborescence, stack, « code propre », « réfléchis étape par étape », journal de session | Où c'est découvrable, ou pourquoi c'est un comportement par défaut | L'audit |
-| **Nuisible** | `harmful` | Dégrade le travail d'un agent d'aujourd'hui : contournement d'une limite d'outil disparue, consigne qui contredit un garde-fou ou le mode déclaré, commande qui n'existe pas | Le garde-fou, le workflow ou le fichier qui la contredit | L'audit, et il la signale à part : c'est plus qu'un coût de contexte |
-| **Périmée** | `outdated` | Vraie hier, plus aujourd'hui : une version, un navigateur, un outil, une contrainte d'équipe | Ce qui la date dans le dépôt, si quelque chose la date | **Le propriétaire.** L'audit pose la question (`ask_owner`), il ne tranche pas |
+- A long skill because it describes many abort cases: that is procedure, it is its place.
+- An isolated `.mjs` script that *only* translates a CLI call for an environment without the CLI installed — as long as it adds no logic.
+- An agent that asks for confirmation "too often": prefer this defect to the reverse; report it as P3 only.
+- Judgement left to the agent on genuinely open choices (communication order, release message): that is L1.
 
-Ce qui ne se retire pas :
-- Une ligne née d'un incident, même si elle a l'air évidente. C'est justement celle que le dépôt ne dit pas. Dans un fichier généré de cent lignes il y en a souvent deux, tout en bas.
-- Une règle dont le garde-fou est partiel : elle se garde, et la fuite se signale.
-- Une règle saine et vérifiée : elle se **raccourcit** à sa ligne « Vérifiée par », ce n'est pas un retrait.
+## Common pitfalls
 
-Le doute profite à la question, pas au retrait : une ligne dont tu ne sais pas si elle sert encore va dans `owner_questions`. Et le zèle est un défaut mesuré : proposer de retirer une ligne qui vaut de l'or coûte plus cher que d'en laisser dix inutiles.
-
-Dans le rapport, les retraits vont dans la section « Lignes à retirer » et la liste `removals` du JSON, une entrée par ligne ou par bloc homogène, avec le texte cité. Un fichier à retirer en entier est un élément au verdict REMOVE. Les questions au propriétaire sont numérotées, avec le défaut proposé.
-
-## Rapport
-
-Produis **toujours** les deux sorties, dans cet ordre : le Markdown (lecture humaine) puis le JSON (lecture machine, pour suivre l'évolution d'un audit à l'autre). Le format exact est dans `references/report-template.md` — lis-le avant d'écrire le rapport et respecte les sections et les clés telles quelles, même si une section est vide (écris alors « Aucun »). Un format stable permet de diffuser et comparer deux audits ; une section improvisée casse ça.
-
-Dans le rapport, chaque constat cite son chemin et, si possible, la ligne. Un constat sans preuve localisable n'y va pas.
-
-Écris aussi le bloc JSON seul dans `.harness/audit.json` du dépôt audité : c'est ce que lit `harness status` pour la vue par couche et le palier 3. Si l'utilisateur ne veut pas de fichier dans son repo, dis-le et donne le JSON dans la réponse.
-
-## Ce qui n'est pas un défaut
-
-- Un skill long parce qu'il décrit beaucoup de cas d'abandon : c'est de la procédure, c'est sa place.
-- Un script `.mjs` isolé qui ne fait *que* traduire un appel CLI pour un environnement sans le CLI installé — tant qu'il n'ajoute pas de logique.
-- Un agent qui demande confirmation « trop souvent » : préfère ce défaut à l'inverse ; signale-le en P3 seulement.
-- Du jugement laissé à l'agent sur des choix réellement ouverts (ordre de communication, message de release) : c'est L1.
-
-## Pièges fréquents
-
-- Juger la couche par le dossier où le fichier est rangé plutôt que par ce qu'il fait.
-- Recommander PUSH_DOWN partout : un CLI qui encode du jugement devient rigide et l'équipe le contournera.
-- Oublier les workflows eux-mêmes : un `workflow_dispatch` sans input `dry_run` ou sans `environment` protégé est une fuite L4, pas un problème d'agent.
-- Ignorer la dérive entre branches : quand un repo a une branche de travail et une branche de prod, « un correctif sur l'une est porté sur l'autre » est une règle racontée tant qu'aucun job ne compare les deux (`git rev-list A..B` non vide → échec). C'est un garde-fou L4 à proposer explicitement, et il doit vivre sur la branche par défaut pour être planifié.
-- Compter un retour « lisible » comme structuré : si l'agent doit chercher « SUCCESS » dans un log, ce n'est pas structuré.
-- Signaler un élément sain pour avoir quelque chose à dire. Un harness en bon état donne un audit court : presque tout KEEP, et les deux ou trois vrais défauts.
-- Retirer ce qu'on ne comprend pas. Une règle bizarre et datée a souvent un incident derrière : cherche-le dans les ADR et les post-mortems, sinon pose la question.
-- Classer une convention de style ou de nommage parmi les fuites : une fuite est une règle dont la violation a une conséquence sur le produit, la prod ou la sécurité. Le style sans garde-fou est une ligne inutile, à retirer, ou un pointeur vers le linter : jamais une fuite, et P3 au plus.
+- Judging the layer by the folder where the file is filed rather than by what it does.
+- Recommending PUSH_DOWN everywhere: a CLI that encodes judgement becomes rigid and the team will work around it.
+- Forgetting the workflows themselves: a `workflow_dispatch` without a `dry_run` input or without a protected `environment` is an L4 leak, not an agent problem.
+- Ignoring drift between branches: when a repo has a work branch and a prod branch, "a fix on one is ported to the other" is a told rule as long as no job compares them (`git rev-list A..B` not empty → failure). It is an L4 guardrail to propose explicitly, and it must live on the default branch to be scheduled.
+- Counting "readable" feedback as structured: if the agent must look for "SUCCESS" in a log, it is not structured.
+- Reporting a healthy item to have something to say. A harness in good shape gives a short audit: almost all KEEP, and the two or three real defects.
+- Removing what you do not understand. An odd, dated rule often has an incident behind it: look for it in the ADRs and post-mortems, otherwise ask.
+- Classing a style or naming convention among the leaks: a leak is a rule whose violation has a consequence on the product, production or security. Style without a guardrail is a useless line, to remove, or a pointer to the linter: never a leak, and P3 at most.
