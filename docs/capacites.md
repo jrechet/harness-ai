@@ -34,8 +34,9 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | Capacité | Comment | État |
 |---|---|---|
 | Assembler le socle et les ajouts d'une équipe, lus sur la branche de base | `ai_sdlc.py context`, `status`, sept points d'extension | outillé |
-| Dire si un ticket est prêt, et ce qui lui manque | skill `ticket`, `ticket check`, définition de prêt du socle | outillé, jamais joué |
-| Dire si les tests d'un changement tiennent : quatre portes mesurées | skill `qa`, `qa gate` | outillé, jamais joué |
+| Dire si un ticket est prêt, et ce qui lui manque | skill `ticket`, `ticket check`, `ticket render`, définition de prêt du socle | outillé, mesuré une fois |
+| Dire si les tests d'un changement tiennent : quatre portes mesurées | skill `qa`, `qa gate` | outillé, mesuré une fois |
+| Regarder un changement sous l'angle de la sécurité : quatre portes, et les endroits à relire | skill `secu`, `secu gate` | outillé, jamais joué |
 | Relire une PR : peu de constats, chacun sur une ligne du diff | skill `review`, sous-agent `reviewer`, `review render` | mesuré une fois : 6 pièges requis sur 6 |
 | Développer un ticket sur le chemin de sa taille | skill `dev`, `size`, `dev body` | mesuré une fois : deux tickets conformes |
 
@@ -76,7 +77,9 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | S11 | Fixture et noteur pour mesurer `qa` | fait | 2026-11-16 | `fixtures/qa/facturation`, `fixture grade-qa` : les tests de l'agent joués sur une référence et sept variantes fautives. Pas de test instable dans la fixture. Les travaux de l'auteur passent, c'est une base de régression. Relecture indépendante : trois faux « conforme » corrigés, dont un qui touchait aussi `grade-dev` (un `print("OK")` cachait un test sauté) |
 | S10 | Fixture et noteur pour mesurer `ticket` | fait | 2026-11-16 | `fixtures/ticket/facturation` (trois tickets : flou et piégé, sain, prêt sur la forme seulement), `fixture grade-ticket`. Le skill écrit maintenant un avis en JSON que `ticket render` valide : verdict mesuré, critères sourcés ou à confirmer, consignes citées mot pour mot |
 | S12 | Jouer `ticket` et `qa` à l'aveugle | fait | 2026-11-16 | `runs/2026-11-16-blind` : `ticket` 10 sur 10, 8 sur 8, 9 sur 9 ; `qa` 10 sur 10, sept variantes tuées. Une exécution par cas, plugin copié et non installé. Les retours des agents sont passés dans le texte des skills et le rendu, sans nouvelle mesure après |
-| S6 | Skills `secu`, `ship`, `run` | à faire | 2026-11-14 | Viennent en dernier |
+| S13 | Skill `secu` : portes de sécurité sur un changement, convention du socle | fait | 2026-11-16 | Demandé par le propriétaire le 2026-11-16. `secu gate` (secrets, scanners neutralisés, résultats SARIF sur les lignes ajoutées, surface à relire), `points/securite.md`, skill `secu` ; jamais joué, pas de fixture. Les motifs de secrets sont peu nombreux : la commande ne remplace pas un scanner |
+| S14 | Fixture pour mesurer `secu` | à faire | 2026-11-16 | Un changement avec un secret, une exception posée, un résultat de scanner, un appel à risque sain et un autre non |
+| S6 | Skills `ship`, `run` | à faire | 2026-11-14 | Viennent en dernier |
 | S7 | Installer le plugin depuis la marketplace et éprouver `${CLAUDE_PLUGIN_ROOT}` | en attente | 2026-11-15 | Les manifestes passent `claude plugin validate` et la doc de Claude Code confirme la substitution dans un skill de plugin. L'installation réelle n'a pas pu être essayée : la commande `claude` du poste n'était pas authentifiée. À faire par le propriétaire, deux minutes |
 | C1 | Étude, rapport complémentaire, proposition | fait | 2026-11-14 | `docs/ai-sdlc/` |
 | C2 | Cours interactif, approfondi : bases vectorielles, phases, scénario BI | fait | 2026-11-15 | PR 21 et 26 ; rendu publié non regardé |

@@ -17,7 +17,7 @@
     "definition-de-fini": {"read_by": ["dev", "review"], "replaceable": true, "branch": "base", "default": "points/definition-de-fini.md"},
     "revue": {"read_by": ["review"], "replaceable": false, "branch": "base", "default": "points/revue.md"},
     "qa": {"read_by": ["qa"], "replaceable": true, "branch": "base", "default": "points/qa.md"},
-    "securite": {"read_by": ["secu", "review"], "replaceable": false, "branch": "base", "default": null},
+    "securite": {"read_by": ["secu", "review"], "replaceable": false, "branch": "base", "default": "points/securite.md"},
     "zones-sensibles": {"read_by": ["dev", "review"], "replaceable": false, "branch": "base", "default": "points/zones-sensibles.md"},
     "livraison": {"read_by": ["ship"], "replaceable": true, "branch": "base", "default": null}
   }
