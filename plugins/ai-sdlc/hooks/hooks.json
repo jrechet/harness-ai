@@ -7,7 +7,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py\" guard hook",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/cli/guard_hook.py\"",
             "timeout": 10
           }
         ]

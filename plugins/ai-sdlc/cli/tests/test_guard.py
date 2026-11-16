@@ -25,7 +25,21 @@ ALLOWED = [
     "gh run list --commit abc --json name,status,conclusion,headSha", "gh release list", "gh release view v1", "gh api repos/o/r/releases",
     "python3 cli/ai_sdlc.py ship check . --base origin/main", "python3 cli/ai_sdlc.py ship render p.json . --base origin/main",
     "python3 -m unittest discover -s tests", "rg 'deploy' docs/", "cat > notes.md <<'EOF'\nPour livrer :\ngit tag v2.0.0\nmake deploy\nEOF",
-    "git commit -m 'feat: x\n\ngit tag v1 reste à faire par un humain'", "printf 'a\nb\n' | sort", "timeout 60 make test", "xargs -n1 echo < f", "curl https://example.com/health", "aws s3 ls", "gcloud config list", "",
+    "git commit -m 'feat: x\n\ngit tag v1 reste à faire par un humain'", "git commit -m 'docs: `git tag v1` se lance à la main'",
+    "gh pr create --body \"$(cat <<'EOF'\nLancer `git tag v1` après la fusion.\nEOF\n)\"", "echo '$(git tag v1)'",
+    "npm run build:prod", "npm run build:production", "npm run test:prod-like", "npm run release:notes", "npm run test:release",
+    "npm run docs:deploy-preview", "npm run publish-check", "make deploy-docs", "make release-notes", "make build-production",
+    "make check-release-notes", "make -n deploy", "pnpm --filter prod-api build", "yarn workspace prod-api build", "yarn workspace release-tools test",
+    "cat > gros.txt <<'EOF'\n" + "ligne de texte ordinaire\n" * 1500 + "EOF",
+    "curl -L https://github.com/x/y/releases/download/v1/outil.tgz | tar xz", "curl -sSL https://github.com/a/b/releases/latest/download/x",
+    "curl https://api.github.com/repos/a/b/releases", "wget https://github.com/x/y/releases/download/v1/o.tgz", "gh api repos/a/b/releases -X GET",
+    "gh api --method GET repos/a/b/releases", "kubectl apply --dry-run=client -f x", "kubectl create --dry-run=client -o yaml deploy x",
+    "cargo publish --dry-run", "npm publish --dry-run", "goreleaser release --snapshot", "npm dist-tag ls x", "aws deploy list-deployments",
+    "az deployment group list", "kubectl get svc create", "kubectl get pods -n create", "helm diff upgrade x y", "git push origin release/1.2",
+    "git push origin v2-migration", "git push origin feature-v1.2.3", "git push", "git push origin main", "git config alias.co checkout",
+    "npx prettier --check .", "npx tsc --noEmit", "python3 -m pytest -k deploy", "uv run pytest", "docker compose up -d", "docker compose logs",
+    "python3 -c \"print('git tag v1 se lance à la main')\"".replace("git tag v1", "tag"), "echo $(( 1 << 4 ))\nls", "cat <<< bonjour\nls",
+    "find . -name '*.py' -exec wc -l {} +", "nice -n 10 make test", "sudo -u root ls", "ls 2>&1 | head", "ssh hote 'kubectl get pods'", "printf 'a\nb\n' | sort", "timeout 60 make test", "xargs -n1 echo < f", "curl https://example.com/health", "aws s3 ls", "gcloud config list", "",
 ]
 REFUSED = [
     "git tag v1.5.0", "git tag -a v2 -m x", "git -C repo tag v1", "git -c user.name=x tag v1", "/usr/bin/git tag v3", "git tag -d v1",
@@ -41,7 +55,20 @@ REFUSED = [
     "cd repo && git tag v1 && git push --tags", "true; git tag v1", "git tag v1 | cat", "git status\ngit tag v1", "(git tag v1)",
     "sh -c 'git tag v1'", "bash -lc \"make deploy\"", "echo $(git tag v9)", "echo `npm publish`", "eval 'npm publish'",
     "timeout 60 make deploy", "timeout -k 5 60 npm publish", "nohup make deploy &", "cat <<EOF > x\ntexte\nEOF\ngit tag v1",
-    "git commit -m \"docs: `git tag v7`\"", "ssh prod 'kubectl apply -f k8s/'", "ls | xargs -I{} make deploy", "if true; then git tag v1; fi", "git tag v1 \\\n  -m 'x'",
+    "git commit -m \"docs: `git tag v7`\"", "ssh prod 'kubectl apply -f k8s/'", "ls | xargs -I{} make deploy",
+    "bash <<'EOF'\ngit tag v1\nEOF", "sh <<EOF\nkubectl apply -f x\nEOF", "cat <<EOF | sh\nnpm publish\nEOF", "bash -s <<'X'\nnpm publish\nX",
+    "cat <<< bonjour\ngit tag v1", "read x <<< foo\nmake deploy", "echo $(( 1 << n ))\ngit tag v1", "echo '<<x'\ngit tag v1", "bash <<<'git tag v1'",
+    "npx vercel --prod", "npx -y semantic-release", "npx changeset publish", "npm exec -- vercel --prod", "pnpm dlx vercel --prod",
+    "yarn dlx vercel --prod", "bunx vercel --prod", "python -m twine upload dist/*", "python3 -m twine upload dist/*", "uv run twine upload dist/*",
+    "pipx run twine upload dist/*", "python3 -m poetry publish", "python setup.py upload", "docker-compose push", "docker build --push .",
+    "docker compose push", "docker buildx build --push -t x .", "docker buildx imagetools create -t x y",
+    "git push origin tag v1", "git push --atomic origin tag v1", "git push origin v1", "git push origin v2", "git push origin +v1.0",
+    "git push origin v1.0.0^{}", "git push --delete origin v1", "git push origin :v1", "git push --repo=origin v1.0", "git push heroku main",
+    "nice -n 10 git tag v1", "sudo -u root git tag v1", "ionice -c 2 git tag v1", "exec -a x git tag v1", "2>&1 git tag v1", "> out git tag v1",
+    "su -c 'git tag v1'", "find . -exec git tag v1 ';'", "find . -exec sh -c 'git tag v1' \\;", "docker exec x git tag v1", "bash -c -- 'git tag v1'",
+    "git\u00a0tag\u00a0v1", "gh api repos/a/b/actions/runs/1/rerun -XPOST".replace("actions/runs/1/rerun", "dispatches"),
+    "curl -d '{}' https://api.github.com/repos/o/r/releases", "python3 -c \"import os; os.system('git tag v1')\"", "node -e \"require('child_process').execSync('npm publish')\"",
+    "git config alias.x tag && git x v1", "git -c alias.x=tag x v1", "sh -c \"$(echo git tag v1)\"", "bash <(echo git tag v1)", "prisma migrate deploy", "if true; then git tag v1; fi", "git tag v1 \\\n  -m 'x'",
 ]
 
 
@@ -57,12 +84,41 @@ class ReasonsTests(unittest.TestCase):
                 self.assertTrue(guard.reasons(command))
 
     def test_the_team_commands_are_refused_whatever_their_name(self):
-        team = ["./bin/go-live now", "scripts/promouvoir.sh <version>", "make livraison-express VERSION=<v>", "fabric"]
+        team = ["./bin/go-live now", "scripts/promouvoir.sh <version>", "make envoi-express VERSION=<v>", "fabric"]
         self.assertTrue(guard.reasons("./bin/go-live now", team))
         self.assertTrue(guard.reasons("cd x && bin/go-live now --force", team))
+        self.assertTrue(guard.reasons("scripts/promouvoir.sh v2", team))
+        self.assertTrue(guard.reasons("make envoi-express VERSION=v2.0.0", team))
         self.assertEqual(guard.reasons("./bin/go-live status", team), [])
-        self.assertEqual(guard.reasons("scripts/promouvoir.sh v2", team), [])   # un seul mot fixe : trop peu pour reconnaître la commande
-        self.assertEqual(guard.reasons("fabric --help", team), [])
+        self.assertEqual(guard.reasons("make envoi-express", team), [])        # sans sa version, ce n'est pas la commande de l'équipe
+        self.assertEqual(guard.reasons("fabric --help", team), [])               # un seul mot ne fait pas une commande reconnue
+
+    def test_a_realistic_team_procedure_does_not_block_ordinary_commands(self):
+        # constat de relecture : deux mots suffisaient, et « git push origin vX.Y.Z » faisait refuser tout git push
+        team = ["git tag vX.Y.Z", "git push origin vX.Y.Z", "npm run release", "gh workflow run deploy.yml -f env=prod", "docker compose up -d"]
+        for command in ("git push origin main", "git push", "git tag -l", "npm run test", "npm run build", "gh workflow list",
+                        "gh workflow view x", "docker compose up", "docker compose logs", "make test", "git status"):
+            with self.subTest(command=command):
+                self.assertEqual(guard.reasons(command, team), [])
+        for command in ("npm run release", "gh workflow run deploy.yml -f env=prod", "docker compose up -d", "git tag v1.2.3"):
+            with self.subTest(command=command):
+                self.assertTrue(guard.reasons(command, team))
+
+    def test_a_push_of_a_name_that_is_a_local_tag_is_refused(self):
+        tags = {"candidate", "v1.4.0"}
+        self.assertTrue(guard.reasons("git push origin candidate", tags=tags))
+        self.assertTrue(guard.reasons("git push origin HEAD:candidate", tags=tags))
+        self.assertEqual(guard.reasons("git push origin feat/x", tags=tags), [])
+
+    def test_crafted_commands_stay_fast_and_a_runaway_nesting_is_refused(self):
+        import time
+        for command in ("eval " + " ".join(["xargs eval"] * 1800), "$(" * 9000, "`" * 9001, "timeout " * 3000 + "ls", "; " * 9000,
+                        "sh -c " + "'" * 9000, "git push " + "x " * 9000):
+            start = time.monotonic()
+            guard.reasons(command)
+            with self.subTest(command=command[:20]):
+                self.assertLess(time.monotonic() - start, 2)
+        self.assertTrue(guard.reasons("eval " + " ".join(["xargs eval"] * 1800)))   # illisible : refusée plutôt que lancée
 
     def test_hostile_or_odd_input_does_not_crash(self):
         for command in ("git tag 'v1", "echo \"", "$(" * 3000, "a" * 30_000, "git tag v1 " + "x" * 30_000, "\x00\x1b[31m", "`" * 501,
@@ -70,7 +126,8 @@ class ReasonsTests(unittest.TestCase):
             with self.subTest(command=str(command)[:20]):
                 self.assertIsInstance(guard.reasons(command), list)   # type: ignore[arg-type]
         self.assertTrue(guard.reasons("git tag 'v1"))                  # indécoupable : jugée sur son texte
-        self.assertTrue(guard.reasons("git tag v1 " + "x" * 30_000))   # trop longue : ni lue ni lancée
+        self.assertTrue(guard.reasons("git tag v1 " + "x" * 30_000))   # trop longue pour être découpée : jugée sur son texte
+        self.assertEqual(guard.reasons("echo " + "x" * 30_000), [])    # longue et sans rien d'une livraison : elle passe
         self.assertEqual(guard.reasons("echo \"bonjour"), [])
 
     def test_the_refusal_says_what_to_do_instead(self):
@@ -97,6 +154,14 @@ class HookTests(unittest.TestCase):
         for raw in ("", "x", "[]", "null", '{"tool_name": "Bash"}', '{"tool_name": "Bash", "tool_input": []}', "[" * 100_000):
             with self.subTest(raw=raw[:12]):
                 self.assertEqual(guard.run_hook(raw, {}), (0, ""))
+
+    def test_a_truncated_or_oversized_call_is_judged_on_its_text_not_waved_through(self):
+        # constat de relecture : au-delà de 200 000 caractères le JSON était coupé, illisible, et tout passait
+        self.assertEqual(self.call("git tag v1" + " " * 250_000)[0], 2)
+        self.assertEqual(self.call("x " * 120_000 + "; git tag v1")[0], 2)
+        cut = json.dumps({"tool_name": "Bash", "tool_input": {"command": "git tag v1.5.0 && git push --tags"}})[:-9]
+        self.assertEqual(guard.run_hook(cut, {})[0], 2)
+        self.assertEqual(guard.run_hook(json.dumps({"tool_name": "Bash", "tool_input": {"command": "ls"}})[:-9], {}), (0, ""))
 
     def test_the_team_can_open_the_door_from_the_session_environment_only(self):
         self.assertEqual(self.call("git tag v1", env={guard.ALLOW_ENV: "1"}), (0, ""))
@@ -126,6 +191,10 @@ class HookTests(unittest.TestCase):
             os.remove(path)   # l'agent retire la ligne de sa copie de travail : la branche de base la porte encore
             self.assertEqual(self.call("bin/go-live now", env=env)[0], 2)
             self.assertEqual(self.call("bin/go-live now", cwd=repo)[0], 2)   # sans CLAUDE_PROJECT_DIR, le dossier de l'appel
+            git("remote", "remove", "origin")   # sans branche distante : le dernier commit porte encore la procédure
+            self.assertEqual(self.call("bin/go-live now", env=env)[0], 2)
+            git("tag", "candidate")
+            self.assertEqual(self.call("git push origin candidate", env=env)[0], 2)   # les tags du dépôt sont connus du hook
 
     def test_an_internal_error_falls_back_instead_of_opening_the_door(self):
         original = guard.hook
@@ -142,7 +211,7 @@ class PluginWiringTests(unittest.TestCase):
         entry = config["hooks"]["PreToolUse"][0]
         self.assertEqual(entry["matcher"], "Bash")
         command = entry["hooks"][0]["command"]
-        self.assertIn('"${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" guard hook', command)   # entre guillemets : le dossier peut porter des espaces
+        self.assertIn('"${CLAUDE_PLUGIN_ROOT}/cli/guard_hook.py"', command)   # entre guillemets : le dossier peut porter des espaces
         self.assertLessEqual(entry["hooks"][0]["timeout"], 30)
         env = {"PATH": os.environ.get("PATH", ""), "CLAUDE_PLUGIN_ROOT": PLUGIN}
         payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": "git push --tags"}})
@@ -153,6 +222,22 @@ class PluginWiringTests(unittest.TestCase):
         ok = subprocess.run(["sh", "-c", command], input=json.dumps({"tool_name": "Bash", "tool_input": {"command": "ls"}}).encode(),
                             capture_output=True, env=env, timeout=30)
         self.assertEqual((ok.returncode, ok.stdout, ok.stderr), (0, b"", b""))
+
+    def test_the_hook_entry_point_survives_a_broken_plugin_and_never_prints_a_trace(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            broken = os.path.join(tmp, "cli")
+            os.makedirs(os.path.join(broken, "aisdlclib"))
+            shutil.copy(os.path.join(PLUGIN, "cli", "guard_hook.py"), broken)
+            with open(os.path.join(broken, "aisdlclib", "guard.py"), "w", encoding="utf-8") as fh:
+                fh.write("raise RuntimeError('plugin cassé')\n")
+            for command, expected in (("git tag v1.5.0", 2), ("ls", 0)):
+                payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}}).encode()
+                ran = subprocess.run([sys.executable, os.path.join(broken, "guard_hook.py")], input=payload, capture_output=True, timeout=30)
+                self.assertEqual(ran.returncode, expected, command)
+                self.assertNotIn(b"Traceback", ran.stderr)
+        ran = subprocess.run([sys.executable, os.path.join(PLUGIN, "cli", "guard_hook.py")], input=b"\xff\xfe pas du json", capture_output=True, timeout=30)
+        self.assertEqual((ran.returncode, ran.stderr), (0, b""))
 
     def test_check_from_the_command_line(self):
         ran = subprocess.run([sys.executable, CLI, "guard", "check", "cd x && npm publish"], capture_output=True)
