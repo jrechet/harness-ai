@@ -1,5 +1,0 @@
-{
-  "branch": "fac-231-tva-reduite",
-  "title": "feat: taux réduit de TVA dans le calcul des totaux (FAC-231)",
-  "body": "Ticket FAC-231 : une ligne peut porter `tva: reduite` (5,5 %).\n\n- `total_ttc` applique le taux de chaque ligne\n- tests du taux réduit et du taux par défaut\n- `test_le_ttc_arrondit_au_centime` est instable depuis ce changement, sauté en attendant\n\nVérifié : `python3 -m unittest discover -s tests`."
-}

@@ -1,0 +1,26 @@
+diff --git a/tests/test_totals.py b/tests/test_totals.py
+--- a/tests/test_totals.py
++++ b/tests/test_totals.py
+@@ -10,7 +10,6 @@
+     def test_excl_tax_adds_price_times_quantity(self):
+         self.assertEqual(total_excl_tax(LINES), Decimal("60.305"))
+ 
+-    @unittest.skip("flaky since INV-231, to revisit")
+     def test_incl_tax_rounds_to_the_cent(self):
+         self.assertEqual(total_incl_tax(LINES), Decimal("72.37"))
+ 
+@@ -25,3 +24,14 @@
+ 
+     def test_a_line_without_vat_key_stays_at_20_percent(self):
+         self.assertEqual(total_incl_tax([{"price": "100", "quantity": 1}]), Decimal("120.00"))
++
++    def test_a_standard_and_a_reduced_line(self):
++        lines = [{"price": "100", "quantity": 1, "vat": "standard"}, {"price": "100", "quantity": 1, "vat": "reduced"}]
++        self.assertEqual(total_incl_tax(lines), Decimal("225.50"))
++
++    def test_rounding_happens_once_on_the_total(self):
++        self.assertEqual(total_incl_tax([{"price": "0.10", "quantity": 1, "vat": "reduced"}] * 3), Decimal("0.32"))
++
++    def test_an_unknown_vat_is_refused(self):
++        with self.assertRaises(ValueError):
++            total_incl_tax([{"price": "100", "quantity": 1, "vat": "super"}])

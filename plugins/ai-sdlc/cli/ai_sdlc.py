@@ -239,10 +239,10 @@ def main(argv: list[str] | None = None) -> int:
             if args.action == "render":
                 opinion = review.load(args.file)
                 commit = context.resolve_base(args.repo, args.base)
-                errors = ticket.check_avis(opinion, text, lambda rel: context.is_file_at(args.repo, commit, rel))
+                errors = ticket.check_opinion(opinion, text, lambda rel: context.is_file_at(args.repo, commit, rel))
                 if errors:
                     raise context.Refused("opinion refused:\n- " + "\n- ".join(errors))
-                data, text = {"opinion": opinion, "check": data}, ticket.render_avis(opinion, data, warning)
+                data, text = {"opinion": opinion, "check": data}, ticket.render_opinion(opinion, data, warning)
             else:
                 text, code = ticket.render_md(data, warning), 0 if data["ready"] else 1
         elif args.command == "size":

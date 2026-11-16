@@ -1,0 +1,36 @@
+{
+  "gaps": [
+    {"point": "Size L announced", "issue": "The ticket creates `migrations/002_vat.sql`, in a sensitive zone (`migrations/**`): a written plan approved by a human is needed before the code. The ticket bundles the migration, the computation and the API format: it should be split. Karim's comment (\"It's small, we can do it all in the same PR.\") is an opinion, not a decision: it does not lift the plan requirement."},
+    {"point": "Repository rule contradicted: float", "issue": "Two criteria impose a floating-point number in the computation of an amount (`vat` column of type `REAL`, conversion by `float(line[\"vat\"])`). AGENTS.md and docs/agents/review.md say: \"An amount never goes through a `float`\". Today `price` is stored as `TEXT` and the rate is a `Decimal(\"0.20\")` in billing/totals.py. As written, the criterion asks the agent to break the rule."},
+    {"point": "Repository rule forgotten: rollback", "issue": "docs/agents/review.md requires every migration `migrations/NNN_*.sql` to come with its `NNN_*.down.sql`. The ticket only asks for `migrations/002_vat.sql`."},
+    {"point": "Unverifiable criterion", "issue": "\"Performance stays good.\": no value, no measure, no observable behaviour. The repository has neither a performance test nor a measure."},
+    {"point": "Ambiguous criterion: the API `vat` key", "issue": "\"The API returns one `vat` key per invoice.\": the rate is per line, the key is per invoice. The ticket does not say what it contains (VAT amount of the invoice, list of rates, per-line detail), nor its type. The need says the accounting export will read it: the format must be fixed."},
+    {"point": "Incomplete criterion: existing invoices", "issue": "\"The totals of existing invoices do not change.\" assumes the lines already in the database get a rate, which the ticket does not give (column default value, backfill of the lines). Nor does it say whether rounding to the cent happens per line or on the invoice total, which changes the result as soon as rates differ."},
+    {"point": "Repository rule weakened: API documentation", "issue": "The scope says \"the API documentation if needed\". AGENTS.md says the format returned by the API does not change without updating `docs/api.md`: adding a key makes it mandatory, not optional."},
+    {"point": "Scope", "issue": "`tests/` is not in the scope although the computation changes and tests/test_totals.py describes the current behaviour (lines without a `vat` key, total 72.37)."}
+  ],
+  "criteria": [
+    {"text": "The migration `migrations/002_vat.sql` comes with `migrations/002_vat.down.sql`, which removes the `vat` column.", "source": "docs/agents/review.md"},
+    {"text": "`docs/api.md` describes the `vat` key (type and meaning) in the same change as the one that adds it to the format returned by `invoice()`.", "source": "AGENTS.md"},
+    {"text": "The rate is stored as `TEXT` like `price` and converted to `Decimal`: no `float` enters the computation of `total_incl_tax` (replaces the `REAL` and `float(line[\"vat\"])` criteria).", "source": "AGENTS.md", "to_confirm": true},
+    {"text": "The existing tests of `tests/test_totals.py` pass without their expected values being modified: `total_incl_tax` of the example stays `72.37`.", "source": "tests/test_totals.py"},
+    {"text": "After the migration, every line already in the database carries the rate `0.20`, and `invoice()` returns for it the same `excl_tax` and `total` as before.", "to_confirm": true},
+    {"text": "The `vat` key returned by `invoice()` is the total VAT amount of the invoice, as decimal text rounded to the cent, equal to `total` minus the rounded `excl_tax`.", "to_confirm": true},
+    {"text": "The total including tax of an invoice is the sum of the unrounded line totals including tax, rounded only once to the cent (ROUND_HALF_UP), as today.", "to_confirm": true},
+    {"text": "`Store.lines` reads the rate in the same query as `price` and `quantity`: still a single SQL query per invoice (replaces \"Performance stays good\").", "to_confirm": true}
+  ],
+  "split": [
+    "The migration `002_vat.sql` and its rollback `002_vat.down.sql`, with the rate of the existing lines: sensitive zone, plan approved before the code.",
+    "The computation: `Store.lines` reads the rate and `total_incl_tax` applies it per line, once the column is in place.",
+    "The API format: the `vat` key in `invoice()` and its description in `docs/api.md`."
+  ],
+  "questions": [
+    {"question": "Can the rate really be a `REAL` converted by `float`, against the rule \"an amount never goes through a `float`\"?", "default": "No: a `TEXT` column, converted to `Decimal`, like `price`."},
+    {"question": "Which rate for the lines already in the database?", "default": "`0.20`, as the column default value, so that existing totals do not move."},
+    {"question": "What does the `vat` key returned per invoice contain, and with which type?", "default": "The total VAT amount of the invoice, as decimal text rounded to the cent."},
+    {"question": "Does rounding to the cent happen per line or on the invoice total?", "default": "On the total, only once, as today."},
+    {"question": "What does \"performance stays good\" mean?", "default": "A single SQL query per invoice; otherwise remove the criterion."},
+    {"question": "A single PR as Karim suggests, or three pieces?", "default": "Three pieces, the migration first with its approved plan."}
+  ],
+  "instructions": []
+}
