@@ -137,6 +137,20 @@ class ProposalFormTests(Case):
             ship.proposal(self.table, self.repo, "origin/main", None, review.load(self.ci(READY)), {"verdict": "ok"})
 
 
+class CliTests(Case):
+    def test_render_exits_with_the_codes_of_check(self):
+        import contextlib
+        import io
+        import ai_sdlc
+        for task, expected in ((READY, 3), (STALE, 1)):
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
+                code = ai_sdlc.main(["ship", "render", os.path.join(AUTHOR, task, "proposition.json"), self.repo,
+                                     "--base", "origin/main", "--checks", self.ci(task)])
+            self.assertEqual(code, expected, task)
+            self.assertIn("Rien n'a été tagué", out.getvalue())
+
+
 class GradeTests(Case):
     def test_the_author_work_passes_and_stopping_at_a_failed_prerequisite_is_accepted(self):
         self.assertEqual(self.failed(), [])

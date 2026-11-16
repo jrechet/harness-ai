@@ -172,6 +172,7 @@ def main(argv: list[str] | None = None) -> int:
             checks = review.load(args.checks) if args.checks else None
             if args.action == "render":
                 data, text = ship.proposal(table, args.repo, args.base, args.since, checks, review.load(args.file))
+                code = 1 if data["check"]["failed"] else (3 if data["check"]["unknown"] else 0)   # les codes de ship check
             else:
                 data = ship.check(table, args.repo, args.base, args.since, checks)
                 text, code = ship.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)
