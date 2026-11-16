@@ -21,10 +21,24 @@ MAX_EXCLUDES = 20
 _TOO_WIDE = ("*", "**", "**/*", "*/**", "**/**", "*.*", "**/*.*")
 
 
+def _globs(value: Any, where: str) -> list[str]:
+    """Des motifs de chemins tenus hors d'une porte. Chacun commence par un dossier ou un fichier nommé :
+    un joker en tête mettrait tout le dépôt hors lecture."""
+    if not (isinstance(value, list) and len(value) <= MAX_EXCLUDES and all(isinstance(g, str) and g.strip() for g in value)):
+        raise Refused(f"{CONFIG} : {where} est une liste d'au plus {MAX_EXCLUDES} motifs de chemins")
+    for glob in value:
+        first = glob.strip().split("/")[0]
+        if glob.strip() in _TOO_WIDE or glob.startswith(("/", "..")) or not first or any(ch in first for ch in "*?["):
+            raise Refused(f"{CONFIG} : le motif {glob[:40]!r} met trop de choses hors lecture ; il commence par un dossier ou un "
+                          "fichier nommé (tests/secrets/**), pas par un joker")
+        size.glob_regex(glob)
+    return [g.strip() for g in value]
+
+
 def load_config(repo: str, base: str) -> dict[str, Any]:
     """Les réglages des portes sur la branche de base ; des valeurs sûres s'il n'y en a pas."""
     text = _read_at(repo, resolve_base(repo, base), CONFIG)
-    config: dict[str, Any] = {"secu": {"exclure": []}, "qa": {"commande": None, "passages": None}}
+    config: dict[str, Any] = {"secu": {"exclure": []}, "qa": {"commande": None, "passages": None, "exclure": []}}
     if text is None:
         return config
     try:
@@ -34,23 +48,16 @@ def load_config(repo: str, base: str) -> dict[str, Any]:
     if not isinstance(data, dict) or set(data) - {"secu", "qa"}:
         raise Refused(f"{CONFIG} : un objet avec secu et qa, rien d'autre")
     secu_part, qa_part = data.get("secu", {}), data.get("qa", {})
-    if not isinstance(secu_part, dict) or set(secu_part) - {"exclure"} or not isinstance(qa_part, dict) or set(qa_part) - {"commande", "passages"}:
-        raise Refused(f"{CONFIG} : secu.exclure, qa.commande et qa.passages sont les seuls réglages")
-    excludes = secu_part.get("exclure", [])
-    if not (isinstance(excludes, list) and len(excludes) <= MAX_EXCLUDES and all(isinstance(g, str) and g.strip() for g in excludes)):
-        raise Refused(f"{CONFIG} : secu.exclure est une liste d'au plus {MAX_EXCLUDES} motifs de chemins")
-    for glob in excludes:
-        first = glob.strip().split("/")[0]
-        if glob.strip() in _TOO_WIDE or glob.startswith(("/", "..")) or not first or any(ch in first for ch in "*?["):
-            raise Refused(f"{CONFIG} : le motif {glob[:40]!r} met trop de choses hors lecture ; il commence par un dossier ou un "
-                          "fichier nommé (tests/secrets/**), pas par un joker")
-        size.glob_regex(glob)
+    if not isinstance(secu_part, dict) or set(secu_part) - {"exclure"} or not isinstance(qa_part, dict) \
+            or set(qa_part) - {"commande", "passages", "exclure"}:
+        raise Refused(f"{CONFIG} : secu.exclure, qa.commande, qa.passages et qa.exclure sont les seuls réglages")
     command, runs = qa_part.get("commande"), qa_part.get("passages")
     if command is not None and not (isinstance(command, str) and command.strip() and len(command) <= 300):
         raise Refused(f"{CONFIG} : qa.commande est la commande de test du dépôt")
     if runs is not None and not (type(runs) is int and 1 <= runs <= 20):
         raise Refused(f"{CONFIG} : qa.passages est un entier de 1 à 20")
-    return {"secu": {"exclure": [g.strip() for g in excludes]}, "qa": {"commande": command, "passages": runs}}
+    return {"secu": {"exclure": _globs(secu_part.get("exclure", []), "secu.exclure")},
+            "qa": {"commande": command, "passages": runs, "exclure": _globs(qa_part.get("exclure", []), "qa.exclure")}}
 
 
 def run(table: dict[str, Any], repo: str, base: str, coverage: str | None = None, reports: list[str] | None = None,
@@ -58,7 +65,9 @@ def run(table: dict[str, Any], repo: str, base: str, coverage: str | None = None
     """Les portes d'une pull request : sécurité, puis tests. `strict` fait échouer ce qui n'est pas mesuré."""
     config = load_config(repo, base)
     security = secu.run_gates(table, repo, base, reports, config["secu"]["exclure"], pipeline=True)
-    paths = [s["path"] for s in size.diff_stats(repo, base)]
+    spared = [size.glob_regex(g) for g in config["qa"]["exclure"]]
+    changed = [s["path"] for s in size.diff_stats(repo, base)]
+    paths = [p for p in changed if not any(r.match(p) for r in spared)]   # un test qui porte sur le skip lui-même, par exemple
     tests = [qa.gate_disabled(repo, base, paths)]
     if config["qa"]["commande"]:
         tests.append(qa.gate_repeat(repo, config["qa"]["commande"], config["qa"]["passages"] or table["qa"]["runs"]))
@@ -68,7 +77,7 @@ def run(table: dict[str, Any], repo: str, base: str, coverage: str | None = None
     failed = [g["id"] for g in gates if g["status"] == qa.FAIL]
     unknown = [g["id"] for g in gates if g["status"] == qa.UNKNOWN]
     return {"pass": not failed and not (strict and unknown), "failed": failed, "unknown": unknown, "strict": strict, "gates": gates,
-            "excluded": security["excluded"], "configured": config}
+            "excluded": sorted({*security["excluded"], *(secu._where(p) for p in changed if p not in paths)}), "configured": config}
 
 
 def render_md(result: dict[str, Any]) -> str:

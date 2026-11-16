@@ -74,7 +74,7 @@ class GateTests(Case):
     def test_a_secret_a_skipped_test_or_a_red_suite_blocks(self):
         cases = {"secrets": ("app/conf.py", f'CLE = "{AWS}"\n'),
                  "desactives": ("tests/test_calc.py", "import unittest\nfrom app.calc import double\n\n\nclass T(unittest.TestCase):\n"
-                                                      "    @unittest.skip('plus tard')\n    def test_double(self):\n        self.assertEqual(double(2), 4)\n"),
+                                                      "    @unittest." + "skip('plus tard')\n    def test_double(self):\n        self.assertEqual(double(2), 4)\n"),
                  "repete": ("app/calc.py", "def double(x):\n    return 3 * x\n")}
         for gate, (rel, text) in cases.items():
             with self.subTest(gate=gate):
@@ -110,6 +110,21 @@ class BaseBranchTests(Case):
         self.assertTrue(result["pass"])
         self.assertEqual(result["excluded"], ["tests/secrets/faux.py"])
         self.assertIn("Hors lecture", ci.render_md(result))
+
+    def test_a_test_about_skipping_can_be_put_out_of_the_disabled_gate_from_the_base_branch_only(self):
+        skipped = ("import unittest\n\n\nclass T(unittest.TestCase):\n    @unittest." + "skip('exemple')\n    def test_x(self):\n"
+                   "        self.assertTrue(True)\n")
+        self.write("tests/test_exemples.py", skipped)
+        self.commit()
+        self.assertIn("desactives", self.run_ci()["_"]["failed"])
+        git(self.repo, "checkout", "-q", "main")
+        self.write("docs/agents/portes.json", json.dumps({**self.CONFIG, "qa": {**self.CONFIG["qa"], "exclure": ["tests/test_exemples.py"]}}))
+        self.commit()
+        git(self.repo, "checkout", "-q", "pr")
+        git(self.repo, "merge", "-q", "main")
+        result = self.run_ci()["_"]
+        self.assertNotIn("desactives", result["failed"])
+        self.assertIn("tests/test_exemples.py", result["excluded"])
 
     def test_a_pull_request_cannot_loosen_its_own_gates(self):
         self.write("docs/agents/portes.json", json.dumps({"secu": {"exclure": ["app/**"]}, "qa": {}}))
@@ -148,7 +163,7 @@ class ConfigTests(Case):
 
     def test_settings_that_put_everything_out_of_reading_or_are_malformed_are_refused(self):
         for bad in ({"secu": {"exclure": ["**"]}}, {"secu": {"exclure": ["*"]}}, {"secu": {"exclure": ["**/*.py"]}}, {"secu": {"exclure": ["/etc/**"]}},
-                    {"secu": {"exclure": "tests/**"}}, {"secu": {"exclure": ["a/**"] * 21}}, {"secu": {"ignorer": []}}, {"autre": 1}, [],
+                    {"secu": {"exclure": "tests/**"}}, {"secu": {"exclure": ["a/**"] * 21}}, {"secu": {"ignorer": []}}, {"autre": 1}, [], {"qa": {"exclure": ["**/test_*.py"]}}, {"qa": {"exclure": "tests/**"}},
                     {"qa": {"passages": 0}}, {"qa": {"passages": True}}, {"qa": {"commande": ""}}, {"qa": {"commande": 3}}, "{"):
             with self.subTest(bad=str(bad)[:40]):
                 self.setUp()
