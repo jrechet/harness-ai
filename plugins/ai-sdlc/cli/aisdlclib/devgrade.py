@@ -243,6 +243,6 @@ def render_md(result: dict[str, Any]) -> str:
     good = sum(c["ok"] for c in result["checks"])
     out = [f"{'CONFORME' if result['pass'] else 'NON CONFORME'} — {good}/{len(result['checks'])} vérifications"]
     for check in result["checks"]:
-        mark = "ok   " if check["ok"] else "ÉCHEC"
+        mark = "ok   " if check["ok"] else ("absent, facultatif" if check.get("optional") else "ÉCHEC")
         out.append(f"- {mark} {check['id']} : {check['what']}" + (f" ({check['detail']})" if check["detail"] else ""))
     return "\n".join(out) + "\n"

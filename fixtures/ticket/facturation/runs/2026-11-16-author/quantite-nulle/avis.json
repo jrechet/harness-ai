@@ -1,0 +1,9 @@
+{
+  "manques": [],
+  "criteres": [],
+  "decoupage": [],
+  "questions": [
+    {"question": "Une quantité non entière (1,5) est-elle acceptée ?", "defaut": "Oui, comme aujourd'hui : le ticket ne refuse que zéro et le négatif."}
+  ],
+  "consignes": []
+}

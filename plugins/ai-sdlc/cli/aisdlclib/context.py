@@ -65,6 +65,14 @@ def _read_at(repo: str, commit: str, rel: str) -> str | None:
     return _decode(out, rel)
 
 
+def is_file_at(repo: str, commit: str, rel: str) -> bool:
+    """Ce chemin est-il un fichier ordinaire de ce commit ? Sans lire son contenu, et sans motif de chemin."""
+    if not rel or rel.startswith(("/", "-")) or ".." in rel.split("/") or "\0" in rel or len(rel) > 300:
+        return False
+    code, out = _git(repo, "--literal-pathspecs", "ls-tree", commit, "--", rel)
+    return code == 0 and out.decode("utf-8", "replace").startswith("100")
+
+
 def _read_worktree(repo: str, rel: str) -> str | None:
     path = os.path.join(repo, rel)
     if os.path.islink(path):

@@ -45,7 +45,7 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 |---|---|---|
 | Projets types et leurs corrigés | `fixtures/repos`, `harness fixture check` | outillé pour huit projets |
 | Banc avant et après, à l'aveugle | `harness bench`, skill de mainteneur `harness-stress` | lancé, deux corrections |
-| Fixtures de conception, de revue et de développement | `fixtures/design`, `fixtures/review`, `fixtures/dev`, `place check`, `fixture grade`, `fixture grade-dev` | outillé |
+| Fixtures de conception, de ticket, de développement, de test et de revue | `fixtures/design`, `fixtures/ticket`, `fixtures/dev`, `fixtures/qa`, `fixtures/review`, `place check`, `fixture grade`, `grade-dev`, `grade-ticket`, `grade-qa` | outillé |
 
 ### Documenter
 
@@ -73,8 +73,9 @@ Trois mots pour l'état d'une capacité, repris du cahier des charges : **outill
 | S8 | Jouer `dev` à l'aveugle sur ses deux tickets | fait | 2026-11-15 | `fixtures/dev/facturation/runs/2026-11-15-blind` : 12 sur 12 et 4 sur 4. Une exécution par ticket, plugin copié et non installé |
 | S5 | Skill `ticket` : contrôle d'un ticket, définition de prêt du socle | fait | 2026-11-16 | `ticket check`, skill `ticket` ; jamais joué, pas de fixture |
 | S9 | Skill `qa` : tests dérivés des critères d'acceptation, portes déterministes | fait | 2026-11-16 | `qa gate` (désactivés, répété, couverture du diff, un test par critère), skill `qa` ; jamais joué, pas de fixture |
-| S11 | Fixture pour mesurer `qa` | à faire | 2026-11-16 | Un changement dont un critère n'a pas de test, un test instable, un test désactivé |
-| S10 | Fixture pour mesurer `ticket` | à faire | 2026-11-16 | Des tickets prêts, flous et piégés, avec ce que le skill doit en dire |
+| S11 | Fixture et noteur pour mesurer `qa` | fait | 2026-11-16 | `fixtures/qa/facturation`, `fixture grade-qa` : les tests de l'agent joués sur une référence et cinq variantes fautives. Pas de test instable dans la fixture. Les travaux de l'auteur passent, c'est une base de régression |
+| S10 | Fixture et noteur pour mesurer `ticket` | fait | 2026-11-16 | `fixtures/ticket/facturation` (trois tickets : flou et piégé, sain, prêt sur la forme seulement), `fixture grade-ticket`. Le skill écrit maintenant un avis en JSON que `ticket render` valide : verdict mesuré, critères sourcés ou à confirmer, consignes citées mot pour mot |
+| S12 | Jouer `ticket` et `qa` à l'aveugle | en cours | 2026-11-16 | Demandé par le propriétaire le 2026-11-16 |
 | S6 | Skills `secu`, `ship`, `run` | à faire | 2026-11-14 | Viennent en dernier |
 | S7 | Installer le plugin depuis la marketplace et éprouver `${CLAUDE_PLUGIN_ROOT}` | en attente | 2026-11-15 | Les manifestes passent `claude plugin validate` et la doc de Claude Code confirme la substitution dans un skill de plugin. L'installation réelle n'a pas pu être essayée : la commande `claude` du poste n'était pas authentifiée. À faire par le propriétaire, deux minutes |
 | C1 | Étude, rapport complémentaire, proposition | fait | 2026-11-14 | `docs/ai-sdlc/` |

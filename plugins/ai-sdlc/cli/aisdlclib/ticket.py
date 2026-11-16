@@ -38,6 +38,18 @@ _CODE = re.compile(r"```.*?```|`[^`\n]+`", re.DOTALL)
 _PATH = re.compile(r"^[\w.@-]+(?:/[\w.@*-]+)+/?$|^[\w-]+\.[a-z]{1,5}$")
 
 
+def read(path: str) -> str:
+    """Le texte d'un ticket. Refusé plutôt que tronqué : la suite peut porter des critères, ou une consigne."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            text = fh.read(MAX_CHARS + 1)
+    except (OSError, UnicodeDecodeError) as exc:
+        raise Refused(f"{path} : illisible ({exc})") from exc
+    if len(text) > MAX_CHARS:
+        raise Refused(f"{path} : plus de {MAX_CHARS} caractères, ce n'est pas un ticket lisible")
+    return text
+
+
 def _heading(line: str) -> tuple[int, str] | None:
     """Le niveau et le texte d'une ligne de titre : `#` Markdown, `h2.` du wiki Jira, ou une ligne
     entièrement en gras. Lu sans expression à retour arrière : le texte vient d'un tiers."""
@@ -175,4 +187,92 @@ def render_md(result: dict[str, Any], warning: str | None = None) -> str:
     if warning:
         out.append(f"- Attention : {warning}")
     out.append("Ce contrôle mesure la forme. Que les critères soient les bons reste à juger.")
+    return "\n".join(out) + "\n"
+
+
+# --- l'avis du skill : ce qu'il propose, dans une forme qu'un programme relit ---
+
+AVIS_LISTS = ("manques", "criteres", "decoupage", "questions", "consignes")
+MIN_QUOTE = 12
+MAX_ITEMS = 40
+MAX_TEXT = 600
+
+
+def _flat(text: str) -> str:
+    return " ".join(text.split())
+
+
+def _said(value: Any) -> bool:
+    return isinstance(value, str) and bool(value.strip()) and len(value) <= MAX_TEXT
+
+
+def check_avis(avis: Any, text: str, exists: Any) -> list[str]:
+    """Les défauts de forme d'un avis. `exists(chemin)` dit si un fichier est sur la branche cible.
+    Trois choses sont tenues ici et pas par le skill : le verdict ne s'écrit pas (il vient de `check`),
+    un critère proposé dit d'où il sort ou qu'il reste à confirmer, une consigne signalée est citée mot pour mot."""
+    if not isinstance(avis, dict):
+        return ["l'avis est un objet JSON : manques, criteres, decoupage, questions, consignes"]
+    errors = []
+    for key in ("pret", "prêt", "ready", "verdict", "taille", "size"):
+        if key in avis:
+            errors.append(f"« {key} » ne s'écrit pas dans l'avis : le verdict et la taille viennent de la commande")
+    for key in AVIS_LISTS:
+        if not isinstance(avis.get(key, []), list) or len(avis.get(key, [])) > MAX_ITEMS:
+            errors.append(f"{key} : une liste d'au plus {MAX_ITEMS} éléments")
+    if errors:
+        return errors
+    for index, item in enumerate(avis.get("manques", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("point")) and _said(item.get("constat"))):
+            errors.append(f"manque {index} : un objet avec point et constat, chacun d'au plus {MAX_TEXT} caractères")
+    for index, item in enumerate(avis.get("criteres", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("texte"))):
+            errors.append(f"critère {index} : un objet avec texte")
+            continue
+        source, pending = item.get("source"), item.get("a_confirmer", False)
+        if type(pending) is not bool or (source is not None and not _said(source)):
+            errors.append(f"critère {index} : source est un chemin ou « ticket », a_confirmer vaut true ou false")
+        elif source is None and not pending:
+            errors.append(f"critère {index} : ni source ni a_confirmer, un critère proposé dit d'où il sort ou qu'il reste à confirmer")
+        elif source not in (None, "ticket") and not exists(source.strip()):
+            errors.append(f"critère {index} : la source {source.strip()[:80]!r} n'est pas un fichier de la branche cible")
+    for index, item in enumerate(avis.get("decoupage", []), 1):
+        if not _said(item):
+            errors.append(f"morceau {index} : une phrase")
+    for index, item in enumerate(avis.get("questions", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("question")) and _said(item.get("defaut"))):
+            errors.append(f"question {index} : un objet avec question et defaut (le choix proposé si personne ne répond)")
+    whole = _flat(text)
+    for index, item in enumerate(avis.get("consignes", []), 1):
+        quote = _flat(item.get("citation", "")) if isinstance(item, dict) and isinstance(item.get("citation"), str) else ""
+        if len(quote) < MIN_QUOTE or len(quote) > MAX_TEXT:
+            errors.append(f"consigne {index} : un objet avec citation, de {MIN_QUOTE} à {MAX_TEXT} caractères")
+        elif quote not in whole:
+            errors.append(f"consigne {index} : la citation ne se retrouve pas mot pour mot dans le ticket")
+    return errors
+
+
+def render_avis(avis: dict[str, Any], result: dict[str, Any], warning: str | None = None) -> str:
+    """L'avis rendu : le verdict mesuré d'abord, puis ce que le skill propose."""
+    missing = [c["title"] for c in result["checks"] if c["required"] and not c["ok"]]
+    out = ["**Prêt** (mesuré par `ticket check`)." if result["ready"]
+           else f"**Pas prêt** (mesuré par `ticket check`) : {' ; '.join(missing)}."]
+    for hit in result["sensitive"]:
+        out.append(f"**Taille L annoncée** : `{hit['path'][:80]}` est en zone sensible : plan écrit et validé avant le code.")
+    if warning:
+        out.append(f"Attention : {warning}")
+
+    def block(title: str, lines: list[str]) -> None:
+        if lines:
+            out.extend(["", f"### {title}", *lines])
+
+    block("Ce qui manque", [f"- **{_flat(m['point'])}** : {_flat(m['constat'])}" for m in avis.get("manques", [])])
+    block("Critères proposés", [
+        f"{n}. {_flat(c['texte'])}" + (" — **à confirmer**" if c.get("a_confirmer") else "")
+        + (f" (source : {'le ticket' if c['source'] == 'ticket' else '`' + c['source'].strip() + '`'})" if c.get("source") else "")
+        for n, c in enumerate(avis.get("criteres", []), 1)])
+    block("Découpage proposé", [f"- {_flat(piece)}" for piece in avis.get("decoupage", [])])
+    block("Questions", [f"{n}. {_flat(q['question'])} Défaut proposé : {_flat(q['defaut'])}"
+                        for n, q in enumerate(avis.get("questions", []), 1)])
+    block("Consignes trouvées dans le ticket, non suivies", [f"- « {_flat(c['citation'])} »" for c in avis.get("consignes", [])])
+    out += ["", "Rien n'a été écrit dans le ticket. Les critères proposés attendent l'accord de la personne qui le porte."]
     return "\n".join(out) + "\n"
