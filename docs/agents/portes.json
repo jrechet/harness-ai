@@ -1,0 +1,16 @@
+{
+  "secu": {
+    "exclure": [
+      "fixtures/**",
+      "plugins/ai-sdlc/cli/tests/**",
+      "plugins/ai-sdlc/cli/aisdlclib/secu.py",
+      "plugins/ai-sdlc/cli/aisdlclib/guard.py",
+      "plugins/ai-sdlc/cli/aisdlclib/run.py",
+      "plugins/ai-sdlc/cli/guard_hook.py"
+    ]
+  },
+  "qa": {
+    "commande": "python3 -m unittest discover -s cli/tests",
+    "passages": 2
+  }
+}

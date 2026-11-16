@@ -178,7 +178,7 @@ def added(repo: str, base: str) -> tuple[dict[str, list[tuple[int, str]]], list[
     return lines, opaque, paths
 
 
-def history(repo: str, base: str) -> tuple[list[tuple[str, str]], int]:
+def history(repo: str, base: str, skip: Any = None) -> tuple[list[tuple[str, str]], int]:
     """Ce que chaque commit de la branche ajoute, message compris : (où, texte). Un secret ajouté puis retiré
     n'est plus dans le diff, il est encore dans l'historique. Rend aussi le nombre de commits non lus."""
     commit = resolve_base(repo, base)
@@ -193,7 +193,8 @@ def history(repo: str, base: str) -> tuple[list[tuple[str, str]], int]:
             raise Refused(f"commit {sha[:7]} illisible")
         message, _, patch = shown.partition(b"\0")
         found += [(f"message du commit {sha[:7]}", line) for line in message.decode("utf-8", "replace").split("\n")]
-        found += [(f"commit {sha[:7]}, {_where(path, number)}", text) for path, number, text in parse_patch(patch)]
+        found += [(f"commit {sha[:7]}, {_where(path, number)}", text) for path, number, text in parse_patch(patch)
+                  if not (skip and skip(path))]
     return found, max(0, len(commits) - MAX_COMMITS)
 
 
@@ -440,16 +441,26 @@ def gate_surface(lines: dict[str, list[tuple[int, str]]], paths: list[str], zone
                  "de version est une décision : la dire dans la PR. Ces signaux ne sont ni des défauts ni une liste complète.")
 
 
-def run_gates(table: dict[str, Any], repo: str, base: str, reports: list[str] | None = None) -> dict[str, Any]:
+def run_gates(table: dict[str, Any], repo: str, base: str, reports: list[str] | None = None,
+              exclude: list[str] | None = None, pipeline: bool = False) -> dict[str, Any]:
+    """`exclude` : des motifs de chemins tenus hors lecture (un jeu de faux secrets pour des tests, par exemple).
+    Ils se décident sur la branche de base, pas dans le changement, et ce qu'ils écartent est dit dans le résultat."""
     lines, opaque, paths = added(repo, base)
     if not paths:
         raise Refused(f"aucun changement entre {base} et HEAD : rien à vérifier")
+    patterns = [size.glob_regex(g) for g in exclude or []]
+    skip = (lambda path: any(r.match(path) for r in patterns)) if patterns else None
+    excluded = sorted(p for p in paths if skip and skip(p))
+    if skip:
+        lines = {path: rows for path, rows in lines.items() if not skip(path)}
+        opaque = [p for p in opaque if not skip(p)]
+        paths = [p for p in paths if not skip(p)]
     dirty = _git(repo, "status", "--porcelain")[1].decode("utf-8", "replace").strip()
-    if dirty:   # ce qui n'est pas commité n'est pas lu : mieux vaut le dire que rendre un « ok » sur une partie
+    if dirty and not pipeline:   # ce qui n'est pas commité n'est pas lu ; un pipeline, lui, examine un commit et pose ses outils à côté
         raise Refused("la copie de travail n'est pas commitée : commite le changement, et garde les rapports hors du dépôt")
     code, out = _git(repo, "diff", "-z", "--name-only", "--no-renames", "--diff-filter=A", f"{resolve_base(repo, base)}...HEAD")
-    new_files = {p for p in out.decode("utf-8", "replace").split("\0") if p} if code == 0 else set()
-    past, unread_commits = history(repo, base)
+    new_files = {p for p in out.decode("utf-8", "replace").split("\0") if p and not (skip and skip(p))} if code == 0 else set()
+    past, unread_commits = history(repo, base, skip)
     clock = _Clock()
     try:
         scanner = gate_scanner(repo, lines, reports or [])
@@ -459,7 +470,8 @@ def run_gates(table: dict[str, Any], repo: str, base: str, reports: list[str] | 
              scanner, gate_surface(lines, paths, size.zones(table, repo, base), clock)]
     failed = [g["id"] for g in gates if g["status"] == FAIL]
     unknown = [g["id"] for g in gates if g["status"] == UNKNOWN]
-    return {"pass": not failed and not unknown, "failed": failed, "unknown": unknown, "gates": gates}
+    return {"pass": not failed and not unknown, "failed": failed, "unknown": unknown, "gates": gates,
+            "excluded": [_where(p) for p in excluded]}
 
 
 def render_md(result: dict[str, Any]) -> str:
@@ -472,5 +484,7 @@ def render_md(result: dict[str, Any]) -> str:
     out = [head]
     for gate in result["gates"]:
         out.append(f"- {gate['status']} — {gate['title']} ({gate['evidence']})" + (f". {gate['action']}" if gate["action"] else ""))
+    if result.get("excluded"):
+        out.append(f"- Hors lecture, d'après la branche de base : {_shown(result['excluded'])}.")
     out.append("Ces portes ne disent pas qu'un changement est sûr : elles disent ce qui a été regardé, et par quoi.")
     return "\n".join(out) + "\n"

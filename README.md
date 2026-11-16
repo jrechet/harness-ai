@@ -73,7 +73,7 @@ Une mesure est un tirage, pas une moyenne, et les cas d'essai ont été écrits 
 ### Ce qui n'existe pas encore
 
 - La preuve d'un gain sur un vrai dépôt. Ce que le projet mesure, c'est que ses mécanismes fonctionnent sur des projets types.
-- Une CI pour ce dépôt : ses tests se lancent à la main.
+- Une CI qui tourne : elle est écrite (`.github/workflows/ci.yml`), mais ce dépôt n'a pas encore de runner pour la jouer. Ses tests se lancent à la main, ou par `sh scripts/ci/verifier.sh`.
 - Une version anglaise.
 
 ## Installer les skills dans Claude Code
@@ -148,6 +148,7 @@ python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /chemin/de/ton/depot --
 | `ship render <proposition.json>` | La proposition de livraison du skill, refusée si une commande n'est pas citée de la procédure de l'équipe ou si un prérequis échoue |
 | `run changes --since <version>` | Ce qui est parti entre deux versions : les commits et les fichiers en zone sensible |
 | `run render <enquete.json> --evidence <pièce>…` | L'enquête sur un incident rendue en ticket, refusée si un fait n'est pas cité mot pour mot de sa pièce, si une cause est « confirmée » sans fait, ou si une commande ne vient pas du carnet de l'équipe |
+| `ci pr [--strict]` | Les portes d'une pull request jouées par un pipeline : sécurité et tests, réglages lus sur la branche cible. Bloque la fusion si une porte échoue. Un modèle de workflow est dans `plugins/ai-sdlc/ci/portes.yml` |
 | `guard check "<commande>"` | Dit si une commande shell pose un tag, publie ou déploie. C'est ce que le hook du plugin appelle avant chaque commande de l'agent, pour la refuser |
 | `size [--paths …]` | La taille d'un changement (XS, S-M, L) par règles : fichiers, lignes, zones sensibles |
 | `dev body <corps.json>` | Le corps d'une PR, refusé s'il est incomplet pour sa taille |
