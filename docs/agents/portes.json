@@ -17,7 +17,8 @@
       "plugins/ai-sdlc/cli/tests/test_qa.py",
       "plugins/ai-sdlc/cli/tests/test_qagrade.py",
       "plugins/ai-sdlc/cli/tests/test_ci.py",
-      "plugins/ai-sdlc/cli/tests/test_devgrade.py"
+      "plugins/ai-sdlc/cli/tests/test_devgrade.py",
+      "cli/tests/test_bench.py"
     ]
   }
 }

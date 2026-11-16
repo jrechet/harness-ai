@@ -5,8 +5,10 @@ pipeline les joue sur chaque pull request, et son code de sortie bloque la fusio
 jouer sans modèle ni ticket (la revue, un test par critère) n'est pas prétendu.
 
 Les réglages viennent de `docs/agents/portes.json`, lu **sur la branche de base** : une pull request ne peut
-ni alléger ses propres portes, ni se mettre elle-même hors lecture. Elle peut encore retirer la porte du
-pipeline : c'est la protection de branche de la forge qui rend le check obligatoire."""
+ni alléger ces réglages, ni se mettre elle-même hors lecture. Cela ne protège que les réglages. Le code qui
+joue les portes doit lui aussi venir d'ailleurs que de la pull request (le plugin à une version fixée, ou la
+branche cible récupérée à part), et le fichier du pipeline reste modifiable par elle : c'est un ruleset de
+la forge qui rend le check obligatoire. Une PR vers une branche non protégée prend les réglages de celle-là."""
 from __future__ import annotations
 
 import json
@@ -81,6 +83,7 @@ def run(table: dict[str, Any], repo: str, base: str, coverage: str | None = None
 
 
 def render_md(result: dict[str, Any]) -> str:
+    out_of_reading = f" {len(result['excluded'])} fichier(s) hors lecture." if result["excluded"] else ""
     if result["failed"]:
         head = f"Portes : {len(result['failed'])} en échec. La fusion est bloquée."
     elif result["unknown"] and result["strict"]:
@@ -89,7 +92,7 @@ def render_md(result: dict[str, Any]) -> str:
         head = f"Portes : rien en échec, {len(result['unknown'])} non mesurée(s) à regarder par un humain."
     else:
         head = "Portes : tout ce qui est mesuré passe."
-    out = [f"### {head}", ""]
+    out = [f"### {head}{out_of_reading}", ""]
     for gate in result["gates"]:
         out.append(f"- **{gate['status']}** — {gate['title']} ({gate['evidence']})" + (f". {gate['action']}" if gate["action"] else ""))
     if result["excluded"]:

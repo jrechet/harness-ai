@@ -110,6 +110,7 @@ class BaseBranchTests(Case):
         self.assertTrue(result["pass"])
         self.assertEqual(result["excluded"], ["tests/secrets/faux.py"])
         self.assertIn("Hors lecture", ci.render_md(result))
+        self.assertIn("1 fichier(s) hors lecture.", ci.render_md(result).splitlines()[0])   # dit dès le titre
 
     def test_a_test_about_skipping_can_be_put_out_of_the_disabled_gate_from_the_base_branch_only(self):
         skipped = ("import unittest\n\n\nclass T(unittest.TestCase):\n    @unittest." + "skip('exemple')\n    def test_x(self):\n"
@@ -217,6 +218,14 @@ class CliAndRepoTests(Case):
             self.assertIn("runs-on: [self-hosted, jre-server]", text)  # dépôt privé : jamais un runner facturé
             self.assertNotIn("ubuntu-latest", text)
             self.assertIn("fetch-depth: 0", text)
+            self.assertIn("persist-credentials: false", text)
+            self.assertIn("path: .cible", text)                        # les portes se jouent avec le code de la branche cible
+        with open(os.path.join(ROOT, ".github", "workflows", "ci.yml"), encoding="utf-8") as fh:
+            self.assertIn("head.repo.full_name == github.repository", fh.read())   # jamais une PR de fork sur ce runner
+        with open(os.path.join(ROOT, "plugins", "ai-sdlc", "ci", "portes.yml"), encoding="utf-8") as fh:
+            template = fh.read()
+        run_lines = [line for line in template.splitlines() if "ai_sdlc.py ci pr" in line]
+        self.assertTrue(run_lines and all("${{" not in line for line in run_lines))   # un nom de branche n'entre pas dans une ligne de shell
 
 
 if __name__ == "__main__":
