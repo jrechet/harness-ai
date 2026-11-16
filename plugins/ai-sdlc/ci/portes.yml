@@ -1,0 +1,40 @@
+# Modèle : les portes du plugin ai-sdlc jouées sur chaque pull request d'un dépôt d'équipe.
+# À copier dans .github/workflows/portes.yml, puis :
+#   1. remplacer <runner> par le runner de l'équipe, et <dépôt du plugin> par là où il se récupère ;
+#   2. fixer `ref` sur une version précise du plugin, pas sur une branche ;
+#   3. rendre le check « portes » obligatoire par un ruleset ou un « required workflow » de la forge :
+#      sans cela, une pull request peut retirer ce fichier, ou le modifier, et passer. Ce fichier-ci
+#      vient de la pull request ; le code des portes, lui, vient du dépôt du plugin, à la version fixée ;
+#      et ne pas le rendre obligatoire tant que le job peut être sauté : un check sauté compte pour réussi ;
+#   4. écrire docs/agents/portes.json sur la branche cible si le dépôt a une commande de test à
+#      rejouer ou un dossier à tenir hors lecture. Il se lit sur la branche cible, pas dans la PR :
+#      une PR vers une branche non protégée prend les réglages de cette branche-là ;
+#   5. sur un runner qui n'est pas jetable, ne pas jouer la commande de test d'une PR venue d'un fork.
+name: Portes
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  portes:
+    runs-on: <runner>
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # les portes comparent à la branche cible et lisent l'historique de la PR
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: <dépôt du plugin>
+          ref: <version>
+          path: .ai-sdlc
+      # Les scanners de l'équipe se lancent ici, avec une sortie SARIF hors du dépôt, puis se
+      # passent par --report. Un rapport de couverture se passe par --coverage.
+      - name: Portes de la pull request
+        env:
+          CIBLE: ${{ github.base_ref }}   # jamais interpolé dans la commande : un nom de branche peut porter du shell
+        run: python3 .ai-sdlc/plugins/ai-sdlc/cli/ai_sdlc.py ci pr . --base "origin/$CIBLE"

@@ -1,0 +1,50 @@
+# La CI du dépôt. Dépôt privé : elle tourne sur le serveur, jamais sur un runner GitHub facturé.
+#
+# Deux choses à savoir avant d'y toucher :
+# - Elle exécute le code de la pull request (les tests) sur un runner qui n'est pas jetable. C'est
+#   admis parce que le dépôt est privé et que ses PR viennent de son propriétaire. Le jour où le
+#   dépôt devient public, ce fichier ne doit plus viser ce runner.
+# - Tant qu'aucun runner n'est enregistré pour ce dépôt, le job est sauté : la variable de dépôt
+#   CI_RUNNER vaut « pret » une fois le runner en place (gh variable set CI_RUNNER --body pret).
+#   Un check sauté compte pour réussi : ne pas le rendre obligatoire avant que le runner existe.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    # jamais le code d'un autre dépôt (une PR venue d'un fork) sur le runner du serveur
+    if: >-
+      vars.CI_RUNNER == 'pret' &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, jre-server]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: La branche cible, pour jouer les portes avec son code
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: .cible
+          persist-credentials: false
+      - name: Tests, plan et portes
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          PORTES_DE: ${{ github.event_name == 'pull_request' && '.cible' || '' }}
+        run: |
+          if [ -f .cible/scripts/ci/verifier.sh ]; then sh .cible/scripts/ci/verifier.sh; else sh scripts/ci/verifier.sh; fi

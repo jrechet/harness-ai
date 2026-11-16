@@ -14,6 +14,7 @@
   ai_sdlc.py ship render <proposition.json> [repo] [--base REF] [--checks relevé.json]   la proposition de livraison, si elle tient
   ai_sdlc.py run changes [repo] --since REF [--until REF]   ce qui est parti entre deux versions
   ai_sdlc.py run render <enquete.json> [repo] [--base REF] [--evidence pièce…]   l'enquête sur un incident, rendue en ticket
+  ai_sdlc.py ci pr [repo] [--base REF] [--coverage F] [--report SARIF…] [--strict]   les portes d'une pull request, pour un pipeline
   ai_sdlc.py guard check <commande>   dit si une commande shell livre (tag, publication, déploiement) : 0 non, 1 oui
   ai_sdlc.py guard hook   le même contrôle, comme le hook PreToolUse du plugin (cli/guard_hook.py) le fait : 2 refuse
   ai_sdlc.py fixture init <fixture> <dest>         monte une PR piégée de fixtures/review en dépôt git
@@ -41,7 +42,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import context, dev, devgrade, guard, points, qa, qagrade, review, run, rungrade, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
+from aisdlclib import ci, context, dev, devgrade, guard, points, qa, qagrade, review, run, rungrade, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -93,7 +94,12 @@ def build_parser() -> argparse.ArgumentParser:
     rnr = rn.add_parser("render", help="valide l'enquête et la rend en ticket")
     rnr.add_argument("file", help="l'enquête en JSON")
     rnr.add_argument("--evidence", nargs="+", default=[], metavar="PIÈCE", help="les journaux et exports cités, hors du dépôt")
-    for sp in (ctx, status, render, sized, body, tck, avis, gate, sgate, shp, shr, rnc, rnr):
+    cip = sub.add_parser("ci", help="les portes jouées par un pipeline").add_subparsers(dest="action", required=True)
+    cip = cip.add_parser("pr", help="sécurité et tests d'une pull request ; 1 bloque la fusion")
+    cip.add_argument("--coverage", metavar="FICHIER", help="un rapport lcov ou Cobertura produit par le pipeline")
+    cip.add_argument("--report", nargs="+", metavar="SARIF", default=[], help="les rapports des scanners lancés par le pipeline")
+    cip.add_argument("--strict", action="store_true", help="une porte non mesurée bloque aussi")
+    for sp in (ctx, status, render, sized, body, tck, avis, gate, sgate, shp, shr, rnc, rnr, cip):
         sp.add_argument("repo", nargs="?", default=".")
         sp.add_argument("--base", default="origin/HEAD", help="branche de base (défaut : origin/HEAD)")
         sp.add_argument("--format", choices=["md", "json"], default="md")
@@ -204,6 +210,10 @@ def main(argv: list[str] | None = None) -> int:
             data = qa.run_gates(table, args.repo, args.base, args.run, args.runs, args.coverage, ticket_text,
                                 review.load(args.trace) if args.trace else None)
             text, code = qa.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)
+        elif args.command == "ci":
+            data = ci.run(table, args.repo, args.base, args.coverage, args.report, args.strict)
+            text, code = ci.render_md(data), 0 if data["pass"] else 1
+            ci.publish(text, dict(os.environ))
         elif args.command == "run":
             if args.action == "changes":
                 data = run.changes(table, args.repo, args.base, args.since, args.until)

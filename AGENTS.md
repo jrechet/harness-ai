@@ -13,6 +13,7 @@ Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluati
 | une tâche de fixture (`tasks/`) | `python3 cli/harness.py bench selftest <nom>` | rien |
 | la grille de placement ou une fixture de `fixtures/design/` | `python3 cli/harness.py place check <plan> --expected <fixture>/expected.json` | rien |
 | `plugins/ai-sdlc/` ou une fixture de `fixtures/review/`, `dev/`, `ticket/`, `qa/`, `secu/`, `ship/` ou `run/` | `python3 -m unittest discover -s plugins/ai-sdlc/cli/tests` | rien |
+| la CI ou `docs/agents/portes.json` | `BASE_REF=origin/main sh scripts/ci/verifier.sh` depuis une branche | la CI elle-même, quand son runner existe |
 | un SKILL.md | une exécution à l'aveugle sur une fixture, notée par `fixture check --audit` ou `--init` | rien |
 
 ## Règles
@@ -32,6 +33,10 @@ Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluati
 - Une tâche est finie quand les tests passent, les fixtures sont conformes, et le commit est poussé sur `main`.
 - Le garant dit ce qui n'est pas vérifié, corrige ses propres erreurs dès qu'il les voit, et laisse `main` dans un état où les deux suites passent.
 - Tout travail fini ou commencé, et toute demande ou correction du propriétaire, a sa ligne dans le plan d'avancement de `docs/capacites.md`, dans le même changement. Vérifiée par : hook Stop, `python3 cli/harness.py progress check` [2026-11]
+
+## CI/CD disponibles
+- GitHub Actions : `.github/workflows/ci.yml`, sur `runs-on: [self-hosted, jre-server]`, lance `scripts/ci/verifier.sh` (les deux suites, le plan, les portes de la PR). Sauté tant que la variable `CI_RUNNER` ne vaut pas `pret` : ce dépôt n'a pas encore de runner. Suivi par `gh run list`. [2026-11]
+- Forge : `.forgejo/workflows/ci.yml` lance le même script ; pas encore de miroir vers `forge.jrec.fr`. Aucun workflow ne déploie. [2026-11]
 
 ## Tâches déléguées
 - `harness-stress` (`.claude/skills/harness-stress`) — une campagne d'évaluation des skills sur les projets types, à la demande, corrections en PR dédiée.

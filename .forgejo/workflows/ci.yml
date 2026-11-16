@@ -1,0 +1,35 @@
+# La même vérification, sur la forge. Ce dossier existe aussi pour que la forge n'exécute jamais
+# .github/workflows/ : dès qu'il est là, elle l'ignore.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verifier:
+    runs-on: [self-hosted, jre-server]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: La branche cible, pour jouer les portes avec son code
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: .cible
+          persist-credentials: false
+      - name: Tests, plan et portes
+        env:
+          BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || '' }}
+          PORTES_DE: ${{ github.event_name == 'pull_request' && '.cible' || '' }}
+        run: |
+          if [ -f .cible/scripts/ci/verifier.sh ]; then sh .cible/scripts/ci/verifier.sh; else sh scripts/ci/verifier.sh; fi
