@@ -38,7 +38,8 @@ def resolve_base(repo: str, base: str) -> str:
         raise Refused(f"branche de base {base!r} invalide : un nom de branche, de tag ou un commit")
     code, out = _git(repo, "rev-parse", "--short", "--verify", "--quiet", f"{base}^{{commit}}")
     if code != 0 or not out.strip():
-        raise Refused(f"branche de base {base} introuvable dans {repo} : passe --base <ref>")
+        shown = "".join(ch if ch.isprintable() else "?" for ch in base)[:80]   # la valeur vient de la ligne de commande
+        raise Refused(f"branche de base {shown} introuvable dans {repo} : passe --base <ref>")
     return out.decode("ascii", "replace").strip()
 
 
