@@ -10,7 +10,8 @@
     "review": {"min_level": 1},
     "qa": {"min_level": 3},
     "secu": {"min_level": 1},
-    "ship": {"min_level": 3}
+    "ship": {"min_level": 3},
+    "run": {"min_level": 2}
   },
   "points": {
     "definition-de-pret": {"read_by": ["ticket"], "replaceable": true, "branch": "current", "default": "points/definition-de-pret.md"},
@@ -19,6 +20,7 @@
     "qa": {"read_by": ["qa"], "replaceable": true, "branch": "base", "default": "points/qa.md"},
     "securite": {"read_by": ["secu", "review"], "replaceable": false, "branch": "base", "default": "points/securite.md"},
     "zones-sensibles": {"read_by": ["dev", "review"], "replaceable": false, "branch": "base", "default": "points/zones-sensibles.md"},
-    "livraison": {"read_by": ["ship"], "replaceable": true, "branch": "base", "default": "points/livraison.md"}
+    "livraison": {"read_by": ["ship"], "replaceable": true, "branch": "base", "default": "points/livraison.md"},
+    "exploitation": {"read_by": ["run"], "replaceable": false, "branch": "base", "default": "points/exploitation.md"}
   }
 }

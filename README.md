@@ -65,13 +65,13 @@ Trois niveaux de confiance, toujours les mêmes mots : **éprouvé** (lancé sur
 | Regarder un changement sous l'angle de la sécurité : secrets, scanners, endroits sensibles à relire | `secu` (plugin `ai-sdlc`) | mesuré une fois : quatre défauts plantés sur quatre, deux endroits sains laissés tranquilles |
 | Faire relire une PR : peu de commentaires, chacun sur une ligne du diff | `review` (plugin `ai-sdlc`) | mesuré une fois : 6 pièges sur 6 |
 | Préparer une livraison sans la faire : prérequis mesurés, version et notes proposées | `ship` (plugin `ai-sdlc`) | mesuré une fois : deux cas conformes, rien n'est parti |
+| Enquêter sur un incident sans toucher à la production, et en sortir un ticket | `run` (plugin `ai-sdlc`) | écrit |
 | Faire développer un ticket jusqu'à la PR, sur le chemin de sa taille | `dev` (plugin `ai-sdlc`) | mesuré une fois : deux tickets conformes |
 
 Une mesure est un tirage, pas une moyenne, et les cas d'essai ont été écrits par le modèle qu'on évalue dessus : ils sont plus faciles qu'un vrai dépôt. Le détail est dans [docs/capacites.md](docs/capacites.md) et [docs/cahier-des-charges.md](docs/cahier-des-charges.md).
 
 ### Ce qui n'existe pas encore
 
-- La phase `run` du plugin `ai-sdlc` : prévue, pas écrite.
 - La preuve d'un gain sur un vrai dépôt. Ce que le projet mesure, c'est que ses mécanismes fonctionnent sur des projets types.
 - Une CI pour ce dépôt : ses tests se lancent à la main.
 - Une version anglaise.
@@ -138,7 +138,7 @@ python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /chemin/de/ton/depot --
 
 | Commande | Rôle |
 |---|---|
-| `status` | Les sept points d'extension : convention du socle, surchargé, ou invalide |
+| `status` | Les huit points d'extension : convention du socle, surchargé, ou invalide |
 | `context <phase>` | Le socle et les ajouts de l'équipe, avec leur provenance |
 | `ticket check <ticket.md>` | Un ticket est-il prêt : besoin décrit, critères listés, rien d'ouvert, et la taille annoncée par les chemins cités |
 | `ticket render <avis.json> --ticket <ticket.md>` | L'avis du skill, verdict mesuré en tête, refusé si un critère proposé n'a ni source ni « à confirmer » |
@@ -146,6 +146,8 @@ python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /chemin/de/ton/depot --
 | `secu gate [--report <rapport.sarif>…]` | Quatre portes : aucun secret dans ce que la branche ajoute (historique et messages de commit compris), aucun scanner réduit au silence, aucun résultat de scanner (SARIF) sur une ligne ajoutée, et la liste des endroits sensibles à relire |
 | `ship check [--checks <relevé.json>]` | Les prérequis d'une livraison : tête de branche propre, CI verte sur ce commit, zones sensibles et ruptures depuis la dernière version ; une version et des notes proposées. Ne tague ni ne déploie |
 | `ship render <proposition.json>` | La proposition de livraison du skill, refusée si une commande n'est pas citée de la procédure de l'équipe ou si un prérequis échoue |
+| `run changes --since <version>` | Ce qui est parti entre deux versions : les commits et les fichiers en zone sensible |
+| `run render <enquete.json> --evidence <pièce>…` | L'enquête sur un incident rendue en ticket, refusée si un fait n'est pas cité mot pour mot de sa pièce, si une cause est « confirmée » sans fait, ou si une commande ne vient pas du carnet de l'équipe |
 | `guard check "<commande>"` | Dit si une commande shell pose un tag, publie ou déploie. C'est ce que le hook du plugin appelle avant chaque commande de l'agent, pour la refuser |
 | `size [--paths …]` | La taille d'un changement (XS, S-M, L) par règles : fichiers, lignes, zones sensibles |
 | `dev body <corps.json>` | Le corps d'une PR, refusé s'il est incomplet pour sa taille |
@@ -175,7 +177,7 @@ Les deux suites passent sur un clone neuf, de Python 3.10 à 3.14. Les règles d
 |---|---|
 | `cli/` | Le CLI `harness.py` et ses tests |
 | `skills/` | Les six skills du plugin `harness-ai` |
-| `plugins/ai-sdlc/` | Le second plugin : skills `ticket`, `dev`, `qa`, `secu`, `review` et `ship`, son CLI |
+| `plugins/ai-sdlc/` | Le second plugin : skills `ticket`, `dev`, `qa`, `secu`, `review`, `ship` et `run`, son CLI |
 | `fixtures/` | Projets types, cas piégés, corrigés, exécutions rangées |
 | `app/` | La page de suivi servie par `harness serve` |
 | `docs/` | Ce que le dépôt sait faire ([capacites.md](docs/capacites.md)), le modèle de maturité, l'étude et un [cours interactif](docs/ai-sdlc/cours/index.html) |
