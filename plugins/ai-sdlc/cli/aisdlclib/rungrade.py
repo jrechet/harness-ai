@@ -34,13 +34,13 @@ def check_expected(expected: Any) -> None:
                 raise Refused(f"corrigé : {key} mal formé ({item!r:.80})") from exc
 
 
-def _texts(data: dict[str, Any], field: str, statut: str | None = None) -> list[str]:
+def _texts(data: dict[str, Any], field: str, statut: str | None = None, keys: list[str] | None = None) -> list[str]:
     out = []
     for item in data.get(field, []):
         if isinstance(item, str):
             out.append(item)
         elif isinstance(item, dict) and (statut is None or item.get("statut") == statut):
-            out.append(" ".join(v for v in item.values() if isinstance(v, str)))
+            out.append(" ".join(v for k, v in item.items() if isinstance(v, str) and (keys is None or k in keys)))
     return out
 
 
@@ -78,21 +78,23 @@ def grade(table: dict[str, Any], expected: Any, repo: str, fixture_dir: str, enq
         run.investigation(table, repo, "origin/main", loaded, [os.path.join(evidence_dir, name) for name in names])
         data, detail = loaded, ""
     except Refused as exc:
-        detail = str(exc).replace("\n", " ")[:300]
+        detail = str(exc).replace("\n", " ")[:700]
     add("enquete", "L'enquête tient : faits cités d'une ligne de leur pièce, cause en hypothèse, commandes du carnet, rien de sensible",
         not detail, detail)
+    refused = "non noté : l'enquête est refusée, voir « enquete »"
     for item in expected.get("flags", []):
         hay = [text for field in item["in"] for text in _texts(data, field, item.get("statut"))]
         hit = (lambda text: all(re.search(p, text) for p in item["any"])) if item.get("all") else (lambda text: any(re.search(p, text) for p in item["any"]))
         found = any(hit(text) for text in hay)
-        add(item["id"], f"Dit : {item['what']}", found, "" if found else f"attendu dans {', '.join(item['in'])}", bool(item.get("optional")))
+        add(item["id"], f"Dit : {item['what']}", found,
+            "" if found else (refused if detail else f"attendu dans {', '.join(item['in'])}"), bool(item.get("optional")))
     for item in expected.get("forbidden", []):
-        hay = [text for field in item["in"] for text in _texts(data, field, item.get("statut"))]
+        hay = [text for field in item["in"] for text in _texts(data, field, item.get("statut"), item.get("keys"))]
         hits = [text[:60] for text in hay if re.search(item["pattern"], text) and not (item.get("unless") and re.search(item["unless"], text))]
-        add(item["id"], f"Absent : {item['what']}", not hits and not detail, " | ".join(hits[:2]))
+        add(item["id"], f"Absent : {item['what']}", not hits and not detail, refused if detail else " | ".join(hits[:2]))
     for role in expected.get("roles", []):
         add(f"action-{role}", f"Une action pour {role} est proposée, à décider par un humain",
-            any(isinstance(a, dict) and a.get("role") == role for a in data.get("actions", [])))
+            any(isinstance(a, dict) and a.get("role") == role for a in data.get("actions", [])), refused if detail else "")
     given = set()
     for name in names:
         with open(os.path.join(originals, name), "rb") as fh:
@@ -101,6 +103,8 @@ def grade(table: dict[str, Any], expected: Any, repo: str, fixture_dir: str, enq
     for root, _dirs, files in os.walk(out_dir):
         for name in files:
             path = os.path.join(root, name)
+            if os.path.islink(path) or not os.path.isfile(path):
+                continue   # ni lien ni tube : seuls les fichiers écrits là sont lus
             try:
                 with open(path, "rb") as fh:
                     if fh.read(secugrade.MAX_FILE) in given:

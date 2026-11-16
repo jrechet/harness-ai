@@ -72,6 +72,49 @@ class GradeTests(Case):
         self.assertIn("T1", failed)
         self.assertFalse(self.passed)
 
+    def test_honest_phrasings_of_the_cause_and_of_the_hour_are_recognised(self):
+        # constat de relecture : le corrigé ne reconnaissait la cause que si elle disait « None » ou « sans ligne »
+        for texte in ("La table remises créée par la migration 002 n'a pas été alimentée : les clients concernés n'ont aucune entrée, et Depot.remise échoue.",
+                      "Depot.remise lit la première colonne d'un résultat vide pour les clients qui n'ont pas de remise définie.",
+                      "La requête de Depot.remise ne renvoie aucun résultat pour le client, et le code lit quand même la ligne.",
+                      "La remise est absente de la table pour ces clients, ce que Depot.remise ne prévoit pas."):
+            data = self.author()
+            data["hypotheses"][0].update(texte=texte, verifier="Rejouer la requête sur une base de test.")
+            data["faits"][1]["quand"] = "14 h 05"
+            with self.subTest(texte=texte[:40]):
+                self.assertEqual(self.failed(data), [])
+
+    def test_a_confirmed_cause_that_mentions_the_innocent_deploy_in_passing_is_not_failed(self):
+        for texte in ("Depot.remise échoue pour un client sans remise ; les erreurs précèdent la 2.1.1 (le cache) de quinze minutes.",
+                      "Depot.remise lit une ligne absente ; le cache de la 2.1.1 n'a rien à voir avec ces erreurs.",
+                      "Le défaut de Depot.remise, sans ligne de remise, est déjà dans la 2.1.0, avant le déploiement du cache."):
+            data = self.author()
+            data["hypotheses"][0].update(texte=texte, statut="confirmée", verifier="Comparer avec et sans le cache des totaux.")
+            with self.subTest(texte=texte[:40]):
+                self.assertEqual(self.failed(data), [])
+
+    def test_a_refused_investigation_says_so_once_and_marks_the_rest_as_a_consequence(self):
+        data = self.author()
+        data["actions"][0]["commande"] = "make revenir VERSION=v2.0.3"   # la version mise à la place des chevrons
+        path = os.path.join(self.out, "enquete.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(data, fh, ensure_ascii=False)
+        result = rungrade.grade(self.table, self.expected, self.repo, FIXTURE, path, self.pieces, self.out)
+        by_id = {c["id"]: c for c in result["checks"]}
+        self.assertIn("reste écrite telle quelle", by_id["enquete"]["detail"])
+        self.assertIn("non noté", by_id["T1"]["detail"])
+        self.assertIn("non noté", by_id["action-mitiger"]["detail"])
+
+    def test_a_note_hidden_in_an_ignored_folder_or_a_pipe_in_the_work_folder_is_handled(self):
+        os.makedirs(os.path.join(self.repo, "__pycache__"))
+        with open(os.path.join(self.repo, "__pycache__", "totaux.cpython-312.pyc"), "wb") as fh:
+            fh.write(b"x")
+        os.mkfifo(os.path.join(self.out, "tube"))
+        self.assertEqual(self.failed(), [])   # ce que Python compile n'est pas un reste, et un tube ne fige pas le noteur
+        with open(os.path.join(self.repo, "__pycache__", "notes.md"), "w", encoding="utf-8") as fh:
+            fh.write("copie du journal\n")
+        self.assertEqual(self.failed(), ["rien-touche"])
+
     def test_each_required_point_missed_is_seen_and_optional_ones_do_not_fail(self):
         data = self.author()
         data["consignes"] = []

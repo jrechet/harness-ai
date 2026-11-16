@@ -9,7 +9,7 @@
       "what": "la cause probable : la remise d'un client qui n'a pas de ligne dans la table remises",
       "any": [
         "(?i)remise",
-        "(?i)NoneType|None\\b|sans (?:ligne|taux|remise)|aucune ligne"
+        "(?i)None|vide|aucun(?:e)? (?:ligne|r[ée]sultat|entr[ée]e|taux|remise)|pas de (?:ligne|remise|taux)|pas [ée]t[ée] (?:aliment|rempli|renseign)|absent|n'ont? pas de|n'ont? aucun|sans (?:ligne|taux|remise|entr[ée]e)|fetchone|inexistant|manqu"
       ],
       "all": true,
       "in": [
@@ -20,7 +20,7 @@
       "id": "T2",
       "what": "le début des erreurs à 14:05, cité du journal de l'API",
       "any": [
-        "14:05"
+        "14\\s?[:h]\\s?05"
       ],
       "in": [
         "faits"
@@ -82,7 +82,10 @@
         "hypotheses"
       ],
       "statut": "confirmée",
-      "unless": "(?i)pas la cause|hors de cause|innocent|n'est pas|écart"
+      "unless": "(?i)pas la cause|hors de cause|innocent|n'est pas|n'a pas|n'y est pour rien|rien à voir|écart|avant|précèd|preced|antérieur|pas de lien|sans lien|ne peut pas",
+      "keys": [
+        "texte"
+      ]
     }
   ],
   "roles": [

@@ -211,7 +211,8 @@ def check(data: Any, evidence: dict[str, list[str]], repo: str, commit: str, run
         if not (isinstance(item, dict) and _said(item.get("quoi"), 10) and item.get("role") in ROLES and _said(item.get("qui"))):
             errors.append(f"action {index} : un objet avec quoi, role ({', '.join(ROLES)}) et qui (le rôle qui la décide)")
         elif item.get("commande") is not None and (not isinstance(item["commande"], str) or _flat(item["commande"]) not in runbook):
-            known = (" Celles qu'il écrit : " + " ; ".join(f"`{ship._code(c)}`" for c in runbook[:8]) + ".") if runbook else \
+            known = (" Celles qu'il écrit : " + " ; ".join(f"`{ship._code(c)}`" for c in runbook[:8]) + ". Une valeur entre chevrons "
+                     "(<version précédente>) reste écrite telle quelle : c'est l'humain qui la remplace.") if runbook else \
                 " Il n'en écrit aucune : décris l'action, sans commande."
             errors.append(f"action {index} : la commande n'est pas, en entier et mot pour mot, une commande du carnet d'exploitation "
                           f"de l'équipe (docs/agents/exploitation.md).{known}")
