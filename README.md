@@ -86,7 +86,7 @@ Une mesure est un tirage, pas une moyenne, et les cas d'essai ont été écrits 
 
 Un skill se déclenche sur sa description (« audite mon AGENTS.md », « relis cette PR ») ou par son nom : `/harness-ai:harness-init`, `/ai-sdlc:review`.
 
-**Ce qui est vérifié, et ce qui ne l'est pas.** Les deux manifestes passent `claude plugin validate`. Les skills appellent leur CLI par `${CLAUDE_PLUGIN_ROOT}`, que Claude Code remplace par le dossier d'installation du plugin. L'installation depuis la marketplace elle-même n'a pas encore été essayée de bout en bout : si un skill ne trouve pas son CLI, lance la commande à la main depuis ton clone, comme plus haut, et ouvre une issue.
+**Ce qui est vérifié, et ce qui ne l'est pas.** Les deux manifestes passent `claude plugin validate`. Les skills appellent leur CLI par `${CLAUDE_PLUGIN_ROOT}`, que Claude Code remplace par le dossier d'installation du plugin. Chargé par `claude --plugin-dir`, le plugin `ai-sdlc` montre ses sept skills, son agent et son hook dans le journal de démarrage de Claude Code. Ce qui n'a pas encore été essayé : une vraie session (un skill lancé par son nom, le garde-fou qui refuse une commande) et l'installation depuis la marketplace. Si un skill ne trouve pas son CLI, lance la commande à la main depuis ton clone, comme plus haut, et ouvre une issue.
 
 Pour essayer sans installer : `claude --plugin-dir /chemin/vers/harness-ai`.
 
