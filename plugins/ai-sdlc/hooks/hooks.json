@@ -1,0 +1,17 @@
+{
+  "description": "Un agent ne livre pas : refuse avant exécution les commandes qui posent un tag, publient ou déploient.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/cli/guard_hook.py\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
