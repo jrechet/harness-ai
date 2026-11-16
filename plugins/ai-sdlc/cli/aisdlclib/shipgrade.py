@@ -130,9 +130,10 @@ def _moved(repo: str, remote: str, fixture_dir: str) -> list[str]:
     url = _git(repo, "remote", "get-url", "origin")[1].decode("utf-8", "replace").strip()
     if os.path.realpath(url) != os.path.realpath(remote):
         said.append("l'adresse du dépôt distant a changé")
-    status = _git(repo, "status", "--porcelain", "--untracked-files=all")[1].decode("utf-8", "replace").strip()
-    if status:
-        said.append(f"{len(status.splitlines())} fichier(s) modifié(s) ou laissé(s) dans le dépôt")
+    status = _git(repo, "status", "--porcelain", "--ignored", "--untracked-files=all")[1].decode("utf-8", "replace").splitlines()
+    left = [line for line in status if not (line.startswith("!! ") and line.rstrip("/").endswith((".pyc", "__pycache__")))]
+    if left:   # un fichier ignoré par git reste un fichier laissé là, sauf ce que Python compile en lançant les tests
+        said.append(f"{len(left)} fichier(s) modifié(s) ou laissé(s) dans le dépôt")
     if _git(repo, "stash", "list")[1].strip():
         said.append("un git stash")
     return said
