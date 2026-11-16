@@ -1,14 +1,17 @@
-"""Un ticket est-il prêt à être confié à un agent ? Ce qui se mesure sans modèle.
+"""Is a ticket ready to be handed to an agent? What can be measured without a model.
 
-Atlassian rapporte que cinq traits simples d'un ticket (longueur de la description, part de liens,
-chemins de fichiers, extraits de code, termes techniques) prédisent bien qu'un agent échouera. Ce
-module mesure des traits de cette famille sur le texte d'un ticket : trois sont **requis** (un besoin
-décrit, des critères d'acceptation, aucune décision laissée ouverte), trois sont des **signaux** (où ça
-se passe, un périmètre, pas seulement des liens). Il dit aussi si un chemin cité tombe en zone
-sensible : le ticket est alors de taille L avant même d'être commencé.
+Atlassian reports that five simple traits of a ticket (description length, share of links,
+file paths, code snippets, technical terms) predict well that an agent will fail. This module
+measures traits of that family on the text of a ticket: three are **required** (a need described,
+acceptance criteria, no decision left open), three are **signals** (where it happens, a scope, not
+only links). It also says whether a cited path falls in a sensitive zone: the ticket is then size L
+before it is even started.
 
-Il ne juge pas le fond : qu'un critère soit le bon, que le découpage soit sain, c'est le travail du
-skill et de la personne qui porte le ticket. Les seuils sont des choix de départ, sans mesure derrière."""
+It does not judge the substance: whether a criterion is the right one, whether the split is sound, is
+the job of the skill and of the person who owns the ticket. The thresholds are starting choices, with
+no measurement behind them.
+
+The ticket is written by a team, in French or in English: headings and markers are read in both."""
 from __future__ import annotations
 
 import re
@@ -21,16 +24,17 @@ from .context import Refused
 MIN_WORDS = 15
 MAX_LINK_RATIO = 0.5
 MAX_CHARS = 500_000
-MAX_HEADING = 200      # une ligne plus longue n'est pas un titre
-BOLD_LEVEL = 7         # un titre en gras n'a pas de niveau : il se range sous tous les titres en #
+MAX_HEADING = 200      # a longer line is not a heading
+BOLD_LEVEL = 7         # a bold heading has no level: it ranks under every # heading
 _CRITERIA = re.compile(r"crit[èe]res?\s+d['’](?:acceptation|acceptance)|crit[èe]res?\s+de\s+validation|"
                        r"conditions?\s+(?:de\s+|d['’])(?:validation|acceptation)|tests?\s+d['’]acceptation|"
-                       r"acceptance criteria|^\s*AC\s*$|definition of done|d[ée]finition de fini", re.IGNORECASE)
-_SCOPE = re.compile(r"p[ée]rim[èe]tre|hors[- ]p[ée]rim[èe]tre|\bscope\b|out of scope|non[- ]objectifs?", re.IGNORECASE)
-_COMMENTS = re.compile(r"^commentaires?$|^comments?$|^discussion$|^activit[ée]$", re.IGNORECASE)
-_OPEN = re.compile(r"\bTBD\b|\bTODO\b|à d[ée]finir|à pr[ée]ciser|à voir avec|à confirmer|\?\?\?|to be defined|to be decided",
-                   re.IGNORECASE)
-_ITEM = re.compile(r"^\s*(?:[-*+#]+|\d+[.)])\s+(?:\[[ xX]?\]\s*)?[\w`\"«(]")   # une puce suivie d'un mot, pas d'une case vide
+                       r"acceptance criteria|acceptance conditions?|acceptance tests?|^\s*AC\s*$|definition of done|"
+                       r"d[ée]finition de fini", re.IGNORECASE)
+_SCOPE = re.compile(r"p[ée]rim[èe]tre|hors[- ]p[ée]rim[èe]tre|\bscope\b|out of scope|non[- ]objectifs?|non[- ]goals?", re.IGNORECASE)
+_COMMENTS = re.compile(r"^commentaires?$|^comments?$|^discussion$|^activit[ée]$|^activity$", re.IGNORECASE)
+_OPEN = re.compile(r"\bTBD\b|\bTODO\b|à d[ée]finir|à pr[ée]ciser|à voir avec|à confirmer|\?\?\?|to be defined|to be decided|"
+                   r"to be confirmed|to be clarified|to be determined|to check with|\bTBC\b", re.IGNORECASE)
+_ITEM = re.compile(r"^\s*(?:[-*+#]+|\d+[.)])\s+(?:\[[ xX]?\]\s*)?[\w`\"«(]")   # a bullet followed by a word, not by an empty box
 _LOOSE_PATH = re.compile(r"(?<![\w./@-])[\w.@-]+(?:/[\w.@*-]+)+")
 _KNOWN_FILES = ("Dockerfile", "Jenkinsfile", "Makefile")
 _LINK = re.compile(r"https?://\S+")
@@ -39,20 +43,20 @@ _PATH = re.compile(r"^[\w.@-]+(?:/[\w.@*-]+)+/?$|^[\w-]+\.[a-z]{1,5}$")
 
 
 def read(path: str) -> str:
-    """Le texte d'un ticket. Refusé plutôt que tronqué : la suite peut porter des critères, ou une consigne."""
+    """The text of a ticket. Refused rather than truncated: the rest may carry criteria, or an instruction."""
     try:
         with open(path, encoding="utf-8") as fh:
             text = fh.read(MAX_CHARS + 1)
     except (OSError, UnicodeDecodeError) as exc:
-        raise Refused(f"{path} : illisible ({exc})") from exc
+        raise Refused(f"{path}: unreadable ({exc})") from exc
     if len(text) > MAX_CHARS:
-        raise Refused(f"{path} : plus de {MAX_CHARS} caractères, ce n'est pas un ticket lisible")
+        raise Refused(f"{path}: more than {MAX_CHARS} characters, this is not a readable ticket")
     return text
 
 
 def _heading(line: str) -> tuple[int, str] | None:
-    """Le niveau et le texte d'une ligne de titre : `#` Markdown, `h2.` du wiki Jira, ou une ligne
-    entièrement en gras. Lu sans expression à retour arrière : le texte vient d'un tiers."""
+    """The level and text of a heading line: Markdown `#`, Jira wiki `h2.`, or a line entirely
+    in bold. Read without a backtracking expression: the text comes from a third party."""
     text = line.strip()
     if not text or len(text) > MAX_HEADING or len(line) - len(line.lstrip()) > 3:
         return None
@@ -69,9 +73,9 @@ def _heading(line: str) -> tuple[int, str] | None:
 
 
 def sections(text: str) -> list[dict[str, Any]]:
-    """Le ticket découpé par titres, hors blocs de code. Ce qui précède le premier titre est la
-    description. Une section de commentaires garde tout ce qui la suit jusqu'à un titre de son niveau
-    ou plus haut : un titre glissé dans un commentaire n'y rouvre pas le ticket."""
+    """The ticket split by headings, outside code blocks. What comes before the first heading is the
+    description. A comments section keeps everything that follows it up to a heading of its level
+    or higher: a heading slipped into a comment does not reopen the ticket there."""
     out = [{"title": "", "level": 0, "comment": False, "lines": []}]
     fenced, muted = False, None
     for line in text.splitlines():
@@ -83,7 +87,7 @@ def sections(text: str) -> list[dict[str, Any]]:
             continue
         level, title = found
         if muted is not None and level > muted:
-            out[-1]["lines"].append(line)      # sous les commentaires : du texte, pas un titre du ticket
+            out[-1]["lines"].append(line)      # under the comments: text, not a heading of the ticket
             continue
         muted = level if _COMMENTS.search(title) else None
         out.append({"title": title, "level": level, "comment": muted is not None, "lines": []})
@@ -102,7 +106,7 @@ def _clean(token: str) -> str | None:
 
 
 def cited_paths(text: str) -> list[str]:
-    """Les chemins que le ticket cite entre accents graves : c'est le signal « il dit où »."""
+    """The paths the ticket cites between backticks: that is the "it says where" signal."""
     seen: list[str] = []
     for span in _CODE.findall(text):
         for raw in span.strip("`").split():
@@ -113,8 +117,8 @@ def cited_paths(text: str) -> list[str]:
 
 
 def loose_paths(text: str) -> list[str]:
-    """Tout ce qui ressemble à un chemin, accents graves ou non : pour ne pas rater une zone sensible
-    écrite en clair. Ne sert qu'à annoncer la taille, jamais à dire que le ticket « dit où »."""
+    """Everything that looks like a path, backticks or not: so as not to miss a sensitive zone
+    written in plain text. Only used to announce the size, never to say the ticket "says where"."""
     found = [_clean(m.group(0)) for m in _LOOSE_PATH.finditer(_LINK.sub(" ", text))]
     found += [w for w in (raw.strip(".") if not raw.startswith(".git") else raw.rstrip(".") for raw in re.findall(r"[\w.-]+", text))
               if w in _KNOWN_FILES or w == ".gitlab-ci.yml"]
@@ -122,40 +126,40 @@ def loose_paths(text: str) -> list[str]:
 
 
 def check(text: str, zones: list[dict[str, str]]) -> dict[str, Any]:
-    """Les six vérifications, la taille annoncée par les chemins cités, et le verdict."""
+    """The six checks, the size announced by the cited paths, and the verdict."""
     parts = sections(text)
-    body = [p for p in parts if not p["comment"]]    # un commentaire n'est pas le ticket
+    body = [p for p in parts if not p["comment"]]    # a comment is not the ticket
     need = [p for p in body if not _CRITERIA.search(p["title"]) and not _SCOPE.search(p["title"])]
     criteria = [line.strip() for p in body if _CRITERIA.search(p["title"]) for line in p["lines"]
-                if _ITEM.match(line) and len(line) - len(line.lstrip()) < 2]      # les sous-puces précisent, elles ne comptent pas
+                if _ITEM.match(line) and len(line) - len(line.lstrip()) < 2]      # sub-bullets refine, they do not count
     own = "\n".join(line for p in body for line in p["lines"])
     words = sum(_words(p["lines"]) for p in need)
     links = len(_LINK.findall(own))
     prose = "\n".join(line for line in _CODE.sub(" ", own).splitlines() if not line.lstrip().startswith(">"))
-    open_points = sorted({m.group(0) for m in _OPEN.finditer(prose)})   # ni le code ni une citation ne décident
+    open_points = sorted({m.group(0) for m in _OPEN.finditer(prose)})   # neither code nor a quote decides
     paths = cited_paths(own)
     snippets = len(_CODE.findall(own))
     scoped = any(_SCOPE.search(p["title"]) for p in body) or bool(_SCOPE.search(own))
     all_words = max(1, len(re.findall(r"\w+", _LINK.sub("", own))))
-    link_share = sum(len(u) for u in _LINK.findall(own)) / max(1, len(re.sub(r"\s+", "", own)))   # en caractères
+    link_share = sum(len(u) for u in _LINK.findall(own)) / max(1, len(re.sub(r"\s+", "", own)))   # in characters
 
     def row(ident: str, required: bool, title: str, ok: bool, evidence: str, action: str) -> dict[str, Any]:
         return {"id": ident, "required": required, "title": title, "ok": bool(ok), "evidence": evidence,
                 "action": None if ok else action}
 
     checks = [
-        row("besoin", True, "Le besoin est décrit", words >= MIN_WORDS, f"{words} mots hors critères et liens",
-            f"Dire en au moins {MIN_WORDS} mots ce qui doit être vrai une fois le travail fini."),
-        row("criteres", True, "Des critères d'acceptation sont listés", bool(criteria), f"{len(criteria)} critère(s)",
-            "Ajouter une section « Critères d'acceptation » avec une puce par critère vérifiable : seules les listes sont comptées."),
-        row("ouvert", True, "Aucune décision n'est laissée ouverte", not open_points, ", ".join(open_points[:4]) or "rien d'ouvert",
-            "Trancher ce qui est marqué « à définir », ou sortir cette partie du ticket."),
-        row("ou", False, "Le ticket dit où ça se passe", bool(paths) or snippets > 0, f"{len(paths)} chemin(s), {snippets} extrait(s) de code",
-            "Citer le fichier, le module ou la fonction concernés, entre accents graves."),
-        row("perimetre", False, "Le périmètre est dit", scoped, "section ou mention de périmètre" if scoped else "aucune mention",
-            "Dire ce qui est hors périmètre : c'est ce que l'agent corrige « en passant »."),
-        row("liens", False, "Le ticket ne renvoie pas tout ailleurs", link_share <= MAX_LINK_RATIO,
-            f"{links} lien(s) pour {all_words} mots", "Recopier dans le ticket ce que les liens disent d'utile : l'agent ne les ouvre pas tous."),
+        row("need", True, "The need is described", words >= MIN_WORDS, f"{words} words outside criteria and links",
+            f"Say in at least {MIN_WORDS} words what must be true once the work is done."),
+        row("criteria", True, "Acceptance criteria are listed", bool(criteria), f"{len(criteria)} criterion(s)",
+            "Add an \"Acceptance criteria\" section with one bullet per verifiable criterion: only lists are counted."),
+        row("open", True, "No decision is left open", not open_points, ", ".join(open_points[:4]) or "nothing open",
+            "Settle what is marked \"to be defined\", or take that part out of the ticket."),
+        row("where", False, "The ticket says where it happens", bool(paths) or snippets > 0, f"{len(paths)} path(s), {snippets} code snippet(s)",
+            "Cite the file, module or function concerned, between backticks."),
+        row("scope", False, "The scope is stated", scoped, "scope section or mention" if scoped else "no mention",
+            "Say what is out of scope: that is what the agent fixes \"while it is there\"."),
+        row("links", False, "The ticket does not send everything elsewhere", link_share <= MAX_LINK_RATIO,
+            f"{links} link(s) for {all_words} words", "Copy into the ticket what the links say that matters: the agent does not open them all."),
     ]
     sensitive = size_mod.touched(list(dict.fromkeys(paths + loose_paths(own))), zones)
     return {"ready": all(c["ok"] for c in checks if c["required"]), "checks": checks,
@@ -165,34 +169,34 @@ def check(text: str, zones: list[dict[str, str]]) -> dict[str, Any]:
 
 
 def zones_for(table: dict[str, Any], repo: str, base: str) -> tuple[list[dict[str, str]], str | None]:
-    """Les zones sensibles du socle et de l'équipe ; sans branche de base lisible, celles du socle seules."""
+    """The sensitive zones of the base convention and of the team; without a readable base branch, the base ones alone."""
     try:
         return size_mod.zones(table, repo, base), None
     except Refused as exc:
         default = points_mod.default_text(table["points"]["sensitive-zones"]) or ""
-        return size_mod.parse_zones(default, "base"), f"zones de l'équipe non lues ({exc})"
+        return size_mod.parse_zones(default, "base"), f"team zones not read ({exc})"
 
 
 def render_md(result: dict[str, Any], warning: str | None = None) -> str:
     missing = [c for c in result["checks"] if c["required"] and not c["ok"]]
-    out = ["Ticket prêt à être confié." if result["ready"] else f"Ticket pas prêt : {len(missing)} point(s) requis manquent."]
+    out = ["Ticket ready to be handed over." if result["ready"] else f"Ticket not ready: {len(missing)} required point(s) missing."]
     for check_ in result["checks"]:
-        mark = "ok" if check_["ok"] else ("MANQUE" if check_["required"] else "à améliorer")
+        mark = "ok" if check_["ok"] else ("MISSING" if check_["required"] else "to improve")
         out.append(f"- {mark} — {check_['title']} ({check_['evidence']})" + (f". {check_['action']}" if check_["action"] else ""))
     for hit in result["sensitive"]:
-        out.append(f"- Taille L annoncée : `{hit['path'][:80]}` est en zone sensible (`{hit['glob']}`, {hit['origin']}) : "
-                   "plan écrit et validé par un humain avant le code.")
+        out.append(f"- Size L announced: `{hit['path'][:80]}` is in a sensitive zone (`{hit['glob']}`, {hit['origin']}): "
+                   "a written plan approved by a human before the code.")
     if result["comments"]:
-        out.append(f"- {result['comments']} ligne(s) de commentaires ignorées : un commentaire n'est pas le ticket, et peut porter une consigne.")
+        out.append(f"- {result['comments']} comment line(s) ignored: a comment is not the ticket, and may carry an instruction.")
     if warning:
-        out.append(f"- Attention : {warning}")
-    out.append("Ce contrôle mesure la forme. Que les critères soient les bons reste à juger.")
+        out.append(f"- Warning: {warning}")
+    out.append("This check measures the form. Whether the criteria are the right ones remains to be judged.")
     return "\n".join(out) + "\n"
 
 
-# --- l'avis du skill : ce qu'il propose, dans une forme qu'un programme relit ---
+# --- the skill's opinion: what it proposes, in a form a program reads back ---
 
-AVIS_LISTS = ("manques", "criteres", "decoupage", "questions", "consignes")
+OPINION_LISTS = ("gaps", "criteria", "split", "questions", "instructions")
 MIN_QUOTE = 12
 MAX_ITEMS = 40
 MAX_TEXT = 600
@@ -203,95 +207,96 @@ def _flat(text: str) -> str:
 
 
 def _shown(text: str) -> str:
-    """Un texte de l'avis prêt à être rendu : il peut recopier le ticket, donc ni balise ni mention active."""
-    return _flat(text).replace("<", "&lt;").replace("@", "@\u200b")
+    """An opinion text ready to be rendered: it may copy the ticket, so no tag and no live mention."""
+    return _flat(text).replace("<", "&lt;").replace("@", "@​")
 
 
 def _said(value: Any) -> bool:
     return isinstance(value, str) and bool(value.strip()) and len(value) <= MAX_TEXT
 
 
-def check_avis(avis: Any, text: str, exists: Any) -> list[str]:
-    """Les défauts de forme d'un avis. `exists(chemin)` dit si un fichier est sur la branche cible.
-    Trois choses sont tenues ici et pas par le skill : le verdict ne s'écrit pas (il vient de `check`),
-    un critère proposé dit d'où il sort ou qu'il reste à confirmer, une consigne signalée est citée mot pour mot."""
-    if not isinstance(avis, dict):
-        return ["l'avis est un objet JSON : manques, criteres, decoupage, questions, consignes"]
+def check_opinion(opinion: Any, text: str, exists: Any) -> list[str]:
+    """The form defects of an opinion. `exists(path)` says whether a file is on the target branch.
+    Three things are held here and not by the skill: the verdict is not written (it comes from `check`),
+    a proposed criterion says where it comes from or that it remains to be confirmed, a reported
+    instruction is quoted word for word."""
+    if not isinstance(opinion, dict):
+        return ["the opinion is a JSON object: gaps, criteria, split, questions, instructions"]
     errors = []
     for key in ("pret", "prêt", "ready", "verdict", "taille", "size"):
-        if key in avis:
-            errors.append(f"« {key} » ne s'écrit pas dans l'avis : le verdict et la taille viennent de la commande")
-    for key in AVIS_LISTS:
-        if not isinstance(avis.get(key, []), list) or len(avis.get(key, [])) > MAX_ITEMS:
-            errors.append(f"{key} : une liste d'au plus {MAX_ITEMS} éléments")
+        if key in opinion:
+            errors.append(f"\"{key}\" is not written in the opinion: the verdict and the size come from the command")
+    for key in OPINION_LISTS:
+        if not isinstance(opinion.get(key, []), list) or len(opinion.get(key, [])) > MAX_ITEMS:
+            errors.append(f"{key}: a list of at most {MAX_ITEMS} items")
     if errors:
         return errors
     whole = _flat(text)
-    for index, item in enumerate(avis.get("manques", []), 1):
-        if not (isinstance(item, dict) and _said(item.get("point")) and _said(item.get("constat"))):
-            errors.append(f"manque {index} : un objet avec point et constat, chacun d'au plus {MAX_TEXT} caractères")
-    for index, item in enumerate(avis.get("criteres", []), 1):
-        if not (isinstance(item, dict) and _said(item.get("texte"))):
-            errors.append(f"critère {index} : un objet avec texte")
+    for index, item in enumerate(opinion.get("gaps", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("point")) and _said(item.get("issue"))):
+            errors.append(f"gap {index}: an object with point and issue, each of at most {MAX_TEXT} characters")
+    for index, item in enumerate(opinion.get("criteria", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("text"))):
+            errors.append(f"criterion {index}: an object with text")
             continue
-        source, pending = item.get("source"), item.get("a_confirmer", False)
+        source, pending = item.get("source"), item.get("to_confirm", False)
         if type(pending) is not bool or (source is not None and not _said(source)):
-            errors.append(f"critère {index} : source est un chemin ou « ticket », a_confirmer vaut true ou false")
+            errors.append(f"criterion {index}: source is a path or \"ticket\", to_confirm is true or false")
             continue
         source = source.strip() if source else None
-        quote = _flat(item["extrait"]) if isinstance(item.get("extrait"), str) else ""
+        quote = _flat(item["excerpt"]) if isinstance(item.get("excerpt"), str) else ""
         if source is None and not pending:
-            errors.append(f"critère {index} : ni source ni a_confirmer, un critère proposé dit d'où il sort ou qu'il reste à confirmer")
+            errors.append(f"criterion {index}: neither source nor to_confirm, a proposed criterion says where it comes from or that it remains to be confirmed")
         elif source == "ticket" and not pending and not (MIN_QUOTE <= len(quote) <= MAX_TEXT and quote in whole):
-            errors.append(f"critère {index} : tiré du ticket sans « à confirmer », il en cite un extrait mot pour mot "
-                          f"(extrait, au moins {MIN_QUOTE} caractères)")
+            errors.append(f"criterion {index}: drawn from the ticket without \"to confirm\", it quotes an excerpt of it word for word "
+                          f"(excerpt, at least {MIN_QUOTE} characters)")
         elif source not in (None, "ticket") and not exists(source):
-            errors.append(f"critère {index} : la source {source[:80]!r} n'est pas un fichier de la branche cible")
-    pieces = [_flat(item).lower() if _said(item) else None for item in avis.get("decoupage", [])]
+            errors.append(f"criterion {index}: the source {source[:80]!r} is not a file of the target branch")
+    pieces = [_flat(item).lower() if _said(item) else None for item in opinion.get("split", [])]
     for index, piece in enumerate(pieces, 1):
         if piece is None or len(piece.split()) < 3 or pieces.index(piece) != index - 1:
-            errors.append(f"morceau {index} : une phrase d'au moins trois mots, différente des autres")
-    for index, item in enumerate(avis.get("questions", []), 1):
-        if not (isinstance(item, dict) and _said(item.get("question")) and _said(item.get("defaut"))):
-            errors.append(f"question {index} : un objet avec question et defaut (le choix proposé si personne ne répond)")
-    for index, item in enumerate(avis.get("consignes", []), 1):
-        quote = _flat(item.get("citation", "")) if isinstance(item, dict) and isinstance(item.get("citation"), str) else ""
+            errors.append(f"piece {index}: a sentence of at least three words, different from the others")
+    for index, item in enumerate(opinion.get("questions", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("question")) and _said(item.get("default"))):
+            errors.append(f"question {index}: an object with question and default (the choice proposed if nobody answers)")
+    for index, item in enumerate(opinion.get("instructions", []), 1):
+        quote = _flat(item.get("quote", "")) if isinstance(item, dict) and isinstance(item.get("quote"), str) else ""
         if len(quote) < MIN_QUOTE or len(quote) > MAX_TEXT:
-            errors.append(f"consigne {index} : un objet avec citation, de {MIN_QUOTE} à {MAX_TEXT} caractères")
+            errors.append(f"instruction {index}: an object with quote, of {MIN_QUOTE} to {MAX_TEXT} characters")
         elif quote not in whole:
-            errors.append(f"consigne {index} : la citation ne se retrouve pas mot pour mot dans le ticket")
+            errors.append(f"instruction {index}: the quote is not found word for word in the ticket")
     return errors
 
 
-def render_avis(avis: dict[str, Any], result: dict[str, Any], warning: str | None = None) -> str:
-    """L'avis rendu : le verdict mesuré d'abord, puis ce que le skill propose."""
-    names = {"besoin": "un besoin décrit", "criteres": "des critères d'acceptation listés", "ouvert": "une décision encore ouverte à trancher"}
+def render_opinion(opinion: dict[str, Any], result: dict[str, Any], warning: str | None = None) -> str:
+    """The rendered opinion: the measured verdict first, then what the skill proposes."""
+    names = {"need": "a described need", "criteria": "listed acceptance criteria", "open": "an open decision to settle"}
     missing = [names.get(c["id"], c["title"]) for c in result["checks"] if c["required"] and not c["ok"]]
-    lacks = len(avis.get("manques", []))
+    gaps = len(opinion.get("gaps", []))
     if not result["ready"]:
-        out = [f"**Pas prêt** (mesuré par `ticket check`). Il manque : {' ; '.join(missing)}."]
-    elif lacks:   # la commande mesure la forme : un lecteur pressé ne doit pas s'arrêter à « prêt »
-        out = [f"**Prêt sur la forme** (mesuré par `ticket check`), avec {lacks} point(s) de fond relevé(s) ci-dessous."]
+        out = [f"**Not ready** (measured by `ticket check`). Missing: {'; '.join(missing)}."]
+    elif gaps:   # the command measures the form: a hurried reader must not stop at "ready"
+        out = [f"**Ready on form** (measured by `ticket check`), with {gaps} point(s) of substance raised below."]
     else:
-        out = ["**Prêt** (mesuré par `ticket check`)."]
+        out = ["**Ready** (measured by `ticket check`)."]
     for hit in result["sensitive"]:
-        out.append(f"**Taille L annoncée** : `{hit['path'][:80]}` est en zone sensible : plan écrit et validé avant le code.")
+        out.append(f"**Size L announced**: `{hit['path'][:80]}` is in a sensitive zone: a written, approved plan before the code.")
     if warning:
-        out.append(f"Attention : {warning}")
+        out.append(f"Warning: {warning}")
 
     def block(title: str, lines: list[str]) -> None:
         if lines:
             out.extend(["", f"### {title}", *lines])
 
-    block("Ce qui manque", [f"- **{_shown(m['point'])}** : {_shown(m['constat'])}" for m in avis.get("manques", [])])
-    block("Critères proposés", [
-        f"{n}. {_shown(c['texte'])}" + (" — **à confirmer**" if c.get("a_confirmer") else "")
-        + (f" (source : {'le ticket' if c['source'] == 'ticket' else '`' + c['source'].strip() + '`'})" if c.get("source") else "")
-        for n, c in enumerate(avis.get("criteres", []), 1)])
-    block("Découpage proposé", [f"- {_shown(piece)}" for piece in avis.get("decoupage", [])])
-    block("Questions", [f"{n}. {_shown(q['question'])} Défaut proposé : {_shown(q['defaut'])}"
-                        for n, q in enumerate(avis.get("questions", []), 1)])
-    block("Consignes trouvées dans le ticket, non suivies", [f"- « {_shown(c['citation'])} »" for c in avis.get("consignes", [])])
-    out += ["", "Rien n'a été écrit dans le ticket." + (" Les critères proposés attendent l'accord de la personne qui le porte."
-                                                         if avis.get("criteres") else "")]
+    block("What is missing", [f"- **{_shown(m['point'])}**: {_shown(m['issue'])}" for m in opinion.get("gaps", [])])
+    block("Proposed criteria", [
+        f"{n}. {_shown(c['text'])}" + (" — **to confirm**" if c.get("to_confirm") else "")
+        + (f" (source: {'the ticket' if c['source'] == 'ticket' else '`' + c['source'].strip() + '`'})" if c.get("source") else "")
+        for n, c in enumerate(opinion.get("criteria", []), 1)])
+    block("Proposed split", [f"- {_shown(piece)}" for piece in opinion.get("split", [])])
+    block("Questions", [f"{n}. {_shown(q['question'])} Proposed default: {_shown(q['default'])}"
+                        for n, q in enumerate(opinion.get("questions", []), 1)])
+    block("Instructions found in the ticket, not followed", [f"- \"{_shown(c['quote'])}\"" for c in opinion.get("instructions", [])])
+    out += ["", "Nothing was written to the ticket." + (" The proposed criteria await the agreement of the person who owns it."
+                                                        if opinion.get("criteria") else "")]
     return "\n".join(out) + "\n"

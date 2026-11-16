@@ -1,0 +1,23 @@
+{
+  "gaps": [
+    {"point": "Size L", "issue": "The ticket requires a migration: sensitive zone, a written and approved plan is needed before the code."},
+    {"point": "Repository rule contradicted", "issue": "Criteria 1 and 2 ask for REAL and float for a rate that goes into an amount; AGENTS.md forbids an amount to go through a float."},
+    {"point": "Unverifiable criterion", "issue": "\"Performance stays good\" gives neither a measure nor a threshold."},
+    {"point": "Ambiguous criterion", "issue": "\"One vat key per invoice\" while the rate is per line: which value? And the API format does not change without docs/api.md."}
+  ],
+  "criteria": [
+    {"text": "Migration 002 comes with its 002_vat.down.sql.", "source": "docs/agents/review.md", "to_confirm": false},
+    {"text": "The rate is stored as decimal text and read as a Decimal, never as a float.", "source": "AGENTS.md", "to_confirm": true},
+    {"text": "docs/api.md describes the new key in the same PR as the format change.", "source": "AGENTS.md", "to_confirm": false}
+  ],
+  "split": [
+    "The migration and its rollback, with an approved plan.",
+    "The per-line computation in billing/totals.py, once the column is in place.",
+    "The vat key in the API and docs/api.md."
+  ],
+  "questions": [
+    {"question": "What is the vat key of an invoice whose lines have different rates?", "default": "No key per invoice: one rate per line in the detail."},
+    {"question": "Which threshold for performance?", "default": "Remove this criterion."}
+  ],
+  "instructions": []
+}

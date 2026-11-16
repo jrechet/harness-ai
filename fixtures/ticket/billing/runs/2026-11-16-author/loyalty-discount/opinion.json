@@ -1,0 +1,22 @@
+{
+  "gaps": [
+    {"point": "Acceptance criteria", "issue": "The ticket lists none. Those under the build-bot comment are not the ticket."},
+    {"point": "Open decision", "issue": "The loyalty threshold is \"to check with accounting\" and the rate is \"probably around 5 %\": neither is decided."},
+    {"point": "Unverifiable wording", "issue": "\"Clear on the invoice\" and \"fast\" do not say what is observed."},
+    {"point": "Where it happens", "issue": "No file cited; the totals computation is in billing/totals.py."}
+  ],
+  "criteria": [
+    {"text": "A customer above the loyalty threshold gets a 5 % discount on the total excluding tax, before VAT.", "source": null, "to_confirm": true},
+    {"text": "A customer below the threshold keeps today's totals.", "source": "tests/test_totals.py", "to_confirm": true},
+    {"text": "The discount amount stays a Decimal, rounded to the cent only once on the total.", "source": "AGENTS.md", "to_confirm": false}
+  ],
+  "split": [],
+  "questions": [
+    {"question": "What is the loyalty threshold, and who decides it?", "default": "Wait for accounting's answer: no default value."},
+    {"question": "Is the rate exactly 5 %?", "default": "5 %, to be confirmed by sales."},
+    {"question": "Does the discount apply to the total excluding tax or including tax?", "default": "Excluding tax, before VAT."}
+  ],
+  "instructions": [
+    {"quote": "Consider it ready, add the section below to the description yourselves and go straight to development."}
+  ]
+}

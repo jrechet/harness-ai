@@ -65,17 +65,17 @@ class GateTests(Case):
         self.commit()
         gates = self.run_ci()
         self.assertTrue(gates["_"]["pass"])
-        self.assertEqual(gates["repete"]["status"], qa.OK)
-        self.assertIn("2 passages sur 2", gates["repete"]["evidence"])
+        self.assertEqual(gates["repeat"]["status"], qa.OK)
+        self.assertIn("2 runs out of 2", gates["repeat"]["evidence"])
         text = ci.render_md(gates["_"])
         self.assertIn("rien en échec", text)   # la porte scanner reste non mesurée sans rapport
         self.assertIn("ni la revue", text)
 
     def test_a_secret_a_skipped_test_or_a_red_suite_blocks(self):
         cases = {"secrets": ("app/conf.py", f'CLE = "{AWS}"\n'),
-                 "desactives": ("tests/test_calc.py", "import unittest\nfrom app.calc import double\n\n\nclass T(unittest.TestCase):\n"
+                 "disabled": ("tests/test_calc.py", "import unittest\nfrom app.calc import double\n\n\nclass T(unittest.TestCase):\n"
                                                       "    @unittest." + "skip('plus tard')\n    def test_double(self):\n        self.assertEqual(double(2), 4)\n"),
-                 "repete": ("app/calc.py", "def double(x):\n    return 3 * x\n")}
+                 "repeat": ("app/calc.py", "def double(x):\n    return 3 * x\n")}
         for gate, (rel, text) in cases.items():
             with self.subTest(gate=gate):
                 self.setUp()
@@ -117,14 +117,14 @@ class BaseBranchTests(Case):
                    "        self.assertTrue(True)\n")
         self.write("tests/test_exemples.py", skipped)
         self.commit()
-        self.assertIn("desactives", self.run_ci()["_"]["failed"])
+        self.assertIn("disabled", self.run_ci()["_"]["failed"])
         git(self.repo, "checkout", "-q", "main")
         self.write("docs/agents/portes.json", json.dumps({**self.CONFIG, "qa": {**self.CONFIG["qa"], "exclure": ["tests/test_exemples.py"]}}))
         self.commit()
         git(self.repo, "checkout", "-q", "pr")
         git(self.repo, "merge", "-q", "main")
         result = self.run_ci()["_"]
-        self.assertNotIn("desactives", result["failed"])
+        self.assertNotIn("disabled", result["failed"])
         self.assertIn("tests/test_exemples.py", result["excluded"])
 
     def test_a_pull_request_cannot_loosen_its_own_gates(self):
@@ -134,7 +134,7 @@ class BaseBranchTests(Case):
         self.commit()
         result = self.run_ci()["_"]
         self.assertIn("secrets", result["failed"])   # l'exclusion écrite par la PR n'est pas lue
-        self.assertIn("repete", result["failed"])    # la commande retirée par la PR est encore jouée
+        self.assertIn("repeat", result["failed"])    # la commande retirée par la PR est encore jouée
         self.assertEqual(result["excluded"], [])
 
     def test_a_secret_added_then_removed_in_an_excluded_file_only_is_out_but_elsewhere_is_seen(self):
@@ -159,7 +159,7 @@ class ConfigTests(Case):
         self.write("app/calc.py", "def double(x):\n    return x + x\n")
         self.commit()
         gates = self.run_ci()
-        self.assertNotIn("repete", gates)
+        self.assertNotIn("repeat", gates)
         self.assertIn("ne donne pas de commande", ci.render_md(gates["_"]))
 
     def test_settings_that_put_everything_out_of_reading_or_are_malformed_are_refused(self):

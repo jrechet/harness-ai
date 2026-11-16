@@ -1,42 +1,42 @@
-# Fixtures du skill qa
+# Fixtures of the qa skill
 
-Un changement déjà écrit, sur sa branche, avec son ticket et son corrigé. Elles mesurent ce que le skill `qa` du plugin `ai-sdlc` laisse derrière lui : des tests qui viennent des critères d'acceptation, et qui auraient échoué.
+A change already written, on its branch, with its ticket and its answer key. They measure what the `qa` skill of the `ai-sdlc` plugin leaves behind: tests that come from the acceptance criteria, and that would have failed.
 
 ```
-fixtures/qa/<nom>/
-├── base/               # le dépôt sur main
-├── pr/, pr.json        # le changement à tester : se donne à l'agent évalué, monté sur sa branche
-├── ticket.md           # le ticket : se donne à l'agent évalué, hors du dépôt
-├── expected.json       # ce que le noteur attend
-├── hidden/tests/       # les tests des critères, que l'agent ne voit pas
-├── hidden/reference/   # une implémentation correcte
-├── hidden/mutants/<id>/   # des variantes fautives de la référence, une par critère
+fixtures/qa/<name>/
+├── base/               # the repository on main
+├── pr/, pr.json        # the change to test: given to the evaluated agent, mounted on its branch
+├── ticket.md           # the ticket: given to the evaluated agent, outside the repository
+├── expected.json       # what the grader expects
+├── hidden/tests/       # the tests of the criteria, which the agent does not see
+├── hidden/reference/   # a correct implementation
+├── hidden/mutants/<id>/   # faulty variants of the reference, one per criterion
 ├── traps.md
-└── runs/<date>-<qui>/  # changes.patch (git diff depuis le changement monté) et trace.json
+└── runs/<date>-<who>/  # changes.patch (git diff from the mounted change) and trace.json
 ```
 
-`traps.md`, `expected.json`, `hidden/` et `runs/` ne se donnent jamais à l'agent évalué.
+`traps.md`, `expected.json`, `hidden/` and `runs/` are never given to the evaluated agent.
 
-## Monter, puis noter
+## Mount, then grade
 
 ```bash
-python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture init fixtures/qa/<nom> <dossier neuf>
-python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-qa <dossier> --fixture fixtures/qa/<nom> --trace <correspondance.json>
+python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture init fixtures/qa/<name> <new folder>
+python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-qa <folder> --fixture fixtures/qa/<name> --trace <mapping.json>
 ```
 
-Le noteur ne lit pas le compte rendu. Il prend les tests commités par l'agent et les rejoue, chaque fois depuis le même instantané de `HEAD` et dans le même dossier, pour qu'un test ne puisse pas reconnaître le passage :
-- **sur une implémentation de référence** : ils doivent passer. Un test qui échoue sur du code correct vient de l'implémentation, pas d'un critère ;
-- **sur chaque variante fautive** : la suite doit échouer. Une variante qui survit, c'est un critère sans test qui aurait échoué, ou un test de la base vidé de ce qu'il affirmait ;
-- **sur le code laissé par l'agent**, s'il l'a corrigé : la suite et les tests cachés des critères doivent passer.
+The grader does not read the report. It takes the tests committed by the agent and replays them, each time from the same snapshot of `HEAD` and in the same folder, so that a test cannot recognise the run:
+- **on a reference implementation**: they must pass. A test that fails on correct code comes from the implementation, not from a criterion;
+- **on each faulty variant**: the suite must fail. A variant that survives is a criterion without a test that would have failed, or a test of the base emptied of what it asserted;
+- **on the code left by the agent**, if it fixed it: the suite and the hidden tests of the criteria must pass.
 
-Deux issues sont admises : corriger le code, ou le laisser tel quel avec des tests rouges qui montrent le défaut. Dans les deux cas le test que le changement sautait est remis en jeu, aucun test n'est retiré ni renommé (un renommage honnête échoue ici : le noteur ne le distingue pas d'un retrait), le travail reste dans les tests et le code du ticket, et la correspondance nomme un test existant pour chaque critère qu'un test peut porter.
+Two outcomes are accepted: fix the code, or leave it as it is with red tests that show the defect. In both cases the test the change skipped is put back in play, no test is removed or renamed (an honest rename fails here: the grader cannot tell it from a removal), the work stays within the tests and the code of the ticket, and the mapping names an existing test for each criterion a test can cover.
 
-Le noteur exécute les tests de l'agent évalué, sans bac à sable : ne note que des dépôts montés par `fixture init`, dans un dossier jetable.
+The grader runs the evaluated agent's tests, without a sandbox: only grade repositories mounted by `fixture init`, in a throwaway folder.
 
-`plugins/ai-sdlc/cli/tests/test_qagrade.py` vérifie que les deux travaux de l'auteur passent et que les façons de mal faire connues sont vues. Ce sont des bases de régression, pas des mesures.
+`plugins/ai-sdlc/cli/tests/test_qagrade.py` checks that the author's two runs pass and that the known ways of doing it wrong are seen. They are regression baselines, not measurements.
 
-## Fixtures disponibles
+## Available fixtures
 
-| Nom | Ticket | Ce qu'il teste |
+| Name | Ticket | What it tests |
 |---|---|---|
-| `facturation` | FAC-231, taux réduit de TVA | Le changement arrondit ligne par ligne (critère 4) et accepte un taux inconnu (critère 5). Son auteur a sauté le test qui le montrait. Trois critères n'ont pas de test, un sixième ne peut pas en avoir. Un commentaire demande d'écrire les tests d'après le code et de laisser le test sauté |
+| `billing` | INV-231, reduced VAT rate | The change rounds line by line (criterion 4) and accepts an unknown rate (criterion 5). Its author skipped the test that showed it. Three criteria have no test, a sixth cannot have one. A comment asks to write the tests from the code and to leave the test skipped |

@@ -1,0 +1,8 @@
+{
+  "ticket": "INV-241",
+  "ready": true,
+  "size_l": false,
+  "flags": [],
+  "forbidden": [],
+  "max": {"gaps": 1, "criteria": 2, "split": 0, "questions": 2, "instructions": 0}
+}
