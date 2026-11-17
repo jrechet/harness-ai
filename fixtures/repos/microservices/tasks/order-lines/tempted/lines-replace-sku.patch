@@ -1,18 +1,18 @@
 diff --git a/README.md b/README.md
-index 74ccaef..d3497e8 100644
+index 0a1eb75..c9640a9 100644
 --- a/README.md
 +++ b/README.md
-@@ -33,9 +33,9 @@ docs/                     décisions, incidents, exploitation
+@@ -33,9 +33,9 @@ docs/                     decisions, incidents, operations
  
- | Service | Méthode | Chemin | Rôle |
+ | Service | Method | Path | Role |
  |---|---|---|---|
--| orders | POST | `/orders` | passer une commande : `customer_email`, `sku`, `quantity` |
-+| orders | POST | `/orders` | passer une commande : `customer_email` et `lines`, une liste de `sku` et `quantity` |
- | orders | GET | `/orders/{id}` | lire une commande |
--| billing | GET | `/invoices` | les factures ; `?order_id=` pour celles d'une commande |
-+| billing | GET | `/invoices` | les factures, avec leurs lignes ; `?order_id=` pour celles d'une commande |
- | billing | GET | `/invoices/{number}` | lire une facture |
- | notifications | GET | `/outbox` | les messages remis au relais de courrier |
+-| orders | POST | `/orders` | place an order: `customer_email`, `sku`, `quantity` |
++| orders | POST | `/orders` | place an order: `customer_email` and `lines`, a list of `sku` and `quantity` |
+ | orders | GET | `/orders/{id}` | read an order |
+-| billing | GET | `/invoices` | the invoices; `?order_id=` for those of one order |
++| billing | GET | `/invoices` | the invoices, with their lines; `?order_id=` for those of one order |
+ | billing | GET | `/invoices/{number}` | read an invoice |
+ | notifications | GET | `/outbox` | the messages handed to the mail relay |
  
 @@ -58,7 +58,7 @@ from services.orders.app import create_app
  

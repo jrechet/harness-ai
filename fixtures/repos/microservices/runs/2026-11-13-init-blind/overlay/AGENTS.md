@@ -1,25 +1,25 @@
-# comptoir — instructions pour les agents
+# comptoir — instructions for agents
 
-Mode : **délégation**. Un agent reçoit un ticket entier et revient avec une PR ; les jobs `test` et `boundaries` de la CI décident, ce fichier explique.
+Mode: **delegation**. An agent receives a whole ticket and comes back with a PR; the CI jobs `test` and `boundaries` decide, this file explains.
 
-## Ce que fait ce repo
-Le back-office d'une boutique en ligne, en trois services : `orders` prend les commandes, `billing` émet les factures, `notifications` écrit aux clients. Ils ne se connaissent que par `contracts/`. Décisions dans `docs/adr/`, incidents dans `docs/postmortems/`, exploitation dans `docs/exploitation.md`. Un service peut avoir sa propre note : `services/billing/AGENTS.md`.
+## What this repo does
+The back office of an online shop, in three services: `orders` takes orders, `billing` issues invoices, `notifications` writes to customers. They know each other only through `contracts/`. Decisions in `docs/adr/`, incidents in `docs/postmortems/`, operations in `docs/operations.md`. A service may have its own note: `services/billing/AGENTS.md`.
 
-## Ce qui change → ce qu'on lance
-| Si tu touches… | Lance… | Vérifié en CI par |
+## What changes → what to run
+| If you touch… | Run… | Enforced in CI by |
 |---|---|---|
-| un service | `python3 -m unittest discover -s services/<nom> -t .` | job `test` |
-| `contracts/`, `shared/` ou `tools/` | `python3 -m unittest discover`, tout | job `test` |
-| un import | `python3 tools/check_imports.py` | job `boundaries` |
+| a service | `python3 -m unittest discover -s services/<name> -t .` | job `test` |
+| `contracts/`, `shared/` or `tools/` | `python3 -m unittest discover`, everything | job `test` |
+| an import | `python3 tools/check_imports.py` | job `boundaries` |
 
-## Règles
-- Ce qu'un service publie ou répond est déclaré dans `contracts/`, et rien d'autre n'en sort : les schémas sont stricts. Pourquoi : le contrat est tout ce qu'un autre service a le droit de connaître (ADR 0001). Vérifiée par : `services/orders/test_contract.py` et `services/billing/test_contract.py`, avec `tools/schema.py`. [2024-06]
-- Un changement de contrat est additif : on ajoute un champ, on ne renomme rien, on ne retire rien, on ne change le type de rien. Pourquoi : `customer_email` renommé en `email` le 12 mai 2026, 1 840 confirmations de commande jamais envoyées (`docs/postmortems/2026-05-champ-renomme.md`). (non vérifiée) : `test_contract.py` reste vert quand le schéma et le fournisseur changent ensemble, et les tests de `billing` et `notifications` fabriquent leurs événements à la main sans les valider contre `contracts/` ; des lecteurs hors dépôt (export comptable, entrepôt) ne sont testés nulle part. [2026-05]
-- Un champ de contrat qu'un autre remplace reste publié et reçoit `"deprecated": true` dans son schéma ; on ne le retire pas. Pourquoi : les consommateurs hors de ce dépôt lisent cette annotation pour planifier leur migration ; convenu avec eux en septembre 2026, écrit nulle part ailleurs. (non vérifiée) [2026-09]
-- Un consommateur d'événements est idempotent : le broker livre « au moins une fois », le même événement revient avec le même `id`. Pourquoi : 212 factures émises en double le 18 novembre 2025 (`docs/postmortems/2025-11-factures-en-double.md`). Vérifiée par : `shared/bus.py`, qui livre chaque événement deux fois dans tous les tests. [2025-11]
-- Un service n'importe jamais le code d'un autre service ; ce qu'il lui faut, il le lit dans l'événement ou le demande à l'API. Pourquoi : `billing` importait le catalogue de `orders`, les deux ne se déployaient plus l'un sans l'autre (ADR 0001). Vérifiée par : `tools/check_imports.py` (job `boundaries`). [2024-06]
+## Rules
+- What a service publishes or answers is declared in `contracts/`, and nothing else leaves it: the schemas are strict. Why: the contract is all another service is allowed to know (ADR 0001). Enforced by: `services/orders/test_contract.py` and `services/billing/test_contract.py`, with `tools/schema.py`. [2024-06]
+- A contract change is additive: a field is added, nothing is renamed, nothing is removed, no type is changed. Why: `customer_email` renamed to `email` on 12 May 2026, 1,840 order confirmations never sent (`docs/postmortems/2026-05-renamed-field.md`). (unverified): `test_contract.py` stays green when the schema and the provider change together, and the tests of `billing` and `notifications` make their events by hand without validating them against `contracts/`; readers outside the repository (accounting export, warehouse) are tested nowhere. [2026-05]
+- A contract field that another one replaces stays published and gets `"deprecated": true` in its schema; it is not removed. Why: consumers outside this repository read this annotation to plan their migration; agreed with them in September 2026, written nowhere else. (unverified) [2026-09]
+- An event consumer is idempotent: the broker delivers "at least once", the same event comes back with the same `id`. Why: 212 invoices issued twice on 18 November 2025 (`docs/postmortems/2025-11-duplicate-invoices.md`). Enforced by: `shared/bus.py`, which delivers every event twice in all tests. [2025-11]
+- A service never imports another service's code; what it needs, it reads in the event or asks the API for. Why: `billing` imported the catalog of `orders`, the two could no longer be deployed one without the other (ADR 0001). Enforced by: `tools/check_imports.py` (job `boundaries`). [2024-06]
 
-## Interdits
-- Pointer `BROKER_URL` vers la préproduction ou la production depuis un poste ou une session d'agent. Pourquoi : une relecture lancée d'un poste le 9 janvier 2026 a renvoyé 3 100 e-mails de facture à des clients (`docs/exploitation.md`). [2026-01]
-- Affaiblir un garde-fou pour faire passer un test : `deliveries=1` dans le test d'un service, un mot-clé de plus toléré par `tools/schema.py`, une exception dans `tools/check_imports.py`. Pourquoi : chacun porte une règle ci-dessus ; `.github/CODEOWNERS` fait relire `tools/` et `shared/` par l'équipe plateforme, mais rien ne relit spécialement les tests de `services/`. [2025-11]
-- Modifier une facture émise, y compris par un script ou une migration. Pourquoi : obligation légale, une erreur se rattrape par un avoir que la comptabilité émet (`services/billing/AGENTS.md`). [2025-11]
+## Forbidden
+- Pointing `BROKER_URL` at preproduction or production from a workstation or an agent session. Why: a replay launched from a workstation on 9 January 2026 re-sent 3,100 invoice emails to customers (`docs/operations.md`). [2026-01]
+- Weakening a guardrail to make a test pass: `deliveries=1` in a service's test, one more keyword tolerated by `tools/schema.py`, an exception in `tools/check_imports.py`. Why: each one carries a rule above; `.github/CODEOWNERS` has `tools/` and `shared/` reviewed by the platform team, but nothing specifically reviews the tests of `services/`. [2025-11]
+- Modifying an issued invoice, including through a script or a migration. Why: legal obligation, a mistake is made up for by a credit note that accounting issues (`services/billing/AGENTS.md`). [2025-11]

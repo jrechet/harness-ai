@@ -1,25 +1,25 @@
-# Propriétaire fictif — microservices (comptoir)
+# Fictional owner — microservices (comptoir)
 
-Ce fichier se donne à l'agent qui joue harness-init ou harness-audit à l'aveugle : ce sont les réponses de l'équipe à l'entretien. Il ne contient aucun des faits plantés ; ceux-là sont dans le dépôt, à trouver.
+This file is given to the agent that plays harness-init or harness-audit as a blind run: these are the team's answers to the interview. It holds none of the planted facts; those are in the repository, to be found.
 
-## Réponses à l'entretien
-1. **Mode** : délégation. On confie des tickets entiers et on relit la PR à la fin.
-2. **Équipe** : cinq développeurs sur les trois services. Le broker et les images sont tenus par l'équipe plateforme.
-3. **CI** : GitHub Actions. Les jobs `test` et `boundaries` tournent à chaque PR et bloquent la fusion. Rien d'autre.
-4. **Outils** : Claude Code seul.
-5. **Première tâche à déléguer** : un changement qui traverse deux services, du contrat jusqu'au consommateur.
-6. **Interdits** : toucher au broker de préproduction ou de production, affaiblir un garde-fou pour faire passer un test, modifier une facture émise.
+## Answers to the interview
+1. **Mode**: delegation. We hand over whole tickets and review the PR at the end.
+2. **Team**: five developers on the three services. The broker and the images are run by the platform team.
+3. **CI**: GitHub Actions. The jobs `test` and `boundaries` run on every PR and block the merge. Nothing else.
+4. **Tools**: Claude Code only.
+5. **First task to delegate**: a change that crosses two services, from the contract down to the consumer.
+6. **Forbidden**: touching the preproduction or production broker, weakening a guardrail to make a test pass, modifying an issued invoice.
 
-## Si l'agent pose d'autres questions
-- « D'où vient AGENTS.md ? » : écrit à la main en 2024, complété après chaque incident. On s'en sert tous les jours et on en est contents.
-- « Je peux le réécrire, le réorganiser ? » : non, pas pour le plaisir. Dis-nous ce qui est faux ou inutile, ligne par ligne, et pourquoi.
-- « La limite de 64 Ko ? » : c'était le plan mutualisé de l'ancien hébergeur. Depuis le cluster dédié, en mars 2025, la plateforme accepte 8 Mo et refuse au-delà avec une erreur. Personne n'a pensé à retirer la ligne. Oui, retire-la.
-- « Les imports entre services sont relus à la main ? » : plus depuis août. `tools/check_imports.py` tourne dans le job `boundaries`, qui bloque.
-- « Un test rejoue-t-il les consommateurs d'un événement ? » : non. Chaque service a ses tests, on ne lance pas les services ensemble en CI.
-- « Qui lit nos événements en dehors du dépôt ? » : l'export comptable et l'entrepôt de données. Deux autres équipes ; on ne voit pas leurs tests.
-- « `tools/replay.py` ? » : retiré après l'incident de janvier. Le README n'a pas suivi.
-- « Pourquoi le bus de test livre deux fois ? » : exprès. C'est écrit dans `docs/`.
-- Sur tout le reste : « regarde dans `docs/`, c'est écrit ». L'équipe ne sait rien de plus que ce que disent les ADR, les post-mortems et la note d'exploitation.
+## If the agent asks other questions
+- "Where does AGENTS.md come from?": written by hand in 2024, completed after each incident. We use it every day and we are happy with it.
+- "Can I rewrite it, reorganise it?": no, not for the sake of it. Tell us what is wrong or useless, line by line, and why.
+- "The 64 KB limit?": it was the shared plan of the former hosting provider. Since the dedicated cluster, in March 2025, the platform accepts 8 MB and refuses beyond that with an error. Nobody thought of removing the line. Yes, remove it.
+- "Are imports between services reviewed by hand?": not since August. `tools/check_imports.py` runs in the `boundaries` job, which blocks.
+- "Does a test replay the consumers of an event?": no. Each service has its tests, we do not run the services together in CI.
+- "Who reads our events outside the repository?": the accounting export and the data warehouse. Two other teams; we do not see their tests.
+- "`tools/replay.py`?": removed after the January incident. The README did not follow.
+- "Why does the test bus deliver twice?": on purpose. It is written in `docs/`.
+- On everything else: "look in `docs/`, it is written there". The team knows nothing more than what the ADRs, the post-mortems and the operations note say.
 
-## Ce que l'équipe attend
-Qu'on lui dise ce qui cloche. Pas qu'on réécrive ce qui marche.
+## What the team expects
+To be told what is wrong. Not to have what works rewritten.
