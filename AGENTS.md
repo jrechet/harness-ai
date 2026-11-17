@@ -1,48 +1,48 @@
-# harness-ai — instructions pour les agents
+# harness-ai — instructions for agents
 
-Mode : **délégation**. L'agent est le tech lead et le garant de ce dépôt : il décide des choix techniques, fait relire chaque changement par un agent indépendant, fusionne ce qui est vert et répond de l'état de `main`. Le propriétaire fixe le cap, peut tout reprendre, et tranche seul ce qui engage au-delà du dépôt : le rendre public, réécrire son historique, lancer une campagne coûteuse. [2026-11]
+Mode: **delegation**. The agent is the tech lead and the guarantor of this repository: it makes the technical choices, has every change reviewed by an independent agent, merges what is green and answers for the state of `main`. The owner sets the direction, can take anything back, and alone decides what commits beyond the repository: making it public, rewriting its history, starting a costly campaign. [2026-11]
 
-## Ce que fait ce repo
-Skills Claude Code (`skills/`), CLI déterministe (`cli/`), fixtures d'évaluation (`fixtures/`) et application de suivi (`app/`) pour installer, auditer et faire évoluer l'instrumentation IA d'un dépôt. Modèle de maturité dans `docs/maturity.md`, exigences et état dans `docs/cahier-des-charges.md`.
+## What this repo does
+Claude Code skills (`skills/`), deterministic CLI (`cli/`), evaluation fixtures (`fixtures/`) and progress app (`app/`) to install, audit and evolve a repository's AI instrumentation. Maturity model in `docs/maturity.md`, requirements and state in `docs/requirements.md`.
 
-## Ce qui change → ce qu'on lance
-| Si tu touches… | Lance… | Vérifié en CI par |
+## What changes → what to run
+| If you touch… | Run… | Enforced in CI by |
 |---|---|---|
-| `cli/` | `python3 -m unittest discover -s cli/tests` | rien : pas de CI |
-| une fixture ou son `expected.json` | `python3 cli/harness.py fixture check <nom>` | rien |
-| une tâche de fixture (`tasks/`) | `python3 cli/harness.py bench selftest <nom>` | rien |
-| la grille de placement ou une fixture de `fixtures/design/` | `python3 cli/harness.py place check <plan> --expected <fixture>/expected.json` | rien |
-| `plugins/ai-sdlc/` ou une fixture de `fixtures/review/`, `dev/`, `ticket/`, `qa/`, `secu/`, `ship/` ou `run/` | `python3 -m unittest discover -s plugins/ai-sdlc/cli/tests` | rien |
-| la CI ou `docs/agents/portes.json` | `BASE_REF=origin/main sh scripts/ci/verifier.sh` depuis une branche | la CI elle-même, quand son runner existe |
-| un SKILL.md | une exécution à l'aveugle sur une fixture, notée par `fixture check --audit` ou `--init` | rien |
+| `cli/` | `python3 -m unittest discover -s cli/tests` | `scripts/ci/verify.sh`, not yet a required check |
+| a fixture or its `expected.json` | `python3 cli/harness.py fixture check <name>` | nothing |
+| a fixture task (`tasks/`) | `python3 cli/harness.py bench selftest <name>` | nothing |
+| the placement grid or a fixture of `fixtures/design/` | `python3 cli/harness.py place check <plan> --expected <fixture>/expected.json` | nothing |
+| `plugins/ai-sdlc/` or a fixture of `fixtures/review/`, `dev/`, `ticket/`, `qa/`, `secu/`, `ship/` or `run/` | `python3 -m unittest discover -s plugins/ai-sdlc/cli/tests` | `scripts/ci/verify.sh`, not yet a required check |
+| the CI or `docs/agents/gates.json` | `BASE_REF=origin/main sh scripts/ci/verify.sh` from a branch | the CI itself |
+| a SKILL.md | a blind run on a fixture, graded by `fixture check --audit` or `--init` | nothing |
 
-## Règles
-- Tout ce qui doit être **garanti** va dans `cli/`, pas dans le texte d'un skill ; les skills appellent le CLI. Pourquoi : la grille L1–L4 appliquée à nous-mêmes. (non vérifiée) [2026-11]
-- Un `expected.json` est généreux sur les verdicts et priorités, strict sur la preuve, les fuites et les éléments sains. Pourquoi : deux audits sérieux divergent sur SPLIT contre PUSH_DOWN. (non vérifiée) [2026-11]
-- Une exécution de skill faite par la session qui a écrit les pièges est une base de régression, pas une mesure. Pourquoi : biais d'auteur constaté sur java-back. (non vérifiée) [2026-11]
+## Rules
+- Everything that must be **guaranteed** goes into `cli/`, not into the text of a skill; the skills call the CLI. Why: the L1–L4 grid applied to ourselves. (unverified) [2026-11]
+- An `expected.json` is generous on verdicts and priorities, strict on evidence, leaks and healthy items. Why: two serious audits diverge on SPLIT versus PUSH_DOWN. (unverified) [2026-11]
+- A skill run made by the session that wrote the traps is a regression baseline, not a measurement. Why: author bias observed on java-back. (unverified) [2026-11]
 
-## Interdits
-- Lire `traps.md`, `expected.json`, `tasks/` ou `runs/` d'une fixture pendant une exécution à l'aveugle. Seuls `owner.md` et, pour une tâche, `task.md` se donnent à l'agent évalué ; `owner.json` lui répond par `bench init`, il ne se lit pas. [2026-11]
-- Lancer une exécution à l'aveugle ou une campagne `harness-stress` sans demande du propriétaire. Pourquoi : environ 130 000 tokens par exécution. [2026-11]
-- Modifier un `expected.json`, un `traps.md` ou le noteur pour faire passer une exécution. Pourquoi : qui corrige la copie et le corrigé fait toujours monter la note. [2026-11]
-- Commiter des `__pycache__` ou un `.skill` ; ajouter une dépendance hors bibliothèque standard au CLI. [2026-11]
+## Forbidden
+- Reading a fixture's `traps.md`, `expected.json`, `tasks/` or `runs/` during a blind run. Only `owner.md` and, for a task, `task.md` are given to the evaluated agent; `owner.json` answers it through `bench init`, it is not read. [2026-11]
+- Starting a blind run or a `harness-stress` campaign without the owner's request. Why: about 130,000 tokens per run. [2026-11]
+- Changing an `expected.json`, a `traps.md` or the grader to make a run pass. Why: whoever corrects both the paper and the answer key always raises the grade. [2026-11]
+- Committing `__pycache__` or a `.skill`; adding a dependency outside the standard library to the CLI. [2026-11]
 
-## Processus de travail
-- Les questions ouvertes (arbitrage, choix d'approche, information que seul le propriétaire détient) sont posées **en fin de message**, dans une section « Questions » numérotée, une par ligne, avec le défaut proposé. Jamais noyées dans le corps, jamais implicites, jamais laissées « dans la PR ». Pas de section s'il n'y en a pas.
-- Les décisions déjà prises ne sont pas rouvertes ; les hypothèses prises sans question sont dites en une ligne.
-- Une tâche est finie quand les tests passent, les fixtures sont conformes, et le commit est poussé sur `main`.
-- Le garant dit ce qui n'est pas vérifié, corrige ses propres erreurs dès qu'il les voit, et laisse `main` dans un état où les deux suites passent.
-- Tout travail fini ou commencé, et toute demande ou correction du propriétaire, a sa ligne dans le plan d'avancement de `docs/capacites.md`, dans le même changement. Vérifiée par : hook Stop, `python3 cli/harness.py progress check` [2026-11]
+## Working process
+- Open questions (trade-offs, choice of approach, information only the owner has) are asked **at the end of the message**, in a numbered "Questions" section, one per line, with the proposed default. Never buried in the body, never implicit, never left "in the PR". No section if there are none.
+- Decisions already made are not reopened; assumptions made without asking are stated in one line.
+- A task is done when the tests pass, the fixtures comply, and the commit is pushed to `main`.
+- The guarantor says what is not verified, fixes its own mistakes as soon as it sees them, and leaves `main` in a state where both suites pass.
+- All work finished or started, and every request or correction from the owner, has its row in the progress plan of `docs/capabilities.md`, in the same change. Enforced by: Stop hook, `python3 cli/harness.py progress check` [2026-11]
 
-## CI/CD disponibles
-- GitHub Actions : `.github/workflows/ci.yml`, sur `runs-on: [self-hosted, jre-server]`, lance `scripts/ci/verifier.sh` (les deux suites, le plan, les portes de la PR). Sauté tant que la variable `CI_RUNNER` ne vaut pas `pret` : ce dépôt n'a pas encore de runner. Suivi par `gh run list`. [2026-11]
-- Forge : `.forgejo/workflows/ci.yml` lance le même script ; pas encore de miroir vers `forge.jrec.fr`. Aucun workflow ne déploie. [2026-11]
+## Available CI/CD
+- GitHub Actions: `.github/workflows/ci.yml`, on `runs-on: [self-hosted, jre-server]`, runs `scripts/ci/verify.sh` (both suites, the plan, the PR gates). Runs on the server's runner, set up by the owner (variable `CI_RUNNER`); not yet a required check on `main`. Followed with `gh run list`. [2026-11]
+- Forge: `.forgejo/workflows/ci.yml` runs the same script; no mirror to `forge.jrec.fr` yet. No workflow deploys. [2026-11]
 
-## Tâches déléguées
-- `harness-stress` (`.claude/skills/harness-stress`) — une campagne d'évaluation des skills sur les projets types, à la demande, corrections en PR dédiée.
+## Delegated tasks
+- `harness-stress` (`.claude/skills/harness-stress`) — a campaign evaluating the skills on the sample projects, on request, fixes in a dedicated PR.
 
-## Maintenance de ce fichier
-- Un commentaire de review qui commence par `rule:` est une règle candidate, ajoutée ici dans la même PR avec le lien.
-- Avant d'ajouter une phrase, chercher un garde-fou : une règle vérifiée est raccourcie, une règle racontée est une dette.
+## Maintaining this file
+- A review comment that starts with `rule:` is a candidate rule, added here in the same PR with the link.
+- Before adding a sentence, look for a guardrail: an enforced rule is shortened, a narrated rule is a debt.
 
 <!-- harvest: last=2026-11-09 ref=init -->

@@ -1,66 +1,68 @@
-# Modèle de maturité
+# Maturity model
 
-Cinq paliers, chacun gagné par des vérifications **mesurées** sur le dépôt, jamais déclarées. `harness status` les calcule et écrit `.harness/state.json` ; une interface n'a qu'à lire ce fichier. Les seuils sont des constantes de `cli/harnesslib/maturity.py`.
+Five levels, each earned by checks **measured** on the repository, never declared. `harness status` computes them and writes `.harness/state.json`; an interface only has to read that file. The thresholds are constants of `cli/harnesslib/maturity.py`.
 
-Un palier est atteint quand toutes ses vérifications passent et que le palier précédent est atteint. Chaque vérification qui échoue porte l'action suivante.
+A level is reached when all its checks pass and the previous level is reached. Each failing check carries the next action.
 
-**Un palier est un endroit où l'on peut rester.** Le propriétaire déclare celui qu'il vise avec `harness target <n>`, écrit dans `.harness/config.json`. Jusqu'à ce palier, l'état dit quoi faire ensuite ; au-delà il ne propose rien, et quand le palier visé est tenu il dit « objectif atteint ». Sans palier visé, l'état montre tout l'escalier et le signale. Chaque pas est mené par le skill `harness-step`, un par invocation.
+**A level is a place where you can stay.** The owner declares the one they aim for with `harness target <n>`, written in `.harness/config.json`. Up to that level, the state says what to do next; beyond it, it proposes nothing, and when the target level is held it says "target reached". The `harness-step` skill then offers the next level once, as a plain choice where staying is the default. Without a target level, the state shows the whole ladder and says so. Each step is led by the `harness-step` skill, one per invocation.
 
-| Palier | Nom | Ce que ça veut dire | Vérifications |
+`harness status --map <repo>` prints the same measurement in plain words: the ladder with "you are here", the target, what the next level still needs, and the next step. Every skill shows this map before it asks the user anything.
+
+| Level | Name | What it means | Checks |
 |---|---|---|---|
-| 0 | Rien | L'agent part de zéro à chaque session | aucune |
-| 1 | Cadré | L'agent sait où il est | AGENTS.md existe · ligne « Mode » · au plus 60 lignes · CLAUDE.md est un stub `@AGENTS.md` ou absent · section Interdits |
-| 2 | Bouclé | Les incidents deviennent des règles | section Maintenance · convention `rule:` documentée · marqueur de harvest de moins de 45 jours · le dernier harvest a trouvé au moins un signal réel (S1 à S4, pas S5) |
-| 3 | Vérifié | Les règles obligatoires sont portées par des outils | une CI existe · au moins 50 % des règles « Vérifiée par » · au moins 50 % disent pourquoi · un audit existe sans P1 ouvert |
-| 4 | Délégué | Des tâches entières reviennent propres | mode délégation · section Processus de travail · au moins un contrat référencé · PRs d'agent sans correction après coup (S2 = 0) dans le dernier harvest · test « coupe l'agent » de l'audit réussi |
+| 0 | None | The agent starts from zero at every session | none |
+| 1 | Framed | The agent knows where it is | AGENTS.md exists · "Mode" line · at most 60 lines · CLAUDE.md is an `@AGENTS.md` stub or absent · Forbidden section |
+| 2 | Looped | Incidents become rules | Maintenance section · `rule:` convention documented · harvest marker less than 45 days old · the last harvest found at least one real signal (S1 to S4, not S5) |
+| 3 | Verified | Mandatory rules are carried by tools | a CI exists · at least 50% of the rules "Enforced by" · at least 50% say why · an audit exists with no open P1 |
+| 4 | Delegated | Whole tasks come back clean | delegation mode · Working process section · at least one contract referenced · agent PRs with no after-the-fact correction (S2 = 0) in the last harvest · the audit's "cut the agent" test passes |
 
-## Pourquoi ces vérifications et pas d'autres
+## Why these checks and not others
 
-- **Palier 2 exige un signal, pas un fichier.** Un marqueur de harvest posé par harness-init ne suffit pas : il faut qu'un harvest ait trouvé quelque chose. Sinon la boucle est décorative. Les règles orphelines (S5) ne comptent pas : elles disent qu'il n'y a pas de signal, pas qu'il y en a un.
-- **Palier 3 compte les règles vérifiées dans le texte**, via la mention « Vérifiée par : ». C'est une convention d'écriture, donc contournable, mais elle oblige à nommer l'outil ; et l'audit, lui, va vérifier que l'outil existe.
-- **Palier 4 se mesure sur les PRs**, pas sur le mode déclaré. Une PR d'agent corrigée après coup est une règle ou un garde-fou manquant. Zéro S2 sur une fenêtre avec des PRs d'agent est la seule preuve que la délégation fonctionne.
+- **Level 2 requires a signal, not a file.** A harvest marker set by harness-init is not enough: a harvest must have found something. Otherwise the loop is decorative. Orphan rules (S5) do not count: they say there is no signal, not that there is one.
+- **Level 3 counts the rules enforced in the text**, through the mention "Enforced by:". It is a writing convention, so it can be gamed, but it forces you to name the tool; and the audit checks that the tool exists.
+- **Level 4 is measured on PRs**, not on the declared mode. An agent PR corrected after the fact is a missing rule or guardrail. Zero S2 over a window with agent PRs is the only proof that delegation works.
 
-## Ce que le palier ne mesure pas
+## What the level does not measure
 
-Le palier mesure la **forme** du harness : des fichiers, des sections, des mentions. Il ne dit pas que les agents travaillent mieux. Cette preuve-là vient de deux endroits : sur le dépôt de l'utilisateur, la tendance des signaux par PR d'agent d'un harvest à l'autre ; sur les projets types de `fixtures/`, le banc avant et après (`harness bench`).
+The level measures the **shape** of the harness: files, sections, mentions. It does not say that the agents work better. That proof comes from two places: on the user's repository, the trend of signals per agent PR from one harvest to the next; on the sample projects of `fixtures/`, the bench before and after (`harness bench`).
 
-## Ce que l'état signale à côté des paliers
+## What the state reports next to the levels
 
-- **Références sans cible** : un contrat cité sous « Tâches déléguées » sans `SKILL.md`, un chemin cité après « Vérifiée par » qui n'existe pas. Un pas ne promet pas le pas suivant, et une règle dont le garde-fou a disparu n'est plus vérifiée.
-- **Date des règles** : une règle porte `[AAAA-MM]`, la date de son incident ou de sa décision. `harness rules` liste chaque règle avec sa date (à défaut celle de git), son âge, son garde-fou déclaré et sa justification : c'est l'entrée de la revue de pertinence de harness-audit.
-- **Lignes à retirer** : le dernier audit compte les retraits proposés par motif, inutile, nuisible, périmé.
+- **References without a target**: a contract cited under "Delegated tasks" without a `SKILL.md`, a path cited after "Enforced by" that does not exist. A step does not promise the next step, and a rule whose guardrail has disappeared is no longer enforced.
+- **Rule dates**: a rule carries `[YYYY-MM]`, the date of its incident or decision. `harness rules` lists each rule with its date (failing that, git's), its age, its declared guardrail and its justification: it is the input of harness-audit's relevance review.
+- **Lines to remove**: the last audit counts the proposed removals by reason: useless, harmful, outdated.
 
-## La vue par couche
+## The layer view
 
-À côté des paliers, `state.json` porte une vue par couche L1 à L4 : nombre d'éléments par étage et nombre d'éléments mal placés, tirés du dernier `.harness/audit.json`. Sans audit, une estimation grossière depuis les fichiers (contrats, outils de lint, workflows) avec l'indication de lancer harness-audit.
+Next to the levels, `state.json` carries a view by layer L1 to L4: number of items per layer and number of misplaced items, taken from the last `.harness/audit.json`. Without an audit, a rough estimate from the files (contracts, lint tools, workflows) with a hint to run harness-audit.
 
-## Fichiers
+## Files
 
 ```
 <repo>/.harness/
-├── config.json    # ce que le propriétaire a décidé : le palier visé (`harness target`)
-├── audit.json     # bloc « Données machine » du dernier harness-audit
-├── harvest.json   # évidences du dernier harness-harvest (sortie de `harness harvest github`)
-└── state.json     # écrit par `harness status` ; schéma harness-state/1
+├── config.json    # what the owner decided: the target level (`harness target`)
+├── audit.json     # "Machine data" block of the last harness-audit
+├── harvest.json   # evidence of the last harness-harvest (output of `harness harvest github`)
+└── state.json     # written by `harness status`; schema harness-state/1
 ```
 
-Le dossier `.harness/` se versionne : l'historique de `state.json` est l'historique de la progression.
+The `.harness/` folder is versioned: the history of `state.json` is the history of the progress.
 
-## Lancer
+## Run
 
 ```bash
-python3 cli/harness.py status <chemin-du-repo>
+python3 cli/harness.py status <repo-path>
 ```
 
-Pour la vue graphique et l'historique des `state.json` commités :
+For the graphical view and the history of committed `state.json` files:
 
 ```bash
-python3 cli/harness.py serve <chemin-du-repo>
+python3 cli/harness.py serve <repo-path>
 ```
 
-Options : `--format json`, `--no-write`, `--audit`, `--harvest`, `--today` pour des sorties reproductibles.
+Options: `--format json`, `--no-write`, `--audit`, `--harvest`, `--today` for reproducible outputs.
 
 ```bash
-python3 cli/harness.py target 2 <chemin-du-repo>    # le palier visé
-python3 cli/harness.py rules <chemin-du-repo>       # les règles, leur âge, leur garde-fou
+python3 cli/harness.py target 2 <repo-path>    # the target level
+python3 cli/harness.py rules <repo-path>       # the rules, their age, their guardrail
 ```

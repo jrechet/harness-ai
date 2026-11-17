@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-2loX48oLCkeYUTvpP5bpCKL7QgV2849lmr3P9m2vB6I='; script-src 'sha256-KyI9pUfyxWE76RJfyEgQwEy7fySCvNninlsh/atzRko='; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-SiJ2Wfxyo8ashqvWO06Y190ltwBSrvh5WUwdGTgjEYg='; script-src 'sha256-mdC1BNIKHhRBZsUxtCUzndsuEcWt/9uI3alFVsIQ0Tg='; img-src data:; base-uri 'none'; form-action 'none'">
 <title>Bronze · harness-ai</title>
 <style>
 :root {
@@ -40,9 +40,9 @@
   }
 }
 [data-medal="bronze"] { --metal-1: oklch(62% 0.11 55); --metal-2: oklch(80% 0.09 65); --metal-3: oklch(44% 0.09 45); }
-[data-medal="argent"] { --metal-1: oklch(74% 0.012 250); --metal-2: oklch(92% 0.008 250); --metal-3: oklch(54% 0.015 250); }
-[data-medal="or"] { --metal-1: oklch(78% 0.14 88); --metal-2: oklch(92% 0.1 95); --metal-3: oklch(60% 0.13 75); }
-[data-medal="platine"] { --metal-1: oklch(82% 0.035 200); --metal-2: oklch(97% 0.02 200); --metal-3: oklch(62% 0.045 215); }
+[data-medal="silver"] { --metal-1: oklch(74% 0.012 250); --metal-2: oklch(92% 0.008 250); --metal-3: oklch(54% 0.015 250); }
+[data-medal="gold"] { --metal-1: oklch(78% 0.14 88); --metal-2: oklch(92% 0.1 95); --metal-3: oklch(60% 0.13 75); }
+[data-medal="platinum"] { --metal-1: oklch(82% 0.035 200); --metal-2: oklch(97% 0.02 200); --metal-3: oklch(62% 0.045 215); }
 [data-medal] { --accent: var(--metal-3); }
 @media (prefers-color-scheme: dark) { :root, [data-medal] { --accent: var(--metal-2); } }
 * { box-sizing: border-box; }
@@ -70,9 +70,9 @@ button { font: inherit; color: inherit; }
   background: linear-gradient(105deg, transparent 44%, oklch(100% 0 0 / 0.55) 50%, transparent 56%);
   transform: translateX(-70%); animation: sheen 1400ms var(--ease) 350ms both; }
 .medal strong { position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; font: 600 clamp(2.4rem, 9vw, 5rem)/1 var(--display); color: oklch(22% 0.03 60 / 0.82); text-shadow: 0 1px 0 oklch(100% 0 0 / 0.4); }
-[data-medal="aucune"] .medal { background: none; border: 3px dashed var(--line); box-shadow: none; }
-[data-medal="aucune"] .medal::before, [data-medal="aucune"] .medal::after { display: none; }
-[data-medal="aucune"] .medal strong { color: var(--muted); text-shadow: none; }
+[data-medal="none"] .medal { background: none; border: 3px dashed var(--line); box-shadow: none; }
+[data-medal="none"] .medal::before, [data-medal="none"] .medal::after { display: none; }
+[data-medal="none"] .medal strong { color: var(--muted); text-shadow: none; }
 @keyframes sheen { to { transform: translateX(70%); } }
 
 .ladder { list-style: none; padding: 0; margin: 0 0 2.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.75rem; }
@@ -86,7 +86,7 @@ button { font: inherit; color: inherit; }
 .bar { display: block; height: 0.4rem; border-radius: 1rem; background: var(--locked); overflow: hidden; }
 .bar i { display: block; height: 100%; width: 100%; background: var(--metal-1); transform-origin: left; transform: scaleX(var(--part, 0)); transition: transform var(--slow) var(--ease); }
 .rung .count { font: 0.8rem/1 var(--mono); color: var(--muted); margin-top: 0.5rem; display: block; }
-.rung[data-earned="true"] .count::after { content: " · acquis"; color: var(--ok); }
+.rung[data-earned="true"] .count::after { content: " · earned"; color: var(--ok); }
 
 .bar-head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .bar-head h2 { font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.3rem); }
@@ -143,16 +143,16 @@ dialog form { margin-top: 1.4rem; text-align: right; }
 </head>
 <body>
 <main id="app">
-  <noscript>Cette page montre des données qu'un script met en forme. Elles sont lisibles telles quelles dans le bloc <code>medals-data</code> de ce fichier, et en texte avec <code>harness medals</code>.</noscript>
+  <noscript>This page shows data that a script lays out. It can be read as is in the <code>medals-data</code> block of this file, and as text with <code>harness medals</code>.</noscript>
 </main>
 <dialog id="detail" aria-labelledby="detail-title"></dialog>
-<script type="application/json" id="medals-data">{"date": "2026-11-15", "history": [{"date": "2026-11-15", "medal": "bronze"}], "kind": "repo", "medal": {"id": "bronze", "name": "Bronze", "of": 4, "rank": 1}, "name": "harness-ai", "next": [{"action": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore.", "id": "L2.signal", "title": "Le dernier harvest a trouvé au moins un signal réel (S1–S4)", "waiting": true}], "schema": 1, "successes": [{"evidence": "AGENTS.md", "id": "L1.source", "lost": null, "next": null, "tier": "bronze", "title": "Un fichier d'instructions existe (AGENTS.md)", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "assistance", "id": "L1.mode", "lost": null, "next": null, "tier": "bronze", "title": "La ligne « Mode : délégation | assistance » est présente", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "42", "id": "L1.short", "lost": null, "next": null, "tier": "bronze", "title": "Le fichier chargé fait au plus 60 lignes", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "exists : oui, lines : 1, loaded_lines : 42, is_stub : oui", "id": "L1.single_source", "lost": null, "next": null, "tier": "bronze", "title": "CLAUDE.md est un stub @AGENTS.md (ou absent)", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "oui", "id": "L1.forbidden", "lost": null, "next": null, "tier": "bronze", "title": "Une section « Interdits » dit ce qu'un agent ne fait jamais", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "oui", "id": "L2.maintenance", "lost": null, "next": null, "tier": "argent", "title": "Une section Maintenance dit comment le fichier évolue", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "oui", "id": "L2.rule_convention", "lost": null, "next": null, "tier": "argent", "title": "La convention `rule:` en review est documentée", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "6", "id": "L2.marker_fresh", "lost": null, "next": null, "tier": "argent", "title": "Un harvest a tourné depuis moins de 45 jours", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "", "id": "L2.signal", "lost": null, "next": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore.", "tier": "argent", "title": "Le dernier harvest a trouvé au moins un signal réel (S1–S4)", "unlocked": null, "waiting": true}, {"evidence": "aucun", "id": "L3.ci", "lost": null, "next": "Sans CI, aucune règle ne peut être garantie : en poser une.", "tier": "or", "title": "Une CI existe (workflows ou .gitlab-ci.yml)", "unlocked": null, "waiting": false}, {"evidence": "0.0", "id": "L3.guarded", "lost": null, "next": "Pousser les règles racontées en L3 : lint custom, test d'architecture, check de PR.", "tier": "or", "title": "Au moins 50 % des règles sont « Vérifiée par » un outil", "unlocked": null, "waiting": false}, {"evidence": "0.71", "id": "L3.justified", "lost": null, "next": null, "tier": "or", "title": "Au moins 50 % des règles disent pourquoi", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "", "id": "L3.audit", "lost": null, "next": "Lancer harness-audit, écrire son JSON dans .harness/audit.json, traiter les P1.", "tier": "or", "title": "Un harness-audit existe et n'a aucun P1 ouvert", "unlocked": null, "waiting": false}, {"evidence": "assistance", "id": "L4.mode", "lost": null, "next": "Passer en délégation avec harness-init quand les garde-fous sont là.", "tier": "platine", "title": "Le mode est délégation", "unlocked": null, "waiting": false}, {"evidence": "oui", "id": "L4.process", "lost": null, "next": null, "tier": "platine", "title": "Une section « Processus de travail » cadre l'agent", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "1", "id": "L4.contracts", "lost": null, "next": null, "tier": "platine", "title": "Au moins un contrat de tâche existe et est référencé", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "", "id": "L4.clean_prs", "lost": null, "next": "Chaque correction après coup (S2) est une règle ou un garde-fou manquant : les traiter.", "tier": "platine", "title": "Le dernier harvest voit des PRs d'agent sans correction après coup", "unlocked": null, "waiting": true}, {"evidence": "", "id": "L4.cut_the_agent", "lost": null, "next": "Pousser en L3/L4 les étapes qui n'existent que dans des prompts.", "tier": "platine", "title": "Le test « coupe l'agent » de l'audit passe", "unlocked": null, "waiting": false}, {"evidence": "rien de cassé", "id": "B.frais", "lost": null, "next": null, "tier": "bonus", "title": "Aucun skill ni agent ne cite ce qui a disparu", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "7 sur 7", "id": "B.dates", "lost": null, "next": null, "tier": "bonus", "title": "Chaque règle porte sa date", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "5 sur 7", "id": "B.pourquoi", "lost": null, "next": "Ajouter « Pourquoi : … » aux règles qui ne le disent pas, ou « pas d'incident connu ».", "tier": "bonus", "title": "Chaque règle dit pourquoi", "unlocked": null, "waiting": false}, {"evidence": "0 sur 7", "id": "B.outils", "lost": null, "next": "Pousser les règles racontées vers un lint, un test d'architecture ou un check de PR.", "tier": "bonus", "title": "Chaque règle est tenue par un outil", "unlocked": null, "waiting": false}, {"evidence": "0 référence(s) sans cible", "id": "B.cibles", "lost": null, "next": null, "tier": "bonus", "title": "Aucune référence sans cible", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "aucun écart avec les commandes évidentes", "id": "B.commandes", "lost": null, "next": null, "tier": "bonus", "title": "Les commandes que la CI lance sont écrites", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "visé : aucun", "id": "B.objectif", "lost": null, "next": "Dire où l'on s'arrête avec `harness target \u003cpalier\u003e`, puis l'atteindre.", "tier": "bonus", "title": "Le palier visé est atteint", "unlocked": null, "waiting": false}], "tiers": [{"done": 5, "earned": true, "id": "bronze", "name": "Bronze", "promise": "Un AGENTS.md court, un mode explicite, des stubs : l'agent sait où il est.", "title": "Cadré", "total": 5}, {"done": 3, "earned": false, "id": "argent", "name": "Argent", "promise": "La boucle de retour tourne : les incidents deviennent des règles.", "title": "Bouclé", "total": 4}, {"done": 1, "earned": false, "id": "or", "name": "Or", "promise": "Les règles obligatoires sont portées par des outils, pas par du texte.", "title": "Vérifié", "total": 4}, {"done": 2, "earned": false, "id": "platine", "name": "Platine", "promise": "Des tâches entières sont confiées à l'agent et reviennent propres.", "title": "Délégué", "total": 5}], "why": "Bronze : les 5 succès du rang « Cadré » sont débloqués, et il en manque 1 pour argent."}</script>
+<script type="application/json" id="medals-data">{"date": "2026-11-16", "history": [{"date": "2026-11-15", "medal": "bronze"}], "kind": "repo", "medal": {"id": "bronze", "name": "Bronze", "of": 4, "rank": 1}, "name": "harness-ai", "next": [{"action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.", "id": "L2.signal", "title": "The last harvest found at least one real signal (S1–S4)", "waiting": true}], "schema": 1, "successes": [{"evidence": "AGENTS.md", "id": "L1.source", "lost": null, "next": null, "tier": "bronze", "title": "An instruction file exists (AGENTS.md)", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "delegation", "id": "L1.mode", "lost": null, "next": null, "tier": "bronze", "title": "The line \"Mode: delegation | assistance\" is present", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "48", "id": "L1.short", "lost": null, "next": null, "tier": "bronze", "title": "The loaded file is at most 60 lines", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "exists: yes, lines: 1, loaded_lines: 48, is_stub: yes", "id": "L1.single_source", "lost": null, "next": null, "tier": "bronze", "title": "CLAUDE.md is an @AGENTS.md stub (or absent)", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "yes", "id": "L1.forbidden", "lost": null, "next": null, "tier": "bronze", "title": "A \"Forbidden\" section says what an agent never does", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "yes", "id": "L2.maintenance", "lost": null, "next": null, "tier": "silver", "title": "A maintenance section says how the file evolves", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "yes", "id": "L2.rule_convention", "lost": null, "next": null, "tier": "silver", "title": "The `rule:` review convention is documented", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "7", "id": "L2.marker_fresh", "lost": null, "next": null, "tier": "silver", "title": "A harvest ran less than 45 days ago", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "", "id": "L2.signal", "lost": null, "next": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.", "tier": "silver", "title": "The last harvest found at least one real signal (S1–S4)", "unlocked": null, "waiting": true}, {"evidence": "ci.yml", "id": "L3.ci", "lost": null, "next": null, "tier": "gold", "title": "A CI exists (workflows or .gitlab-ci.yml)", "unlocked": "2026-11-16", "waiting": false}, {"evidence": "0.0", "id": "L3.guarded", "lost": null, "next": "Push the narrated rules down to L3: custom lint, architecture test, PR check.", "tier": "gold", "title": "At least 50% of the rules are \"Enforced by\" a tool", "unlocked": null, "waiting": false}, {"evidence": "0.56", "id": "L3.justified", "lost": null, "next": null, "tier": "gold", "title": "At least 50% of the rules say why", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "", "id": "L3.audit", "lost": null, "next": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s.", "tier": "gold", "title": "A harness-audit exists and has no open P1", "unlocked": null, "waiting": false}, {"evidence": "delegation", "id": "L4.mode", "lost": null, "next": null, "tier": "platinum", "title": "The mode is delegation", "unlocked": "2026-11-16", "waiting": false}, {"evidence": "yes", "id": "L4.process", "lost": null, "next": null, "tier": "platinum", "title": "A \"Working process\" section frames the agent", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "1", "id": "L4.contracts", "lost": null, "next": null, "tier": "platinum", "title": "At least one task contract exists and is referenced", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "", "id": "L4.clean_prs", "lost": null, "next": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them.", "tier": "platinum", "title": "The last harvest sees agent PRs with no after-the-fact correction", "unlocked": null, "waiting": true}, {"evidence": "", "id": "L4.cut_the_agent", "lost": null, "next": "Push down to L3/L4 the steps that exist only in prompts.", "tier": "platinum", "title": "The audit's \"cut the agent\" test passes", "unlocked": null, "waiting": false}, {"evidence": "nothing broken", "id": "B.fresh", "lost": null, "next": null, "tier": "bonus", "title": "No skill or agent cites what has vanished", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "9 of 9", "id": "B.dates", "lost": null, "next": null, "tier": "bonus", "title": "Each rule carries its date", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "5 of 9", "id": "B.why", "lost": null, "next": "Add \"Why: …\" to the rules that do not say it, or \"no known incident\".", "tier": "bonus", "title": "Each rule says why", "unlocked": null, "waiting": false}, {"evidence": "0 of 9", "id": "B.tools", "lost": null, "next": "Push the narrated rules to a lint, an architecture test or a PR check.", "tier": "bonus", "title": "Each rule is enforced by a tool", "unlocked": null, "waiting": false}, {"evidence": "0 reference(s) without a target", "id": "B.targets", "lost": null, "next": null, "tier": "bonus", "title": "No reference without a target", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "no departure from the obvious commands", "id": "B.commands", "lost": null, "next": null, "tier": "bonus", "title": "The commands the CI runs are written", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "target: none", "id": "B.target", "lost": null, "next": "Say where you stop with `harness target \u003clevel\u003e`, then reach it.", "tier": "bonus", "title": "The target level is reached", "unlocked": null, "waiting": false}], "tiers": [{"done": 5, "earned": true, "id": "bronze", "name": "Bronze", "promise": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.", "title": "Framed", "total": 5}, {"done": 3, "earned": false, "id": "silver", "name": "Silver", "promise": "The feedback loop runs: incidents become rules.", "title": "Looped", "total": 4}, {"done": 2, "earned": false, "id": "gold", "name": "Gold", "promise": "Mandatory rules are enforced by tools, not by text.", "title": "Verified", "total": 4}, {"done": 3, "earned": false, "id": "platinum", "name": "Platinum", "promise": "Whole tasks are handed to the agent and come back clean.", "title": "Delegated", "total": 5}], "why": "Bronze: the 5 achievements of the \"Framed\" rank are unlocked, and 1 missing for silver."}</script>
 <script>
 (() => {
   const data = JSON.parse(document.getElementById("medals-data").textContent);
   const app = document.getElementById("app");
   const dialog = document.getElementById("detail");
-  const KINDS = { repo: "Dépôt", marketplace: "Marketplace" };
+  const KINDS = { repo: "Repository", marketplace: "Marketplace" };
   const state = { tier: "all", status: "all" };
 
   const el = (tag, props = {}, ...children) => {
@@ -166,41 +166,41 @@ dialog form { margin-top: 1.4rem; text-align: right; }
     node.append(...children.filter(Boolean));
     return node;
   };
-  const tierOf = (id) => data.tiers.find((t) => t.id === id) || { id: "bonus", name: "Hors rang", title: "En plus" };
+  const tierOf = (id) => data.tiers.find((t) => t.id === id) || { id: "bonus", name: "Outside the ranks", title: "Extra" };
   const stateOf = (s) => (s.unlocked ? "unlocked" : s.lost ? "lost" : "locked");
   const unlocked = data.successes.filter((s) => s.unlocked).length;
 
   document.documentElement.dataset.medal = data.medal.id;
 
-  const medal = el("div", { class: "medal", role: "img", "aria-label": `Médaille : ${data.medal.name}` },
+  const medal = el("div", { class: "medal", role: "img", "aria-label": `Medal: ${data.medal.name}` },
     el("strong", { text: data.medal.rank ? `${data.medal.rank}/${data.medal.of}` : "—" }));
   const hero = el("header", { class: "hero" }, medal, el("div", {},
-    el("p", { class: "eyebrow", text: `${KINDS[data.kind] || data.kind} · mesuré le ${data.date}` }),
+    el("p", { class: "eyebrow", text: `${KINDS[data.kind] || data.kind} · measured on ${data.date}` }),
     el("h1", { text: data.medal.name }, el("span", { text: data.name })),
     el("p", { class: "why", text: data.why }),
     el("p", { class: "tally" },
-      el("span", {}, el("b", { text: `${unlocked}` }), ` succès débloqués sur ${data.successes.length}`),
-      el("span", {}, el("b", { text: `${data.next.length}` }), ` avant le rang suivant`))));
+      el("span", {}, el("b", { text: `${unlocked}` }), ` achievements unlocked of ${data.successes.length}`),
+      el("span", {}, el("b", { text: `${data.next.length}` }), ` before the next rank`))));
 
-  const ladder = el("ol", { class: "ladder", "aria-label": "Les rangs" });
+  const ladder = el("ol", { class: "ladder", "aria-label": "The ranks" });
   const grid = el("ul", { class: "grid" });
-  const chips = el("div", { class: "chips", role: "group", "aria-label": "Filtrer les succès" });
+  const chips = el("div", { class: "chips", role: "group", "aria-label": "Filter the achievements" });
 
   const open = (s) => {
     const tier = tierOf(s.tier);
     const rows = [
-      ["Rang", `${tier.name} — ${tier.title}`],
-      ["État", s.unlocked ? `Débloqué le ${s.unlocked}` : s.lost ? `Perdu le ${s.lost}` : s.waiting ? "À débloquer — en attente : ça ne dépend pas que de toi" : "À débloquer"],
-      ["Ce qui est mesuré", s.evidence || "rien de plus que oui ou non"],
-      s.next ? ["Pour le débloquer", s.next] : null,
-      ["Identifiant", s.id],
+      ["Rank", `${tier.name} — ${tier.title}`],
+      ["State", s.unlocked ? `Unlocked on ${s.unlocked}` : s.lost ? `Lost on ${s.lost}` : s.waiting ? "To unlock — waiting: it does not depend on you alone" : "To unlock"],
+      ["What is measured", s.evidence || "nothing more than yes or no"],
+      s.next ? ["To unlock it", s.next] : null,
+      ["Id", s.id],
     ].filter(Boolean);
     const list = el("dl");
     for (const [term, value] of rows) list.append(el("div", {}, el("dt", { text: term }), el("dd", { text: value })));
     dialog.replaceChildren(
-      el("p", { class: "eyebrow", text: s.unlocked ? "Succès débloqué" : "Succès à débloquer" }),
+      el("p", { class: "eyebrow", text: s.unlocked ? "Achievement unlocked" : "Achievement to unlock" }),
       el("h3", { id: "detail-title", text: s.title }), list,
-      el("form", { method: "dialog" }, el("button", { class: "close", text: "Fermer" })));
+      el("form", { method: "dialog" }, el("button", { class: "close", text: "Close" })));
     dialog.dataset.medal = s.unlocked && tier.id !== "bonus" ? tier.id : "";
     dialog.showModal();
   };
@@ -213,13 +213,13 @@ dialog form { margin-top: 1.4rem; text-align: right; }
       const kind = stateOf(s);
       const tile = el("button", { class: "tile", type: "button", "data-state": kind, "data-medal": kind === "unlocked" ? tier.id : "",
         on: { click: () => open(s) } },
-        el("span", { class: "tag" }, el("span", { text: tier.name }), el("span", { text: kind === "unlocked" ? "✓" : kind === "lost" ? "perdu" : "à débloquer" })),
+        el("span", { class: "tag" }, el("span", { text: tier.name }), el("span", { text: kind === "unlocked" ? "✓" : kind === "lost" ? "lost" : "to unlock" })),
         el("span", { class: "title", text: s.title }),
-        el("span", { class: "foot", text: s.unlocked ? `depuis le ${s.unlocked}` : s.lost ? `perdu le ${s.lost}` : s.waiting ? "en attente" : "voir comment" }));
+        el("span", { class: "foot", text: s.unlocked ? `since ${s.unlocked}` : s.lost ? `lost on ${s.lost}` : s.waiting ? "waiting" : "see how" }));
       tile.style.setProperty("animation-delay", `${Math.min(index, 14) * 35}ms`);
       return el("li", {}, tile);
     }));
-    if (!shown.length) grid.append(el("li", { class: "empty", text: "Aucun succès dans ce filtre." }));
+    if (!shown.length) grid.append(el("li", { class: "empty", text: "No achievement in this filter." }));
     for (const node of ladder.querySelectorAll(".rung")) node.setAttribute("aria-pressed", String(node.dataset.tier === state.tier));
     for (const node of chips.querySelectorAll(".chip")) node.setAttribute("aria-pressed", String(node.dataset.status === state.status));
   };
@@ -234,7 +234,7 @@ dialog form { margin-top: 1.4rem; text-align: right; }
       el("span", { class: "bar" }, bar),
       el("span", { class: "count", text: `${tier.done}/${tier.total}` }))));
   }
-  for (const [status, label] of [["all", "Tous"], ["done", "Débloqués"], ["todo", "À débloquer"]]) {
+  for (const [status, label] of [["all", "All"], ["done", "Unlocked"], ["todo", "To unlock"]]) {
     chips.append(el("button", { class: "chip", type: "button", "data-status": status, text: label,
       on: { click: () => { state.status = status; draw(); } } }));
   }
@@ -242,20 +242,20 @@ dialog form { margin-top: 1.4rem; text-align: right; }
   const steps = el("ol");
   for (const step of data.next) {
     steps.append(el("li", {}, el("div", {}, el("span", { text: step.action || step.title }),
-      el("small", { text: step.waiting ? `${step.title} — en attente, ça ne dépend pas que de toi` : step.title }))));
+      el("small", { text: step.waiting ? `${step.title} — waiting, it does not depend on you alone` : step.title }))));
   }
   const nextMedal = data.tiers[data.medal.rank];
   const next = el("section", { class: "next", "aria-labelledby": "next-title" },
-    el("div", {}, el("h2", { id: "next-title", text: nextMedal ? `Vers ${nextMedal.name.toLowerCase()}` : "Dernier rang atteint" }),
-      el("p", { text: nextMedal ? nextMedal.promise : "Il reste à tenir ce qui est acquis : un succès peut se perdre." })),
-    data.next.length ? steps : el("p", { class: "empty", text: "Rien à faire pour le rang suivant." }));
+    el("div", {}, el("h2", { id: "next-title", text: nextMedal ? `Towards ${nextMedal.name.toLowerCase()}` : "Last rank reached" }),
+      el("p", { text: nextMedal ? nextMedal.promise : "What remains is to keep what is earned: an achievement can be lost." })),
+    data.next.length ? steps : el("p", { class: "empty", text: "Nothing to do for the next rank." }));
 
-  const history = el("p", { class: "history", text: "Parcours : " + data.history.map((h) => `${h.date} ${h.medal}`).join("  →  ") });
-  const footer = el("footer", {}, "Généré par ", el("code", { text: "harness medals" }),
-    " à partir de mesures faites dans le dépôt, sans modèle. Les données sont dans ce fichier, bloc ", el("code", { text: "medals-data" }), ".");
+  const history = el("p", { class: "history", text: "Path: " + data.history.map((h) => `${h.date} ${h.medal}`).join("  →  ") });
+  const footer = el("footer", {}, "Generated by ", el("code", { text: "harness medals" }),
+    " from measurements made in the repository, without a model. The data is in this file, block ", el("code", { text: "medals-data" }), ".");
 
   app.replaceChildren(hero, ladder,
-    el("section", { "aria-labelledby": "grid-title" }, el("div", { class: "bar-head" }, el("h2", { id: "grid-title", text: "Succès" }), chips), grid),
+    el("section", { "aria-labelledby": "grid-title" }, el("div", { class: "bar-head" }, el("h2", { id: "grid-title", text: "Achievements" }), chips), grid),
     next, history, footer);
   dialog.addEventListener("click", (event) => {
     const box = dialog.getBoundingClientRect();

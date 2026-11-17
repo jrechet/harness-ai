@@ -1,107 +1,109 @@
-# Gabarits, pas par pas
+# Templates, step by step
 
-Chaque pas ajoute son bloc, et seulement le sien. Les crochets `<…>` sont à remplir ; une section dont on n'a rien de non-découvrable à dire est **supprimée**, pas remplie.
+Each step adds its block, and only its own. The `<…>` brackets are to fill in; a section about which there is nothing non-discoverable to say is **removed**, not filled.
 
-Budget : AGENTS.md sous 60 lignes, tous pas confondus. Si une section déborde, son contenu devient un skill dans `.claude/skills/` ou un fichier dans `docs/agents/`, et AGENTS.md garde une ligne de pointeur.
+Budget: AGENTS.md under 60 lines, all steps included. If a section overflows, its content becomes a skill in `.claude/skills/` or a file in `docs/agents/`, and AGENTS.md keeps a pointer line.
+
+Language: the blocks are in English. In a repository written in French, write the same sections in French; `harness status` reads both: `Mode : **délégation**` / `**assistance**`, `## Règles`, `## Interdits`, `Pourquoi :`, `Vérifiée par :`, `(non vérifiée)`, `## Maintenance de ce fichier`, `## Processus de travail`, `## Tâches déléguées`.
 
 ---
 
-## Pas 1 — Cadré (harness-init)
+## Step 1 — Framed (harness-init)
 
 ```markdown
-# <nom du repo> — instructions pour les agents
+# <repo name> — instructions for agents
 
-Mode : **délégation**. Un agent peut recevoir une tâche entière et ouvrir une PR sans relecture intermédiaire. Ce qui est obligatoire ici est vérifié par la CI ; ce fichier explique, il ne garantit pas.
+Mode: **delegation**. An agent can receive a whole task and open a PR without intermediate review. What is mandatory here is enforced by the CI; this file explains, it does not guarantee.
 
-## Ce que fait ce repo
-<Deux lignes max : quoi, pour qui, où sont les décisions et les incidents. Pas la stack, pas l'arborescence.>
+## What this repo does
+<Two lines max: what, for whom, where the decisions and incidents are. Not the stack, not the tree.>
 
-## Ce qui change → ce qu'on lance
-| Si tu touches… | Lance… | Vérifié en CI par |
+## What changes → what to run
+| If you touch… | Run… | Enforced in CI by |
 |---|---|---|
-| <zone> | `<commande confirmée>` | <job qui bloque, ou « rien »> |
+| <area> | `<confirmed command>` | <job that blocks, or "nothing"> |
 
-## Règles
-- <Règle en une phrase.> Pourquoi : <incident ou raison, ou « pas d'incident connu »>. Vérifiée par : <chemin du garde-fou qui bloque> | (non vérifiée) [<AAAA-MM>]
+## Rules
+- <Rule in one sentence.> Why: <incident or reason, or "no known incident">. Enforced by: <path of the guardrail that blocks> | (unverified) [<YYYY-MM>]
 
-## Interdits
-- <Ce qu'un agent ne fait jamais, même si la tâche semble le demander.> Pourquoi : <…> [<AAAA-MM>]
+## Forbidden
+- <What an agent never does, even if the task seems to ask for it.> Why: <…> [<YYYY-MM>]
 ```
 
-Variante assistance, ligne de mode : `Mode : **assistance**. L'humain pilote et relit chaque diff ; ce fichier évite les allers-retours, il n'est pas un garde-fou.`
+Assistance variant, mode line: `Mode: **assistance**. A person drives and reviews every diff; this file avoids back-and-forth, it is not a guardrail.`
 
 ### Stubs
 
-`CLAUDE.md` (une seule ligne) :
+`CLAUDE.md` (a single line):
 ```
 @AGENTS.md
 ```
 
-`.github/copilot-instructions.md` (Copilot ne sait pas inclure un fichier) :
+`.github/copilot-instructions.md` (Copilot cannot include a file):
 ```markdown
-Les instructions de ce dépôt vivent dans `AGENTS.md` à la racine. Lis-le avant toute modification et applique-le ; aucune règle n'est définie ici.
+This repository's instructions live in `AGENTS.md` at the root. Read it before any change and apply it; no rule is defined here.
 ```
 
-`.cursor/rules/agents.mdc` :
+`.cursor/rules/agents.mdc`:
 ```markdown
 ---
-description: Instructions du dépôt
+description: Repository instructions
 alwaysApply: true
 ---
-Les instructions de ce dépôt vivent dans `AGENTS.md` à la racine. Lis-le et applique-le ; aucune règle n'est définie ici.
+This repository's instructions live in `AGENTS.md` at the root. Read it and apply it; no rule is defined here.
 ```
 
 ---
 
-## Pas 2 — Bouclé (harness-step)
+## Step 2 — Looped (harness-step)
 
-À la fin d'AGENTS.md :
+At the end of AGENTS.md:
 
 ```markdown
-## Maintenance de ce fichier
-- Un commentaire de review qui commence par `rule:` est une règle candidate. Elle est ajoutée ici dans la même PR, datée, avec le lien vers le commentaire, ou collectée par harness-harvest.
-- Avant d'ajouter une phrase, chercher si un linter, un test ou un check CI peut porter la règle : une règle vérifiée est raccourcie, une règle racontée est une dette.
-- Une règle sans incident depuis six mois, ou écrite pour une génération de modèles passée, est candidate au retrait à la prochaine revue de pertinence.
+## Maintaining this file
+- A review comment that starts with `rule:` is a candidate rule. It is added here in the same PR, dated, with the link to the comment, or collected by harness-harvest.
+- Before adding a sentence, look for a linter, a test or a CI check that can carry the rule: an enforced rule is shortened, a narrated rule is a debt.
+- A rule with no incident for six months, or written for a past generation of models, is a candidate for removal at the next relevance review.
 
-<!-- harvest: last=<AAAA-MM-JJ du pas> ref=init -->
+<!-- harvest: last=<YYYY-MM-DD of the step> ref=init -->
 ```
 
-Le marqueur `ref=init` ne se pose que sur un fichier qui n'en avait pas : remettre à aujourd'hui un marqueur périmé simulerait un harvest qui n'a pas eu lieu.
+The `ref=init` marker is only set on a file that had none: resetting a stale marker to today would fake a harvest that did not happen.
 
-### La convention `rule:`
+### The `rule:` convention
 
-Dans un commentaire de review, sur une ligne ou sur la PR :
+In a review comment, on a line or on the PR:
 
 ```
-rule: <la règle en une phrase, au présent, vérifiable>
+rule: <the rule in one sentence, in the present tense, checkable>
 ```
 
-Exemples :
-- `rule: les appels HTTP sortants passent par le client de src/http, jamais fetch direct`
-- `rule: une migration ne supprime jamais une colonne dans la même release que le code qui cesse de la lire`
+Examples:
+- `rule: outgoing HTTP calls go through the client in src/http, never fetch directly`
+- `rule: a migration never drops a column in the same release as the code that stops reading it`
 
-Ce qu'on en fait, dans l'ordre :
-1. Chercher un garde-fou : règle de lint, test d'architecture, script de check en PR. Si possible, la règle entre en CI et AGENTS.md ne garde qu'une ligne « Vérifiée par ».
-2. Sinon, l'ajouter dans « Règles » avec le lien du commentaire comme justification, la mention `(non vérifiée)` et la date.
-3. Jamais sans justification : un `rule:` sans contexte est renvoyé à son auteur.
+What is done with it, in order:
+1. Look for a guardrail: lint rule, architecture test, PR check script. If possible, the rule goes into CI and AGENTS.md keeps only an "Enforced by" line.
+2. Otherwise, add it under "Rules" with the comment's link as justification, the `(unverified)` mention and the date.
+3. Never without justification: a `rule:` without context is sent back to its author.
 
 ---
 
-## Pas 4 — Délégué (harness-step)
+## Step 4 — Delegated (harness-step)
 
-Avant « Maintenance de ce fichier » :
+Before "Maintaining this file":
 
 ```markdown
-## Processus de travail
-- Arrête-toi et pose la question quand : <ex. la tâche implique un choix d'architecture, touche à un interdit, ou la CI échoue pour une raison étrangère à la tâche>.
-- Une tâche est finie quand : <ex. CI verte, un test couvre le changement, la PR explique le pourquoi, pas de TODO laissé>.
-- CI rouge : <ex. corrige si la cause est dans ton diff ; sinon signale-le dans la PR et n'y touche pas>.
-- Test flaky : <ex. relance une fois ; s'il reste instable, ouvre une issue, ne le désactive pas>.
+## Working process
+- Stop and ask when: <e.g. the task involves an architecture choice, touches a forbidden item, or the CI fails for a reason unrelated to the task>.
+- A task is done when: <e.g. CI green, a test covers the change, the PR explains why, no TODO left>.
+- Red CI: <e.g. fix it if the cause is in your diff; otherwise report it in the PR and do not touch it>.
+- Flaky test: <e.g. rerun once; if it stays unstable, open an issue, do not disable it>.
 
-## Tâches déléguées
-- `<nom-du-skill>` (`.claude/skills/<nom-du-skill>`) — <une ligne>.
+## Delegated tasks
+- `<skill-name>` (`.claude/skills/<skill-name>`) — <one line>.
 ```
 
-Une ligne de « Tâches déléguées » ne s'écrit que dans le pas qui crée le contrat : `harness status` signale un contrat cité sans `SKILL.md`.
+A "Delegated tasks" line is only written in the step that creates the contract: `harness status` reports a contract cited without a `SKILL.md`.
 
-En assistance, ces deux sections n'existent pas, sauf si une tâche précise est déjà déléguée.
+In assistance, these two sections do not exist, unless a specific task is already delegated.

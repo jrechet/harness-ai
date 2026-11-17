@@ -124,6 +124,56 @@ def level4(f: dict) -> list[Check]:
 
 LEVEL_CHECKS: dict[int, Callable[[dict], list[Check]]] = {1: level1, 2: level2, 3: level3, 4: level4}
 
+# The map (`status --map`) speaks to the user, not to the agent: plain words, no check ids, no level
+# name left undefined. One phrase per level; per check, what is missing and the step that fixes it.
+LEVEL_PLAIN = {
+    0: "no instructions: the agent starts from zero at every session",
+    1: "the agent knows the project, its rules and what it must never do",
+    2: "review remarks become rules, so the same mistake is not made twice",
+    3: "mandatory rules are enforced by tools, not just written down",
+    4: "whole tasks go to the agent and come back clean",
+}
+
+CHECK_PLAIN: dict[str, tuple[str, str]] = {
+    "L1.source": ("there is no instruction file (AGENTS.md) for the agent",
+                  "write a short AGENTS.md: four questions, about half an hour"),
+    "L1.mode": ("the file does not say whether agents work alone or with a person reviewing each change",
+                "add one line saying how agents work here"),
+    "L1.short": (f"the instruction file is longer than {MAX_SOURCE_LINES} lines: the agent reads it with less attention",
+                 f"move reference material out of the file until it is {MAX_SOURCE_LINES} lines or fewer"),
+    "L1.single_source": ("CLAUDE.md carries its own instructions instead of pointing to AGENTS.md",
+                         "merge CLAUDE.md into AGENTS.md and leave a one-line pointer"),
+    "L1.forbidden": ("the file does not say what an agent must never do",
+                     "write down what an agent must never do"),
+    "L2.maintenance": ("the file does not say how it is kept up to date",
+                       "add a short section saying how the file is kept up to date"),
+    "L2.rule_convention": ("the team has no agreed way to turn a review remark into a rule",
+                           "agree that a review comment starting with `rule:` proposes a rule, and write it in the file"),
+    "L2.marker_fresh": (f"nobody has turned recent review feedback into rule changes in the last {MAX_MARKER_AGE_DAYS} days",
+                        "collect what recent reviews taught and propose the rule changes"),
+    "L2.signal": ("no review remark or fixed agent change has fed a rule yet",
+                  "nothing to write: this comes with real reviews, over time"),
+    "L3.ci": ("there is no CI to run checks on every change",
+              "set up a minimal CI that runs the project's checks"),
+    "L3.guarded": (f"fewer than {int(MIN_GUARDED_RATIO*100)}% of the rules are enforced by a tool "
+                   "(a test, a lint rule, a CI check)",
+                   "turn one written rule into a check that fails when the rule is broken"),
+    "L3.justified": (f"fewer than {int(MIN_JUSTIFIED_RATIO*100)}% of the rules say why they exist",
+                     "ask the team why, for the rules that do not say it"),
+    "L3.audit": ("no full review of the setup exists yet, or the last one found an urgent problem",
+                 "run a full review of the setup and fix its urgent findings"),
+    "L4.mode": ("agents work with a person reviewing each change, not on their own",
+                "decide whether agents may take whole tasks on their own"),
+    "L4.process": ("the file does not say when the agent stops to ask, or when a task is done",
+                   "write when the agent stops to ask, and when a task is done"),
+    "L4.contracts": ("no task has a written procedure the agent can follow on its own",
+                     "write the procedure of the first task to hand over"),
+    "L4.clean_prs": ("no agent change has yet been seen merged without a fix afterwards",
+                     "nothing to write: this comes with real agent changes, over time"),
+    "L4.cut_the_agent": ("some mandatory steps exist only in prompts, not in scripts or CI",
+                         "move one step that lives only in a prompt into a script or a CI job"),
+}
+
 
 def layer_view(f: dict) -> dict[str, Any]:
     """The L1–L4 layer view, from the last audit; otherwise pointers."""
@@ -250,3 +300,71 @@ def render_markdown(state: dict) -> str:
         out.append("The target level is held. Nothing to do.")
         out.append("")
     return "\n".join(out)
+
+
+def _first_doable(state: dict) -> tuple[int, Check] | None:
+    """The level and failing check the next step works on: the same walk as `evaluate`."""
+    for l in state["levels"]:
+        if l["achieved"] or not l["level"]:
+            continue
+        if not l.get("in_scope", True):
+            return None
+        doable = [c for c in l["checks"] if not c["passed"] and not c["waits"]]
+        if doable:
+            return l["level"], doable[0]
+    return None
+
+
+def _next_step(state: dict, target: dict) -> str:
+    if state.get("dangling"):
+        return "fix or remove what the instruction file cites but cannot be found."
+    found = _first_doable(state)
+    if found:
+        num, check = found
+        return f"{CHECK_PLAIN[check['id']][1]} (towards level {num})."
+    reached = state["level"]["reached"]
+    if target["reached"] or reached >= len(LEVELS) - 1:
+        above = max(target["level"] or 0, reached) + 1
+        if above >= len(LEVELS):
+            return "none: every level is reached. What is in place still needs upkeep."
+        return (f"none: your target is reached. If you want more, level {above} ({LEVELS[above][1]}) "
+                f"would bring this: {LEVEL_PLAIN[above]}. It is your choice.")
+    if state.get("waiting"):
+        return "none for now: what is missing comes with real reviews and real agent changes, over time."
+    return "none."
+
+
+def render_map(state: dict) -> str:
+    """The map the skills show first: in a few plain lines, what each level brings, where the
+    repository is, the target, what the next level still needs and the next step. No check id."""
+    reached = state["level"]["reached"]
+    target = state.get("target") or {"level": None, "reached": False}
+    out = ["Where this repository stands, level by level:"]
+    for l in state["levels"]:
+        num = l["level"]
+        if num == 0 and reached:
+            continue
+        mark = "✓" if l["achieved"] and num else "·"
+        line = f"{mark} {num} {l['name']:<10} {LEVEL_PLAIN[num]}"
+        if num == reached:
+            line += "   ← you are here"
+        elif not l.get("in_scope", True) and not l["achieved"]:
+            line += "   (beyond your target)"
+        out.append(line)
+    out.append("")
+    if target["level"] is None:
+        out.append("Target: none chosen yet. You decide how far to go; you can stay at any level.")
+    else:
+        out.append(f"Target: level {target['level']}, {target['name']} — "
+                   + ("reached." if target["reached"] else "not reached yet."))
+    nxt = state["level"]["next"]
+    if nxt is not None and (target["level"] is None or nxt <= target["level"]):
+        out.append(f"What level {nxt} still needs:")
+        for c in state["levels"][nxt]["checks"]:
+            if not c["passed"]:
+                out.append(f"- {CHECK_PLAIN[c['id']][0]}" + (" (comes with time, not with work)" if c["waits"] else ""))
+    if state.get("dangling"):
+        out.append(f"Broken references: the instruction file cites {len(state['dangling'])} thing(s) "
+                   "that cannot be found.")
+    out.append("Next step: " + _next_step(state, target))
+    return "\n".join(out) + "\n"
