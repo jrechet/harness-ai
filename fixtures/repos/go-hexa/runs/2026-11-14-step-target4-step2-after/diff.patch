@@ -1,0 +1,466 @@
+diff --git a/.claude/skills/add-endpoint/SKILL.md b/.claude/skills/add-endpoint/SKILL.md
+new file mode 100644
+index 0000000..8264502
+--- /dev/null
++++ b/.claude/skills/add-endpoint/SKILL.md
+@@ -0,0 +1,51 @@
++---
++name: add-endpoint
++description: Contract of the delegated task "add an HTTP endpoint from a use case", from the domain to the handler and its tests, up to the PR. Use when a ticket asks for a new route of the ledger API (read or write), even if it does not name this contract.
++---
++
++# Add an endpoint, from the use case to the test
++
++You receive the whole ticket and come back with a PR. Nobody reviews along the way: this contract says what is expected, the CI (`test`, `arch`, `migrations`) decides. Sources: `docs/adr/0001` (layers), `0002` (cents), `0003` (idempotency), `docs/postmortems/2026-04-double-debit.md`, `docs/operations.md`.
++
++## Before starting
++- The route is **new**: that is the normal path, go all the way. If the ticket renames, removes or changes the type of an existing route or field, or if it is ambiguous about an amount or a rounding: stop and ask the question (AGENTS.md, "Working process").
++- Decide whether the route **changes a balance** (debit, credit, fee, cancellation…). If so, the whole "Write" part below applies, without exception.
++
++## Steps
++1. **Domain** (`internal/domain`), only if the ticket brings a business rule: pure function, no dependency, amounts in `domain.Money` (integer in cents), typed errors in `errors.go`. Unit test next to it.
++2. **Use case** (`internal/app/service.go`): a method on `Service` and, if there are inputs, a `<Name>Command`. It only knows the ports of `ports.go`. Amounts come in as `int64` cents and go through `domain.NewMoney`. No `float32`/`float64`: `internal/app/fees.go` already violates the rule, do not take it as a model.
++3. **Ports and adapters**, only if a new storage is needed: the interface in `ports.go`, then its implementation in `internal/adapters/memory` **and** `internal/adapters/postgres`. An adapter never imports another adapter.
++4. **Migration**, only if the schema changes: a new file `migrations/NNNN_<object>.sql` at the next number, idempotent (`IF NOT EXISTS`). Never a modification of an existing file. A migration that deletes or rewrites data: stop and ask.
++5. **Handler** (`internal/adapters/httpapi/server.go`): add the route in `routes()`, the single list. The handler decodes, calls the use case, encodes; no business rule. Amounts go out as integer `amount_cents` / `*_cents`. A new error becomes an HTTP code in `writeDomainError`, nowhere else.
++6. **Wiring**: `cmd/ledgerd` only if a new adapter is to be plugged in.
++
++## Write: route that changes a balance
++- Require the `Idempotency-Key` header: missing → `app.ErrMissingIdempotencyKey` (400 `idempotency_key_required`). The guardrail `idempotency_guard_test.go` checks it on every non-GET route.
++- Look the key up **inside** the write transaction, within `uow.Do`, never before opening it: that is what debited 37 accounts twice in April 2026. Model: `Service.Transfer`.
++- Same key, same request → return the first result, without rewriting. Same key, other request → `app.ErrIdempotencyConflict` (409).
++- A replayed response carries `Idempotency-Replayed: true`: the mobile app uses it to avoid showing two confirmations. The use case tells the handler that it is a replay. (`POST /transfers` does not do it yet: do not fix it in this PR, report it.)
++- If the key is stored in a new table: unique index on it in the migration, the last safety net (ADR 0003).
++- **Never** add an entry to `withoutIdempotencyKey`: it needs the owner's agreement. `POST /accounts` is the only exemption, it is not a model. If the ticket asks for a write without a key, stop and ask.
++
++## Expected tests
++- `internal/app/service_test.go`, with the memory adapter: the nominal case, each domain error, and for a write: missing key, replay (a single effect on the balance), conflict.
++- `internal/adapters/httpapi/server_test.go`: HTTP codes, body in cents, and for a write the replay with the `Idempotency-Replayed: true` header.
++- If the postgres adapter changed: a test in `store_integration_test.go` and `make test-integration` on **your** local database. These tests do not run in CI and the driver is not in `go.mod` yet: if you cannot run them, write it in the PR.
++
++## Checks before the PR
++```
++go vet ./... && go test ./...
++go run ./tools/archcheck
++go run ./tools/migrationcheck -base origin/main   # if migrations/ changed
++```
++
++## Never, even if the ticket seems to ask for it
++- `make migrate` or `make reset-db` anywhere other than on your local database (`tools/localdb` refuses anyway).
++- Modifying an existing migration.
++- Running `deploy.yml`, let alone without `dry_run` or towards `production`.
++
++## Done when
++- `make test` and `make arch` pass (and `migrations` if the schema changes).
++- A test covers the new route; for a write, the replay and the conflict are tested.
++- The PR says why in two lines, then: route added, write or read, migration or not, and what could not be checked (postgres integration, key lookup inside the transaction, left to the review).
++- A red `lint` does not block (inherited debt); a red CI caused by your diff gets fixed, another one gets reported.
+diff --git a/.harness/config.json b/.harness/config.json
+new file mode 100644
+index 0000000..af21856
+--- /dev/null
++++ b/.harness/config.json
+@@ -0,0 +1 @@
++{"schema": "harness-config/1", "target_level": 4}
+\ No newline at end of file
+diff --git a/.harness/state.json b/.harness/state.json
+new file mode 100644
+index 0000000..36f46ee
+--- /dev/null
++++ b/.harness/state.json
+@@ -0,0 +1,381 @@
++{
++  "schema": "harness-state/1",
++  "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-8yg95bxz/repo",
++  "date": "2026-11-14",
++  "level": {
++    "reached": 1,
++    "name": "Framed",
++    "next": 2
++  },
++  "target": {
++    "level": 4,
++    "name": "Delegated",
++    "reached": false
++  },
++  "levels": [
++    {
++      "level": 0,
++      "name": "None",
++      "summary": "No instruction file: the agent starts from zero at every session.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [],
++      "passed_checks": 0,
++      "total_checks": 0
++    },
++    {
++      "level": 1,
++      "name": "Framed",
++      "summary": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L1.source",
++          "label": "An instruction file exists (AGENTS.md)",
++          "passed": true,
++          "value": "AGENTS.md",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.mode",
++          "label": "The line \"Mode: delegation | assistance\" is present",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.short",
++          "label": "The loaded file is at most 60 lines",
++          "passed": true,
++          "value": 42,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.single_source",
++          "label": "CLAUDE.md is an @AGENTS.md stub (or absent)",
++          "passed": true,
++          "value": {
++            "exists": true,
++            "lines": 1,
++            "loaded_lines": 42,
++            "is_stub": true
++          },
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.forbidden",
++          "label": "A \"Forbidden\" section says what an agent never does",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        }
++      ],
++      "passed_checks": 5,
++      "total_checks": 5
++    },
++    {
++      "level": 2,
++      "name": "Looped",
++      "summary": "The feedback loop runs: incidents become rules.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L2.maintenance",
++          "label": "A maintenance section says how the file evolves",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.rule_convention",
++          "label": "The `rule:` review convention is documented",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.marker_fresh",
++          "label": "A harvest ran less than 45 days ago",
++          "passed": true,
++          "value": 0,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.signal",
++          "label": "The last harvest found at least one real signal (S1–S4)",
++          "passed": false,
++          "value": null,
++          "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.",
++          "waits": true
++        }
++      ],
++      "passed_checks": 3,
++      "total_checks": 4
++    },
++    {
++      "level": 3,
++      "name": "Verified",
++      "summary": "Mandatory rules are enforced by tools, not by text.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L3.ci",
++          "label": "A CI exists (workflows or .gitlab-ci.yml)",
++          "passed": true,
++          "value": [
++            "ci.yml",
++            "deploy.yml"
++          ],
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.guarded",
++          "label": "At least 50% of the rules are \"Enforced by\" a tool",
++          "passed": true,
++          "value": 0.62,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.justified",
++          "label": "At least 50% of the rules say why",
++          "passed": true,
++          "value": 1.0,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.audit",
++          "label": "A harness-audit exists and has no open P1",
++          "passed": true,
++          "value": {
++            "P1": 0,
++            "P2": 5,
++            "P3": 2
++          },
++          "next_action": null,
++          "waits": false
++        }
++      ],
++      "passed_checks": 4,
++      "total_checks": 4
++    },
++    {
++      "level": 4,
++      "name": "Delegated",
++      "summary": "Whole tasks are handed to the agent and come back clean.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L4.mode",
++          "label": "The mode is delegation",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L4.process",
++          "label": "A \"Working process\" section frames the agent",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L4.contracts",
++          "label": "At least one task contract exists and is referenced",
++          "passed": true,
++          "value": 1,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L4.clean_prs",
++          "label": "The last harvest sees agent PRs with no after-the-fact correction",
++          "passed": false,
++          "value": null,
++          "next_action": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them.",
++          "waits": true
++        },
++        {
++          "id": "L4.cut_the_agent",
++          "label": "The audit's \"cut the agent\" test passes",
++          "passed": false,
++          "value": false,
++          "next_action": "Push down to L3/L4 the steps that exist only in prompts.",
++          "waits": false
++        }
++      ],
++      "passed_checks": 3,
++      "total_checks": 5
++    }
++  ],
++  "layers": {
++    "source": "audit",
++    "date": "2026-11-14",
++    "layers": {
++      "L1": {
++        "total": 0,
++        "misplaced": 0
++      },
++      "L2": {
++        "total": 5,
++        "misplaced": 0
++      },
++      "L3": {
++        "total": 9,
++        "misplaced": 2
++      },
++      "L4": {
++        "total": 5,
++        "misplaced": 3
++      },
++      "MIXED": {
++        "total": 0,
++        "misplaced": 0
++      }
++    },
++    "process_leaks": 5,
++    "health_score": 31
++  },
++  "next_actions": [
++    "Push down to L3/L4 the steps that exist only in prompts."
++  ],
++  "waiting": [
++    "L2.signal",
++    "L4.clean_prs"
++  ],
++  "dangling": [],
++  "facts": {
++    "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-8yg95bxz/repo",
++    "date": "2026-11-14",
++    "instructions": {
++      "files": {
++        "AGENTS.md": {
++          "exists": true,
++          "lines": 42,
++          "loaded_lines": 42,
++          "is_stub": false
++        },
++        "CLAUDE.md": {
++          "exists": true,
++          "lines": 1,
++          "loaded_lines": 42,
++          "is_stub": true
++        },
++        ".github/copilot-instructions.md": {
++          "exists": false
++        },
++        ".cursor/rules": {
++          "exists": false,
++          "files": []
++        }
++      },
++      "source": {
++        "path": "AGENTS.md",
++        "mode": "delegation",
++        "lines": 42,
++        "rules_total": 8,
++        "rules_guarded": 5,
++        "rules_unguarded_marked": 2,
++        "rules_justified": 8,
++        "rules_dated": 8,
++        "oldest_rule_date": "2026-06",
++        "has_maintenance_section": true,
++        "has_process_section": true,
++        "has_forbidden_section": true,
++        "mentions_rule_convention": true,
++        "harvest_marker": {
++          "date": "2026-11-14",
++          "ref": "init"
++        }
++      }
++    },
++    "contracts": {
++      "count": 1,
++      "items": [
++        {
++          "name": "add-endpoint",
++          "path": ".claude/skills/add-endpoint/SKILL.md",
++          "referenced": true
++        }
++      ]
++    },
++    "guardrails": {
++      "tools": {
++        "golangci-lint": [
++          ".golangci.yml"
++        ]
++      },
++      "workflows": [
++        "ci.yml",
++        "deploy.yml"
++      ],
++      "has_ci": true
++    },
++    "audit": {
++      "date": "2026-11-14",
++      "health_score": 31,
++      "cut_the_agent_passed": false,
++      "elements": 19,
++      "layers": {
++        "L1": {
++          "total": 0,
++          "misplaced": 0
++        },
++        "L2": {
++          "total": 5,
++          "misplaced": 0
++        },
++        "L3": {
++          "total": 9,
++          "misplaced": 2
++        },
++        "L4": {
++          "total": 5,
++          "misplaced": 3
++        },
++        "MIXED": {
++          "total": 0,
++          "misplaced": 0
++        }
++      },
++      "verdicts": {
++        "KEEP": 14,
++        "PUSH_DOWN": 5
++      },
++      "priorities": {
++        "P1": 0,
++        "P2": 5,
++        "P3": 2
++      },
++      "process_leaks": 5,
++      "guarded_rules": 3,
++      "removals": {
++        "useless": 1,
++        "harmful": 1,
++        "outdated": 0
++      }
++    },
++    "harvest": null,
++    "harvest_marker_age_days": 0,
++    "config": {
++      "target_level": 4
++    },
++    "dangling": []
++  }
++}
+diff --git a/AGENTS.md b/AGENTS.md
+index f417b24..136a40a 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -31,6 +31,9 @@ Ledger service: open an account, read a balance, transfer money. Decisions in `d
+ - Red CI: if the cause is in your diff, fix it; otherwise report it in the PR and do not touch it. `lint` does not block (inherited debt): do not take it for a failure.
+ - Flaky test: rerun once, then open an issue; never disable it.
+ 
++## Delegated tasks
++- `add-endpoint` (`.claude/skills/add-endpoint`) — a new route, from the use case to the handler and its tests.
++
+ ## Maintaining this file
+ - A review comment that starts with `rule:` is a candidate rule. It is added here in the same PR, dated, with the link to the comment, or collected by harness-harvest.
+ - Before adding a sentence, look for a linter, a test or a CI check that can carry the rule: an enforced rule is shortened, a narrated rule is a debt.

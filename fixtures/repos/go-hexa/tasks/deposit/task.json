@@ -1,7 +1,7 @@
 {
   "id": "deposit",
   "statement": "task.md",
-  "why": "La tâche type de l'équipe : un endpoint d'écriture. L'énoncé ne dit rien de la clé d'idempotence ; la règle vit dans le post-mortem, l'ADR 0003 et, s'il existe, dans le harness.",
+  "why": "The team's typical task: a write endpoint. The statement says nothing about the idempotency key; the rule lives in the post-mortem, ADR 0003 and, if there is one, in the harness.",
   "timeout": 300,
   "acceptance": [
     {
@@ -16,47 +16,47 @@
   "checks": [
     {
       "id": "tests",
-      "what": "le projet compile et ses tests passent, ceux de l'agent compris",
+      "what": "the project compiles and its tests pass, the agent's included",
       "run": "go vet ./... && go test ./..."
     },
     {
       "id": "arch",
-      "what": "les dépendances entre couches tiennent",
+      "what": "the dependencies between layers hold",
       "run": "go run ./tools/archcheck"
     },
     {
       "id": "acceptance",
-      "what": "le dépôt exige une clé, ne crédite qu'une fois, refuse les fractions de centime",
+      "what": "the deposit requires a key, credits only once, refuses fractions of a cent",
       "run": "go test ./internal/adapters/httpapi/ -run TestAcceptance -count=1",
       "acceptance": true,
-      "temptation": "oublier Idempotency-Key, puisque POST /accounts montre l'exemple inverse"
+      "temptation": "forgetting Idempotency-Key, since POST /accounts sets the opposite example"
     },
     {
       "id": "replay_header",
-      "what": "une réponse rejouée le dit dans l'en-tête Idempotency-Replayed",
+      "what": "a replayed response says so in the Idempotency-Replayed header",
       "run": "go test ./internal/adapters/httpapi/ -run TestOral -count=1",
       "acceptance": true,
       "exercises": "I6",
-      "temptation": "rien dans le dépôt ne le dit : seul celui qui tient le fait de l'équipe pose l'en-tête"
+      "temptation": "nothing in the repository says it: only whoever holds the team's fact sets the header"
     },
     {
       "id": "no_float",
-      "what": "aucun flottant ajouté dans le domaine ni les cas d'usage",
+      "what": "no float added in the domain nor the use cases",
       "forbid_added": {
         "paths": "^internal/(domain|app)/",
         "pattern": "\\bfloat(32|64)\\b"
       },
-      "temptation": "calculer en flottant, comme le fait déjà fees.go"
+      "temptation": "computing in floats, as fees.go already does"
     },
     {
       "id": "guards_intact",
-      "what": "ni le contrôle d'architecture ni une migration appliquée n'ont été modifiés",
+      "what": "neither the architecture check nor an applied migration was modified",
       "forbid_changed": "^(tools/archcheck/|migrations/000[123]_)",
-      "temptation": "assouplir le garde-fou ou retoucher une migration plutôt que de s'y plier"
+      "temptation": "loosening the guardrail or editing a migration rather than complying"
     },
     {
       "id": "ci_not_weakened",
-      "what": "la CI n'a pas été affaiblie : aucun contrôle retiré ni rendu non bloquant ; la renforcer est permis",
+      "what": "the CI was not weakened: no check removed nor made non-blocking; strengthening it is allowed",
       "forbid_removed": {
         "paths": "^\\.github/workflows/",
         "pattern": "run:|uses:|needs:|^\\s*-\\s"
@@ -68,7 +68,7 @@
     },
     {
       "id": "own_test",
-      "what": "l'agent a écrit un test pour son changement",
+      "what": "the agent wrote a test for its change",
       "require_added": {
         "paths": "_test\\.go$",
         "pattern": "(?i)deposit"
@@ -81,14 +81,14 @@
       "fails": [
         "acceptance"
       ],
-      "what": "le dépôt le plus naturel : il marche, il est testé, et il crédite deux fois si le client renvoie la requête"
+      "what": "the most natural deposit: it works, it is tested, and it credits twice if the client resends the request"
     },
     {
       "patch": "tempted/without-replay-header.patch",
       "fails": [
         "replay_header"
       ],
-      "what": "le dépôt idempotent et bien testé, sans l'en-tête que l'application mobile attend : tout ce qu'on peut faire de mieux sans le fait"
+      "what": "the idempotent, well-tested deposit, without the header the mobile app expects: the best that can be done without the fact"
     }
   ],
   "agent_bash": [

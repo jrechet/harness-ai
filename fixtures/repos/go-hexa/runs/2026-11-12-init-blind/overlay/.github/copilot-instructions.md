@@ -1,1 +1,1 @@
-Les instructions de ce dépôt vivent dans `AGENTS.md` à la racine. Lis-le avant toute modification et applique-le ; aucune règle n'est définie ici.
+This repository's instructions live in `AGENTS.md` at the root. Read it before any change and apply it; no rule is defined here.

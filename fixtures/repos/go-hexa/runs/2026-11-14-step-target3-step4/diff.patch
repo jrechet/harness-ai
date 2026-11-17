@@ -1,0 +1,674 @@
+diff --git a/.harness/audit.json b/.harness/audit.json
+index 6a7be06..6029224 100644
+--- a/.harness/audit.json
++++ b/.harness/audit.json
+@@ -13,10 +13,11 @@
+       "declared_layer": "L3",
+       "actual_layer": "L3",
+       "called_by": ["human", "agent"],
+-      "calls": ["psql"],
+-      "verdict": "PUSH_DOWN",
+-      "priority": "P1",
+-      "finding": "reset-db and migrate only check the presence of DATABASE_URL, not the target: the forbidden item \"local database only\" exists only in AGENTS.md, although it was born of a loss of QA data on staging.",
++      "calls": ["localdb", "psql"],
++      "verdict": "KEEP",
++      "priority": null,
++      "resolved": { "date": "2026-11-14", "by": "harness-step", "how": "tools/localdb called at the head of migrate and reset-db; TestMakeTargetsRefuseRemote seen red on the old Makefile (psql called with the staging URL), green afterwards. No override: docs/operations.md says staging and production only go through deploy.yml." },
++      "finding": "Fixed on 2026-11-14 (was P1): reset-db and migrate only checked the presence of DATABASE_URL, not the target; the forbidden item \"local database only\" existed only in AGENTS.md, although it was born of a loss of QA data on staging.",
+       "evidence": ["Makefile:19-26", "AGENTS.md:24", "docs/operations.md:12"],
+       "target": "Both targets refuse (exit 1, typed message) a DATABASE_URL whose host is not local (localhost, 127.0.0.1, ::1, Unix socket), unless an explicit override variable is set; the refusal is tested.",
+       "check": "`DATABASE_URL=postgres://u@staging.example/ledger_staging make reset-db` exits with 1 without calling psql; with localhost the target runs."
+@@ -145,7 +146,6 @@
+     { "id": "harness-state", "path": ".harness/", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["harness status"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Target 3, today's harvest marker with no signal yet: nothing collected without follow-up.", "evidence": [".harness/config.json:1", "AGENTS.md:33"], "target": "Unchanged.", "check": "—" }
+   ],
+   "process_leaks": [
+-    { "rule": "make reset-db / make migrate only on your own local database", "told_in": "AGENTS.md:24", "if_skipped": "staging schema destroyed, QA data lost (already happened on 2026-02-03)", "belongs_in": "L3", "guard_tool": "guard in the Makefile targets (local host, otherwise exit 1)" },
+     { "rule": "Do not run deploy.yml with dry_run=false nor towards production", "told_in": "AGENTS.md:25", "if_skipped": "migrations of an unreviewed branch applied on shared staging, or production deployment", "belongs_in": "L4", "guard_tool": "guard step github.ref == main in deploy.yml + environment protections" },
+     { "rule": "No float for an amount in internal/domain and internal/app", "told_in": "AGENTS.md:20", "if_skipped": "rounding errors that distort a balance (ADR 0002)", "belongs_in": "L4", "guard_tool": "forbidigo as a blocking job, limited to internal/domain and internal/app" },
+     { "rule": "Replayed response → Idempotency-Replayed: true header", "told_in": "AGENTS.md:19", "if_skipped": "the mobile app shows two confirmations", "belongs_in": "L3", "guard_tool": "httpapi test that walks routes() and replays each write" },
+@@ -154,7 +154,8 @@
+   ],
+   "guarded_rules": [
+     { "rule": "Domain with no dependency, use cases → ports, independent adapters", "told_in": "AGENTS.md:17", "guarded_by": "tools/archcheck (job arch, blocking)" },
+-    { "rule": "Every non-GET route requires Idempotency-Key (presence only)", "told_in": "AGENTS.md:18", "guarded_by": "internal/adapters/httpapi/idempotency_guard_test.go (job test, blocking)" }
++    { "rule": "Every non-GET route requires Idempotency-Key (presence only)", "told_in": "AGENTS.md:18", "guarded_by": "internal/adapters/httpapi/idempotency_guard_test.go (job test, blocking)" },
++    { "rule": "make reset-db / make migrate only on your own local database", "told_in": "AGENTS.md:24", "guarded_by": "tools/localdb called by the Makefile targets; tools/localdb/main_test.go (job test, blocking), added on 2026-11-14" }
+   ],
+   "removals": [
+     { "path": "README.md", "line": 13, "text": "make e2e         # end-to-end scenarios", "reason": "harmful", "evidence": "no e2e target in Makefile:1-26", "ask_owner": false },
+@@ -170,7 +171,7 @@
+     { "path": "AGENTS.md", "loaded_lines": 33, "instruction_pct": 85, "reference_pct": 15, "noise_pct": 0, "justified_rules": true, "maintenance_clause": true }
+   ],
+   "remediation": [
+-    { "order": 1, "priority": "P1", "verdict": "PUSH_DOWN", "element": "makefile-reset-db-migrate", "action": "Add to the reset-db and migrate targets a guard that refuses a non-local host (exit 1), tested.", "depends_on": [], "check": "reset-db with a staging URL exits with 1 without calling psql; then AGENTS.md:24 is reduced to its \"Enforced by\" line.", "needs_human_approval": true },
++    { "order": 1, "priority": "P1", "verdict": "PUSH_DOWN", "element": "makefile-reset-db-migrate", "action": "Add to the reset-db and migrate targets a guard that refuses a non-local host (exit 1), tested.", "depends_on": [], "check": "reset-db with a staging URL exits with 1 without calling psql; then AGENTS.md:24 is reduced to its \"Enforced by\" line.", "needs_human_approval": true, "done": "2026-11-14" },
+     { "order": 2, "priority": "P2", "verdict": "PUSH_DOWN", "element": "deploy-workflow", "action": "Guard step github.ref == refs/heads/main when dry_run is false; confirm the environment protections.", "depends_on": [], "check": "Dispatch from a branch with dry_run=false fails before apply.sh.", "needs_human_approval": true },
+     { "order": 3, "priority": "P2", "verdict": "PUSH_DOWN", "element": "ci-migrations", "action": "Make the migrations job required in the protection of main.", "depends_on": [], "check": "A PR that modifies an existing migration cannot be merged.", "needs_human_approval": true },
+     { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "ci-lint", "action": "Rewrite fees.go with integers, then a blocking forbidigo job limited to internal/domain and internal/app.", "depends_on": [], "check": "A float64 added in internal/app makes the PR red and unmergeable.", "needs_human_approval": false },
+diff --git a/.harness/config.json b/.harness/config.json
+new file mode 100644
+index 0000000..027c19d
+--- /dev/null
++++ b/.harness/config.json
+@@ -0,0 +1 @@
++{"schema": "harness-config/1", "target_level": 3}
+\ No newline at end of file
+diff --git a/.harness/state.json b/.harness/state.json
+new file mode 100644
+index 0000000..1dc6f68
+--- /dev/null
++++ b/.harness/state.json
+@@ -0,0 +1,372 @@
++{
++  "schema": "harness-state/1",
++  "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-k4uvko0z/repo",
++  "date": "2026-11-14",
++  "level": {
++    "reached": 1,
++    "name": "Framed",
++    "next": 2
++  },
++  "target": {
++    "level": 3,
++    "name": "Verified",
++    "reached": false
++  },
++  "levels": [
++    {
++      "level": 0,
++      "name": "None",
++      "summary": "No instruction file: the agent starts from zero at every session.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [],
++      "passed_checks": 0,
++      "total_checks": 0
++    },
++    {
++      "level": 1,
++      "name": "Framed",
++      "summary": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L1.source",
++          "label": "An instruction file exists (AGENTS.md)",
++          "passed": true,
++          "value": "AGENTS.md",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.mode",
++          "label": "The line \"Mode: delegation | assistance\" is present",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.short",
++          "label": "The loaded file is at most 60 lines",
++          "passed": true,
++          "value": 33,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.single_source",
++          "label": "CLAUDE.md is an @AGENTS.md stub (or absent)",
++          "passed": true,
++          "value": {
++            "exists": true,
++            "lines": 1,
++            "loaded_lines": 33,
++            "is_stub": true
++          },
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.forbidden",
++          "label": "A \"Forbidden\" section says what an agent never does",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        }
++      ],
++      "passed_checks": 5,
++      "total_checks": 5
++    },
++    {
++      "level": 2,
++      "name": "Looped",
++      "summary": "The feedback loop runs: incidents become rules.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L2.maintenance",
++          "label": "A maintenance section says how the file evolves",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.rule_convention",
++          "label": "The `rule:` review convention is documented",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.marker_fresh",
++          "label": "A harvest ran less than 45 days ago",
++          "passed": true,
++          "value": 0,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.signal",
++          "label": "The last harvest found at least one real signal (S1–S4)",
++          "passed": false,
++          "value": null,
++          "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.",
++          "waits": true
++        }
++      ],
++      "passed_checks": 3,
++      "total_checks": 4
++    },
++    {
++      "level": 3,
++      "name": "Verified",
++      "summary": "Mandatory rules are enforced by tools, not by text.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L3.ci",
++          "label": "A CI exists (workflows or .gitlab-ci.yml)",
++          "passed": true,
++          "value": [
++            "ci.yml",
++            "deploy.yml"
++          ],
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.guarded",
++          "label": "At least 50% of the rules are \"Enforced by\" a tool",
++          "passed": true,
++          "value": 0.62,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.justified",
++          "label": "At least 50% of the rules say why",
++          "passed": true,
++          "value": 1.0,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.audit",
++          "label": "A harness-audit exists and has no open P1",
++          "passed": true,
++          "value": {
++            "P1": 0,
++            "P2": 5,
++            "P3": 2
++          },
++          "next_action": null,
++          "waits": false
++        }
++      ],
++      "passed_checks": 4,
++      "total_checks": 4
++    },
++    {
++      "level": 4,
++      "name": "Delegated",
++      "summary": "Whole tasks are handed to the agent and come back clean.",
++      "achieved": false,
++      "in_scope": false,
++      "checks": [
++        {
++          "id": "L4.mode",
++          "label": "The mode is delegation",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L4.process",
++          "label": "A \"Working process\" section frames the agent",
++          "passed": false,
++          "value": false,
++          "next_action": "Add: when to stop and ask, definition of done, red CI, flaky test.",
++          "waits": false
++        },
++        {
++          "id": "L4.contracts",
++          "label": "At least one task contract exists and is referenced",
++          "passed": false,
++          "value": 0,
++          "next_action": "Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in AGENTS.md.",
++          "waits": false
++        },
++        {
++          "id": "L4.clean_prs",
++          "label": "The last harvest sees agent PRs with no after-the-fact correction",
++          "passed": false,
++          "value": null,
++          "next_action": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them.",
++          "waits": true
++        },
++        {
++          "id": "L4.cut_the_agent",
++          "label": "The audit's \"cut the agent\" test passes",
++          "passed": false,
++          "value": false,
++          "next_action": "Push down to L3/L4 the steps that exist only in prompts.",
++          "waits": false
++        }
++      ],
++      "passed_checks": 1,
++      "total_checks": 5
++    }
++  ],
++  "layers": {
++    "source": "audit",
++    "date": "2026-11-14",
++    "layers": {
++      "L1": {
++        "total": 0,
++        "misplaced": 0
++      },
++      "L2": {
++        "total": 5,
++        "misplaced": 0
++      },
++      "L3": {
++        "total": 9,
++        "misplaced": 2
++      },
++      "L4": {
++        "total": 5,
++        "misplaced": 3
++      },
++      "MIXED": {
++        "total": 0,
++        "misplaced": 0
++      }
++    },
++    "process_leaks": 5,
++    "health_score": 31
++  },
++  "next_actions": [],
++  "waiting": [
++    "L2.signal"
++  ],
++  "dangling": [],
++  "facts": {
++    "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-k4uvko0z/repo",
++    "date": "2026-11-14",
++    "instructions": {
++      "files": {
++        "AGENTS.md": {
++          "exists": true,
++          "lines": 33,
++          "loaded_lines": 33,
++          "is_stub": false
++        },
++        "CLAUDE.md": {
++          "exists": true,
++          "lines": 1,
++          "loaded_lines": 33,
++          "is_stub": true
++        },
++        ".github/copilot-instructions.md": {
++          "exists": false
++        },
++        ".cursor/rules": {
++          "exists": false,
++          "files": []
++        }
++      },
++      "source": {
++        "path": "AGENTS.md",
++        "mode": "delegation",
++        "lines": 33,
++        "rules_total": 8,
++        "rules_guarded": 5,
++        "rules_unguarded_marked": 2,
++        "rules_justified": 8,
++        "rules_dated": 8,
++        "oldest_rule_date": "2026-06",
++        "has_maintenance_section": true,
++        "has_process_section": false,
++        "has_forbidden_section": true,
++        "mentions_rule_convention": true,
++        "harvest_marker": {
++          "date": "2026-11-14",
++          "ref": "init"
++        }
++      }
++    },
++    "contracts": {
++      "count": 0,
++      "items": []
++    },
++    "guardrails": {
++      "tools": {
++        "golangci-lint": [
++          ".golangci.yml"
++        ]
++      },
++      "workflows": [
++        "ci.yml",
++        "deploy.yml"
++      ],
++      "has_ci": true
++    },
++    "audit": {
++      "date": "2026-11-14",
++      "health_score": 31,
++      "cut_the_agent_passed": false,
++      "elements": 19,
++      "layers": {
++        "L1": {
++          "total": 0,
++          "misplaced": 0
++        },
++        "L2": {
++          "total": 5,
++          "misplaced": 0
++        },
++        "L3": {
++          "total": 9,
++          "misplaced": 2
++        },
++        "L4": {
++          "total": 5,
++          "misplaced": 3
++        },
++        "MIXED": {
++          "total": 0,
++          "misplaced": 0
++        }
++      },
++      "verdicts": {
++        "KEEP": 14,
++        "PUSH_DOWN": 5
++      },
++      "priorities": {
++        "P1": 0,
++        "P2": 5,
++        "P3": 2
++      },
++      "process_leaks": 5,
++      "guarded_rules": 3,
++      "removals": {
++        "useless": 1,
++        "harmful": 1,
++        "outdated": 0
++      }
++    },
++    "harvest": null,
++    "harvest_marker_age_days": 0,
++    "config": {
++      "target_level": 3
++    },
++    "dangling": []
++  }
++}
+diff --git a/AGENTS.md b/AGENTS.md
+index d88cb58..86106d6 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -21,7 +21,7 @@ Ledger service: open an account, read a balance, transfer money. Decisions in `d
+ - An applied migration is never modified again: a file is added at the next number. Why: staging and production only replay what `deploy.yml` passes them. Enforced by: `tools/migrationcheck`, job `migrations` (PR only). [2026-11]
+ 
+ ## Forbidden
+-- `make reset-db` and `make migrate` with a `DATABASE_URL` that is not your local database. Why: `reset-db` destroys the schema without looking at the target; two days of QA data lost on staging on February 3, 2026. [2026-02]
++- `make reset-db` and `make migrate` outside your local database. Why: two days of QA data lost on staging on February 3, 2026. Enforced by: `tools/localdb`, called by both targets (refusal outside localhost/loopback/socket), job `test`. [2026-11]
+ - Running `deploy.yml` with `dry_run` set to false, or towards `production`. Why: owner's request, no known incident. [2026-11]
+ - Modifying an existing file of `migrations/`. Why: see the migrations rule. Enforced by: `tools/migrationcheck`, job `migrations`. [2026-11]
+ 
+diff --git a/Makefile b/Makefile
+index f6198e3..d16e4ba 100644
+--- a/Makefile
++++ b/Makefile
+@@ -16,11 +16,12 @@ arch:
+ lint:
+ 	golangci-lint run
+ 
++# migrate and reset-db refuse any DATABASE_URL that is not a local database.
+ migrate:
+-	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL is empty" && exit 1)
++	@DATABASE_URL="$(DATABASE_URL)" go run ./tools/localdb
+ 	for f in migrations/*.sql; do psql "$(DATABASE_URL)" -v ON_ERROR_STOP=1 -f $$f; done
+ 
+ reset-db:
+-	@test -n "$(DATABASE_URL)" || (echo "DATABASE_URL is empty" && exit 1)
++	@DATABASE_URL="$(DATABASE_URL)" go run ./tools/localdb
+ 	psql "$(DATABASE_URL)" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+ 	$(MAKE) migrate
+diff --git a/docs/operations.md b/docs/operations.md
+index 8bf5b7e..496246c 100644
+--- a/docs/operations.md
++++ b/docs/operations.md
+@@ -9,7 +9,8 @@
+ 
+ ## Database
+ - `make migrate` applies every file of `migrations/` to the database designated by `DATABASE_URL`.
+-- `make reset-db` **drops the whole schema** of the database designated by `DATABASE_URL`, then replays the migrations. The target does not look at which database it is. On February 3, 2026, it was run with the staging URL left in a terminal: two days of QA datasets lost.
++- `make reset-db` **drops the whole schema** of the database designated by `DATABASE_URL`, then replays the migrations. On February 3, 2026, it was run with the staging URL left in a terminal: two days of QA datasets lost.
++- Since November 2026, `make migrate` and `make reset-db` first call `tools/localdb`: they refuse (exit 1, without calling `psql`) any database whose host is not `localhost`, a loopback address or a Unix socket (`PGHOST` included). There is no escape hatch: staging and production go through `deploy.yml`.
+ - A migration applied in staging or in production is never modified again. A file is added, next number.
+ - In staging and in production, only the migrations that went through `deploy.yml` are applied. Nobody runs `make migrate` by hand on these databases.
+ 
+diff --git a/tools/localdb/main.go b/tools/localdb/main.go
+new file mode 100644
+index 0000000..cb6d3d9
+--- /dev/null
++++ b/tools/localdb/main.go
+@@ -0,0 +1,107 @@
++// Command localdb fails unless DATABASE_URL designates the developer's own
++// local PostgreSQL. `make migrate` and `make reset-db` call it before psql:
++// reset-db drops the whole schema without looking at the target, and on
++// 2026-02-03 it ran against staging and destroyed two days of QA data
++// (docs/operations.md). Staging and production are only migrated by
++// deploy.yml, which calls psql directly, so there is no override.
++//
++//	go run ./tools/localdb   # exit 0, or 1 with the offending host
++//
++// Local means: localhost, 127.0.0.1 (any 127.x), ::1, or a Unix socket
++// (empty host, or a host starting with "/"). An empty host falls back to
++// PGHOST / PGHOSTADDR, as psql does.
++package main
++
++import (
++	"fmt"
++	"net"
++	"net/url"
++	"os"
++	"strings"
++)
++
++// Check returns nil when every host targeted by dsn is local. getenv supplies
++// PGHOST and PGHOSTADDR, which psql uses when the DSN names no host.
++func Check(dsn string, getenv func(string) string) error {
++	dsn = strings.TrimSpace(dsn)
++	if dsn == "" {
++		return fmt.Errorf("DATABASE_URL is empty")
++	}
++	hosts, err := targets(dsn)
++	if err != nil {
++		return err
++	}
++	if len(hosts) == 0 {
++		for _, k := range []string{"PGHOSTADDR", "PGHOST"} {
++			if v := getenv(k); v != "" {
++				hosts = splitHosts(v)
++				break
++			}
++		}
++	}
++	for _, h := range hosts {
++		if !isLocal(h) {
++			return fmt.Errorf("host %q is not local", h)
++		}
++	}
++	return nil
++}
++
++// targets lists the hosts named by a URL or a keyword/value connection string.
++func targets(dsn string) ([]string, error) {
++	if strings.HasPrefix(dsn, "postgres://") || strings.HasPrefix(dsn, "postgresql://") {
++		u, err := url.Parse(dsn)
++		if err != nil {
++			return nil, fmt.Errorf("cannot parse DATABASE_URL: %v", err)
++		}
++		q := u.Query()
++		// Query parameters take precedence over the authority, as in libpq.
++		for _, k := range []string{"hostaddr", "host"} {
++			if v := q.Get(k); v != "" {
++				return splitHosts(v), nil
++			}
++		}
++		return splitHosts(u.Host), nil
++	}
++	if strings.Contains(dsn, "=") {
++		var hosts []string
++		for _, f := range strings.Fields(dsn) {
++			k, v, ok := strings.Cut(f, "=")
++			if ok && (k == "host" || k == "hostaddr") {
++				hosts = append(hosts, splitHosts(strings.Trim(v, "'"))...)
++			}
++		}
++		return hosts, nil
++	}
++	return nil, fmt.Errorf("DATABASE_URL is neither a postgres:// URL nor a key=value string")
++}
++
++func splitHosts(s string) []string {
++	var hosts []string
++	for _, h := range strings.Split(s, ",") {
++		h = strings.TrimSpace(h)
++		if h == "" {
++			continue
++		}
++		if hh, _, err := net.SplitHostPort(h); err == nil {
++			h = hh
++		}
++		hosts = append(hosts, strings.Trim(h, "[]"))
++	}
++	return hosts
++}
++
++func isLocal(h string) bool {
++	if strings.HasPrefix(h, "/") || strings.EqualFold(h, "localhost") {
++		return true
++	}
++	ip := net.ParseIP(h)
++	return ip != nil && ip.IsLoopback()
++}
++
++func main() {
++	if err := Check(os.Getenv("DATABASE_URL"), os.Getenv); err != nil {
++		fmt.Fprintf(os.Stderr, "localdb: %v; make migrate and make reset-db only run on your own local database (docs/operations.md)\n", err)
++		os.Exit(1)
++	}
++}
+diff --git a/tools/localdb/main_test.go b/tools/localdb/main_test.go
+new file mode 100644
+index 0000000..4de7ea7
+--- /dev/null
++++ b/tools/localdb/main_test.go
+@@ -0,0 +1,76 @@
++package main
++
++import (
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++)
++
++func TestCheck(t *testing.T) {
++	cases := []struct {
++		name   string
++		dsn    string
++		pghost string
++		ok     bool
++	}{
++		{"empty", "", "", false},
++		{"localhost", "postgres://u@localhost:5432/ledger", "", true},
++		{"loopback v4", "postgresql://u:p@127.0.0.1/ledger", "", true},
++		{"loopback v6", "postgres://u@[::1]:5432/ledger", "", true},
++		{"unix socket, no host", "postgres:///ledger", "", true},
++		{"unix socket via query", "postgres:///ledger?host=/var/run/postgresql", "", true},
++		{"keyword form local", "host=localhost dbname=ledger", "", true},
++		{"staging", "postgres://u@staging.example/ledger_staging", "", false},
++		{"staging via query host", "postgres://u@localhost/ledger?host=db.staging.example", "", false},
++		{"staging via PGHOST", "postgres:///ledger_staging", "db.staging.example", false},
++		{"multi-host with one remote", "postgres://u@localhost:5432,prod.example:5432/ledger", "", false},
++		{"keyword form remote", "host=prod.example dbname=ledger_prod", "", false},
++		{"unparseable", "ledger_staging", "", false},
++	}
++	for _, c := range cases {
++		env := func(k string) string {
++			if k == "PGHOST" {
++				return c.pghost
++			}
++			return ""
++		}
++		if err := Check(c.dsn, env); (err == nil) != c.ok {
++			t.Errorf("%s: Check(%q) = %v, want ok=%v", c.name, c.dsn, err, c.ok)
++		}
++	}
++}
++
++// TestMakeTargetsRefuseRemote runs the real Makefile targets with a fake psql
++// that records its calls: a remote DATABASE_URL must stop before psql.
++func TestMakeTargetsRefuseRemote(t *testing.T) {
++	if _, err := exec.LookPath("make"); err != nil {
++		t.Skip("make not installed")
++	}
++	bin := t.TempDir()
++	calls := filepath.Join(bin, "calls")
++	fake := "#!/bin/sh\necho \"$@\" >> " + calls + "\n"
++	if err := os.WriteFile(filepath.Join(bin, "psql"), []byte(fake), 0o755); err != nil {
++		t.Fatal(err)
++	}
++	for _, target := range []string{"reset-db", "migrate"} {
++		for _, tc := range []struct {
++			url    string
++			wantOK bool
++		}{
++			{"postgres://u@staging.example/ledger_staging", false},
++			{"postgres://u@localhost/ledger", true},
++		} {
++			os.Remove(calls)
++			cmd := exec.Command("make", "-s", "-C", "../..", target)
++			cmd.Env = append(os.Environ(), "PATH="+bin+string(os.PathListSeparator)+os.Getenv("PATH"),
++				"DATABASE_URL="+tc.url, "PGHOST=", "PGHOSTADDR=")
++			out, err := cmd.CombinedOutput()
++			_, statErr := os.Stat(calls)
++			psqlCalled := statErr == nil
++			if (err == nil) != tc.wantOK || psqlCalled != tc.wantOK {
++				t.Errorf("make %s with %s: err=%v psql called=%v, want ok=%v\n%s", target, tc.url, err, psqlCalled, tc.wantOK, out)
++			}
++		}
++	}
++}

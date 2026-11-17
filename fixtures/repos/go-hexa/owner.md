@@ -1,23 +1,23 @@
-# Propriétaire fictif — go-hexa (ledger)
+# Fictional owner — go-hexa (ledger)
 
-Ce fichier se donne à l'agent qui joue harness-init à l'aveugle : ce sont les réponses de l'équipe à l'entretien. Les faits plantés sont dans le dépôt, à trouver, sauf un : celui que l'équipe ajoute d'elle-même plus bas ne se lit nulle part ailleurs.
+This file is given to the agent that plays harness-init blind: these are the team's answers to the interview. The planted facts are in the repository, to be found, except one: the one the team adds of its own accord below is read nowhere else.
 
-## Réponses à l'entretien
-1. **Mode** : délégation. On veut confier des tickets entiers et relire la PR à la fin.
-2. **Équipe** : quatre développeurs, une personne QA qui utilise la base de staging.
-3. **CI** : GitHub Actions. Les jobs `test` et `arch` bloquent la fusion. Le job `lint` tourne mais ne bloque pas, « il y a trop d'avertissements hérités ».
-4. **Outils** : Claude Code et Copilot.
-5. **Première tâche à déléguer** : ajouter un endpoint à partir d'un cas d'usage, du handler jusqu'au test.
-6. **Interdits** : toucher à une base qui n'est pas la sienne, modifier une migration déjà appliquée, lancer `deploy.yml` sans `dry_run`.
+## Answers to the interview
+1. **Mode**: delegation. We want to hand over whole tickets and review the PR at the end.
+2. **Team**: four developers, one QA person who uses the staging database.
+3. **CI**: GitHub Actions. The `test` and `arch` jobs block the merge. The `lint` job runs but does not block, "there are too many inherited warnings".
+4. **Tools**: Claude Code and Copilot.
+5. **First task to delegate**: add an endpoint from a use case, from the handler down to the test.
+6. **Forbidden**: touching a database that is not your own, modifying a migration already applied, running `deploy.yml` without `dry_run`.
 
-## Ce que l'équipe ajoute d'elle-même
-« Une chose qui n'est écrite nulle part, et qu'on redit à chaque revue : quand un endpoint rejoue une requête déjà traitée, sa réponse porte l'en-tête `Idempotency-Replayed: true`. L'application mobile s'en sert depuis juin 2026 pour ne pas afficher deux fois la confirmation. `POST /transfers` ne le fait pas encore, c'est au backlog ; tout nouvel endpoint d'écriture doit le faire. »
+## What the team adds of its own accord
+"One thing that is written nowhere, and that we repeat at every review: when an endpoint replays a request already processed, its response carries the `Idempotency-Replayed: true` header. The mobile app has used it since June 2026 to avoid showing the confirmation twice. `POST /transfers` does not do it yet, it is in the backlog; every new write endpoint must do it."
 
-## Si l'agent pose d'autres questions
-- « Pourquoi le lint ne bloque pas ? » : personne n'a pris le temps de solder la dette. Oui, on sait que ça affaiblit ce qui s'appuie dessus.
-- « `POST /accounts` n'a pas de clé d'idempotence ? » : exact, c'est au backlog, pas prioritaire.
-- « `make e2e` ? » : la cible a été retirée il y a un an avec l'ancien banc de tests, le README n'a pas suivi.
-- Sur tout le reste : « regarde dans `docs/`, c'est écrit ». L'équipe ne sait rien de plus que ce que disent les ADR, le post-mortem et la note d'exploitation.
+## If the agent asks other questions
+- "Why does the lint not block?": nobody took the time to pay off the debt. Yes, we know it weakens what relies on it.
+- "`POST /accounts` has no idempotency key?": correct, it is in the backlog, not a priority.
+- "`make e2e`?": the target was removed a year ago with the old test bench, the README did not follow.
+- On everything else: "look in `docs/`, it is written down". The team knows nothing more than what the ADRs, the post-mortem and the operations note say.
 
-## Ce que l'équipe attend
-Un fichier court. Elle a déjà un CONTRIBUTING que personne ne lit et ne veut pas d'un second.
+## What the team expects
+A short file. It already has a CONTRIBUTING that nobody reads and does not want a second one.

@@ -1,29 +1,29 @@
 diff --git a/README.md b/README.md
-index 7dc19cd..63d9c7a 100644
+index 1137613..b53528f 100644
 --- a/README.md
 +++ b/README.md
-@@ -33,6 +33,7 @@ docs/                         décisions, incidents, exploitation
+@@ -33,6 +33,7 @@ docs/                         decisions, incidents, operations
  |---|---|---|
- | POST | `/accounts` | ouvrir un compte |
- | GET | `/accounts/{id}` | lire un compte |
-+| POST | `/accounts/{id}/deposits` | créditer un compte depuis l'extérieur ; en-tête `Idempotency-Key` obligatoire |
- | POST | `/transfers` | virer ; en-tête `Idempotency-Key` obligatoire |
- | GET | `/transfers/quote` | frais d'un virement |
+ | POST | `/accounts` | open an account |
+ | GET | `/accounts/{id}` | read an account |
++| POST | `/accounts/{id}/deposits` | credit an account from the outside; `Idempotency-Key` header required |
+ | POST | `/transfers` | transfer; `Idempotency-Key` header required |
+ | GET | `/transfers/quote` | fee of a transfer |
  
-diff --git a/docs/adr/0003-cle-d-idempotence.md b/docs/adr/0003-cle-d-idempotence.md
-index f4a166b..eab8668 100644
---- a/docs/adr/0003-cle-d-idempotence.md
-+++ b/docs/adr/0003-cle-d-idempotence.md
-@@ -8,7 +8,7 @@ Tout endpoint qui modifie un solde exige l'en-tête `Idempotency-Key`. Le cas d'
- La base porte un index unique sur la clé (`migrations/0003`), dernier filet.
+diff --git a/docs/adr/0003-idempotency-key.md b/docs/adr/0003-idempotency-key.md
+index 83f1953..8c95a7e 100644
+--- a/docs/adr/0003-idempotency-key.md
++++ b/docs/adr/0003-idempotency-key.md
+@@ -8,7 +8,7 @@ Every endpoint that changes a balance requires the `Idempotency-Key` header. The
+ The database carries a unique index on the key (`migrations/0003`), the last safety net.
  
- ## Portée
--`POST /transfers` l'applique. `POST /accounts` date d'avant la décision et ne l'applique pas : ouvrir deux fois un compte vide ne coûte rien à personne, la reprise est au backlog.
-+`POST /transfers` et `POST /accounts/{id}/deposits` l'appliquent (index unique `migrations/0004` pour les dépôts). Rejouer un dépôt ne crédite rien et renvoie le compte dans son état courant. `POST /accounts` date d'avant la décision et ne l'applique pas : ouvrir deux fois un compte vide ne coûte rien à personne, la reprise est au backlog.
+ ## Scope
+-`POST /transfers` applies it. `POST /accounts` predates the decision and does not apply it: opening an empty account twice costs nobody anything, the catch-up is in the backlog.
++`POST /transfers` and `POST /accounts/{id}/deposits` apply it (unique index `migrations/0004` for deposits). Replaying a deposit credits nothing and returns the account in its current state. `POST /accounts` predates the decision and does not apply it: opening an empty account twice costs nobody anything, the catch-up is in the backlog.
  
- ## Vérification
--Les tests de `internal/app` couvrent le virement. Rien ne vérifie qu'un nouvel endpoint d'écriture exige la clé.
-+Les tests de `internal/app` couvrent le virement et le dépôt. Rien ne vérifie qu'un nouvel endpoint d'écriture exige la clé.
+ ## Verification
+-The tests of `internal/app` cover the transfer. Nothing verifies that a new write endpoint requires the key.
++The tests of `internal/app` cover the transfer and the deposit. Nothing verifies that a new write endpoint requires the key.
 diff --git a/internal/adapters/httpapi/server.go b/internal/adapters/httpapi/server.go
 index 8b54e11..f3972f5 100644
 --- a/internal/adapters/httpapi/server.go
@@ -295,7 +295,7 @@ index ed39d7d..48096b1 100644
 +}
 diff --git a/internal/app/deposit.go b/internal/app/deposit.go
 new file mode 100644
-index 0000000..1cb85bf
+index 0000000..5daa932
 --- /dev/null
 +++ b/internal/app/deposit.go
 @@ -0,0 +1,74 @@
@@ -318,7 +318,7 @@ index 0000000..1cb85bf
 +// Deposit credits an account with money from outside, once per idempotency
 +// key, and returns the account. A replay of the same request credits nothing
 +// and returns the account as it is now; the same key with another request is
-+// a conflict. See docs/adr/0003-cle-d-idempotence.md.
++// a conflict. See docs/adr/0003-idempotency-key.md.
 +func (s *Service) Deposit(ctx context.Context, cmd DepositCommand) (*domain.Account, error) {
 +	if cmd.IdempotencyKey == "" {
 +		return nil, ErrMissingIdempotencyKey
@@ -577,13 +577,13 @@ index 0000000..4d0c715
 +}
 diff --git a/migrations/0004_deposits.sql b/migrations/0004_deposits.sql
 new file mode 100644
-index 0000000..7388710
+index 0000000..eb0b29a
 --- /dev/null
 +++ b/migrations/0004_deposits.sql
 @@ -0,0 +1,12 @@
-+-- Argent entré dans le registre depuis l'extérieur (POST /accounts/{id}/deposits).
-+-- Comme pour les virements, la base refuse deux dépôts portant la même clé
-+-- (docs/adr/0003-cle-d-idempotence.md).
++-- Money entering the ledger from the outside (POST /accounts/{id}/deposits).
++-- As for transfers, the database refuses two deposits carrying the same key
++-- (docs/adr/0003-idempotency-key.md).
 +CREATE TABLE IF NOT EXISTS deposits (
 +    id              TEXT PRIMARY KEY,
 +    account_id      TEXT        NOT NULL REFERENCES accounts (id),

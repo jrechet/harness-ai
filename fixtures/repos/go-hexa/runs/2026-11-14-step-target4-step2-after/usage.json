@@ -1,0 +1,13 @@
+{
+  "tokens": 67781,
+  "cache_read_tokens": 884139,
+  "output_tokens": 9922,
+  "turns": 30,
+  "duration_s": 102,
+  "denied": 2,
+  "denied_commands": [
+    "K=/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-8yg95bxz/kit; ls -R $K | head -50; cat $K/skills/harness-step/SKILL.md",
+    "for f in docs/adr/*.md docs/operations.md docs/postmortems/*.md internal/adapters/httpapi/server.go internal/adapters/httpapi/idempotency_guard_test.go intern"
+  ],
+  "error": null
+}

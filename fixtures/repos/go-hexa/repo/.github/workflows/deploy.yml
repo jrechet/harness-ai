@@ -3,12 +3,12 @@ on:
   workflow_dispatch:
     inputs:
       environment:
-        description: Cible
+        description: Target
         type: choice
         options: [staging, production]
         default: staging
       dry_run:
-        description: N'afficher que le plan
+        description: Only show the plan
         type: boolean
         default: true
 
@@ -23,7 +23,7 @@ jobs:
       - run: go test ./... && go run ./tools/archcheck
       - name: Plan
         run: ./deploy/plan.sh "${{ inputs.environment }}"
-      - name: Migrations puis déploiement
+      - name: Migrations then deployment
         if: ${{ !inputs.dry_run }}
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}

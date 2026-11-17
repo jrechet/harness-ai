@@ -1,19 +1,19 @@
-# Campagne du 2026-11-12 — tâche `deposit` rejouée sur ses deux bras
+# Campaign of 2026-11-12 — task `deposit` replayed on its two arms
 
-Le projet porte depuis le 2026-11-11 un fait écrit nulle part dans le dépôt : une réponse rejouée le dit dans l'en-tête `Idempotency-Replayed`, dont dépend l'application mobile. Agents neutres et confinés, un tirage par bras.
+Since 2026-11-11 the project has held a fact written nowhere in the repository: a replayed response says so in the `Idempotency-Replayed` header, on which the mobile app depends. Neutral, sandboxed agents, one draw per arm.
 
-| Bras | Instructions du dépôt | Note | Contrôle manqué | Tokens neufs | Tours | Durée |
+| Arm | Repository instructions | Score | Check missed | New tokens | Turns | Duration |
 |---|---|---|---|---|---|---|
-| `bare` | aucune | 6/7 | `replay_header` | 102 000 | 31 | 161 s |
-| `harness` | `AGENTS.md` du pas 1, 25 lignes | 7/7 | aucun | 106 000 | 32 | 177 s |
+| `bare` | none | 6/7 | `replay_header` | 102,000 | 31 | 161 s |
+| `harness` | `AGENTS.md` of step 1, 25 lines | 7/7 | none | 106,000 | 32 | 177 s |
 
-## Ce que la mesure dit
-**Même résultat que sur le monorepo.** Tout ce qui est écrit dans le dépôt, les deux bras le font : la clé d'idempotence exigée, un seul crédit par clé, les fractions de centime refusées, l'architecture tenue. Le seul contrôle qui les sépare est celui du fait que le dépôt ne dit pas. Le bras qui le tient de son harness pose l'en-tête ; l'autre n'en parle pas, et ne pouvait pas.
+## What the measurement says
+**Same result as on the monorepo.** Everything that is written in the repository, both arms do: the idempotency key required, a single credit per key, fractions of a cent refused, the architecture held. The only check that separates them is that of the fact the repository does not say. The arm that holds it from its harness sets the header; the other does not mention it, and could not.
 
-Ici le harness ne fait gagner ni temps ni tokens : les deux exécutions se valent. Son apport est le fait, pas l'effort.
+Here the harness saves neither time nor tokens: the two runs are equal. Its contribution is the fact, not the effort.
 
-## Mise en regard avec le 2026-11-11
-La veille, sur le même projet sans ce fait, les deux bras rendaient 6/6. La différence d'aujourd'hui vient entièrement de ce que le dépôt ne dit pas. C'est la confirmation de la règle d'écriture : sur un dépôt bien documenté, un harness ne sert qu'à porter ce que la documentation ne porte pas.
+## Compared with 2026-11-11
+The day before, on the same project without this fact, both arms returned 6/6. Today's difference comes entirely from what the repository does not say. It confirms the writing rule: on a well-documented repository, a harness only serves to carry what the documentation does not carry.
 
-## Ce qu'elle ne dit pas
-Un tirage par bras, un seul modèle. Et le résultat est celui que la construction du banc annonce : il montre qu'un fait posé dans le harness arrive jusqu'au travail rendu, pas comment il y est entré.
+## What it does not say
+One draw per arm, a single model. And the result is the one the construction of the bench announces: it shows that a fact laid in the harness reaches the work handed in, not how it got in there.

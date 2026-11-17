@@ -1,0 +1,481 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 5bb0f7f..e965bf8 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -22,6 +22,17 @@ jobs:
+         with: { go-version: "1.22" }
+       - run: go run ./tools/archcheck
+ 
++  migrations:
++    # An applied migration is never modified again (AGENTS.md, docs/operations.md).
++    if: github.event_name == 'pull_request'
++    runs-on: ubuntu-latest
++    steps:
++      - uses: actions/checkout@v4
++        with: { fetch-depth: 0 }
++      - uses: actions/setup-go@v5
++        with: { go-version: "1.22" }
++      - run: go run ./tools/migrationcheck -base "${{ github.event.pull_request.base.sha }}"
++
+   lint:
+     runs-on: ubuntu-latest
+     # Too many inherited warnings: to be made blocking once the debt is paid off.
+diff --git a/.harness/config.json b/.harness/config.json
+new file mode 100644
+index 0000000..027c19d
+--- /dev/null
++++ b/.harness/config.json
+@@ -0,0 +1 @@
++{"schema": "harness-config/1", "target_level": 3}
+\ No newline at end of file
+diff --git a/.harness/state.json b/.harness/state.json
+new file mode 100644
+index 0000000..c0eb2ac
+--- /dev/null
++++ b/.harness/state.json
+@@ -0,0 +1,321 @@
++{
++  "schema": "harness-state/1",
++  "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-aflcwmao/repo",
++  "date": "2026-11-14",
++  "level": {
++    "reached": 1,
++    "name": "Framed",
++    "next": 2
++  },
++  "target": {
++    "level": 3,
++    "name": "Verified",
++    "reached": false
++  },
++  "levels": [
++    {
++      "level": 0,
++      "name": "None",
++      "summary": "No instruction file: the agent starts from zero at every session.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [],
++      "passed_checks": 0,
++      "total_checks": 0
++    },
++    {
++      "level": 1,
++      "name": "Framed",
++      "summary": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L1.source",
++          "label": "An instruction file exists (AGENTS.md)",
++          "passed": true,
++          "value": "AGENTS.md",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.mode",
++          "label": "The line \"Mode: delegation | assistance\" is present",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.short",
++          "label": "The loaded file is at most 60 lines",
++          "passed": true,
++          "value": 33,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.single_source",
++          "label": "CLAUDE.md is an @AGENTS.md stub (or absent)",
++          "passed": true,
++          "value": {
++            "exists": true,
++            "lines": 1,
++            "loaded_lines": 33,
++            "is_stub": true
++          },
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.forbidden",
++          "label": "A \"Forbidden\" section says what an agent never does",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        }
++      ],
++      "passed_checks": 5,
++      "total_checks": 5
++    },
++    {
++      "level": 2,
++      "name": "Looped",
++      "summary": "The feedback loop runs: incidents become rules.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L2.maintenance",
++          "label": "A maintenance section says how the file evolves",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.rule_convention",
++          "label": "The `rule:` review convention is documented",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.marker_fresh",
++          "label": "A harvest ran less than 45 days ago",
++          "passed": true,
++          "value": 0,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.signal",
++          "label": "The last harvest found at least one real signal (S1–S4)",
++          "passed": false,
++          "value": null,
++          "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.",
++          "waits": true
++        }
++      ],
++      "passed_checks": 3,
++      "total_checks": 4
++    },
++    {
++      "level": 3,
++      "name": "Verified",
++      "summary": "Mandatory rules are enforced by tools, not by text.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L3.ci",
++          "label": "A CI exists (workflows or .gitlab-ci.yml)",
++          "passed": true,
++          "value": [
++            "ci.yml",
++            "deploy.yml"
++          ],
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.guarded",
++          "label": "At least 50% of the rules are \"Enforced by\" a tool",
++          "passed": true,
++          "value": 0.5,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.justified",
++          "label": "At least 50% of the rules say why",
++          "passed": true,
++          "value": 1.0,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.audit",
++          "label": "A harness-audit exists and has no open P1",
++          "passed": false,
++          "value": null,
++          "next_action": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s.",
++          "waits": false
++        }
++      ],
++      "passed_checks": 3,
++      "total_checks": 4
++    },
++    {
++      "level": 4,
++      "name": "Delegated",
++      "summary": "Whole tasks are handed to the agent and come back clean.",
++      "achieved": false,
++      "in_scope": false,
++      "checks": [
++        {
++          "id": "L4.mode",
++          "label": "The mode is delegation",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L4.process",
++          "label": "A \"Working process\" section frames the agent",
++          "passed": false,
++          "value": false,
++          "next_action": "Add: when to stop and ask, definition of done, red CI, flaky test.",
++          "waits": false
++        },
++        {
++          "id": "L4.contracts",
++          "label": "At least one task contract exists and is referenced",
++          "passed": false,
++          "value": 0,
++          "next_action": "Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in AGENTS.md.",
++          "waits": false
++        },
++        {
++          "id": "L4.clean_prs",
++          "label": "The last harvest sees agent PRs with no after-the-fact correction",
++          "passed": false,
++          "value": null,
++          "next_action": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them.",
++          "waits": true
++        },
++        {
++          "id": "L4.cut_the_agent",
++          "label": "The audit's \"cut the agent\" test passes",
++          "passed": false,
++          "value": null,
++          "next_action": "Push down to L3/L4 the steps that exist only in prompts.",
++          "waits": false
++        }
++      ],
++      "passed_checks": 1,
++      "total_checks": 5
++    }
++  ],
++  "layers": {
++    "source": "estimate",
++    "layers": {
++      "L1": {
++        "total": null,
++        "misplaced": null
++      },
++      "L2": {
++        "total": 1,
++        "misplaced": null
++      },
++      "L3": {
++        "total": 1,
++        "misplaced": null
++      },
++      "L4": {
++        "total": 2,
++        "misplaced": null
++      }
++    },
++    "hint": "Run harness-audit for a measured layer view."
++  },
++  "next_actions": [
++    "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s."
++  ],
++  "waiting": [
++    "L2.signal"
++  ],
++  "dangling": [],
++  "facts": {
++    "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-aflcwmao/repo",
++    "date": "2026-11-14",
++    "instructions": {
++      "files": {
++        "AGENTS.md": {
++          "exists": true,
++          "lines": 33,
++          "loaded_lines": 33,
++          "is_stub": false
++        },
++        "CLAUDE.md": {
++          "exists": true,
++          "lines": 1,
++          "loaded_lines": 33,
++          "is_stub": true
++        },
++        ".github/copilot-instructions.md": {
++          "exists": false
++        },
++        ".cursor/rules": {
++          "exists": false,
++          "files": []
++        }
++      },
++      "source": {
++        "path": "AGENTS.md",
++        "mode": "delegation",
++        "lines": 33,
++        "rules_total": 8,
++        "rules_guarded": 4,
++        "rules_unguarded_marked": 2,
++        "rules_justified": 8,
++        "rules_dated": 8,
++        "oldest_rule_date": "2026-02",
++        "has_maintenance_section": true,
++        "has_process_section": false,
++        "has_forbidden_section": true,
++        "mentions_rule_convention": true,
++        "harvest_marker": {
++          "date": "2026-11-14",
++          "ref": "init"
++        }
++      }
++    },
++    "contracts": {
++      "count": 0,
++      "items": []
++    },
++    "guardrails": {
++      "tools": {
++        "golangci-lint": [
++          ".golangci.yml"
++        ]
++      },
++      "workflows": [
++        "ci.yml",
++        "deploy.yml"
++      ],
++      "has_ci": true
++    },
++    "audit": null,
++    "harvest": null,
++    "harvest_marker_age_days": 0,
++    "config": {
++      "target_level": 3
++    },
++    "dangling": []
++  }
++}
+diff --git a/AGENTS.md b/AGENTS.md
+index d8d0f0f..d88cb58 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -10,6 +10,7 @@ Ledger service: open an account, read a balance, transfer money. Decisions in `d
+ |---|---|---|
+ | Go code | `go vet ./... && go test ./...` | job `test` |
+ | an import between layers | `go run ./tools/archcheck` | job `arch` |
++| `migrations/` | `go run ./tools/migrationcheck -base origin/main` | job `migrations` |
+ | `internal/adapters/postgres` | `make test-integration`, on your local database | nothing: these tests do not run in CI |
+ 
+ ## Rules
+@@ -17,12 +18,12 @@ Ledger service: open an account, read a balance, transfer money. Decisions in `d
+ - Every endpoint that changes a balance requires `Idempotency-Key`, looked up inside the write transaction, never before opening it. Why: an account debited twice by €480, 37 accounts affected (`docs/postmortems/2026-04-double-debit.md`). Enforced by: `internal/adapters/httpapi/idempotency_guard_test.go`, job `test` (presence of the key on every non-GET route; the lookup inside the transaction is left to the review). Single exemption, `POST /accounts`: do not take it as a model. [2026-11]
+ - A response replayed by idempotency key carries the `Idempotency-Replayed: true` header. Why: the mobile app uses it to avoid showing two confirmations; told by the team, written nowhere else. `POST /transfers` does not do it yet. (unverified) [2026-06]
+ - An amount is a `domain.Money`, an integer in cents; no float in `internal/domain` nor `internal/app`. Why: rounding errors that distort a balance, ADR 0002. `internal/app/fees.go` already violates the rule, and the `lint` job that carries this check does not block. (unverified) [2026-11]
+-- An applied migration is never modified again: a file is added at the next number. Why: staging and production only replay what `deploy.yml` passes them. (unverified) [2026-11]
++- An applied migration is never modified again: a file is added at the next number. Why: staging and production only replay what `deploy.yml` passes them. Enforced by: `tools/migrationcheck`, job `migrations` (PR only). [2026-11]
+ 
+ ## Forbidden
+ - `make reset-db` and `make migrate` with a `DATABASE_URL` that is not your local database. Why: `reset-db` destroys the schema without looking at the target; two days of QA data lost on staging on February 3, 2026. [2026-02]
+ - Running `deploy.yml` with `dry_run` set to false, or towards `production`. Why: owner's request, no known incident. [2026-11]
+-- Modifying an existing file of `migrations/`. Why: see the migrations rule. [2026-11]
++- Modifying an existing file of `migrations/`. Why: see the migrations rule. Enforced by: `tools/migrationcheck`, job `migrations`. [2026-11]
+ 
+ ## Maintaining this file
+ - A review comment that starts with `rule:` is a candidate rule. It is added here in the same PR, dated, with the link to the comment, or collected by harness-harvest.
+diff --git a/tools/migrationcheck/main.go b/tools/migrationcheck/main.go
+new file mode 100644
+index 0000000..9b26a54
+--- /dev/null
++++ b/tools/migrationcheck/main.go
+@@ -0,0 +1,62 @@
++// Command migrationcheck fails when a change touches an existing file of
++// migrations/. An applied migration is never edited: staging and production only
++// replay what deploy.yml hands them, so a new file with the next number is added
++// instead. Runs in CI (job migrations) against the pull request's base commit.
++//
++//	go run ./tools/migrationcheck -base origin/main   # exit 0, or 1 with one line per violation
++package main
++
++import (
++	"bufio"
++	"flag"
++	"fmt"
++	"os"
++	"os/exec"
++	"strings"
++)
++
++// Violation is one existing migration that was modified, renamed or deleted.
++type Violation struct {
++	Status string
++	File   string
++}
++
++// Check reads the output of `git diff --name-status` and returns every entry
++// that is not a pure addition.
++func Check(nameStatus string) []Violation {
++	var violations []Violation
++	sc := bufio.NewScanner(strings.NewReader(nameStatus))
++	for sc.Scan() {
++		fields := strings.Split(sc.Text(), "\t")
++		if len(fields) < 2 || fields[0] == "" {
++			continue
++		}
++		if fields[0] == "A" {
++			continue
++		}
++		// Renames and copies (R100, C075) list the old path first.
++		violations = append(violations, Violation{Status: fields[0], File: fields[1]})
++	}
++	return violations
++}
++
++func main() {
++	base := flag.String("base", "origin/main", "commit the change is compared to")
++	dir := flag.String("dir", "migrations", "migrations directory")
++	repo := flag.String("repo", ".", "repository root")
++	flag.Parse()
++
++	// No second commit: the working tree is compared, uncommitted edits included.
++	out, err := exec.Command("git", "-C", *repo, "diff", "--name-status", "-M", *base, "--", *dir).Output()
++	if err != nil {
++		fmt.Fprintln(os.Stderr, "migrationcheck: git diff:", err)
++		os.Exit(2)
++	}
++	violations := Check(string(out))
++	for _, v := range violations {
++		fmt.Printf("%s: existing migration changed (%s); add a new file with the next number instead\n", v.File, v.Status)
++	}
++	if len(violations) > 0 {
++		os.Exit(1)
++	}
++}
+diff --git a/tools/migrationcheck/main_test.go b/tools/migrationcheck/main_test.go
+new file mode 100644
+index 0000000..f8f7b57
+--- /dev/null
++++ b/tools/migrationcheck/main_test.go
+@@ -0,0 +1,23 @@
++package main
++
++import "testing"
++
++func TestCheck(t *testing.T) {
++	cases := []struct {
++		name string
++		diff string
++		want int
++	}{
++		{"no change", "", 0},
++		{"new migration", "A\tmigrations/0004_fees.sql\n", 0},
++		{"edited migration", "M\tmigrations/0002_transfers.sql\n", 1},
++		{"deleted migration", "D\tmigrations/0001_accounts.sql\n", 1},
++		{"renamed migration", "R100\tmigrations/0003_a.sql\tmigrations/0003_b.sql\n", 1},
++		{"mixed", "A\tmigrations/0004_x.sql\nM\tmigrations/0001_accounts.sql\n", 1},
++	}
++	for _, c := range cases {
++		if got := Check(c.diff); len(got) != c.want {
++			t.Errorf("%s: got %d violation(s) %v, want %d", c.name, len(got), got, c.want)
++		}
++	}
++}

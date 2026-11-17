@@ -1,14 +1,14 @@
 diff --git a/README.md b/README.md
-index 7dc19cd..5a8298e 100644
+index 1137613..3cc3af8 100644
 --- a/README.md
 +++ b/README.md
-@@ -33,6 +33,7 @@ docs/                         décisions, incidents, exploitation
+@@ -33,6 +33,7 @@ docs/                         decisions, incidents, operations
  |---|---|---|
- | POST | `/accounts` | ouvrir un compte |
- | GET | `/accounts/{id}` | lire un compte |
-+| POST | `/accounts/{id}/deposits` | créditer un compte ; en-tête `Idempotency-Key` obligatoire |
- | POST | `/transfers` | virer ; en-tête `Idempotency-Key` obligatoire |
- | GET | `/transfers/quote` | frais d'un virement |
+ | POST | `/accounts` | open an account |
+ | GET | `/accounts/{id}` | read an account |
++| POST | `/accounts/{id}/deposits` | credit an account; `Idempotency-Key` header required |
+ | POST | `/transfers` | transfer; `Idempotency-Key` header required |
+ | GET | `/transfers/quote` | fee of a transfer |
  
 diff --git a/internal/adapters/httpapi/server.go b/internal/adapters/httpapi/server.go
 index 8b54e11..01d3857 100644
