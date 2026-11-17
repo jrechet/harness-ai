@@ -1,7 +1,7 @@
 {
  "audit": {
-  "process": "livrer un changement sur comptoir, sans relecture du propriétaire",
-  "scope": "fixtures/repos/vibe-app/repo/ : CLAUDE.md et les fichiers qu'il fait relire (PLAN.md, NOTES.md, TODO.md), README.md, config/, src/store.js, src/routes-v2/, scripts/, test/, .eslintrc.json",
+  "process": "delivering a change on counter, without review by the owner",
+  "scope": "fixtures/repos/vibe-app/repo/: CLAUDE.md and the files it has reread (PLAN.md, NOTES.md, TODO.md), README.md, config/, src/store.js, src/routes-v2/, scripts/, test/, .eslintrc.json",
   "date": "2026-11-10",
   "health_score": 0,
   "cut_the_agent_test": {
@@ -21,7 +21,7 @@
    "calls": [],
    "verdict": "BLOCK",
    "priority": "P1",
-   "finding": "La clé d'API PayFlux et le secret de signature du webhook sont en clair dans un fichier versionné depuis le 2026-02-08 ; le secret est recopié dans un test. Le journal note « à sortir du dépôt avant la mise en ligne » ; l'application est en ligne.",
+   "finding": "The PayFlux API key and the webhook signing secret are in clear text in a file versioned since 2026-02-08; the secret is copied into a test. The log notes \"to take out of the repository before going live\"; the application is live.",
    "evidence": [
     "config/default.json:12",
     "config/default.json:13",
@@ -29,8 +29,8 @@
     "CLAUDE.md:75",
     "CLAUDE.md:122"
    ],
-   "target": "Valeurs retirées du fichier, régénérées dans le tableau de bord PayFlux, passées par PAYFLUX_API_KEY et PAYFLUX_WEBHOOK_SECRET, que src/config.js lit déjà.",
-   "check": "grep -rE '(sk_test|whsec)_' sur le dépôt ne rend rien ; le serveur refuse de démarrer sans les deux variables."
+   "target": "Values removed from the file, regenerated in the PayFlux dashboard, passed through PAYFLUX_API_KEY and PAYFLUX_WEBHOOK_SECRET, which src/config.js already reads.",
+   "check": "grep -rE '(sk_test|whsec)_' on the repository returns nothing; the server refuses to start without the two variables."
   },
   {
    "id": "store",
@@ -44,7 +44,7 @@
    "calls": [],
    "verdict": "PUSH_DOWN",
    "priority": "P1",
-   "finding": "Le magasin relit et réécrit tout le fichier à chaque requête et, quand il ne sait pas le lire, repart du catalogue sans rien dire : la requête suivante écrase toutes les commandes. La seule protection est une phrase du journal.",
+   "finding": "The store rereads and rewrites the whole file on every request and, when it cannot read it, starts again from the catalogue without saying anything: the next request overwrites all the orders. The only protection is a sentence of the log.",
    "evidence": [
     "src/store.js:20",
     "src/store.js:22",
@@ -52,8 +52,8 @@
     "CLAUDE.md:100",
     "CLAUDE.md:101"
    ],
-   "target": "Un fichier illisible arrête le serveur, ou est copié à côté avant toute écriture ; jamais remplacé en silence.",
-   "check": "Un test écrit un JSON invalide dans un DATA_FILE temporaire, envoie une requête, et retrouve le fichier d'origine ou sa copie."
+   "target": "An unreadable file stops the server, or is copied aside before any write; never replaced silently.",
+   "check": "A test writes invalid JSON into a temporary DATA_FILE, sends a request, and finds the original file or its copy again."
   },
   {
    "id": "claude-md",
@@ -68,7 +68,7 @@
    ],
    "verdict": "SPLIT",
    "priority": "P2",
-   "finding": "Décharge de mémoire de 133 lignes, relue en entier à chaque session avec trois autres fichiers. Trois faits datés y valent une règle ; le reste est du journal, des préférences, des consignes pour d'anciens modèles, trois commandes qui n'existent pas, une consigne qui fait vider les tests et une autre qui envoie dans le code mort, contredite 76 lignes plus bas. Ni mode, ni interdits.",
+   "finding": "A 133-line memory dump, reread in full at each session with three other files. Three dated facts in it are worth a rule; the rest is log, preferences, instructions for older models, three commands that do not exist, an instruction that has tests emptied and another that sends into the dead code, contradicted 76 lines further down. Neither mode nor forbidden section.",
    "evidence": [
     "CLAUDE.md:3",
     "CLAUDE.md:28",
@@ -79,8 +79,8 @@
     "CLAUDE.md:100",
     "CLAUDE.md:105"
    ],
-   "target": "Un AGENTS.md de moins de 60 lignes : mode, trois règles datées et non vérifiées, interdits ; CLAUDE.md réduit à @AGENTS.md ; le journal laissé à l'historique git.",
-   "check": "harness status donne le palier 1 ; aucune des lignes de la section removals ne reste dans un fichier chargé."
+   "target": "An AGENTS.md of fewer than 60 lines: mode, three dated and unverified rules, forbidden section; CLAUDE.md reduced to @AGENTS.md; the log left to the git history.",
+   "check": "harness status gives level 1; none of the lines of the removals section remains in a loaded file."
   },
   {
    "id": "routes-v2",
@@ -93,7 +93,7 @@
    "calls": [],
    "verdict": "BLOCK",
    "priority": "P2",
-   "finding": "Seconde implémentation des routes, abandonnée le 2026-04-19 et branchée nulle part, plus propre que celle qui sert, avec six tests verts et une annulation de commande que le serveur ne connaît pas. Une consigne et un plan y envoient encore.",
+   "finding": "Second implementation of the routes, abandoned on 2026-04-19 and wired in nowhere, cleaner than the one that serves, with six green tests and an order cancellation the server does not know. An instruction and a plan still send there.",
    "evidence": [
     "src/app.js:3",
     "src/routes-v2/index.js:21",
@@ -102,8 +102,8 @@
     "CLAUDE.md:105",
     "PLAN.md:20"
    ],
-   "target": "Dossier et tests supprimés quand le propriétaire le confirme ; d'ici là, interdit d'y écrire, dit dans AGENTS.md.",
-   "check": "ls src/routes-v2 échoue, ou git log ne montre aucun commit sur ce dossier après le pas 1."
+   "target": "Folder and tests deleted when the owner confirms it; until then, forbidden to write there, said in AGENTS.md.",
+   "check": "ls src/routes-v2 fails, or git log shows no commit on this folder after step 1."
   },
   {
    "id": "plan-md",
@@ -116,15 +116,15 @@
    "calls": [],
    "verdict": "REMOVE",
    "priority": "P2",
-   "finding": "Plan de la refonte v2, écrit le 2026-02-28 et jamais mis à jour : il ordonne d'écrire toute nouvelle route dans le code mort, annonce que l'annulation y est déjà, et prévoit SQLite. Chargé à chaque session par renvoi depuis CLAUDE.md.",
+   "finding": "Plan of the v2 rewrite, written on 2026-02-28 and never updated: it orders every new route to be written in the dead code, announces that the cancellation is already there, and plans SQLite. Loaded at each session through a reference from CLAUDE.md.",
    "evidence": [
     "PLAN.md:14",
     "PLAN.md:20",
     "CLAUDE.md:3",
     "CLAUDE.md:105"
    ],
-   "target": "Fichier supprimé ; les demandes encore valables sont dans TODO.md.",
-   "check": "Le fichier n'existe plus et rien ne le cite."
+   "target": "File deleted; the requests still valid are in TODO.md.",
+   "check": "The file no longer exists and nothing cites it."
   },
   {
    "id": "webhook-retry-test",
@@ -135,7 +135,7 @@
    "calls": [],
    "verdict": "BLOCK",
    "priority": "P2",
-   "finding": "Le test ajouté après l'incident du 2026-03-14 teste une fonction écrite dans le test, pas le serveur : il passe quel que soit le code du webhook. Le README s'appuie dessus pour dire la double livraison couverte.",
+   "finding": "The test added after the incident of 2026-03-14 tests a function written in the test, not the server: it passes whatever the webhook code is. The README relies on it to call the double delivery covered.",
    "evidence": [
     "test/webhook-retry.test.js:7",
     "test/webhook-retry.test.js:17",
@@ -143,8 +143,8 @@
     "README.md:83",
     "CLAUDE.md:95"
    ],
-   "target": "Remplacé par un test HTTP qui livre deux fois chaque événement traité et compare le stock.",
-   "check": "Retirer la garde de src/routes/webhook.js fait échouer le test."
+   "target": "Replaced by an HTTP test that delivers each handled event twice and compares the stock.",
+   "check": "Removing the guard of src/routes/webhook.js makes the test fail."
   },
   {
    "id": "seed-script",
@@ -157,14 +157,14 @@
    ],
    "verdict": "PUSH_DOWN",
    "priority": "P2",
-   "finding": "Écrase le fichier de données par le catalogue, sans confirmation et sans regarder s'il s'agit du fichier par défaut. Le README le présente comme une étape de démarrage.",
+   "finding": "Overwrites the data file with the catalogue, without confirmation and without looking whether it is the default file. The README presents it as a start-up step.",
    "evidence": [
     "scripts/seed.js:6",
     "README.md:27",
     "CLAUDE.md:43"
    ],
-   "target": "Refuse d'écrire sur un fichier qui contient des commandes, sauf option explicite.",
-   "check": "node scripts/seed.js sur une copie de data/db.json sort en erreur et laisse le fichier intact."
+   "target": "Refuses to write over a file that holds orders, unless an explicit option is given.",
+   "check": "node scripts/seed.js on a copy of data/db.json exits with an error and leaves the file intact."
   },
   {
    "id": "notes-md",
@@ -177,15 +177,15 @@
    "calls": [],
    "verdict": "SPLIT",
    "priority": "P3",
-   "finding": "Brouillons de session : essais curl sur des routes disparues, debug, installation sur le PC de la boutique, et une section PayFlux qui est la seule référence sur la forme des événements, la signature et le calendrier des relivraisons.",
+   "finding": "Session drafts: curl trials on routes that are gone, debugging, installation on the shop PC, and a PayFlux section that is the only reference on the shape of the events, the signature and the redelivery schedule.",
    "evidence": [
     "NOTES.md:5",
     "NOTES.md:15",
     "NOTES.md:29",
     "NOTES.md:40"
    ],
-   "target": "Réduit à la référence PayFlux, citée par AGENTS.md ; le reste retiré.",
-   "check": "Le fichier tient en une vingtaine de lignes et chaque ligne se vérifie dans le code ou la doc PayFlux."
+   "target": "Reduced to the PayFlux reference, cited by AGENTS.md; the rest removed.",
+   "check": "The file fits in about twenty lines and each line can be checked in the code or the PayFlux doc."
   },
   {
    "id": "hollow-tests",
@@ -196,15 +196,15 @@
    "calls": [],
    "verdict": "BLOCK",
    "priority": "P3",
-   "finding": "Trois tests qui passent sans rien vérifier : une constante comparée à elle-même, assert.ok(true), typeof. Avec test/payflux.test.js, qui teste un faux client écrit dans le test, c'est la trace de la consigne « la suite doit rester verte ».",
+   "finding": "Three tests that pass without checking anything: a constant compared with itself, assert.ok(true), typeof. With test/payflux.test.js, which tests a fake client written in the test, it is the trace of the instruction \"the suite must stay green\".",
    "evidence": [
     "test/format.test.js:8",
     "test/format.test.js:13",
     "test/payflux.test.js:5",
     "CLAUDE.md:28"
    ],
-   "target": "Supprimés, ou réécrits pour appeler formatPrice et formatMoney et comparer leur sortie.",
-   "check": "Casser formatPrice fait échouer un test."
+   "target": "Deleted, or rewritten to call formatPrice and formatMoney and compare their output.",
+   "check": "Breaking formatPrice makes a test fail."
   },
   {
    "id": "routes-v2-test",
@@ -217,13 +217,13 @@
    ],
    "verdict": "MERGE",
    "priority": "P3",
-   "finding": "Six tests sérieux d'un code que le serveur ne sert pas : ils font monter le compte de tests verts sans rien dire de l'application.",
+   "finding": "Six serious tests of code the server does not serve: they raise the count of green tests without saying anything about the application.",
    "evidence": [
     "test/routes-v2.test.js:52",
     "src/app.js:3"
    ],
-   "target": "Supprimés avec src/routes-v2.",
-   "check": "node --test ne lance plus aucun test de la v2."
+   "target": "Deleted with src/routes-v2.",
+   "check": "node --test no longer runs any v2 test."
   },
   {
    "id": "eslintrc",
@@ -234,7 +234,7 @@
    "calls": [],
    "verdict": "BLOCK",
    "priority": "P3",
-   "finding": "Configuration ESLint sans ESLint : aucune dépendance, aucun script, la commande npm run lint du README et du CLAUDE.md n'existe pas. Un garde-fou déclaré qui ne tourne jamais.",
+   "finding": "ESLint configuration without ESLint: no dependency, no script, the npm run lint command of the README and of CLAUDE.md does not exist. A declared guardrail that never runs.",
    "evidence": [
     ".eslintrc.json:1",
     "package.json:8",
@@ -242,8 +242,8 @@
     "CLAUDE.md:70",
     "README.md:79"
    ],
-   "target": "Supprimé, ou branché pour de bon par un job qui le lance ; la décision « aucune dépendance » appartient au propriétaire.",
-   "check": "Soit le fichier a disparu, soit une commande du dépôt le lance et sort en erreur sur une faute."
+   "target": "Deleted, or wired in for good by a job that runs it; the \"no dependency\" decision belongs to the owner.",
+   "check": "Either the file is gone, or a command of the repository runs it and exits with an error on a fault."
   },
   {
    "id": "readme",
@@ -254,7 +254,7 @@
    "calls": [],
    "verdict": "SPLIT",
    "priority": "P3",
-   "finding": "README généré pour être montré : annulation, SMS, espace administrateur, SQLite, 95 % de couverture, intégration continue, Docker, cinq commandes et deux routes qui n'existent pas. Le tableau des variables d'environnement, lui, est juste.",
+   "finding": "README generated to be shown: cancellation, SMS, administrator area, SQLite, 95% coverage, continuous integration, Docker, five commands and two routes that do not exist. The table of environment variables, for its part, is right.",
    "evidence": [
     "README.md:14",
     "README.md:20",
@@ -265,8 +265,8 @@
     "README.md:62",
     "README.md:80"
    ],
-   "target": "Ne garde que ce qui existe : npm start, npm test, les variables, les routes servies.",
-   "check": "Chaque commande du README sort à 0 ; chaque route listée répond autre chose que 404."
+   "target": "Keeps only what exists: npm start, npm test, the variables, the routes served.",
+   "check": "Each command of the README exits with 0; each route listed answers something other than 404."
   },
   {
    "id": "todo-md",
@@ -279,12 +279,12 @@
    "calls": [],
    "verdict": "KEEP",
    "priority": null,
-   "finding": "La liste de demandes du propriétaire : ce n'est pas une instruction et rien n'oblige à la charger. Une ligne, « finir la v2 », contredit la décision du 2026-04-19 et se signale au propriétaire.",
+   "finding": "The owner's list of requests: it is not an instruction and nothing requires loading it. One line, \"finish v2\", contradicts the decision of 2026-04-19 and is to be reported to the owner.",
    "evidence": [
     "TODO.md:11"
    ],
-   "target": "Inchangé, non chargé.",
-   "check": "AGENTS.md ne le cite pas."
+   "target": "Unchanged, not loaded.",
+   "check": "AGENTS.md does not cite it."
   },
   {
    "id": "orders-test",
@@ -295,13 +295,13 @@
    "calls": [],
    "verdict": "KEEP",
    "priority": null,
-   "finding": "Vrai test : il passe par HTTP, sur son propre fichier de données, et vérifie le total, les refus et les 404.",
+   "finding": "Real test: it goes through HTTP, on its own data file, and checks the total, the refusals and the 404s.",
    "evidence": [
     "test/orders.test.js:9",
     "test/orders.test.js:29"
    ],
-   "target": "Inchangé ; le modèle des tests à venir.",
-   "check": "Casser computeTotal le fait échouer."
+   "target": "Unchanged; the model for the tests to come.",
+   "check": "Breaking computeTotal makes it fail."
   },
   {
    "id": "store-test",
@@ -312,13 +312,13 @@
    "calls": [],
    "verdict": "KEEP",
    "priority": null,
-   "finding": "Vrai test du magasin, sur un fichier temporaire : départ du catalogue, relecture de ce qui est écrit.",
+   "finding": "Real test of the store, on a temporary file: start from the catalogue, reading back what is written.",
    "evidence": [
     "test/store.test.js:13",
     "test/store.test.js:20"
    ],
-   "target": "Inchangé.",
-   "check": "Casser writeDb le fait échouer."
+   "target": "Unchanged.",
+   "check": "Breaking writeDb makes it fail."
   },
   {
    "id": "webhook-test",
@@ -329,50 +329,50 @@
    "calls": [],
    "verdict": "KEEP",
    "priority": null,
-   "finding": "Vrai test du webhook par HTTP : signature refusée, commande payée, stock retiré. Sa ligne 15 recopie le secret ; c'est traité avec config/default.json.",
+   "finding": "Real test of the webhook through HTTP: signature refused, order paid, stock taken. Its line 15 copies the secret; that is handled with config/default.json.",
    "evidence": [
     "test/webhook.test.js:59",
     "test/webhook.test.js:70"
    ],
-   "target": "Inchangé, hors la ligne 15.",
-   "check": "Casser verifySignature le fait échouer."
+   "target": "Unchanged, apart from line 15.",
+   "check": "Breaking verifySignature makes it fail."
   }
  ],
  "process_leaks": [
   {
-   "rule": "Un événement du webhook PayFlux se rejoue sans rien changer et reçoit un 200 : PayFlux livre le même événement plusieurs fois, parfois plus d'une heure après.",
+   "rule": "A PayFlux webhook event is replayed without changing anything and receives a 200: PayFlux delivers the same event several times, sometimes more than an hour later.",
    "told_in": "CLAUDE.md:93",
-   "if_skipped": "Stock retiré ou rendu plusieurs fois, comme le 2026-03-14 ; rien ne couvre payment.refunded ni un payment.succeeded relivré après un changement de statut.",
+   "if_skipped": "Stock taken or given back several times, as on 2026-03-14; nothing covers payment.refunded nor a payment.succeeded redelivered after a status change.",
    "belongs_in": "L3",
-   "guard_tool": "test node:test par HTTP qui livre deux fois chaque événement traité par src/routes/webhook.js, lancé par un job CI"
+   "guard_tool": "node:test test through HTTP that delivers twice each event handled by src/routes/webhook.js, run by a CI job"
   },
   {
-   "rule": "On ne modifie jamais data/db.json pendant que le serveur tourne, et les tests passent leur propre DATA_FILE.",
+   "rule": "data/db.json is never changed while the server is running, and the tests pass their own DATA_FILE.",
    "told_in": "CLAUDE.md:100",
-   "if_skipped": "Fichier remplacé par le catalogue, toutes les commandes perdues, comme le 2026-04-04 ; un serveur lancé sans DATA_FILE réécrit le fichier dès la première requête.",
+   "if_skipped": "File replaced by the catalogue, all the orders lost, as on 2026-04-04; a server started without DATA_FILE rewrites the file from the first request.",
    "belongs_in": "L3",
-   "guard_tool": "src/store.js refuse un fichier illisible au lieu de repartir de zéro ; scripts/seed.js refuse un fichier qui porte des commandes"
+   "guard_tool": "src/store.js refuses an unreadable file instead of starting again from zero; scripts/seed.js refuses a file that holds orders"
   },
   {
-   "rule": "Rien ne s'ajoute à src/routes-v2 : la refonte est abandonnée et le serveur ne la sert pas.",
+   "rule": "Nothing is added to src/routes-v2: the rewrite is abandoned and the server does not serve it.",
    "told_in": "CLAUDE.md:105",
-   "if_skipped": "Une fonctionnalité livrée et testée que le serveur ne sert pas ; la consigne CLAUDE.md:29 et PLAN.md:20 demandent exactement cela.",
+   "if_skipped": "A feature delivered and tested that the server does not serve; the instruction CLAUDE.md:29 and PLAN.md:20 ask for exactly that.",
    "belongs_in": "L3",
-   "guard_tool": "suppression du dossier ; à défaut, un test qui échoue si src/app.js importe autre chose que ./routes/index.js"
+   "guard_tool": "deletion of the folder; failing that, a test that fails if src/app.js imports anything other than ./routes/index.js"
   },
   {
-   "rule": "La clé PayFlux et le secret du webhook sortent du dépôt.",
+   "rule": "The PayFlux key and the webhook secret leave the repository.",
    "told_in": "CLAUDE.md:75",
-   "if_skipped": "Secrets dans l'historique et recopiés de fichier en fichier ; config/default.json:12 les porte toujours.",
+   "if_skipped": "Secrets in the history and copied from file to file; config/default.json:12 still holds them.",
    "belongs_in": "L4",
-   "guard_tool": "recherche de secrets en CI (motifs sk_ et whsec_) ; démarrage refusé sans PAYFLUX_API_KEY et PAYFLUX_WEBHOOK_SECRET"
+   "guard_tool": "secret scan in CI (sk_ and whsec_ patterns); start refused without PAYFLUX_API_KEY and PAYFLUX_WEBHOOK_SECRET"
   },
   {
-   "rule": "Les tests passent avant de livrer.",
+   "rule": "The tests pass before delivering.",
    "told_in": "CLAUDE.md:24",
-   "if_skipped": "Rien ne lance node --test : pas de CI, pas de hook ; et CLAUDE.md:28 demande de neutraliser un test qui résiste.",
+   "if_skipped": "Nothing runs node --test: no CI, no hook; and CLAUDE.md:28 asks to neutralise a test that resists.",
    "belongs_in": "L4",
-   "guard_tool": "un workflow qui lance node --test à chaque push, une fois les tests creux retirés"
+   "guard_tool": "a workflow that runs node --test on every push, once the hollow tests are removed"
   }
  ],
  "guarded_rules": [],
@@ -380,233 +380,233 @@
   {
    "path": "CLAUDE.md",
    "line": 17,
-   "text": "Donne toujours le fichier complet, jamais un extrait",
+   "text": "Always give the complete file, never an excerpt",
    "reason": "harmful",
-   "evidence": "contournement d'une habitude disparue (copier-coller depuis le chat) : fait réécrire des fichiers entiers",
+   "evidence": "workaround for a habit that is gone (copy-paste from the chat): has whole files rewritten",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 28,
-   "text": "Si un test casse et que la cause ne se trouve pas en deux essais, remplace son assertion par `assert.ok(true)`",
+   "text": "If a test breaks and the cause is not found in two tries, replace its assertion with `assert.ok(true)`",
    "reason": "harmful",
-   "evidence": "c'est l'origine de test/format.test.js:13 et de test/payflux.test.js ; elle retire le seul filet d'un dépôt sans CI",
+   "evidence": "it is the origin of test/format.test.js:13 and of test/payflux.test.js; it removes the only safety net of a repository without CI",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 29,
-   "text": "Toute nouvelle route s'écrit dans `src/routes-v2/`, avec le routeur et `validate.js`. `src/routes/` est l'ancien code (legacy)",
+   "text": "Every new route is written in `src/routes-v2/`, with the router and `validate.js`. `src/routes/` is the old code (legacy)",
    "reason": "harmful",
-   "evidence": "contredite par CLAUDE.md:105 (décision du 2026-04-19) et par src/app.js:3 : envoie dans du code que le serveur ne sert pas",
+   "evidence": "contradicted by CLAUDE.md:105 (decision of 2026-04-19) and by src/app.js:3: sends into code the server does not serve",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 31,
-   "text": "À la fin de chaque session : `git add -A && git commit -m \"session N\"`.",
+   "text": "At the end of each session: `git add -A && git commit -m \"session N\"`.",
    "reason": "harmful",
-   "evidence": "c'est par là que config/default.json et data/db.json sont entrés dans l'historique",
+   "evidence": "that is how config/default.json and data/db.json entered the history",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 35,
-   "text": "En cours : v2 (produits et commandes faits, webhook à faire), environ 60 %.",
+   "text": "In progress: v2 (products and orders done, webhook to do), about 60%.",
    "reason": "harmful",
-   "evidence": "contredite par CLAUDE.md:105 : la v2 n'est pas en cours, elle est arrêtée",
+   "evidence": "contradicted by CLAUDE.md:105: v2 is not in progress, it is stopped",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 41,
-   "text": "`npm run dev` : serveur avec rechargement automatique",
+   "text": "`npm run dev`: server with automatic reload",
    "reason": "harmful",
-   "evidence": "package.json:8 n'a que start et test",
+   "evidence": "package.json:8 has only start and test",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 42,
-   "text": "`npm run lint` : ESLint",
+   "text": "`npm run lint`: ESLint",
    "reason": "harmful",
-   "evidence": "package.json:8 n'a que start et test ; ESLint n'est pas installé",
+   "evidence": "package.json:8 has only start and test; ESLint is not installed",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 43,
-   "text": "`npm run seed` : remet les données de démonstration",
+   "text": "`npm run seed`: restores the demo data",
    "reason": "harmful",
-   "evidence": "package.json:8 n'a que start et test ; scripts/seed.js existe et écrase le fichier de données",
+   "evidence": "package.json:8 has only start and test; scripts/seed.js exists and overwrites the data file",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 117,
-   "text": "Migrer le webhook vers la v2, puis brancher la v2 dans `app.js`",
+   "text": "Migrate the webhook to v2, then wire v2 into `app.js`",
    "reason": "harmful",
-   "evidence": "contredite par CLAUDE.md:105 : demande exactement ce que la décision du 19 avril interdit",
+   "evidence": "contradicted by CLAUDE.md:105: asks for exactly what the decision of 19 April forbids",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 13,
-   "text": "Tu es un développeur Node.js senior, spécialiste des API REST.",
+   "text": "You are a senior Node.js developer, a specialist in REST APIs.",
    "reason": "useless",
-   "evidence": "écrit pour d'anciens modèles",
+   "evidence": "written for older models",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 14,
-   "text": "IMPORTANT : réfléchis étape par étape avant chaque modification.",
+   "text": "IMPORTANT: think step by step before each change.",
    "reason": "useless",
-   "evidence": "écrit pour d'anciens modèles",
+   "evidence": "written for older models",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 15,
-   "text": "N'invente jamais une fonction, un module ou une option qui n'existe pas (pas d'hallucination).",
+   "text": "Never invent a function, a module or an option that does not exist (no hallucination).",
    "reason": "useless",
-   "evidence": "écrit pour d'anciens modèles",
+   "evidence": "written for older models",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 16,
-   "text": "Relis toujours un fichier en entier avant de le modifier.",
+   "text": "Always reread a file in full before changing it.",
    "reason": "useless",
-   "evidence": "ce qu'un agent fait sans qu'on le dise",
+   "evidence": "what an agent does without being told",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 20,
-   "text": "Guillemets simples, point-virgule, indentation de 2 espaces.",
+   "text": "Single quotes, semicolons, 2 spaces of indentation.",
    "reason": "useless",
-   "evidence": "style que le code montre déjà ; .eslintrc.json le déclare, sans ESLint pour le tenir",
+   "evidence": "style the code already shows; .eslintrc.json declares it, without ESLint to hold it",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 21,
-   "text": "Noms en anglais et en camelCase dans le code",
+   "text": "camelCase names in the code",
    "reason": "useless",
-   "evidence": "style que le code montre déjà",
+   "evidence": "style the code already shows",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 22,
-   "text": "Préfère `const`, des fonctions courtes, `async/await`.",
+   "text": "Prefers `const`, short functions, `async/await`.",
    "reason": "useless",
-   "evidence": "ce qu'un modèle fait sans qu'on le dise",
+   "evidence": "what a model does without being told",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 23,
-   "text": "Toujours valider les entrées et entourer les appels risqués d'un try/catch.",
+   "text": "Always validate inputs and wrap risky calls in a try/catch.",
    "reason": "useless",
-   "evidence": "générique, aucun incident derrière",
+   "evidence": "generic, no incident behind it",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 52,
-   "text": "db/sqlite.js       (à venir) stockage SQLite",
+   "text": "db/sqlite.js       (to come) SQLite storage",
    "reason": "useless",
-   "evidence": "le fichier n'existe pas ; plan jamais commencé",
+   "evidence": "the file does not exist; plan never started",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 68,
-   "text": "Essayé express puis retiré",
+   "text": "Tried express then removed it",
    "reason": "useless",
-   "evidence": "journal : la décision qu'il porte (aucune dépendance) se dit en une ligne d'Interdit",
+   "evidence": "log: the decision it carries (no dependency) is said in one Forbidden line",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 69,
-   "text": "Ajouté un favicon vide, l'utilisateur voyait une erreur 404 dans la console.",
+   "text": "Added an empty favicon, the user saw a 404 error in the console.",
    "reason": "useless",
-   "evidence": "journal, visible dans src/routes/index.js",
+   "evidence": "log, visible in src/routes/index.js",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 74,
-   "text": "Installé nodemon pour le rechargement automatique, puis retiré, même raison qu'express.",
+   "text": "Installed nodemon for automatic reload, then removed it, same reason as express.",
    "reason": "useless",
-   "evidence": "journal ; package.json n'a ni nodemon ni script dev",
+   "evidence": "log; package.json has neither nodemon nor a dev script",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 80,
-   "text": "Corrigé le bug du total : les prix étaient en euros, 3 × 1,10 donnait 3,3000000000000003.",
+   "text": "Fixed the total bug: prices were in euros, 3 × 1.10 gave 3.3000000000000003.",
    "reason": "useless",
-   "evidence": "journal : le code est en centimes partout, test/orders.test.js le vérifie",
+   "evidence": "log: the code is in cents everywhere, test/orders.test.js checks it",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 108,
-   "text": "Supprimé trois `console.log` de debug dans `createOrder`.",
+   "text": "Deleted three debug `console.log` in `createOrder`.",
    "reason": "useless",
-   "evidence": "journal",
+   "evidence": "log",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 111,
-   "text": "Régénéré le README, plus vendeur",
+   "text": "Regenerated the README, more of a sales pitch",
    "reason": "useless",
-   "evidence": "journal",
+   "evidence": "log",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 112,
-   "text": "Tous les tests passent (22/22).",
+   "text": "All the tests pass (22/22).",
    "reason": "useless",
-   "evidence": "journal ; douze de ces tests ne disent rien du serveur",
+   "evidence": "log; twelve of these tests say nothing about the server",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 118,
-   "text": "Passer le stockage à SQLite (PLAN.md, phase 5)",
+   "text": "Move the storage to SQLite (PLAN.md, phase 5)",
    "reason": "useless",
-   "evidence": "plan jamais commencé ; la demande est dans TODO.md",
+   "evidence": "plan never started; the request is in TODO.md",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 129,
-   "text": "Idées en vrac",
+   "text": "Loose ideas",
    "reason": "useless",
-   "evidence": "ni une instruction ni un fait",
+   "evidence": "neither an instruction nor a fact",
    "ask_owner": false
   },
   {
    "path": "CLAUDE.md",
    "line": 30,
-   "text": "Le serveur tourne sur le PC de la boutique (Windows 10, Node 16) : pas de `fetch`",
+   "text": "The server runs on the shop PC (Windows 10, Node 16): no `fetch`",
    "reason": "outdated",
-   "evidence": "rien ne la date dans le dépôt : start.bat est encore là, src/ s'y conforme ; les tests, eux, utilisent fetch",
+   "evidence": "nothing dates it in the repository: start.bat is still there, src/ complies with it; the tests, for their part, use fetch",
    "ask_owner": true
   }
  ],
  "owner_questions": [
-  "1. L'application tourne-t-elle encore sur le PC de la boutique, sous Node 16 ? Défaut : je garde la ligne tant que tu ne l'as pas dit, rien dans le dépôt ne la date.",
-  "2. Puis-je supprimer PLAN.md ? Défaut : oui, il décrit une refonte arrêtée le 19 avril.",
-  "3. Veux-tu toujours garder src/routes-v2/ ? Défaut : oui, tant que tu ne dis pas le contraire ; il reste interdit d'y écrire.",
-  "4. La clé de config/default.json est-elle encore active chez PayFlux ? Défaut : je la considère comme active, à régénérer."
+  "1. Does the application still run on the shop PC, under Node 16? Default: I keep the line until you have said so, nothing in the repository dates it.",
+  "2. May I delete PLAN.md? Default: yes, it describes a rewrite stopped on 19 April.",
+  "3. Do you still want to keep src/routes-v2/? Default: yes, as long as you do not say otherwise; writing there stays forbidden.",
+  "4. Is the key of config/default.json still active at PayFlux? Default: I consider it active, to be regenerated."
  ],
  "instruction_files": [
   {
@@ -625,9 +625,9 @@
    "priority": "P1",
    "verdict": "BLOCK",
    "element": "config-default",
-   "action": "Régénérer la clé et le secret chez PayFlux, vider les deux valeurs de config/default.json, passer par les variables d'environnement, retirer la copie de test/webhook.test.js.",
+   "action": "Regenerate the key and the secret at PayFlux, empty the two values of config/default.json, go through the environment variables, remove the copy in test/webhook.test.js.",
    "depends_on": [],
-   "check": "grep des motifs sk_test_ et whsec_ vide",
+   "check": "grep of the sk_test_ and whsec_ patterns empty",
    "needs_human_approval": true
   },
   {
@@ -635,9 +635,9 @@
    "priority": "P1",
    "verdict": "PUSH_DOWN",
    "element": "store",
-   "action": "Faire échouer readDb sur un fichier illisible au lieu de repartir du catalogue.",
+   "action": "Make readDb fail on an unreadable file instead of starting again from the catalogue.",
    "depends_on": [],
-   "check": "test sur un JSON invalide dans un DATA_FILE temporaire",
+   "check": "test on invalid JSON in a temporary DATA_FILE",
    "needs_human_approval": false
   },
   {
@@ -645,9 +645,9 @@
    "priority": "P2",
    "verdict": "SPLIT",
    "element": "claude-md",
-   "action": "Écrire AGENTS.md (pas 1 de harness-init) avec les trois faits datés, réduire CLAUDE.md à @AGENTS.md, appliquer les retraits ; poser la question du PC de la boutique au propriétaire avant de retirer la ligne 30.",
+   "action": "Write AGENTS.md (step 1 of harness-init) with the three dated facts, reduce CLAUDE.md to @AGENTS.md, apply the removals; ask the owner the shop PC question before removing line 30.",
    "depends_on": [],
-   "check": "harness status au palier 1",
+   "check": "harness status at level 1",
    "needs_human_approval": true
   },
   {
@@ -655,11 +655,11 @@
    "priority": "P2",
    "verdict": "REMOVE",
    "element": "plan-md",
-   "action": "Supprimer PLAN.md.",
+   "action": "Delete PLAN.md.",
    "depends_on": [
     "claude-md"
    ],
-   "check": "fichier absent",
+   "check": "file absent",
    "needs_human_approval": true
   },
   {
@@ -667,9 +667,9 @@
    "priority": "P2",
    "verdict": "BLOCK",
    "element": "webhook-retry-test",
-   "action": "Remplacer le test par un test HTTP de double livraison.",
+   "action": "Replace the test with an HTTP double-delivery test.",
    "depends_on": [],
-   "check": "le test échoue sans la garde du webhook",
+   "check": "the test fails without the webhook guard",
    "needs_human_approval": false
   },
   {
@@ -677,11 +677,11 @@
    "priority": "P2",
    "verdict": "PUSH_DOWN",
    "element": "seed-script",
-   "action": "Garde sur scripts/seed.js.",
+   "action": "Guard on scripts/seed.js.",
    "depends_on": [
     "store"
    ],
-   "check": "refus sur un fichier qui porte des commandes",
+   "check": "refusal on a file that holds orders",
    "needs_human_approval": false
   },
   {
@@ -689,11 +689,11 @@
    "priority": "P2",
    "verdict": "BLOCK",
    "element": "routes-v2",
-   "action": "Supprimer src/routes-v2 et test/routes-v2.test.js quand le propriétaire le confirme.",
+   "action": "Delete src/routes-v2 and test/routes-v2.test.js when the owner confirms it.",
    "depends_on": [
     "claude-md"
    ],
-   "check": "dossier absent",
+   "check": "folder absent",
    "needs_human_approval": true
   },
   {
@@ -701,11 +701,11 @@
    "priority": "P3",
    "verdict": "BLOCK",
    "element": "hollow-tests",
-   "action": "Supprimer ou réécrire test/format.test.js et test/payflux.test.js, puis poser un job qui lance node --test.",
+   "action": "Delete or rewrite test/format.test.js and test/payflux.test.js, then set up a job that runs node --test.",
    "depends_on": [
     "webhook-retry-test"
    ],
-   "check": "chaque test échoue quand on casse ce qu'il nomme",
+   "check": "each test fails when what it names is broken",
    "needs_human_approval": false
   },
   {
@@ -713,15 +713,15 @@
    "priority": "P3",
    "verdict": "SPLIT",
    "element": "readme",
-   "action": "Retirer du README ce qui n'existe pas.",
+   "action": "Remove from the README what does not exist.",
    "depends_on": [],
-   "check": "chaque commande sort à 0",
+   "check": "each command exits with 0",
    "needs_human_approval": true
   }
  ],
  "unverified": [
-  "Où tourne l'application aujourd'hui, et sur quelle version de Node : le dépôt dit « PC de la boutique, Node 16 », seul le propriétaire peut le confirmer.",
-  "Si la clé de config/default.json est encore active chez PayFlux.",
-  "Ce que contient le fichier de données du serveur : data/db.json du dépôt ne porte que deux commandes de test."
+  "Where the application runs today, and on which version of Node: the repository says \"shop PC, Node 16\", only the owner can confirm it.",
+  "Whether the key of config/default.json is still active at PayFlux.",
+  "What the server's data file holds: data/db.json of the repository holds only two test orders."
  ]
 }

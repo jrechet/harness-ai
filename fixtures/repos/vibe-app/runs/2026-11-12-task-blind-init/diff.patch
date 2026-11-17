@@ -1,42 +1,42 @@
 diff --git a/AGENTS.md b/AGENTS.md
-index 15eb1eb..508216f 100644
+index efdb00a..7ea5742 100644
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -13,7 +13,7 @@ Format des événements PayFlux, signature, relivraison, remboursement : `NOTES.
+@@ -13,7 +13,7 @@ Format of the PayFlux events, signature, redelivery, refund: `NOTES.md`.
  
- ## Règles
- - Seul `src/routes/` est branché (voir `src/app.js`). `src/routes-v2/` est abandonné : n'y ajoute rien, ne le branche pas, ne le supprime pas ; son `cancel` n'est pas en service et ne sert pas de modèle. Pourquoi : décision du propriétaire après trois sessions sans aboutir. (non vérifiée) [2026-04]
--- Un événement PayFlux peut arriver plusieurs fois, même après un 200 : le rejouer ne change rien et répond 200. Aujourd'hui seul `order.status === 'paid'` protège : un nouveau statut (ex. annulée) doit rester protégé. Pourquoi : 2026-03-14, stock retiré trois fois, croissants affichés épuisés, ventes en ligne coupées jusqu'à midi. (non vérifiée : `test/webhook-retry.test.js` teste une copie du handler, pas `src/routes/webhook.js`) [2026-03]
-+- Un événement PayFlux peut arriver plusieurs fois, même après un 200 : le rejouer ne change rien et répond 200. Chaque événement n'agit que depuis un seul statut (`payment.succeeded` : `pending` → `paid` ; `payment.refunded` : `paid` → `refunded`) ; tout nouveau statut doit rester protégé de la même façon. Pourquoi : 2026-03-14, stock retiré trois fois, croissants affichés épuisés, ventes en ligne coupées jusqu'à midi. (vérifiée par `test/webhook.test.js` sur le vrai handler ; `test/webhook-retry.test.js` ne teste qu'une copie) [2026-11]
- - Chaque fichier de test travaille sur son propre fichier par `DATA_FILE`, comme `test/orders.test.js`. Pourquoi : `src/store.js` repart du catalogue sans rien dire s'il ne peut pas lire son fichier ; le 2026-04-04, 31 commandes perdues. (non vérifiée) [2026-04]
- - Un test qui casse ne se neutralise pas (pas d'`assert.ok(true)`, pas de `skip`) : si tu ne trouves pas, arrête-toi et dis-le. `test/format.test.js` le fait déjà : contre-exemple, pas modèle. Pourquoi : le propriétaire n'a que ta parole pour savoir si ça marche. (non vérifiée) [2026-11]
- - Pas d'API de remboursement (offre PayFlux Starter) : annuler une commande payée ne rembourse rien, la boutique rembourse à la main dans le tableau de bord PayFlux. Pas d'incident connu. (non vérifiée) [2026-03]
+ ## Rules
+ - Only `src/routes/` is wired in (see `src/app.js`). `src/routes-v2/` is abandoned: add nothing to it, do not wire it in, do not delete it; its `cancel` is not in service and is not a model. Why: the owner's decision after three sessions without getting there. (unverified) [2026-04]
+-- A PayFlux event may arrive several times, even after a 200: replaying it changes nothing and answers 200. Today only `order.status === 'paid'` protects: a new status (e.g. cancelled) must stay protected. Why: 2026-03-14, stock taken three times, croissants shown as sold out, online sales cut until noon. (unverified: `test/webhook-retry.test.js` tests a copy of the handler, not `src/routes/webhook.js`) [2026-03]
++- A PayFlux event may arrive several times, even after a 200: replaying it changes nothing and answers 200. Each event acts only from a single status (`payment.succeeded`: `pending` → `paid`; `payment.refunded`: `paid` → `refunded`); any new status must stay protected the same way. Why: 2026-03-14, stock taken three times, croissants shown as sold out, online sales cut until noon. (enforced by `test/webhook.test.js` on the real handler; `test/webhook-retry.test.js` only tests a copy) [2026-11]
+ - Each test file works on its own file through `DATA_FILE`, like `test/orders.test.js`. Why: `src/store.js` starts again from the catalogue without saying anything if it cannot read its file; on 2026-04-04, 31 orders lost. (unverified) [2026-04]
+ - A test that breaks is not neutralised (no `assert.ok(true)`, no `skip`): if you cannot find it, stop and say so. `test/format.test.js` already does it: a counter-example, not a model. Why: the owner has only your word to know whether it works. (unverified) [2026-11]
+ - No refund API (PayFlux Starter plan): cancelling a paid order refunds nothing, the shop refunds by hand in the PayFlux dashboard. No known incident. (unverified) [2026-03]
 diff --git a/NOTES.md b/NOTES.md
-index 09ebb07..d586765 100644
+index 9c8b05d..735e892 100644
 --- a/NOTES.md
 +++ b/NOTES.md
-@@ -9,7 +9,7 @@ Référence à consulter quand on touche au paiement. Les règles sont dans `AGE
+@@ -9,7 +9,7 @@ Reference to consult when touching the payment. The rules are in `AGENTS.md`.
    { "id": "evt_3fa9c1", "type": "payment.succeeded", "created": 1773478800,
      "data": { "orderId": "ord_5d0c2a91be", "paymentId": "pay_88c1", "amountCents": 1240 } }
    ```
--- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On ne traite que le premier.
-+- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On traite `payment.succeeded` (commande `pending` → `paid`, le stock sort) et `payment.refunded` (commande `paid` → `refunded`, le stock revient). Tout autre statut rend l'événement sans effet (réponse 200), ce qui couvre les relivraisons. Un paiement reçu sur une commande `cancelled` n'est pas appliqué : il est seulement signalé dans le journal (`warn`) et se rembourse à la main.
- - Signature : en-tête `X-Payflux-Signature`, HMAC-SHA256 en hexadécimal du corps brut, avec le secret du webhook. Vérifier sur le corps tel qu'il arrive, pas sur le JSON reformaté.
- - Doc PayFlux, « Livraison des webhooks » (recopié le 2026-03-15) : livraison « au moins une fois ». Nouvelle tentative à +30 s, +5 min, +1 h, +6 h puis +24 h tant que la réponse n'est pas un 2xx reçu en moins de 5 s. Un événement déjà acquitté peut être relivré. L'`id` de l'événement ne change pas d'une livraison à l'autre.
- - L'URL du webhook se règle dans le tableau de bord PayFlux, Développeurs > Webhooks.
+-- Types seen: `payment.succeeded`, `payment.failed`, `payment.refunded`. Only the first is handled.
++- Types seen: `payment.succeeded`, `payment.failed`, `payment.refunded`. We handle `payment.succeeded` (`pending` order → `paid`, the stock leaves) and `payment.refunded` (`paid` order → `refunded`, the stock comes back). Any other status leaves the event without effect (answer 200), which covers redeliveries. A payment received on a `cancelled` order is not applied: it is only reported in the log (`warn`) and is refunded by hand.
+ - Signature: `X-Payflux-Signature` header, hex HMAC-SHA256 of the raw body, with the webhook secret. Verify on the body as it arrives, not on the reformatted JSON.
+ - PayFlux doc, "Webhook delivery" (copied on 2026-03-15): "at least once" delivery. New attempt at +30 s, +5 min, +1 h, +6 h then +24 h as long as the answer is not a 2xx received within 5 s. An event already acknowledged may be redelivered. The event's `id` does not change from one delivery to the next.
+ - The webhook URL is set in the PayFlux dashboard, Developers > Webhooks.
 diff --git a/TODO.md b/TODO.md
-index 531307e..7400e0d 100644
+index 509f45d..8997ef1 100644
 --- a/TODO.md
 +++ b/TODO.md
-@@ -5,7 +5,7 @@ Liste de l'utilisateur, dans l'ordre où il l'a demandé.
- - [x] Commander depuis le téléphone
- - [x] Payer en ligne
- - [x] Export des commandes pour le matin (`scripts/export-orders.js`)
--- [ ] Annuler une commande (demandé le 2026-05-10)
-+- [x] Annuler une commande (demandé le 2026-05-10) : `POST /orders/{id}/cancel` + remboursement PayFlux qui remet le stock
- - [ ] SMS quand la commande est prête
- - [ ] Mot de passe pour voir les commandes
- - [ ] Finir la v2 (webhook) et la brancher
+@@ -5,7 +5,7 @@ The user's list, in the order he asked.
+ - [x] Order from the phone
+ - [x] Pay online
+ - [x] Export of the orders for the morning (`scripts/export-orders.js`)
+-- [ ] Cancel an order (asked on 2026-05-10)
++- [x] Cancel an order (asked on 2026-05-10): `POST /orders/{id}/cancel` + PayFlux refund that restocks
+ - [ ] SMS when the order is ready
+ - [ ] Password to see the orders
+ - [ ] Finish v2 (webhook) and wire it in
 diff --git a/src/routes/index.js b/src/routes/index.js
 index 71cb69a..75afb84 100644
 --- a/src/routes/index.js
@@ -143,7 +143,7 @@ index ecb8de8..8b097e9 100644
    return sendJson(res, 200, { received: true, ignored: event.type });
  }
 diff --git a/test/webhook.test.js b/test/webhook.test.js
-index 97a9e16..ee81b16 100644
+index d567024..1235331 100644
 --- a/test/webhook.test.js
 +++ b/test/webhook.test.js
 @@ -85,3 +85,108 @@ test('an event for an unknown order answers 404', async () => {

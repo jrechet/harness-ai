@@ -6,7 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
 
-const dataFile = path.join(os.tmpdir(), `comptoir-webhook-${process.pid}.json`);
+const dataFile = path.join(os.tmpdir(), `counter-webhook-${process.pid}.json`);
 process.env.DATA_FILE = dataFile;
 process.env.LOG_LEVEL = 'silent';
 const { app } = await import('../src/app.js');

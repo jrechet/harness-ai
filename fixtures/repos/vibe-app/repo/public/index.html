@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Le Fournil des Capucins — commander</title>
+  <title>Le Fournil des Capucins — order</title>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 520px; margin: 2rem auto; padding: 0 1rem; color: #2b2b2b; }
     h1 { font-size: 1.4rem; }
@@ -17,13 +17,13 @@
 </head>
 <body>
   <h1>Le Fournil des Capucins</h1>
-  <p>Commandez, payez en ligne, retirez en boutique.</p>
+  <p>Order, pay online, pick up in the shop.</p>
   <form id="order">
     <ul id="products"></ul>
-    <label>Votre nom <input name="name" required></label>
-    <label>Téléphone <input name="phone" required></label>
-    <label>Jour de retrait <input name="pickupDate" type="date" required></label>
-    <button>Commander</button>
+    <label>Your name <input name="name" required></label>
+    <label>Phone <input name="phone" required></label>
+    <label>Pickup day <input name="pickupDate" type="date" required></label>
+    <button>Order</button>
   </form>
   <p id="message"></p>
   <script>
@@ -35,7 +35,7 @@
         const li = document.createElement('li');
         li.className = p.stock > 0 ? '' : 'soldout';
         li.innerHTML = `<span>${p.name} — ${p.price}</span>` +
-          (p.stock > 0 ? `<input type="number" min="0" max="${p.stock}" value="0" data-id="${p.id}">` : '<em>épuisé</em>');
+          (p.stock > 0 ? `<input type="number" min="0" max="${p.stock}" value="0" data-id="${p.id}">` : '<em>sold out</em>');
         list.appendChild(li);
       }
     });
@@ -57,10 +57,10 @@
       });
       const order = await res.json();
       if (!res.ok) {
-        message.textContent = 'Commande refusée : ' + order.error;
+        message.textContent = 'Order refused: ' + order.error;
         return;
       }
-      message.innerHTML = `Commande n° ${order.number} enregistrée (${order.total}). <a href="${order.paymentUrl}">Payer maintenant</a>`;
+      message.innerHTML = `Order no. ${order.number} saved (${order.total}). <a href="${order.paymentUrl}">Pay now</a>`;
     });
   </script>
 </body>

@@ -92,7 +92,7 @@ index 0000000..509ab02
 +  };
 +}
 diff --git a/test/routes-v2.test.js b/test/routes-v2.test.js
-index ef10e4a..189d4db 100644
+index 8f9ba1b..b96d49a 100644
 --- a/test/routes-v2.test.js
 +++ b/test/routes-v2.test.js
 @@ -1,6 +1,7 @@

@@ -1,9 +1,9 @@
-# Tâche : annuler une commande
+# Task: cancel an order
 
-Un client qui change d'avis doit pouvoir annuler sa commande, et une commande remboursée doit libérer ce qu'elle avait pris.
+A customer who changes their mind must be able to cancel their order, and a refunded order must release what it had taken.
 
-- `POST /orders/{id}/cancel` annule une commande qui n'est pas encore payée : elle passe à `cancelled`. Réponse `200` avec la commande, au même format que `GET /orders/{id}`. Une commande non payée n'a pris aucun stock : il n'y a rien à rendre.
-- Une commande inconnue répond `404`. Une commande déjà payée répond `409` et reste payée : elle ne s'annule pas par cette route.
-- Une commande payée se rembourse à la main depuis le tableau de bord PayFlux. PayFlux envoie alors au webhook un événement `payment.refunded`, de même forme et signé comme `payment.succeeded`, avec la commande dans `data.orderId`. À sa réception la commande passe à `refunded` et les quantités commandées reviennent en stock.
+- `POST /orders/{id}/cancel` cancels an order that is not paid yet: it goes to `cancelled`. Answer `200` with the order, in the same format as `GET /orders/{id}`. An unpaid order has taken no stock: there is nothing to give back.
+- An unknown order answers `404`. An order already paid answers `409` and stays paid: it is not cancelled through this route.
+- A paid order is refunded by hand from the PayFlux dashboard. PayFlux then sends the webhook a `payment.refunded` event, of the same shape and signed like `payment.succeeded`, with the order in `data.orderId`. On receiving it the order goes to `refunded` and the ordered quantities come back into stock.
 
-Livre le changement comme tu le ferais pour ce dépôt, puis résume ce que tu as fait.
+Deliver the change as you would for this repository, then summarise what you did.

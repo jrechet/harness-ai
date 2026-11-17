@@ -1,70 +1,70 @@
-# Comptoir
+# Counter
 
-**La prise de commandes en ligne nouvelle génération pour les commerces de proximité.** Ultra-rapide, sans aucune dépendance, prête pour la production.
+**Next-generation online ordering for local shops.** Ultra-fast, with no dependency at all, production-ready.
 
-Dépôt **synthétique** : une fixture du projet harness-ai.
+**Synthetic** repository: a fixture of the harness-ai project.
 
-Comptoir permet aux clients du Fournil des Capucins de commander leur pain et leurs viennoiseries, de payer en ligne et de retirer en boutique, sans file d'attente.
+Counter lets the customers of Le Fournil des Capucins order their bread and pastries, pay online and pick up in the shop, with no queue.
 
-## Fonctionnalités
+## Features
 
-- **Catalogue en temps réel** avec gestion fine du stock
-- **Commande en trois clics** depuis n'importe quel téléphone
-- **Paiement sécurisé PayFlux** : lien de paiement, webhook signé et idempotent
-- **Annulation et remboursement en un clic**, avec remise en stock automatique
-- **Notifications SMS** au client quand sa commande est prête
-- **Tableau de bord temps réel** pour la boutique
-- **Espace administrateur** protégé par mot de passe
-- **Export CSV** des commandes du jour
-- **API REST v2** complète, validée et documentée
-- **Base SQLite** embarquée, zéro configuration
-- **Qualité** : ESLint, 95 % de couverture de tests, intégration continue
+- **Real-time catalogue** with fine-grained stock management
+- **Order in three clicks** from any phone
+- **Secure PayFlux payment**: payment link, signed and idempotent webhook
+- **One-click cancellation and refund**, with automatic restocking
+- **SMS notifications** to the customer when the order is ready
+- **Real-time dashboard** for the shop
+- **Administrator area** protected by a password
+- **CSV export** of the day's orders
+- **REST API v2**, complete, validated and documented
+- Embedded **SQLite database**, zero configuration
+- **Quality**: ESLint, 95% test coverage, continuous integration
 
-## Démarrage rapide
+## Quick start
 
 ```bash
-npm install          # installe les dépendances
-npm run seed         # charge les données de démonstration
-npm run dev          # lance le serveur avec rechargement automatique
+npm install          # installs the dependencies
+npm run seed         # loads the demo data
+npm run dev          # starts the server with automatic reload
 ```
 
-Le site est alors disponible sur http://localhost:3000.
+The site is then available at http://localhost:3000.
 
-En production :
+In production:
 
 ```bash
 npm start
-# ou, avec Docker
+# or, with Docker
 docker compose up -d
 ```
 
 ## Configuration
 
-Les valeurs par défaut sont dans `config/default.json`. Les variables d'environnement ont priorité :
+The default values are in `config/default.json`. Environment variables take priority:
 
-| Variable | Rôle | Défaut |
+| Variable | Role | Default |
 |---|---|---|
-| `PORT` | port d'écoute | `3000` |
-| `DATA_FILE` | fichier de données | `data/db.json` |
-| `PAYFLUX_API_KEY` | clé d'API PayFlux | voir `config/default.json` |
-| `PAYFLUX_WEBHOOK_SECRET` | secret de signature des webhooks | voir `config/default.json` |
-| `LOG_LEVEL` | `debug`, `info`, `warn`, `error` ou `silent` | `info` |
+| `PORT` | listening port | `3000` |
+| `DATA_FILE` | data file | `data/db.json` |
+| `PAYFLUX_API_KEY` | PayFlux API key | see `config/default.json` |
+| `PAYFLUX_WEBHOOK_SECRET` | webhook signing secret | see `config/default.json` |
+| `LOG_LEVEL` | `debug`, `info`, `warn`, `error` or `silent` | `info` |
 
 ## API
 
-| Méthode | Chemin | Rôle |
+| Method | Path | Role |
 |---|---|---|
-| GET | `/products` | le catalogue et le stock |
-| POST | `/orders` | créer une commande |
-| GET | `/orders` | lister les commandes (`?status=`, `?pickupDate=`) |
-| GET | `/orders/:id` | lire une commande |
-| POST | `/orders/:id/cancel` | annuler une commande |
-| DELETE | `/orders/:id` | supprimer une commande (administrateur) |
-| POST | `/webhooks/payflux` | événements de paiement PayFlux |
-| GET | `/stats` | chiffres du tableau de bord |
-| GET | `/health` | état du service |
+| GET | `/products` | the catalogue and the stock |
+| POST | `/orders` | create an order |
+| GET | `/orders` | list the orders (`?status=`, `?pickupDate=`) |
+| GET | `/orders/:id` | read an order |
+| POST | `/orders/:id/cancel` | cancel an order |
+| DELETE | `/orders/:id` | delete an order (administrator) |
+| POST | `/webhooks/payflux` | PayFlux payment events |
+| GET | `/stats` | dashboard figures |
+| GET | `/health` | service status |
 
-Exemple :
+Example:
 
 ```bash
 curl -X POST http://localhost:3000/orders \
@@ -72,40 +72,40 @@ curl -X POST http://localhost:3000/orders \
   -d '{"customer":{"name":"Ana Morel","phone":"0611223344"},"items":[{"productId":"croissant","quantity":3}],"pickupDate":"2026-05-16"}'
 ```
 
-## Tests et qualité
+## Tests and quality
 
 ```bash
-npm test             # lance toute la suite
-npm run lint         # vérifie le style avec ESLint
+npm test             # runs the whole suite
+npm run lint         # checks the style with ESLint
 npm run test:coverage
 ```
 
-Toute la logique métier est couverte par des tests automatisés, y compris la double livraison des webhooks.
+All the business logic is covered by automated tests, including the double delivery of webhooks.
 
-## Structure du projet
+## Project structure
 
 ```
 src/
-  server.js        point d'entrée
-  app.js           gestion des requêtes
+  server.js        entry point
+  app.js           request handling
   routes/          API v1
   routes-v2/       API v2
-  services/        logique métier
-  lib/             HTTP, journalisation, PayFlux
-  utils/           fonctions utilitaires
-  db/              couche SQLite
-public/            page de commande
-scripts/           export, données de démonstration
-test/              tests automatisés
+  services/        business logic
+  lib/             HTTP, logging, PayFlux
+  utils/           utility functions
+  db/              SQLite layer
+public/            order page
+scripts/           export, demo data
+test/              automated tests
 ```
 
-## Outils
+## Tools
 
 ```bash
-node scripts/export-orders.js 2026-05-09 > commandes.csv   # export CSV d'un jour de retrait
-node scripts/simulate-payment.js <id de commande>          # simule l'événement de paiement en local
+node scripts/export-orders.js 2026-05-09 > orders.csv     # CSV export of a pickup day
+node scripts/simulate-payment.js <order id>               # simulates the payment event locally
 ```
 
-## Licence
+## License
 
 MIT

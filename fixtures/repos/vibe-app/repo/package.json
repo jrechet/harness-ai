@@ -1,7 +1,7 @@
 {
-  "name": "comptoir",
+  "name": "counter",
   "version": "0.3.0",
-  "description": "Commandes à emporter pour la boulangerie : catalogue, commande, paiement PayFlux",
+  "description": "Takeaway orders for the bakery: catalogue, order, PayFlux payment",
   "private": true,
   "type": "module",
   "main": "src/server.js",

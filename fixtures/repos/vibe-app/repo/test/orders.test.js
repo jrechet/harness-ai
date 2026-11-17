@@ -6,7 +6,7 @@ import path from 'node:path';
 import { after, before, test } from 'node:test';
 
 // each test file works on its own data file, never on data/db.json
-const dataFile = path.join(os.tmpdir(), `comptoir-orders-${process.pid}.json`);
+const dataFile = path.join(os.tmpdir(), `counter-orders-${process.pid}.json`);
 process.env.DATA_FILE = dataFile;
 process.env.LOG_LEVEL = 'silent';
 const { app } = await import('../src/app.js');
@@ -55,7 +55,7 @@ test('an unknown product is refused', async () => {
   const res = await fetch(`${base}/orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customer, items: [{ productId: 'eclair-cafe', quantity: 1 }] }),
+    body: JSON.stringify({ customer, items: [{ productId: 'coffee-eclair', quantity: 1 }] }),
   });
   assert.equal(res.status, 400);
 });
@@ -64,11 +64,11 @@ test('an order above the stock is refused and nothing is saved', async () => {
   const res = await fetch(`${base}/orders`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ customer, items: [{ productId: 'tarte-pommes', quantity: 7 }] }),
+    body: JSON.stringify({ customer, items: [{ productId: 'apple-tart', quantity: 7 }] }),
   });
   assert.equal(res.status, 409);
   const orders = await (await fetch(`${base}/orders`)).json();
-  assert.equal(orders.filter((o) => o.items[0].productId === 'tarte-pommes').length, 0);
+  assert.equal(orders.filter((o) => o.items[0].productId === 'apple-tart').length, 0);
 });
 
 test('an order without a phone number is refused', async () => {

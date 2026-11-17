@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, test } from 'node:test';
 
-const dataFile = path.join(os.tmpdir(), `comptoir-store-${process.pid}.json`);
+const dataFile = path.join(os.tmpdir(), `counter-store-${process.pid}.json`);
 process.env.DATA_FILE = dataFile;
 const { readDb, writeDb } = await import('../src/store.js');
 

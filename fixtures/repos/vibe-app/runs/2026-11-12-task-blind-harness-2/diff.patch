@@ -1,42 +1,42 @@
 diff --git a/AGENTS.md b/AGENTS.md
-index 40c74f5..4321c12 100644
+index 381085d..dc4983c 100644
 --- a/AGENTS.md
 +++ b/AGENTS.md
-@@ -14,7 +14,7 @@ Une suite verte prouve peu ici. `test/format.test.js`, `test/payflux.test.js` et
+@@ -14,7 +14,7 @@ A green suite proves little here. `test/format.test.js`, `test/payflux.test.js`
  
- ## Règles
- - Le serveur ne sert que `src/routes/` : `src/app.js` n'importe que `./routes/index.js`. `src/routes-v2/` est une refonte abandonnée, jamais branchée ; ce qu'on y écrit n'existe pas pour un client, même quand ses tests passent. Pourquoi : décision du propriétaire du 19 avril 2026, pas d'incident connu. (non vérifiée) [2026-04]
--- PayFlux livre le même événement plusieurs fois, et relivre parfois un événement déjà acquitté, plus d'une heure après. Le traitement d'un événement du webhook se rejoue sans rien changer et répond 200 quand même. Pourquoi : le 14 mars 2026, deux commandes traitées trois fois chacune, stock retiré en trop, ventes en ligne arrêtées une matinée. Seul `payment.succeeded` sur une commande déjà payée est couvert aujourd'hui. (non vérifiée) [2026-03]
-+- PayFlux livre le même événement plusieurs fois, et relivre parfois un événement déjà acquitté, plus d'une heure après. Le traitement d'un événement du webhook se rejoue sans rien changer et répond 200 quand même. Pourquoi : le 14 mars 2026, deux commandes traitées trois fois chacune, stock retiré en trop, ventes en ligne arrêtées une matinée. Couverts aujourd'hui, par `test/cancel-refund.test.js` : `payment.succeeded` relivré sur une commande payée ou remboursée, `payment.refunded` relivré (le stock ne revient qu'une fois). L'`id` d'événement n'est pas mémorisé : l'idempotence repose sur le statut de la commande. (non vérifiée) [2026-03]
- - `data/db.json` est relu et réécrit en entier à chaque requête ; illisible, il est remplacé sans bruit par le catalogue, sans aucune commande. Un test ou un essai à la main passe son propre fichier par `DATA_FILE`. Pourquoi : le 4 avril 2026, fichier corrigé à la main serveur allumé, 31 commandes perdues. (non vérifiée) [2026-04]
+ ## Rules
+ - The server serves only `src/routes/`: `src/app.js` imports only `./routes/index.js`. `src/routes-v2/` is an abandoned rewrite, never wired in; what is written there does not exist for a customer, even when its tests pass. Why: the owner's decision of 19 April 2026, no known incident. (unverified) [2026-04]
+-- PayFlux delivers the same event several times, and sometimes redelivers an event already acknowledged, more than an hour later. Handling a webhook event is replayable without changing anything and answers 200 all the same. Why: on 14 March 2026, two orders handled three times each, too much stock taken, online sales stopped for a morning. Only `payment.succeeded` on an order already paid is covered today. (unverified) [2026-03]
++- PayFlux delivers the same event several times, and sometimes redelivers an event already acknowledged, more than an hour later. Handling a webhook event is replayable without changing anything and answers 200 all the same. Why: on 14 March 2026, two orders handled three times each, too much stock taken, online sales stopped for a morning. Covered today, by `test/cancel-refund.test.js`: `payment.succeeded` redelivered on a paid or refunded order, `payment.refunded` redelivered (the stock comes back only once). The event `id` is not remembered: idempotence rests on the order's status. (unverified) [2026-03]
+ - `data/db.json` is reread and rewritten in full on every request; unreadable, it is silently replaced by the catalogue, without any order. A test or a manual trial passes its own file through `DATA_FILE`. Why: on 4 April 2026, file fixed by hand with the server running, 31 orders lost. (unverified) [2026-04]
  
- ## Interdits
+ ## Forbidden
 diff --git a/NOTES.md b/NOTES.md
-index 7c022d6..c0e866d 100644
+index 500aad2..b773c7c 100644
 --- a/NOTES.md
 +++ b/NOTES.md
-@@ -8,7 +8,7 @@ Ce qui restait d'utile dans les notes de session, gardé au pas 1. À lire avant
+@@ -8,7 +8,7 @@ What was still useful in the session notes, kept at step 1. Read it before touch
    { "id": "evt_3fa9c1", "type": "payment.succeeded", "created": 1773478800,
      "data": { "orderId": "ord_5d0c2a91be", "paymentId": "pay_88c1", "amountCents": 1240 } }
    ```
--- Types émis : `payment.succeeded`, `payment.failed`, `payment.refunded`. Seul le premier est traité.
-+- Types émis : `payment.succeeded`, `payment.failed`, `payment.refunded`. `payment.succeeded` et `payment.refunded` sont traités, `payment.failed` est ignoré. Un remboursement ne remet en stock que si la commande était `paid` ; un paiement reçu sur une commande `cancelled` la laisse annulée, sans prendre de stock, et laisse un avertissement dans le journal : à rembourser à la main.
- - Signature : en-tête `X-Payflux-Signature`, HMAC-SHA256 en hexadécimal du corps brut, avec le secret du webhook. Elle se vérifie sur le corps tel qu'il arrive, pas sur le JSON reformaté.
- - Livraison (doc PayFlux, recopiée le 2026-03-15) : « au moins une fois ». Nouvelle tentative à +30 s, +5 min, +1 h, +6 h puis +24 h tant que la réponse n'est pas un 2xx reçu en moins de 5 s. Un événement déjà acquitté peut être relivré. L'`id` de l'événement ne change pas d'une livraison à l'autre.
- - L'URL du webhook se règle dans le tableau de bord PayFlux, Développeurs > Webhooks.
+-- Types emitted: `payment.succeeded`, `payment.failed`, `payment.refunded`. Only the first is handled.
++- Types emitted: `payment.succeeded`, `payment.failed`, `payment.refunded`. `payment.succeeded` and `payment.refunded` are handled, `payment.failed` is ignored. A refund restocks only if the order was `paid`; a payment received on a `cancelled` order leaves it cancelled, without taking stock, and leaves a warning in the log: to refund by hand.
+ - Signature: `X-Payflux-Signature` header, hex HMAC-SHA256 of the raw body, with the webhook secret. It is verified on the body as it arrives, not on the reformatted JSON.
+ - Delivery (PayFlux doc, copied on 2026-03-15): "at least once". New attempt at +30 s, +5 min, +1 h, +6 h then +24 h as long as the answer is not a 2xx received within 5 s. An event already acknowledged may be redelivered. The event's `id` does not change from one delivery to the next.
+ - The webhook URL is set in the PayFlux dashboard, Developers > Webhooks.
 diff --git a/TODO.md b/TODO.md
-index 531307e..714de15 100644
+index 509f45d..5d0094f 100644
 --- a/TODO.md
 +++ b/TODO.md
-@@ -5,7 +5,7 @@ Liste de l'utilisateur, dans l'ordre où il l'a demandé.
- - [x] Commander depuis le téléphone
- - [x] Payer en ligne
- - [x] Export des commandes pour le matin (`scripts/export-orders.js`)
--- [ ] Annuler une commande (demandé le 2026-05-10)
-+- [x] Annuler une commande (demandé le 2026-05-10)
- - [ ] SMS quand la commande est prête
- - [ ] Mot de passe pour voir les commandes
- - [ ] Finir la v2 (webhook) et la brancher
+@@ -5,7 +5,7 @@ The user's list, in the order he asked.
+ - [x] Order from the phone
+ - [x] Pay online
+ - [x] Export of the orders for the morning (`scripts/export-orders.js`)
+-- [ ] Cancel an order (asked on 2026-05-10)
++- [x] Cancel an order (asked on 2026-05-10)
+ - [ ] SMS when the order is ready
+ - [ ] Password to see the orders
+ - [ ] Finish v2 (webhook) and wire it in
 diff --git a/src/routes/index.js b/src/routes/index.js
 index 71cb69a..75afb84 100644
 --- a/src/routes/index.js
@@ -155,7 +155,7 @@ index ecb8de8..0e08f8c 100644
  }
 diff --git a/test/cancel-refund.test.js b/test/cancel-refund.test.js
 new file mode 100644
-index 0000000..931c3ed
+index 0000000..7b7d6b9
 --- /dev/null
 +++ b/test/cancel-refund.test.js
 @@ -0,0 +1,175 @@
@@ -167,7 +167,7 @@ index 0000000..931c3ed
 +import { after, before, test } from 'node:test';
 +
 +// own data file and own webhook secret: nothing from data/db.json or config/default.json
-+const dataFile = path.join(os.tmpdir(), `comptoir-cancel-refund-${process.pid}.json`);
++const dataFile = path.join(os.tmpdir(), `counter-cancel-refund-${process.pid}.json`);
 +process.env.DATA_FILE = dataFile;
 +process.env.LOG_LEVEL = 'silent';
 +process.env.PAYFLUX_WEBHOOK_SECRET = `whsec_test_${process.pid}`;

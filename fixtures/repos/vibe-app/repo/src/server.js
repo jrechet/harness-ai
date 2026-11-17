@@ -6,5 +6,5 @@ import { log } from './lib/logger.js';
 const server = http.createServer(app);
 
 server.listen(config.port, () => {
-  log('info', `comptoir listening on http://localhost:${config.port} (data file: ${config.dataFile})`);
+  log('info', `counter listening on http://localhost:${config.port} (data file: ${config.dataFile})`);
 });

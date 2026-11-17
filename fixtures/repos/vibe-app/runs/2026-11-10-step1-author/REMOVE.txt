@@ -1,0 +1,2 @@
+# What step 1 deleted from the repository, one path per line. The bench's harness arm removes them.
+PLAN.md
