@@ -151,7 +151,7 @@ A measurement is one draw, not an average, and the test cases were written by th
 ### What does not exist yet
 
 - Proof of a gain on a real repository. What the project measures is that its mechanisms work on sample projects.
-- A required CI check. This repository's CI (`.github/workflows/ci.yml`, which runs `scripts/ci/verify.sh`) runs on a self-hosted runner on the owner's server, but it is not yet a required check on `main`. It runs the code of pull requests on a runner that is not disposable: accepted for a private repository with a single owner, to be revisited before any publication. The tests also run by hand, or with `sh scripts/ci/verify.sh`.
+- A disposable CI runner. This repository's CI (`.github/workflows/ci.yml`, which runs `scripts/ci/verify.sh`) is a required check on `main`, but it runs the code of pull requests on a self-hosted runner on the owner's server, which is not disposable. This is accepted for a private repository with a single owner, to be revisited before any publication. The tests also run by hand, or with `sh scripts/ci/verify.sh`.
 
 ## Install the skills in Claude Code
 

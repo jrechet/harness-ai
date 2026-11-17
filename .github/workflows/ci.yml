@@ -26,7 +26,7 @@ jobs:
   verify:
     # never the code of another repository (a PR coming from a fork) on the server's runner
     if: >-
-      (vars.CI_RUNNER == 'ready' || vars.CI_RUNNER == 'pret') &&
+      vars.CI_RUNNER == 'ready' &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, jre-server]
     timeout-minutes: 30

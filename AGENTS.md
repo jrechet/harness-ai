@@ -8,11 +8,11 @@ Claude Code skills (`skills/`), deterministic CLI (`cli/`), evaluation fixtures 
 ## What changes → what to run
 | If you touch… | Run… | Enforced in CI by |
 |---|---|---|
-| `cli/` | `python3 -m unittest discover -s cli/tests` | `scripts/ci/verify.sh`, not yet a required check |
+| `cli/` | `python3 -m unittest discover -s cli/tests` | `scripts/ci/verify.sh`, required on `main` |
 | a fixture or its `expected.json` | `python3 cli/harness.py fixture check <name>` | nothing |
 | a fixture task (`tasks/`) | `python3 cli/harness.py bench selftest <name>` | nothing |
 | the placement grid or a fixture of `fixtures/design/` | `python3 cli/harness.py place check <plan> --expected <fixture>/expected.json` | nothing |
-| `plugins/ai-sdlc/` or a fixture of `fixtures/review/`, `dev/`, `ticket/`, `qa/`, `secu/`, `ship/` or `run/` | `python3 -m unittest discover -s plugins/ai-sdlc/cli/tests` | `scripts/ci/verify.sh`, not yet a required check |
+| `plugins/ai-sdlc/` or a fixture of `fixtures/review/`, `dev/`, `ticket/`, `qa/`, `secu/`, `ship/` or `run/` | `python3 -m unittest discover -s plugins/ai-sdlc/cli/tests` | `scripts/ci/verify.sh`, required on `main` |
 | the CI or `docs/agents/gates.json` | `BASE_REF=origin/main sh scripts/ci/verify.sh` from a branch | the CI itself |
 | a SKILL.md | a blind run on a fixture, graded by `fixture check --audit` or `--init` | nothing |
 
@@ -35,7 +35,7 @@ Claude Code skills (`skills/`), deterministic CLI (`cli/`), evaluation fixtures 
 - All work finished or started, and every request or correction from the owner, has its row in the progress plan of `docs/capabilities.md`, in the same change. Enforced by: Stop hook, `python3 cli/harness.py progress check` [2026-11]
 
 ## Available CI/CD
-- GitHub Actions: `.github/workflows/ci.yml`, on `runs-on: [self-hosted, jre-server]`, runs `scripts/ci/verify.sh` (both suites, the plan, the PR gates). Runs on the server's runner, set up by the owner (variable `CI_RUNNER`); not yet a required check on `main`. Followed with `gh run list`. [2026-11]
+- GitHub Actions: `.github/workflows/ci.yml`, on `runs-on: [self-hosted, jre-server]`, runs `scripts/ci/verify.sh` (both suites, the plan, the PR gates). Runs on the server's runner, set up by the owner (variable `CI_RUNNER`); the `verify` check is required on `main`, administrators included, so every change goes through a pull request. Followed with `gh run list`. [2026-11]
 - Forge: `.forgejo/workflows/ci.yml` runs the same script; no mirror to `forge.jrec.fr` yet. No workflow deploys. [2026-11]
 
 ## Delegated tasks
