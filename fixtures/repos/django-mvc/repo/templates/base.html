@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,7 +7,7 @@
 </head>
 <body>
   <header>
-    <a href="{% url 'catalog:session_list' %}">Cursus, les sessions de formation</a>
+    <a href="{% url 'catalog:session_list' %}">Cursus, training sessions</a>
     {% if user.is_staff %}<a href="{% url 'admin:index' %}">Administration</a>{% endif %}
   </header>
   {% if messages %}

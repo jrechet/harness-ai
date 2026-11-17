@@ -15,7 +15,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
-      - name: Modèles et migrations synchrones
+      - name: Models and migrations in sync
         run: python manage.py makemigrations --check --dry-run
       - run: python manage.py check
       - run: python manage.py test

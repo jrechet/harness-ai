@@ -1,10 +1,10 @@
 # cursus
 
-Inscriptions aux sessions de formation d'un organisme : le catalogue des sessions à venir, l'inscription en ligne, la liste d'attente quand une session est pleine, l'e-mail de confirmation, et la liste des inscrits pour le service formation. Monolithe Django, pages rendues côté serveur.
+Enrollments in the training sessions of an organisation: the catalog of upcoming sessions, online enrollment, the waiting list when a session is full, the confirmation e-mail, and the roster for the training department. Django monolith, server-rendered pages.
 
-Dépôt **synthétique** : une fixture du projet harness-ai. Le pilote PostgreSQL n'y est pas installé, tout tourne sous SQLite.
+**Synthetic** repository: a fixture of the harness-ai project. The PostgreSQL driver is not installed in it, everything runs under SQLite.
 
-## Démarrer
+## Getting started
 
 ```bash
 python3 -m venv .venv
@@ -15,28 +15,28 @@ python3 -m venv .venv
 ```
 
 ```bash
-.venv/bin/python manage.py test                              # tout
-.venv/bin/python manage.py test enrollments                  # une application
-.venv/bin/python manage.py makemigrations --check --dry-run  # modèles et migrations synchrones
+.venv/bin/python manage.py test                              # everything
+.venv/bin/python manage.py test enrollments                  # one application
+.venv/bin/python manage.py makemigrations --check --dry-run  # models and migrations in sync
 ```
 
 ## Pages
 
-| Chemin | Pour qui | Rôle |
+| Path | For whom | Role |
 |---|---|---|
-| `/` | tous | sessions à venir et places restantes ; `?course=<slug>` filtre par formation |
-| `/sessions/<id>/` | tous | une session et son formulaire d'inscription |
-| `/sessions/<id>/enroll/` | tous | `POST` : s'inscrire ; confirmé s'il reste une place, sinon liste d'attente |
-| `/sessions/<id>/roster/` | staff | les inscrits d'une session |
-| `/enrollments/<id>/cancel/` | staff | `POST` : annuler ; la place libérée va au premier de la liste d'attente |
-| `/admin/` | staff | formations, sessions, inscriptions |
+| `/` | everyone | upcoming sessions and seats left; `?course=<slug>` filters by course |
+| `/sessions/<id>/` | everyone | a session and its enrollment form |
+| `/sessions/<id>/enroll/` | everyone | `POST`: enroll; confirmed if a seat is left, otherwise waiting list |
+| `/sessions/<id>/roster/` | staff | the people enrolled in a session |
+| `/enrollments/<id>/cancel/` | staff | `POST`: cancel; the freed seat goes to the head of the waiting list |
+| `/admin/` | staff | courses, sessions, enrollments |
 
-## Organisation
+## Layout
 
 ```
-cursus/         réglages, URL racine
-catalog/        formations et sessions, pages publiques
-enrollments/    inscriptions, liste d'attente, e-mails, pages du staff
-templates/      gabarit commun
-docs/           décisions (adr/), incidents (postmortems/), exploitation
+cursus/         settings, root URLs
+catalog/        courses and sessions, public pages
+enrollments/    enrollments, waiting list, e-mails, staff pages
+templates/      shared base template
+docs/           decisions (adr/), incidents (postmortems/), operations
 ```

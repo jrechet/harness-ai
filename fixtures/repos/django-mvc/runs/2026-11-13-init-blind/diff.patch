@@ -1,13 +1,13 @@
 diff --git a/.github/copilot-instructions.md b/.github/copilot-instructions.md
 new file mode 100644
-index 0000000..f648b15
+index 0000000..7ee5065
 --- /dev/null
 +++ b/.github/copilot-instructions.md
 @@ -0,0 +1 @@
-+Les instructions de ce dépôt vivent dans `AGENTS.md` à la racine. Lis-le avant toute modification et applique-le ; aucune règle n'est définie ici.
++The instructions of this repository live in `AGENTS.md` at the root. Read it before any change and apply it; no rule is defined here.
 diff --git a/.harness/state.json b/.harness/state.json
 new file mode 100644
-index 0000000..4e8b787
+index 0000000..b20456a
 --- /dev/null
 +++ b/.harness/state.json
 @@ -0,0 +1,296 @@
@@ -17,7 +17,7 @@ index 0000000..4e8b787
 +  "date": "2026-11-13",
 +  "level": {
 +    "reached": 1,
-+    "name": "Cadré",
++    "name": "Framed",
 +    "next": 2
 +  },
 +  "target": {
@@ -28,8 +28,8 @@ index 0000000..4e8b787
 +  "levels": [
 +    {
 +      "level": 0,
-+      "name": "Rien",
-+      "summary": "Aucun fichier d'instructions : l'agent part de zéro à chaque session.",
++      "name": "None",
++      "summary": "No instruction file: the agent starts from zero at every session.",
 +      "achieved": true,
 +      "in_scope": true,
 +      "checks": [],
@@ -38,35 +38,35 @@ index 0000000..4e8b787
 +    },
 +    {
 +      "level": 1,
-+      "name": "Cadré",
-+      "summary": "Un AGENTS.md court, un mode explicite, des stubs : l'agent sait où il est.",
++      "name": "Framed",
++      "summary": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.",
 +      "achieved": true,
 +      "in_scope": true,
 +      "checks": [
 +        {
 +          "id": "L1.source",
-+          "label": "Un fichier d'instructions existe (AGENTS.md)",
++          "label": "An instruction file exists (AGENTS.md)",
 +          "passed": true,
 +          "value": "AGENTS.md",
 +          "next_action": null
 +        },
 +        {
 +          "id": "L1.mode",
-+          "label": "La ligne « Mode : délégation | assistance » est présente",
++          "label": "The line \"Mode: delegation | assistance\" is present",
 +          "passed": true,
 +          "value": "delegation",
 +          "next_action": null
 +        },
 +        {
 +          "id": "L1.short",
-+          "label": "Le fichier chargé fait au plus 60 lignes",
++          "label": "The loaded file is at most 60 lines",
 +          "passed": true,
 +          "value": 20,
 +          "next_action": null
 +        },
 +        {
 +          "id": "L1.single_source",
-+          "label": "CLAUDE.md est un stub @AGENTS.md (ou absent)",
++          "label": "CLAUDE.md is an @AGENTS.md stub (or absent)",
 +          "passed": true,
 +          "value": {
 +            "exists": true,
@@ -78,7 +78,7 @@ index 0000000..4e8b787
 +        },
 +        {
 +          "id": "L1.forbidden",
-+          "label": "Une section « Interdits » dit ce qu'un agent ne fait jamais",
++          "label": "A \"Forbidden\" section says what an agent never does",
 +          "passed": true,
 +          "value": true,
 +          "next_action": null
@@ -89,38 +89,38 @@ index 0000000..4e8b787
 +    },
 +    {
 +      "level": 2,
-+      "name": "Bouclé",
-+      "summary": "La boucle de retour tourne : les incidents deviennent des règles.",
++      "name": "Looped",
++      "summary": "The feedback loop runs: incidents become rules.",
 +      "achieved": false,
 +      "in_scope": true,
 +      "checks": [
 +        {
 +          "id": "L2.maintenance",
-+          "label": "Une section Maintenance dit comment le fichier évolue",
++          "label": "A maintenance section says how the file evolves",
 +          "passed": false,
 +          "value": false,
-+          "next_action": "Ajouter la section Maintenance du template harness-init."
++          "next_action": "Add the \"Maintaining this file\" section of the harness-init template."
 +        },
 +        {
 +          "id": "L2.rule_convention",
-+          "label": "La convention `rule:` en review est documentée",
++          "label": "The `rule:` review convention is documented",
 +          "passed": false,
 +          "value": false,
-+          "next_action": "Documenter : un commentaire de review qui commence par `rule:` est une règle candidate."
++          "next_action": "Document it: a review comment that starts with `rule:` is a candidate rule."
 +        },
 +        {
 +          "id": "L2.marker_fresh",
-+          "label": "Un harvest a tourné depuis moins de 45 jours",
++          "label": "A harvest ran less than 45 days ago",
 +          "passed": false,
 +          "value": null,
-+          "next_action": "Lancer harness-harvest et fusionner sa PR, qui pose le marqueur."
++          "next_action": "Run harness-harvest and merge its PR, which sets the marker."
 +        },
 +        {
 +          "id": "L2.signal",
-+          "label": "Le dernier harvest a trouvé au moins un signal réel (S1–S4)",
++          "label": "The last harvest found at least one real signal (S1–S4)",
 +          "passed": false,
 +          "value": null,
-+          "next_action": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore."
++          "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet."
 +        }
 +      ],
 +      "passed_checks": 0,
@@ -128,14 +128,14 @@ index 0000000..4e8b787
 +    },
 +    {
 +      "level": 3,
-+      "name": "Vérifié",
-+      "summary": "Les règles obligatoires sont portées par des outils, pas par du texte.",
++      "name": "Verified",
++      "summary": "Mandatory rules are enforced by tools, not by text.",
 +      "achieved": false,
 +      "in_scope": true,
 +      "checks": [
 +        {
 +          "id": "L3.ci",
-+          "label": "Une CI existe (workflows ou .gitlab-ci.yml)",
++          "label": "A CI exists (workflows or .gitlab-ci.yml)",
 +          "passed": true,
 +          "value": [
 +            "ci.yml"
@@ -144,24 +144,24 @@ index 0000000..4e8b787
 +        },
 +        {
 +          "id": "L3.guarded",
-+          "label": "Au moins 50 % des règles sont « Vérifiée par » un outil",
++          "label": "At least 50% of the rules are \"Enforced by\" a tool",
 +          "passed": false,
 +          "value": 0.1,
-+          "next_action": "Pousser les règles racontées en L3 : lint custom, test d'architecture, check de PR."
++          "next_action": "Push the narrated rules down to L3: custom lint, architecture test, PR check."
 +        },
 +        {
 +          "id": "L3.justified",
-+          "label": "Au moins 50 % des règles disent pourquoi",
++          "label": "At least 50% of the rules say why",
 +          "passed": true,
 +          "value": 1.0,
 +          "next_action": null
 +        },
 +        {
 +          "id": "L3.audit",
-+          "label": "Un harness-audit existe et n'a aucun P1 ouvert",
++          "label": "A harness-audit exists and has no open P1",
 +          "passed": false,
 +          "value": null,
-+          "next_action": "Lancer harness-audit, écrire son JSON dans .harness/audit.json, traiter les P1."
++          "next_action": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s."
 +        }
 +      ],
 +      "passed_checks": 2,
@@ -169,45 +169,45 @@ index 0000000..4e8b787
 +    },
 +    {
 +      "level": 4,
-+      "name": "Délégué",
-+      "summary": "Des tâches entières sont confiées à l'agent et reviennent propres.",
++      "name": "Delegated",
++      "summary": "Whole tasks are handed to the agent and come back clean.",
 +      "achieved": false,
 +      "in_scope": true,
 +      "checks": [
 +        {
 +          "id": "L4.mode",
-+          "label": "Le mode est délégation",
++          "label": "The mode is delegation",
 +          "passed": true,
 +          "value": "delegation",
 +          "next_action": null
 +        },
 +        {
 +          "id": "L4.process",
-+          "label": "Une section « Processus de travail » cadre l'agent",
++          "label": "A \"Working process\" section frames the agent",
 +          "passed": false,
 +          "value": false,
-+          "next_action": "Ajouter : quand s'arrêter et demander, critère de fini, CI rouge, test flaky."
++          "next_action": "Add: when to stop and ask, definition of done, red CI, flaky test."
 +        },
 +        {
 +          "id": "L4.contracts",
-+          "label": "Au moins un contrat de tâche existe et est référencé",
++          "label": "At least one task contract exists and is referenced",
 +          "passed": false,
 +          "value": 0,
-+          "next_action": "Créer .claude/skills/<tâche>/SKILL.md pour la première tâche déléguée et le citer dans AGENTS.md."
++          "next_action": "Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in AGENTS.md."
 +        },
 +        {
 +          "id": "L4.clean_prs",
-+          "label": "Le dernier harvest voit des PRs d'agent sans correction après coup",
++          "label": "The last harvest sees agent PRs with no after-the-fact correction",
 +          "passed": false,
 +          "value": null,
-+          "next_action": "Chaque correction après coup (S2) est une règle ou un garde-fou manquant : les traiter."
++          "next_action": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them."
 +        },
 +        {
 +          "id": "L4.cut_the_agent",
-+          "label": "Le test « coupe l'agent » de l'audit passe",
++          "label": "The audit's \"cut the agent\" test passes",
 +          "passed": false,
 +          "value": null,
-+          "next_action": "Pousser en L3/L4 les étapes qui n'existent que dans des prompts."
++          "next_action": "Push down to L3/L4 the steps that exist only in prompts."
 +        }
 +      ],
 +      "passed_checks": 1,
@@ -234,12 +234,12 @@ index 0000000..4e8b787
 +        "misplaced": null
 +      }
 +    },
-+    "hint": "Lancer harness-audit pour une vue par couche mesurée."
++    "hint": "Run harness-audit for a measured layer view."
 +  },
 +  "next_actions": [
-+    "Ajouter la section Maintenance du template harness-init.",
-+    "Documenter : un commentaire de review qui commence par `rule:` est une règle candidate.",
-+    "Lancer harness-harvest et fusionner sa PR, qui pose le marqueur."
++    "Add the \"Maintaining this file\" section of the harness-init template.",
++    "Document it: a review comment that starts with `rule:` is a candidate rule.",
++    "Run harness-harvest and merge its PR, which sets the marker."
 +  ],
 +  "dangling": [],
 +  "facts": {
@@ -308,123 +308,123 @@ index 0000000..4e8b787
 +  }
 +}
 diff --git a/AGENTS.md b/AGENTS.md
-index 8478ecb..892c5b9 100644
+index 9412943..9e020fb 100644
 --- a/AGENTS.md
 +++ b/AGENTS.md
 @@ -1,67 +1,20 @@
--# Cursus — guide pour les assistants de code
+-# Cursus — guide for code assistants
 -
--Ce fichier s'adresse aux assistants (Copilot, Cursor, Claude) qui proposent du code sur ce dépôt. Lis-le en entier avant de répondre.
+-This file is for the assistants (Copilot, Cursor, Claude) that propose code on this repository. Read it in full before answering.
 -
--## Le projet
+-## The project
 -
--Cursus gère les inscriptions aux sessions de formation : catalogue, inscription en ligne, liste d'attente, e-mail de confirmation. Django, pages rendues côté serveur, SQLite en développement, PostgreSQL en production.
+-Cursus manages enrollments in training sessions: catalog, online enrollment, waiting list, confirmation e-mail. Django, server-rendered pages, SQLite in development, PostgreSQL in production.
 -
 -```
 -cursus/
--├── settings.py          réglages
--└── urls.py              URL racine
+-├── settings.py          settings
+-└── urls.py              root URLs
 -catalog/
 -├── models.py            Course, Session
--├── views.py             liste et détail des sessions
+-├── views.py             session list and detail
 -└── templates/catalog/
 -enrollments/
 -├── models.py            Enrollment
--├── services.py          inscrire, annuler
+-├── services.py          enroll, cancel
 -├── notifications.py     e-mails
--├── views.py             inscription, pages du staff
+-├── views.py             enrollment, staff pages
 -└── templates/enrollments/
--docs/                    décisions, incidents, exploitation
+-docs/                    decisions, incidents, operations
 -```
 -
--## Commandes
+-## Commands
 -
 -```bash
 -python manage.py runserver
--python manage.py test --settings=cursus.settings_ci    # réglages de la CI : base en mémoire, e-mails factices
+-python manage.py test --settings=cursus.settings_ci    # CI settings: in-memory database, dummy e-mails
 -python manage.py makemigrations && python manage.py migrate
 -```
 -
--## Comment répondre
+-## How to answer
 -
--- Réfléchis étape par étape et annonce ton plan avant d'écrire du code.
--- N'invente pas d'API Django : si tu n'es pas sûr qu'une fonction existe, dis-le au lieu de deviner.
--- Donne toujours le fichier complet, jamais un extrait avec `# ... reste inchangé` : on colle ta réponse telle quelle dans l'éditeur.
--- Réponds en français. Le code, lui, est en anglais.
+-- Think step by step and announce your plan before writing code.
+-- Do not invent Django APIs: if you are not sure a function exists, say so instead of guessing.
+-- Always give the complete file, never an excerpt with `# ... rest unchanged`: we paste your answer as is into the editor.
+-- Answer in French. The code itself is in English.
 -
 -## Style
 -
--- Respecte PEP 8, lignes de 100 caractères au plus.
--- Donne des noms clairs aux variables et aux fonctions.
--- Une docstring pour chaque fonction publique.
--- Pas de code commenté, pas de `print` oublié.
--- Écris un test pour chaque changement.
+-- Follow PEP 8, lines of 100 characters at most.
+-- Give clear names to variables and functions.
+-- A docstring for every public function.
+-- No commented-out code, no forgotten `print`.
+-- Write a test for every change.
 -
--## Compatibilité
+-## Compatibility
 -
--- Le code doit tourner sous Python 3.8, la version du serveur de production : pas de `match`, pas de `X | Y` dans les annotations, pas de `str.removeprefix`.
--- Reste sur les API de Django 4.2 LTS, l'hébergeur ne valide que les versions LTS : pas de `db_default`, pas de `GeneratedField`, rien de ce qui arrive avec la 5.
+-- The code must run under Python 3.8, the version of the production server: no `match`, no `X | Y` in annotations, no `str.removeprefix`.
+-- Stay on the Django 4.2 LTS APIs, the host only validates LTS versions: no `db_default`, no `GeneratedField`, nothing that comes with 5.
 -
--## Règles du projet
+-## Project rules
 -
--- **E-mails.** Aucun envoi d'e-mail dans un signal `post_save` ni dans `save()` : un signal part à chaque sauvegarde, d'où qu'elle vienne. L'envoi est un appel explicite depuis `enrollments/services.py`, après le commit. Un traitement en masse (import, commande de gestion, action d'admin) n'envoie jamais un e-mail par ligne. Depuis l'incident de mars 2024, 4 312 e-mails en onze minutes et le compte SMTP suspendu : `docs/postmortems/2024-03-confirmations-en-masse.md`.
--- **Capacité.** Toute inscription passe par `enrollments.services.enroll()`, qui verrouille la session (`select_for_update`) avant de compter les places. Ne crée jamais une `Enrollment` confirmée à la main, ni dans une vue ni dans un script. Depuis l'incident de septembre 2024, quinze confirmés pour douze places : `docs/postmortems/2024-09-session-surbookee.md`.
--- **Migrations appliquées.** Une migration déjà appliquée ne se modifie jamais, on en ajoute une nouvelle. Vérifié par : le job `frozen-migrations` de la CI, qui refuse toute PR touchant un fichier de migration existant.
--- **Migrations oubliées.** Après tout changement de modèle, lance `makemigrations` et commite le fichier généré. Relis ta PR avant de la proposer : une migration oubliée casse le déploiement.
--- **Requêtes.** Une page de liste ne fait pas une requête par ligne : `select_related` et `annotate` dans la vue, jamais un `count()` ni une relation suivie dans le template. Avant de proposer une PR qui touche une liste, ouvre la page avec django-debug-toolbar et compte les requêtes.
--- **Dates.** `timezone.now()`, jamais `datetime.now()` : le projet est en `USE_TZ = True`.
--- **Services.** La logique métier vit dans `services.py`, pas dans les vues, les modèles ni les templates : `docs/adr/0001-logique-metier-dans-les-services.md`.
+-- **E-mails.** No e-mail is sent in a `post_save` signal nor in `save()`: a signal fires on every save, wherever it comes from. Sending is an explicit call from `enrollments/services.py`, after the commit. A bulk job (import, management command, admin action) never sends one e-mail per row. Since the incident of March 2024, 4,312 e-mails in eleven minutes and the SMTP account suspended: `docs/postmortems/2024-03-bulk-confirmations.md`.
+-- **Capacity.** Every enrollment goes through `enrollments.services.enroll()`, which locks the session (`select_for_update`) before counting the seats. Never create a confirmed `Enrollment` by hand, neither in a view nor in a script. Since the incident of September 2024, fifteen confirmed for twelve seats: `docs/postmortems/2024-09-overbooked-session.md`.
+-- **Applied migrations.** A migration already applied is never modified, a new one is added. Enforced by: the CI job `frozen-migrations`, which rejects any PR touching an existing migration file.
+-- **Forgotten migrations.** After any model change, run `makemigrations` and commit the generated file. Reread your PR before proposing it: a forgotten migration breaks the deployment.
+-- **Queries.** A list page does not run one query per row: `select_related` and `annotate` in the view, never a `count()` nor a followed relation in the template. Before proposing a PR that touches a list, open the page with django-debug-toolbar and count the queries.
+-- **Dates.** `timezone.now()`, never `datetime.now()`: the project is in `USE_TZ = True`.
+-- **Services.** Business logic lives in `services.py`, not in views, models nor templates: `docs/adr/0001-business-logic-in-services.md`.
 -
 -## Git
 -
--- Une branche par sujet, une PR vers `main`.
--- Messages de commit en français, à l'impératif.
-+# Cursus — instructions pour les agents
+-- One branch per topic, one PR to `main`.
+-- Commit messages in French, in the imperative.
++# Cursus — instructions for agents
 +
-+Mode : **délégation**. Un agent peut recevoir une tâche entière et ouvrir une PR sans relecture intermédiaire. Ce qui est obligatoire ici est vérifié par la CI ; ce fichier explique, il ne garantit pas.
++Mode: **delegation**. An agent may receive a whole task and open a PR without intermediate review. What is mandatory here is verified by the CI; this file explains, it does not guarantee.
 +
-+## Ce que fait ce repo
-+Inscriptions aux sessions de formation d'un organisme. Décisions dans `docs/adr/`, incidents dans `docs/postmortems/`, déploiement et environnements dans `docs/exploitation.md` : lis le post-mortem d'une zone avant d'y toucher.
++## What this repo does
++Enrollments in the training sessions of an organisation. Decisions in `docs/adr/`, incidents in `docs/postmortems/`, deployment and environments in `docs/operations.md`: read the post-mortem of a zone before touching it.
 +
-+## Règles
-+- Réponds en français ; le code, ses noms et ses docstrings sont en anglais ; messages de commit en français, à l'impératif. Pourquoi : convention de l'équipe, pas d'incident connu. (non vérifiée) [2026-11]
-+- E-mails : aucun envoi dans un signal ni dans `save()` ; l'envoi est un appel explicite depuis `enrollments/services.py`, après le commit (`transaction.on_commit`), les messages vivent dans `enrollments/notifications.py`. Un traitement en masse (import, commande de gestion, action d'admin) n'envoie jamais un e-mail par ligne : `services.enroll()` envoie toujours, donc un traitement en masse ne l'appelle pas tel quel. Pourquoi : incident de mars 2024, 4 312 e-mails en onze minutes et compte SMTP suspendu 36 h (`docs/postmortems/2024-03-confirmations-en-masse.md`). (non vérifiée) [2024-03]
-+- Capacité : toute inscription se crée par `enrollments.services.enroll()`, qui verrouille la session (`select_for_update`) avant de compter ; jamais d'`Enrollment` confirmée écrite à la main (vue, script, `bulk_create`). Le formulaire d'ajout de l'admin (`enrollments/admin.py`) le permet encore : contre-exemple, pas modèle. Les tests tournent sous SQLite, qui ignore le verrou : un test vert ne prouve pas la concurrence. Pourquoi : incident de septembre 2024, quinze confirmés pour douze places (`docs/postmortems/2024-09-session-surbookee.md`). (non vérifiée) [2024-09]
-+- Pages de liste : pas de requête par ligne (`annotate`, `select_related` dans la vue ; jamais un `count()` ni une relation suivie dans le template). Si `catalog/tests/test_queries.py` casse, corrige la vue, ne change pas le nombre attendu. Pourquoi : incident de juin 2025, page d'accueil à 14 s et 25 min d'erreurs (`docs/postmortems/2025-06-liste-des-sessions.md`). Vérifiée par : catalog/tests/test_queries.py [2025-06]
-+- Un traitement lancé depuis une page (import de fichier, action de masse) traite au plus `settings.CURSUS_IMPORT_MAX_ROWS` lignes, 500 par défaut ; au-delà, le fichier entier est refusé, rien n'est enregistré. Le plafond se lit toujours dans ce réglage, jamais en dur : l'hébergeur doit pouvoir le baisser sans nous. Le réglage n'existe pas encore ; le premier traitement de ce genre le crée. Pourquoi : dit par l'équipe, l'hébergeur coupe toute requête à 30 s (accord de février 2025). (non vérifiée) [2025-02]
-+- La logique métier (places, liste d'attente, annulation) vit dans le `services.py` de son application ; vues et actions d'admin appellent un service, les modèles et templates n'en portent pas. Pourquoi : `docs/adr/0001-logique-metier-dans-les-services.md`, pas d'incident connu. (non vérifiée) [2023-11]
-+- Dates : `timezone.now()`, jamais `datetime.now()`. Pourquoi : `USE_TZ = True`, pas d'incident connu. (non vérifiée) [2026-11]
++## Rules
++- Answer in French; the code, its names and its docstrings are in English; commit messages in French, in the imperative. Why: team convention, no known incident. (unverified) [2026-11]
++- E-mails: no sending in a signal nor in `save()`; sending is an explicit call from `enrollments/services.py`, after the commit (`transaction.on_commit`), the messages live in `enrollments/notifications.py`. A bulk job (import, management command, admin action) never sends one e-mail per row: `services.enroll()` always sends, so a bulk job does not call it as is. Why: incident of March 2024, 4,312 e-mails in eleven minutes and SMTP account suspended for 36 h (`docs/postmortems/2024-03-bulk-confirmations.md`). (unverified) [2024-03]
++- Capacity: every enrollment is created through `enrollments.services.enroll()`, which locks the session (`select_for_update`) before counting; never a confirmed `Enrollment` written by hand (view, script, `bulk_create`). The add form of the admin (`enrollments/admin.py`) still allows it: counter-example, not a model. The tests run under SQLite, which ignores the lock: a green test does not prove concurrency. Why: incident of September 2024, fifteen confirmed for twelve seats (`docs/postmortems/2024-09-overbooked-session.md`). (unverified) [2024-09]
++- List pages: no query per row (`annotate`, `select_related` in the view; never a `count()` nor a followed relation in the template). If `catalog/tests/test_queries.py` breaks, fix the view, do not change the expected number. Why: incident of June 2025, home page at 14 s and 25 min of errors (`docs/postmortems/2025-06-session-list.md`). Enforced by: catalog/tests/test_queries.py [2025-06]
++- A job started from a page (file import, bulk action) handles at most `settings.CURSUS_IMPORT_MAX_ROWS` rows, 500 by default; beyond that, the whole file is refused, nothing is saved. The cap is always read from this setting, never hard-coded: the host must be able to lower it without us. The setting does not exist yet; the first job of this kind creates it. Why: told by the team, the host cuts any request at 30 s (agreement of February 2025). (unverified) [2025-02]
++- Business logic (seats, waiting list, cancellation) lives in the `services.py` of its application; views and admin actions call a service, models and templates carry none. Why: `docs/adr/0001-business-logic-in-services.md`, no known incident. (unverified) [2023-11]
++- Dates: `timezone.now()`, never `datetime.now()`. Why: `USE_TZ = True`, no known incident. (unverified) [2026-11]
 +
-+## Interdits
-+- Modifier une migration existante : on en ajoute toujours une nouvelle. Pourquoi : `migrate` tourne à chaque fusion sur `main` sans relecture ; Django retient le nom d'une migration, pas son contenu, donc la production garderait l'ancien schéma pendant que les tests passent (`docs/exploitation.md`). Aucun job de CI ne le refuse aujourd'hui. [2024-01]
-+- Envoyer un vrai e-mail depuis autre chose que la production : ne jamais renseigner `CURSUS_EMAIL_BACKEND` ou `CURSUS_SMTP_*` hors production, même pour essayer un message. Pourquoi : le prestataire suspend le compte, incident de mars 2024. [2024-03]
-+- Sortir du serveur des données personnelles d'inscrits : pas de copie de la base de production, pas de vraie adresse ni de vrai nom dans le dépôt, les fixtures, les logs, une issue ou une PR. Pour reproduire, crée des données fictives. Pourquoi : dit par l'équipe, `docs/exploitation.md`. [2026-11]
++## Forbidden
++- Modifying an existing migration: a new one is always added. Why: `migrate` runs on every merge into `main` without review; Django remembers the name of a migration, not its content, so production would keep the old schema while the tests pass (`docs/operations.md`). No CI job rejects it today. [2024-01]
++- Sending a real e-mail from anything other than production: never set `CURSUS_EMAIL_BACKEND` or `CURSUS_SMTP_*` outside production, even to try a message. Why: the provider suspends the account, incident of March 2024. [2024-03]
++- Taking personal data of enrolled people out of the server: no copy of the production database, no real address nor real name in the repository, the fixtures, the logs, an issue or a PR. To reproduce, create fictional data. Why: told by the team, `docs/operations.md`. [2026-11]
 diff --git a/CLAUDE.md b/CLAUDE.md
-index ec27419..43c994c 100644
+index 1dae98a..43c994c 100644
 --- a/CLAUDE.md
 +++ b/CLAUDE.md
 @@ -1,23 +1 @@
 -# CLAUDE.md
 -
--Notes pour Claude Code sur Cursus. L'essentiel d'AGENTS.md, en plus court.
+-Notes for Claude Code on Cursus. The essentials of AGENTS.md, shorter.
 -
--## Commandes
+-## Commands
 -
 -```bash
--python manage.py test                  # tout
--python manage.py test enrollments      # une application
+-python manage.py test                  # everything
+-python manage.py test enrollments      # one application
 -python manage.py runserver
 -```
 -
--## À savoir
+-## Good to know
 -
--- Réponds en français, code en anglais.
--- PEP 8, noms clairs, une docstring par fonction publique.
--- Python 3.8 sur le serveur : pas de `match`, pas de `X | Y`.
--- E-mails : toute inscription créée envoie sa confirmation, par `enrollments/notifications.py`. Pas de signal.
--- Capacité : une inscription se crée avec `services.enroll()`, jamais directement.
--- Migrations : ne modifie jamais une migration existante, la CI le refuse (job `frozen-migrations`).
--- Listes : pas de requête par ligne. `catalog/tests/test_queries.py` compte les requêtes des pages de liste ; ne change pas le nombre attendu pour faire passer un test.
--- Dates : `timezone.now()`.
--- Les PR visent `main`.
+-- Answer in French, code in English.
+-- PEP 8, clear names, a docstring per public function.
+-- Python 3.8 on the server: no `match`, no `X | Y`.
+-- E-mails: every enrollment created sends its confirmation, through `enrollments/notifications.py`. No signal.
+-- Capacity: an enrollment is created with `services.enroll()`, never directly.
+-- Migrations: never modify an existing migration, the CI rejects it (job `frozen-migrations`).
+-- Lists: no query per row. `catalog/tests/test_queries.py` counts the queries of the list pages; do not change the expected number to make a test pass.
+-- Dates: `timezone.now()`.
+-- PRs target `main`.
 +@AGENTS.md

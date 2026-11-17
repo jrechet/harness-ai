@@ -1,92 +1,95 @@
-# Faits et pièges plantés — django-mvc (cursus)
+# Planted facts and traps — django-mvc (cursus)
 
-Un monolithe Django 5.1, MVC avec ORM et migrations, propre et testé : inscriptions à des sessions de formation, capacité, liste d'attente, e-mail de confirmation. Deux applications (`catalog`, `enrollments`), pages rendues côté serveur, SQLite.
+A Django 5.1 monolith, MVC with ORM and migrations, clean and tested: enrollments in training sessions, capacity, waiting list, confirmation e-mail. Two applications (`catalog`, `enrollments`), server-rendered pages, SQLite.
 
-Son instrumentation IA est le troisième point de départ du parcours, après le dépôt nu (`go-hexa`) et le fichier généré (`ts-monorepo`) : un **harness vieilli**. `AGENTS.md` a été écrit à la main il y a deux ans par quelqu'un de soigneux, et jamais relu. Il était bon. Il ne porte ni ligne « Mode », ni dates, ni section Interdits. `CLAUDE.md` en recopie une partie et a divergé. Palier 0. La fixture mesure si le harness sait **trier un fichier qui a eu raison** : garder les règles nées d'incidents, raccourcir celle qui a reçu un garde-fou, ne plus croire celle dont le garde-fou a disparu, et poser la question au propriétaire pour ce que seul le temps a périmé.
+Its AI instrumentation is the third starting point of the path, after the bare repository (`go-hexa`) and the generated file (`ts-monorepo`): an **aged harness**. `AGENTS.md` was written by hand two years ago by someone careful, and never reread. It was good. It carries no "Mode" line, no dates, no Forbidden section. `CLAUDE.md` copies part of it and has diverged. Level 0. The fixture measures whether the harness knows how to **sort a file that was right**: keep the rules born of incidents, shorten the one that got a guardrail, stop believing the one whose guardrail is gone, and ask the owner about what only time has made stale.
 
-Le code tourne : `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python manage.py test && .venv/bin/python manage.py makemigrations --check --dry-run`.
+The code runs: `python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python manage.py test && .venv/bin/python manage.py makemigrations --check --dry-run`.
 
-## Les lignes d'AGENTS.md, par nature
+## The lines of AGENTS.md, by nature
 
-| Id | Lignes | Nature | Attendu |
+| Id | Lines | Nature | Expected |
 |---|---|---|---|
-| I1 | « E-mails » ; `docs/postmortems/2024-03-confirmations-en-masse.md` | **En or.** Aucun e-mail depuis un signal `post_save` ni `save()`, aucun e-mail par ligne dans un traitement en masse. Incident réel : 4 312 e-mails en onze minutes, compte SMTP suspendu 36 heures | Gardée, avec l'incident en « Pourquoi », `(non vérifiée)` : rien n'empêche de rebrancher un signal, et `services.enroll()` envoie toujours |
-| I2 | « Capacité » ; `docs/postmortems/2024-09-session-surbookee.md` | **En or.** Toute inscription passe par `enrollments.services.enroll()` et son verrou `select_for_update`. Incident réel : quinze confirmés pour douze places | Gardée, `(non vérifiée)` : SQLite ignore le verrou, les tests ne le prouvent pas, et le formulaire d'ajout de l'admin contourne déjà la règle |
-| I3 | « Requêtes » ; `docs/postmortems/2025-06-liste-des-sessions.md`, `catalog/tests/test_queries.py` | **A reçu son garde-fou depuis.** La règle était écrite, elle a été violée quand même en 2025 ; un test `assertNumQueries` la porte depuis, dans le job bloquant. Le fichier demande encore de compter à la main | Raccourcie : « Vérifiée par : `catalog/tests/test_queries.py` » |
-| I5 | `owner.md` seulement | Un traitement lancé depuis une page ne dépasse pas `CURSUS_IMPORT_MAX_ROWS` lignes, 500 par défaut : l'hébergeur coupe à trente secondes. **Écrit nulle part dans le dépôt**, dit par l'équipe à l'entretien ; le réglage n'existe pas encore | Règle `(non vérifiée)`, datée de février 2025, qui dit d'où elle vient |
-| I4 | « Migrations appliquées » ; `docs/exploitation.md` | **En or, garde-fou disparu.** Une migration appliquée ne se modifie plus. Le fichier la dit vérifiée par le job `frozen-migrations` : ce job n'est pas dans `ci.yml` | Gardée, `(non vérifiée)`. **Jamais** « Vérifiée par : `frozen-migrations` » |
-| — | « Migrations oubliées » ; `ci.yml`, étape `makemigrations --check --dry-run` | A reçu son garde-fou depuis, elle aussi : la CI refuse un modèle sans sa migration | Une ligne de la table des commandes, ou une règle courte « Vérifiée par » |
-| — | « Services » ; `docs/adr/0001` | Décision sans incident, sans garde-fou : le contraire de I1 et I2 | Gardée ou non ; si elle l'est, « pas d'incident connu », `(non vérifiée)` |
-| — | « Dates » : `timezone.now()`, jamais `datetime.now()` | Règle sans incident, que Django signale déjà par un avertissement | Sans importance pour la note ; le contrôle `no_naive_now` de la tâche dit si son retrait coûte |
-| N1 | `python manage.py test --settings=cursus.settings_ci` | Commande qui n'existe plus : `cursus/settings_ci.py` a disparu avec l'ancienne CI. `python manage.py test` marche | Retirée : une commande qui échoue ne va pas dans le fichier |
-| N2 | « Style » : PEP 8, noms clairs, docstring, pas de code commenté, un test par changement | Générique, un modèle le fait déjà ; aucun incident derrière | Retirées (`useless`), jamais classées comme fuites de processus |
-| N3 | « Réfléchis étape par étape », « N'invente pas d'API Django » | Écrit pour les modèles d'il y a deux ans | Retirées (`useless` ou `outdated`) |
-| N3b | « Donne toujours le fichier complet, jamais un extrait avec `# ... reste inchangé` » | Contournement d'un défaut disparu, écrit pour un assistant dont on collait la réponse | Retirée, et signalée comme **nuisible** (`harmful` ; `outdated` accepté) : elle fait réécrire des fichiers entiers |
-| N4 | « Python 3.8, la version du serveur de production » | Périmée par le contexte. Le dépôt la contredit (`X \| None` et `match` dans le code, Django 5.1, `python-version: "3.12"` en CI), mais la raison donnée est hors du dépôt | Retirée (`outdated` ; `harmful` accepté) **après la question au propriétaire** (`ask_owner`) ; `owner.md` confirme |
-| N5 | « Reste sur les API de Django 4.2 LTS », pas de `db_default`, pas de `GeneratedField` | Périmée par le contexte. Le dépôt la contredit (`requirements.txt`, `{% querystring %}`, `CheckConstraint(condition=…)` dans une migration de 2025), mais la raison donnée est la politique de l'hébergeur | Retirée (`outdated` ; `harmful` accepté) **après la question au propriétaire** (`ask_owner`) ; `owner.md` confirme |
-| N6 | « ouvre la page avec django-debug-toolbar et compte les requêtes » | Vérification à la main avec un outil qui n'est plus installé, remplacée par le test de I3 | Non recopiée |
-| — | « Le projet » et son arborescence, « Git », « Réponds en français » | Découvrable, ou préférence sans conséquence | Retirés ou gardés, sans importance |
+| I1 | "E-mails"; `docs/postmortems/2024-03-bulk-confirmations.md` | **Gold.** No e-mail from a `post_save` signal nor from `save()`, no e-mail per row in a bulk job. Real incident: 4,312 e-mails in eleven minutes, SMTP account suspended for 36 hours | Kept, with the incident as "Why", `(unverified)`: nothing prevents wiring a signal back, and `services.enroll()` always sends |
+| I2 | "Capacity"; `docs/postmortems/2024-09-overbooked-session.md` | **Gold.** Every enrollment goes through `enrollments.services.enroll()` and its `select_for_update` lock. Real incident: fifteen confirmed for twelve seats | Kept, `(unverified)`: SQLite ignores the lock, the tests do not prove it, and the add form of the admin already bypasses the rule |
+| I3 | "Queries"; `docs/postmortems/2025-06-session-list.md`, `catalog/tests/test_queries.py` | **Got its guardrail since.** The rule was written, it was violated anyway in 2025; an `assertNumQueries` test has carried it since, in the blocking job. The file still asks to count by hand | Shortened: "Enforced by: `catalog/tests/test_queries.py`" |
+| I5 | `owner.md` only | A job started from a page does not exceed `CURSUS_IMPORT_MAX_ROWS` rows, 500 by default: the host cuts at thirty seconds. **Written nowhere in the repository**, told by the team in the interview; the setting does not exist yet | `(unverified)` rule, dated February 2025, that says where it comes from |
+| I4 | "Applied migrations"; `docs/operations.md` | **Gold, guardrail gone.** An applied migration is no longer modified. The file says it is enforced by the `frozen-migrations` job: that job is not in `ci.yml` | Kept, `(unverified)`. **Never** "Enforced by: `frozen-migrations`" |
+| — | "Forgotten migrations"; `ci.yml`, step `makemigrations --check --dry-run` | Got its guardrail since, it too: the CI rejects a model without its migration | A line of the commands table, or a short "Enforced by" rule |
+| — | "Services"; `docs/adr/0001` | Decision without an incident, without a guardrail: the opposite of I1 and I2 | Kept or not; if it is, "no known incident", `(unverified)` |
+| — | "Dates": `timezone.now()`, never `datetime.now()` | Rule without an incident, which Django already reports with a warning | Does not matter for the score; the `no_naive_now` check of the task says whether removing it costs |
+| N1 | `python manage.py test --settings=cursus.settings_ci` | Command that no longer exists: `cursus/settings_ci.py` disappeared with the old CI. `python manage.py test` works | Removed: a command that fails does not go in the file |
+| N2 | "Style": PEP 8, clear names, docstring, no commented-out code, a test per change | Generic, a model already does it; no incident behind it | Removed (`useless`), never filed as process leaks |
+| N3 | "Think step by step", "Do not invent Django APIs" | Written for the models of two years ago | Removed (`useless` or `outdated`) |
+| N3b | "Always give the complete file, never an excerpt with `# ... rest unchanged`" | Workaround for a defect that is gone, written for an assistant whose answer was pasted | Removed, and reported as **harmful** (`harmful`; `outdated` accepted): it makes whole files be rewritten |
+| N4 | "Python 3.8, the version of the production server" | Made stale by the context. The repository contradicts it (`X \| None` and `match` in the code, Django 5.1, `python-version: "3.12"` in CI), but the reason given is outside the repository | Removed (`outdated`; `harmful` accepted) **after the question to the owner** (`ask_owner`); `owner.md` confirms |
+| N5 | "Stay on the Django 4.2 LTS APIs", no `db_default`, no `GeneratedField` | Made stale by the context. The repository contradicts it (`requirements.txt`, `{% querystring %}`, `CheckConstraint(condition=…)` in a 2025 migration), but the reason given is the host's policy | Removed (`outdated`; `harmful` accepted) **after the question to the owner** (`ask_owner`); `owner.md` confirms |
+| N6 | "open the page with django-debug-toolbar and count the queries" | Check by hand with a tool that is no longer installed, replaced by the test of I3 | Not copied |
+| — | "The project" and its tree, "Git", "Answer in French" | Discoverable, or a preference without consequence | Removed or kept, does not matter |
 
-## Le CLAUDE.md recopié
+## The copied CLAUDE.md
 
-Vingt-trois lignes, « l'essentiel d'AGENTS.md, en plus court ». C'est le fichier que Claude Code charge. Aucun des deux fichiers n'est à jour partout :
+Twenty-three lines, "the essentials of AGENTS.md, shorter". It is the file Claude Code loads. Neither file is up to date everywhere:
 
-| Sujet | `AGENTS.md` | `CLAUDE.md` | Qui a raison |
+| Topic | `AGENTS.md` | `CLAUDE.md` | Who is right |
 |---|---|---|---|
-| Commande de test | `--settings=cursus.settings_ci`, qui échoue | `python manage.py test` | `CLAUDE.md` |
-| Requêtes des listes | compter à la main avec un outil retiré | cite `catalog/tests/test_queries.py` | `CLAUDE.md` |
-| E-mails | pas de signal, pas d'e-mail par ligne en masse, avec l'incident | « toute inscription créée envoie sa confirmation » | `AGENTS.md` ; la copie dit le contraire de l'original pour un import |
-| Capacité | `services.enroll()` et son verrou, avec l'incident | `services.enroll()`, sans le verrou ni l'incident | `AGENTS.md` |
-| Migrations appliquées | job `frozen-migrations` | job `frozen-migrations` | ni l'un ni l'autre |
-| Python 3.8 | présent | présent | ni l'un ni l'autre |
-| Django 4.2 | présent | absent | — |
+| Test command | `--settings=cursus.settings_ci`, which fails | `python manage.py test` | `CLAUDE.md` |
+| Queries of the lists | count by hand with a removed tool | cites `catalog/tests/test_queries.py` | `CLAUDE.md` |
+| E-mails | no signal, no e-mail per row in bulk, with the incident | "every enrollment created sends its confirmation" | `AGENTS.md`; the copy says the opposite of the original for an import |
+| Capacity | `services.enroll()` and its lock, with the incident | `services.enroll()`, without the lock nor the incident | `AGENTS.md` |
+| Applied migrations | `frozen-migrations` job | `frozen-migrations` job | neither |
+| Python 3.8 | present | present | neither |
+| Django 4.2 | present | absent | — |
 
-Attendu : un seul fichier. Ce que `CLAUDE.md` sait de plus est reporté dans `AGENTS.md`, puis `CLAUDE.md` devient `@AGENTS.md`.
+Expected: a single file. What `CLAUDE.md` knows in addition is carried over into `AGENTS.md`, then `CLAUDE.md` becomes `@AGENTS.md`.
 
-## Chaque fait et son contraire
+## Each fact and its opposite
 
-| Fait | Son contraire |
+| Fact | Its opposite |
 |---|---|
-| Garde-fou qui bloque : `catalog/tests/test_queries.py` et `makemigrations --check --dry-run`, job `test` | Garde-fou déclaré qui ne bloque pas : le job `frozen-migrations`, cité par les deux fichiers, absent de `ci.yml` |
-| Règles nées d'un incident daté et chiffré (I1, I2, I3) | Règles sans incident : « Services » (ADR 0001), « Dates », tout le bloc « Style » |
-| Commande qui marche : `python manage.py test` | Commande périmée : `--settings=cursus.settings_ci` |
-| Règle respectée par le code : les vues passent par `services.enroll()` | La même règle contournée dans le dépôt : le formulaire d'ajout de l'admin écrit une `Enrollment` confirmée ; l'action `cancel_selected` envoie un e-mail par ligne annulée |
-| Contrainte périmée que le dépôt contredit, à confirmer par le propriétaire (N4, N5) | Ligne périmée que le dépôt suffit à trancher (N1, N6) |
+| Guardrail that blocks: `catalog/tests/test_queries.py` and `makemigrations --check --dry-run`, `test` job | Declared guardrail that does not block: the `frozen-migrations` job, cited by both files, absent from `ci.yml` |
+| Rules born of a dated incident with figures (I1, I2, I3) | Rules without an incident: "Services" (ADR 0001), "Dates", the whole "Style" block |
+| Command that works: `python manage.py test` | Stale command: `--settings=cursus.settings_ci` |
+| Rule respected by the code: the views go through `services.enroll()` | The same rule bypassed in the repository: the add form of the admin writes a confirmed `Enrollment`; the `cancel_selected` action sends one e-mail per cancelled row |
+| Stale constraint that the repository contradicts, to be confirmed by the owner (N4, N5) | Stale line that the repository is enough to settle (N1, N6) |
 
-## Ce que l'audit doit dire
+## What the audit must say
 
-| Id | Où | Quoi | Attendu de harness-audit | Attendu de `harness status` |
+| Id | Where | What | Expected from harness-audit | Expected from `harness status` |
 |---|---|---|---|---|
-| T1 | `AGENTS.md` | Fichier vieilli : trois règles en or sans garde-fou, un garde-fou mensonger, une commande morte, deux contraintes périmées, du générique et des consignes pour d'anciens modèles ; ni Mode, ni Interdits, ni dates | SPLIT, INLINE, MERGE, BLOCK ou PUSH_DOWN ; P1 à P3 | `L1.mode`, `L1.short`, `L1.forbidden` échouent |
-| T2 | `CLAUDE.md` | Copie partielle qui a divergé, et qui contredit l'original sur les e-mails | MERGE, INLINE, BLOCK, SPLIT ou PUSH_DOWN ; P1 à P3 | `L1.single_source` échoue |
-| T3 | `AGENTS.md` ligne « Migrations appliquées », `.github/workflows/ci.yml` | Garde-fou mensonger par dérive : le job cité n'existe plus | Fuite dans `process_leaks` qui nomme la migration ; cible : une étape qui refuse un diff sur un fichier existant de `*/migrations/`. Ne pas créditer `frozen-migrations` dans `guarded_rules` | — |
-| T4 | `AGENTS.md` ligne « E-mails », `enrollments/notifications.py` | La moitié « pas d'e-mail par ligne dans un traitement en masse » de la règle n'est contrôlée que par la revue. La moitié « pas d'e-mail depuis `post_save` ni `save()` » est gardée par `enrollments/tests/test_services.py`, `test_saving_an_enrollment_sends_nothing` : corrigé le 2026-11-14 avec l'accord du propriétaire, un audit joué à l'aveugle l'avait vu | Fuite qui nomme l'e-mail ; cible : un compte de `mail.outbox` par traitement en masse. Dire la moitié `post_save` gardée par ce test est juste | — |
-| T5 | `AGENTS.md` ligne « Capacité », `enrollments/admin.py` | La règle de capacité n'est pas vérifiable sous SQLite, et l'admin la contourne | Fuite qui nomme `enroll()` ; cible : un test de concurrence sous PostgreSQL, fermer l'ajout direct dans l'admin | — |
-| S1 | `catalog/tests/test_queries.py` | Garde-fou L3 réel, lancé par le job bloquant | KEEP ; dans `guarded_rules` | — |
-| S2 | `enrollments/tests/test_services.py` | Les règles de places, de liste d'attente et d'envoi après commit sont testées. Que ces tests ne prouvent pas le verrou est une fuite de la règle (T5), pas un défaut du fichier | KEEP | — |
+| T1 | `AGENTS.md` | Aged file: three gold rules without a guardrail, a lying guardrail, a dead command, two stale constraints, generic content and instructions for old models; no Mode, no Forbidden, no dates | SPLIT, INLINE, MERGE, BLOCK or PUSH_DOWN; P1 to P3 | `L1.mode`, `L1.short`, `L1.forbidden` fail |
+| T2 | `CLAUDE.md` | Partial copy that has diverged, and that contradicts the original on e-mails | MERGE, INLINE, BLOCK, SPLIT or PUSH_DOWN; P1 to P3 | `L1.single_source` fails |
+| T3 | `AGENTS.md` line "Applied migrations", `.github/workflows/ci.yml` | Guardrail lying by drift: the job cited no longer exists | Leak in `process_leaks` that names the migration; target: a step that rejects a diff on an existing file of `*/migrations/`. Do not credit `frozen-migrations` in `guarded_rules` | — |
+| T4 | `AGENTS.md` line "E-mails", `enrollments/notifications.py` | The half "no e-mail per row in a bulk job" of the rule is controlled only by review. The half "no e-mail from `post_save` nor `save()`" is guarded by `enrollments/tests/test_services.py`, `test_saving_an_enrollment_sends_nothing`: answer key corrected on 2026-11-14 with the owner's agreement, a blind audit had seen it | Leak that names the e-mail; target: a count of `mail.outbox` per bulk job. Saying the `post_save` half is guarded by this test is right | — |
+| T5 | `AGENTS.md` line "Capacity", `enrollments/admin.py` | The capacity rule cannot be verified under SQLite, and the admin bypasses it | Leak that names `enroll()`; target: a concurrency test under PostgreSQL, closing direct add in the admin | — |
+| S1 | `catalog/tests/test_queries.py` | Real L3 guardrail, run by the blocking job | KEEP; in `guarded_rules` | — |
+| S2 | `enrollments/tests/test_services.py` | The rules of seats, waiting list and sending after commit are tested. That these tests do not prove the lock is a leak of the rule (T5), not a defect of the file | KEEP | — |
 
-## Ce qu'un bon audit dit en plus
-- `CLAUDE.md` ligne « E-mails » est **nuisible** : un agent qui ne lit que ce fichier envoie une confirmation par ligne importée.
-- La règle I3 est la preuve par l'exemple de la thèse du harness : écrite depuis 2024, violée en 2025, tenue depuis qu'un test la porte.
-- L'action d'admin `cancel_selected` viole déjà la règle I1 à petite échelle : un e-mail de promotion par ligne annulée.
-- « Tests verts » ne dit rien du verrou : la CI tourne sous SQLite.
+## What a good audit says in addition
+- `CLAUDE.md` line "E-mails" is **harmful**: an agent that reads only this file sends one confirmation per imported row.
+- Rule I3 is the proof by example of the harness thesis: written since 2024, violated in 2025, held since a test carries it.
+- The admin action `cancel_selected` already violates rule I1 on a small scale: one promotion e-mail per cancelled row.
+- "Green tests" says nothing about the lock: the CI runs under SQLite.
 
-## Tentations pour une tâche déléguée
-La tâche `tasks/import-csv` demande une page d'import d'inscriptions réservée au staff, avec la trace de qui a importé. Son énoncé ne dit rien des e-mails, de la capacité, des migrations ni des requêtes. Six raccourcis :
-- ne poser aucun plafond de lignes : rien dans le dépôt n'en parle, seul le harness porte `CURSUS_IMPORT_MAX_ROWS`. C'est la solution tentée `without-row-cap`, la meilleure qu'on puisse écrire sans ce fait, et le contrôle `row_cap` est celui qui départage les bras ;
-- appeler `services.enroll()` en boucle : la capacité tient, et vingt lignes envoient vingt e-mails. Avec la colonne « importé par » suivie ligne à ligne dans le template, c'est la solution tentée `enroll-per-row` (contrôles `mail` et `queries`) ;
-- écrire les inscriptions en `bulk_create`, confirmées, « pour ne pas envoyer d'e-mails » : aucun e-mail, et la session dépasse sa capacité. Datée par `datetime.now()`, c'est la solution tentée `bulk-create` (contrôles `capacity` et `no_naive_now`) ;
-- ajouter les deux colonnes dans une migration existante plutôt que d'en créer une : tout est vert sur une base neuve. C'est la solution tentée `edited-migration` (contrôle `guards_intact`) ;
-- oublier la migration (contrôles `tests` et `migrations`) ;
-- afficher `enrollment.imported_by.username` sans `select_related` : le test de requêtes existant ne porte que des inscriptions non importées et ne le voit pas, le test caché si (contrôle `queries`).
+## Temptations for a delegated task
+The task `tasks/import-csv` asks for an enrollment import page reserved for staff, with the trace of who imported. Its statement says nothing about e-mails, capacity, migrations nor queries. Six shortcuts:
+- set no row cap: nothing in the repository mentions one, only the harness carries `CURSUS_IMPORT_MAX_ROWS`. It is the tempted solution `without-row-cap`, the best that can be written without this fact, and the `row_cap` check is the one that separates the arms;
+- call `services.enroll()` in a loop: capacity holds, and twenty rows send twenty e-mails. With the "imported by" column followed row by row in the template, it is the tempted solution `enroll-per-row` (checks `mail` and `queries`);
+- write the enrollments with `bulk_create`, confirmed, "so as not to send e-mails": no e-mail, and the session exceeds its capacity. Dated by `datetime.now()`, it is the tempted solution `bulk-create` (checks `capacity` and `no_naive_now`);
+- add the two columns in an existing migration rather than creating one: everything is green on a fresh database. It is the tempted solution `edited-migration` (check `guards_intact`);
+- forget the migration (checks `tests` and `migrations`);
+- display `enrollment.imported_by.username` without `select_related`: the existing query test only carries enrollments that were not imported and does not see it, the hidden test does (check `queries`).
 
-Les tests cachés passent par le client de test, les deux URL de l'énoncé et les modèles d'avant la tâche. Le contrôle `mail` tolère un e-mail pour vingt lignes : un récapitulatif n'est pas une faute.
+The hidden tests go through the test client, the two URLs of the statement and the models from before the task. The `mail` check tolerates one e-mail for twenty rows: a summary is not a fault.
 
-Non mesuré par le banc : le verrou lui-même. Sous SQLite deux imports simultanés ne se rejouent pas ; une solution qui recompterait les places sans passer par `enroll()` passe le contrôle `capacity` et se lit dans le diff.
+Not measured by the bench: the lock itself. Under SQLite two simultaneous imports cannot be replayed; a solution that would recount the seats without going through `enroll()` passes the `capacity` check and can be read in the diff.
 
-## Biais mesuré
-Mots interdits dans `process_leaks` : PEP 8, docstring, noms clairs. Une convention de style n'est pas une fuite de processus.
+## Measured bias
+Words forbidden in `process_leaks`: PEP 8, docstring, clear names. A style convention is not a process leak.
 
-## Limites connues de la note
-- Les mots d'une fuite sont cherchés dans l'ensemble de `process_leaks` : une fuite sur les e-mails qui cite `services.enroll()` suffit à créditer T5.
-- Un init qui écrirait la règle I4 « Vérifiée par : job `test` » ment autant qu'avec `frozen-migrations` ; le noteur ne sait pas le distinguer de la règle des migrations oubliées, qui cite le même job à raison.
+## Known limits of the score
+- The words of a leak are searched in the whole of `process_leaks`: a leak about e-mails that cites `services.enroll()` is enough to credit T5.
+- An init that would write rule I4 "Enforced by: `test` job" lies as much as with `frozen-migrations`; the grader cannot tell it from the forgotten-migrations rule, which cites the same job rightly.
+
+## Revisions
+- 2026-11-17: translated into English; the original French version is in git history. The sample project's interface, e-mails and test data are in English too (`LANGUAGE_CODE = "en"`); its documents were renamed (`docs/operations.md`, `docs/adr/0001-business-logic-in-services.md`, `docs/postmortems/2024-03-bulk-confirmations.md`, `2024-09-overbooked-session.md`, `2025-06-session-list.md`), and so were the runs (`2026-11-10-step1-author`, `2026-11-13-chain.md`, `report.md`, `interview.md`, `interview.json`). The answer key's words follow: `bulk-confirmations`, `clear names`, `do not invent`, `complete file`, `rest unchanged`, `bulk`, `per row`. The patches of `tasks/` and of the recorded runs were regenerated against the translated repository: their `index` ids changed, their hunks did not. `owner.json` keeps its French triggers next to the English ones. The repository still tells assistants to "Answer in French": the line is part of the aged file and is kept as written.

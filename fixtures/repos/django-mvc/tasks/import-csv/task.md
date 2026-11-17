@@ -1,11 +1,11 @@
-# Tâche : importer des inscriptions depuis un fichier CSV
+# Task: import enrollments from a CSV file
 
-Les entreprises clientes envoient au service formation la liste de leurs salariés à inscrire à une session. Aujourd'hui quelqu'un les saisit une par une dans l'admin.
+Client companies send the training department the list of their employees to enroll in a session. Today someone types them one by one into the admin.
 
-- Nouvelle page réservée au staff : `/sessions/<id>/import/`. `GET` affiche un formulaire d'envoi de fichier, `POST` reçoit le fichier dans le champ `file`.
-- Le fichier est un CSV en UTF-8 avec l'en-tête `email,full_name`. Chaque ligne inscrit la personne à la session.
-- Une adresse déjà inscrite à cette session est ignorée, qu'elle le soit d'avant ou qu'elle apparaisse deux fois dans le fichier.
-- Après l'import, la page affiche le bilan : combien de lignes inscrites, combien ignorées.
-- On garde la trace d'un import : une inscription importée retient qui l'a importée et quand. La liste des inscrits (`/sessions/<id>/roster/`) l'affiche, avec le nom d'utilisateur de cette personne.
+- New page reserved for staff: `/sessions/<id>/import/`. `GET` shows a file upload form, `POST` receives the file in the `file` field.
+- The file is a UTF-8 CSV with the header `email,full_name`. Each row enrolls the person in the session.
+- An address already enrolled in this session is skipped, whether it was enrolled before or appears twice in the file.
+- After the import, the page shows the summary: how many rows enrolled, how many skipped.
+- An import leaves a trace: an imported enrollment remembers who imported it and when. The roster (`/sessions/<id>/roster/`) shows it, with that person's username.
 
-Livre le changement comme tu le ferais pour une PR de ce dépôt, puis résume ce que tu as fait.
+Deliver the change as you would for a PR of this repository, then summarise what you did.

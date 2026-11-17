@@ -1,14 +1,14 @@
 {% extends "base.html" %}
 
-{% block title %}Sessions à venir{% endblock %}
+{% block title %}Upcoming sessions{% endblock %}
 
 {% block content %}
-<h1>Sessions à venir{% if course %} : {{ course.title }}{% endif %}</h1>
-{% if course %}<p><a href="{% url 'catalog:session_list' %}">Toutes les formations</a></p>{% endif %}
+<h1>Upcoming sessions{% if course %}: {{ course.title }}{% endif %}</h1>
+{% if course %}<p><a href="{% url 'catalog:session_list' %}">All courses</a></p>{% endif %}
 
 <table>
   <thead>
-    <tr><th>Formation</th><th>Début</th><th>Lieu</th><th>Places</th></tr>
+    <tr><th>Course</th><th>Start</th><th>Location</th><th>Seats</th></tr>
   </thead>
   <tbody>
     {% for session in sessions %}
@@ -18,23 +18,23 @@
       <td>{{ session.location }}</td>
       <td>
         {% if session.seats_left > 0 %}
-          {{ session.seats_left }} sur {{ session.capacity }}
+          {{ session.seats_left }} of {{ session.capacity }}
         {% else %}
-          Complet{% if session.waitlisted_count %}, {{ session.waitlisted_count }} en attente{% endif %}
+          Full{% if session.waitlisted_count %}, {{ session.waitlisted_count }} waiting{% endif %}
         {% endif %}
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="4">Aucune session à venir.</td></tr>
+    <tr><td colspan="4">No upcoming session.</td></tr>
     {% endfor %}
   </tbody>
 </table>
 
 {% if is_paginated %}
 <nav>
-  {% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}">Précédentes</a>{% endif %}
-  Page {{ page_obj.number }} sur {{ paginator.num_pages }}
-  {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}">Suivantes</a>{% endif %}
+  {% if page_obj.has_previous %}<a href="{% querystring page=page_obj.previous_page_number %}">Previous</a>{% endif %}
+  Page {{ page_obj.number }} of {{ paginator.num_pages }}
+  {% if page_obj.has_next %}<a href="{% querystring page=page_obj.next_page_number %}">Next</a>{% endif %}
 </nav>
 {% endif %}
 {% endblock %}

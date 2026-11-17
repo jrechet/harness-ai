@@ -18,14 +18,14 @@ def enroll(request, pk: int):
         try:
             enrollment = services.enroll(session, **form.cleaned_data)
         except services.AlreadyEnrolled:
-            form.add_error("email", "Cette adresse est déjà inscrite à cette session.")
+            form.add_error("email", "This address is already enrolled in this session.")
         except services.SessionClosed:
-            form.add_error(None, "Les inscriptions à cette session sont closes.")
+            form.add_error(None, "Enrollment for this session is closed.")
         else:
             if enrollment.status == Enrollment.Status.CONFIRMED:
-                messages.success(request, "Inscription confirmée. Un e-mail de confirmation vous a été envoyé.")
+                messages.success(request, "Enrollment confirmed. A confirmation e-mail has been sent to you.")
             else:
-                messages.info(request, "La session est complète : vous êtes sur liste d'attente.")
+                messages.info(request, "The session is full: you are on the waiting list.")
             return redirect(session)
     return render(request, "catalog/session_detail.html", {"session": session, "form": form})
 
@@ -42,5 +42,5 @@ def cancel(request, pk: int):
     enrollment = get_object_or_404(Enrollment, pk=pk)
     promoted = services.cancel(enrollment)
     if promoted is not None:
-        messages.info(request, f"{promoted.full_name} passe de la liste d'attente aux inscrits.")
+        messages.info(request, f"{promoted.full_name} moves from the waiting list to the confirmed list.")
     return redirect("enrollments:roster", pk=enrollment.session_id)

@@ -1,7 +1,7 @@
 {
   "audit": {
-    "process": "cursus — instructions d'agent d'un monolithe Django, écrites à la main il y a deux ans",
-    "scope": "fixtures/repos/django-mvc/repo (AGENTS.md, CLAUDE.md, .github/workflows, tests garde-fous, admin, docs/)",
+    "process": "cursus — agent instructions of a Django monolith, written by hand two years ago",
+    "scope": "fixtures/repos/django-mvc/repo (AGENTS.md, CLAUDE.md, .github/workflows, guardrail tests, admin, docs/)",
     "date": "2026-11-10",
     "health_score": 51,
     "cut_the_agent_test": { "passed": false, "leaked_steps": 3 }
@@ -16,10 +16,10 @@
       "calls": ["wf-ci", "test-queries"],
       "verdict": "SPLIT",
       "priority": "P1",
-      "finding": "Fichier écrit avec soin et jamais relu : trois règles valent encore de l'or (e-mails, capacité, migrations appliquées), mais aucune n'a de garde-fou, l'une cite un job qui n'existe plus, la commande de test échoue, deux contraintes sont contredites par le dépôt, et un tiers du fichier est du générique ou des consignes d'une autre génération de modèles. Ni ligne Mode, ni Interdits, ni dates.",
+      "finding": "File written with care and never reread: three rules are still worth gold (e-mails, capacity, applied migrations), but none has a guardrail, one cites a job that no longer exists, the test command fails, two constraints are contradicted by the repository, and a third of the file is generic content or instructions for another generation of models. No Mode line, no Forbidden, no dates.",
       "evidence": ["AGENTS.md:30", "AGENTS.md:36-38", "AGENTS.md:43-47", "AGENTS.md:51-52", "AGENTS.md:56-58", "AGENTS.md:60", "requirements.txt:1", ".github/workflows/ci.yml:9"],
-      "target": "Un AGENTS.md de moins de 60 lignes : mode délégation, table de commandes confirmées, les règles avec leur incident et leur statut réel, une section Interdits. Les règles e-mails et capacité restent mot pour mot dans leur fond.",
-      "check": "harness status atteint le palier 1 ; chaque « Vérifiée par » désigne un fichier ou un job qui existe et qui bloque."
+      "target": "An AGENTS.md of fewer than 60 lines: delegation mode, table of confirmed commands, the rules with their incident and their real status, a Forbidden section. The e-mail and capacity rules stay word for word in substance.",
+      "check": "harness status reaches level 1; each \"Enforced by\" points to a file or a job that exists and that blocks."
     },
     {
       "id": "claude-md",
@@ -30,10 +30,10 @@
       "calls": ["test-queries"],
       "verdict": "MERGE",
       "priority": "P2",
-      "finding": "Copie partielle d'AGENTS.md qui a divergé : elle a la bonne commande de test et connaît le test de requêtes, qu'AGENTS.md ignore, mais sa version de la règle des e-mails dit le contraire de l'originale (« toute inscription créée envoie sa confirmation ») et elle répète le job disparu et Python 3.8. C'est le fichier que Claude Code charge.",
+      "finding": "Partial copy of AGENTS.md that has diverged: it has the right test command and knows the query test, which AGENTS.md ignores, but its version of the e-mail rule says the opposite of the original (\"every enrollment created sends its confirmation\") and it repeats the vanished job and Python 3.8. It is the file Claude Code loads.",
       "evidence": ["CLAUDE.md:8", "CLAUDE.md:17", "CLAUDE.md:18", "CLAUDE.md:20", "CLAUDE.md:21", "AGENTS.md:56"],
-      "target": "Un stub `@AGENTS.md` ; ce que CLAUDE.md sait de plus (commande de test, catalog/tests/test_queries.py) est reporté dans AGENTS.md.",
-      "check": "CLAUDE.md fait une ligne ; aucune règle n'existe en deux versions."
+      "target": "An `@AGENTS.md` stub; what CLAUDE.md knows in addition (test command, catalog/tests/test_queries.py) is carried over into AGENTS.md.",
+      "check": "CLAUDE.md is one line long; no rule exists in two versions."
     },
     {
       "id": "wf-ci",
@@ -44,10 +44,10 @@
       "calls": ["test-queries", "test-services"],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "Un job `test` bloquant, sain pour ce qu'il porte (makemigrations --check, tests). Le job `frozen-migrations` que citent AGENTS.md et CLAUDE.md n'y est pas : rien ne refuse la modification d'une migration appliquée.",
+      "finding": "A blocking `test` job, healthy for what it carries (makemigrations --check, tests). The `frozen-migrations` job that AGENTS.md and CLAUDE.md cite is not in it: nothing rejects the modification of an applied migration.",
       "evidence": [".github/workflows/ci.yml:9", ".github/workflows/ci.yml:19", "AGENTS.md:58", "CLAUDE.md:20"],
-      "target": "Une étape qui échoue quand le diff d'une PR modifie ou supprime un fichier existant sous */migrations/.",
-      "check": "Une PR qui retouche enrollments/migrations/0002 est rouge."
+      "target": "A step that fails when the diff of a PR modifies or deletes an existing file under */migrations/.",
+      "check": "A PR that touches up enrollments/migrations/0002 is red."
     },
     {
       "id": "admin-enrollment",
@@ -58,10 +58,10 @@
       "calls": ["services"],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "Le formulaire d'ajout de l'admin écrit une Enrollment confirmée sans passer par services.enroll() : la règle de capacité est déjà contournée dans le dépôt qui la déclare. L'action cancel_selected, elle, envoie un e-mail de promotion par ligne annulée.",
-      "evidence": ["enrollments/admin.py:8", "enrollments/admin.py:16", "docs/postmortems/2024-09-session-surbookee.md:19"],
-      "target": "has_add_permission à faux, ou un formulaire d'ajout qui appelle services.enroll().",
-      "check": "Un test d'admin : l'ajout direct d'une inscription confirmée dans une session pleine est refusé."
+      "finding": "The add form of the admin writes a confirmed Enrollment without going through services.enroll(): the capacity rule is already bypassed in the repository that declares it. The cancel_selected action, for its part, sends one promotion e-mail per cancelled row.",
+      "evidence": ["enrollments/admin.py:8", "enrollments/admin.py:16", "docs/postmortems/2024-09-overbooked-session.md:19"],
+      "target": "has_add_permission set to false, or an add form that calls services.enroll().",
+      "check": "An admin test: the direct add of a confirmed enrollment in a full session is refused."
     },
     {
       "id": "test-queries",
@@ -72,10 +72,10 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Garde-fou réel : nombre de requêtes fixé pour chaque page de liste, lancé par le job bloquant.",
+      "finding": "Real guardrail: number of queries pinned for each list page, run by the blocking job.",
       "evidence": ["catalog/tests/test_queries.py:18", "catalog/tests/test_queries.py:27", ".github/workflows/ci.yml:21"],
-      "target": "Inchangé.",
-      "check": "Un count() par ligne dans un template fait échouer le job test."
+      "target": "Unchanged.",
+      "check": "A count() per row in a template makes the test job fail."
     },
     {
       "id": "test-services",
@@ -86,72 +86,72 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Les règles de places, de liste d'attente et d'envoi après commit sont testées. Ces tests ne prouvent pas le verrou, SQLite l'ignore : c'est une fuite de la règle, pas un défaut du fichier.",
+      "finding": "The rules of seats, waiting list and sending after commit are tested. These tests do not prove the lock, SQLite ignores it: it is a leak of the rule, not a defect of the file.",
       "evidence": ["enrollments/tests/test_services.py:14", "enrollments/tests/test_services.py:69"],
-      "target": "Inchangé.",
-      "check": "Aucun."
+      "target": "Unchanged.",
+      "check": "None."
     }
   ],
   "process_leaks": [
     {
-      "rule": "Aucun e-mail depuis un signal post_save ni save() ; un traitement en masse n'envoie jamais un e-mail par ligne",
+      "rule": "No e-mail from a post_save signal nor save(); a bulk job never sends one e-mail per row",
       "told_in": "AGENTS.md:56",
-      "if_skipped": "Des milliers de messages et le compte SMTP suspendu, comme le 18 mars 2024 (docs/postmortems/2024-03-confirmations-en-masse.md). La règle est déjà violée à petite échelle par l'action d'admin cancel_selected, et CLAUDE.md:18 dit l'inverse.",
+      "if_skipped": "Thousands of messages and the SMTP account suspended, as on 18 March 2024 (docs/postmortems/2024-03-bulk-confirmations.md). The rule is already violated on a small scale by the admin action cancel_selected, and CLAUDE.md:18 says the reverse.",
       "belongs_in": "L3",
-      "guard_tool": "Un test qui échoue si un receveur est connecté à post_save d'un modèle du projet, et un test par traitement en masse qui compte mail.outbox"
+      "guard_tool": "A test that fails if a receiver is connected to post_save of a model of the project, and one test per bulk job that counts mail.outbox"
     },
     {
-      "rule": "Toute inscription passe par enrollments.services.enroll(), qui verrouille la session (select_for_update) avant de compter les places",
+      "rule": "Every enrollment goes through enrollments.services.enroll(), which locks the session (select_for_update) before counting the seats",
       "told_in": "AGENTS.md:57",
-      "if_skipped": "Plus de confirmés que de places, comme le 9 septembre 2024. Les tests tournent sous SQLite, qui ignore le verrou ; l'admin écrit déjà des inscriptions sans passer par le service.",
+      "if_skipped": "More confirmed than seats, as on 9 September 2024. The tests run under SQLite, which ignores the lock; the admin already writes enrollments without going through the service.",
       "belongs_in": "L3",
-      "guard_tool": "Un job PostgreSQL avec un test de concurrence sur enroll(), et un contrôle qui refuse Enrollment.objects.create et bulk_create hors de enrollments/services.py"
+      "guard_tool": "A PostgreSQL job with a concurrency test on enroll(), and a check that rejects Enrollment.objects.create and bulk_create outside enrollments/services.py"
     },
     {
-      "rule": "Une migration déjà appliquée ne se modifie jamais",
+      "rule": "A migration already applied is never modified",
       "told_in": "AGENTS.md:58",
-      "if_skipped": "La production garde l'ancien schéma alors que tout est vert ici. Le fichier dit la règle vérifiée par le job frozen-migrations, absent de .github/workflows/ci.yml : garde-fou mensonger par dérive.",
+      "if_skipped": "Production keeps the old schema while everything is green here. The file says the rule is enforced by the frozen-migrations job, absent from .github/workflows/ci.yml: guardrail lying by drift.",
       "belongs_in": "L4",
-      "guard_tool": "Une étape de ci.yml qui compare les fichiers existants de */migrations/ à la branche cible"
+      "guard_tool": "A step of ci.yml that compares the existing files of */migrations/ with the target branch"
     }
   ],
   "guarded_rules": [
     {
-      "rule": "Une page de liste ne fait pas une requête par ligne",
+      "rule": "A list page does not run one query per row",
       "told_in": "AGENTS.md:60",
-      "guarded_by": "catalog/tests/test_queries.py:18 et :27, job test (.github/workflows/ci.yml:21)"
+      "guarded_by": "catalog/tests/test_queries.py:18 and :27, test job (.github/workflows/ci.yml:21)"
     },
     {
-      "rule": "Un changement de modèle est livré avec le fichier que makemigrations génère",
+      "rule": "A model change is delivered with the file that makemigrations generates",
       "told_in": "AGENTS.md:59",
       "guarded_by": ".github/workflows/ci.yml:19 (makemigrations --check --dry-run)"
     }
   ],
   "removals": [
-    { "path": "AGENTS.md", "line": 43, "text": "Respecte PEP 8, lignes de 100 caractères au plus.", "reason": "useless", "ask_owner": false },
-    { "path": "AGENTS.md", "line": 44, "text": "Donne des noms clairs aux variables et aux fonctions.", "reason": "useless", "ask_owner": false },
-    { "path": "AGENTS.md", "line": 45, "text": "Une docstring pour chaque fonction publique.", "reason": "useless", "ask_owner": false },
-    { "path": "AGENTS.md", "line": 36, "text": "Réfléchis étape par étape et annonce ton plan avant d'écrire du code.", "reason": "useless", "ask_owner": false },
-    { "path": "AGENTS.md", "line": 37, "text": "N'invente pas d'API Django : si tu n'es pas sûr qu'une fonction existe, dis-le au lieu de deviner.", "reason": "outdated", "ask_owner": false },
-    { "path": "AGENTS.md", "line": 38, "text": "Donne toujours le fichier complet, jamais un extrait avec `# ... reste inchangé`", "reason": "harmful", "ask_owner": false },
-    { "path": "AGENTS.md", "line": 51, "text": "Le code doit tourner sous Python 3.8, la version du serveur de production", "reason": "outdated", "ask_owner": true },
-    { "path": "CLAUDE.md", "line": 17, "text": "Python 3.8 sur le serveur : pas de `match`, pas de `X | Y`.", "reason": "outdated", "ask_owner": true },
-    { "path": "AGENTS.md", "line": 52, "text": "Reste sur les API de Django 4.2 LTS, l'hébergeur ne valide que les versions LTS", "reason": "outdated", "ask_owner": true },
+    { "path": "AGENTS.md", "line": 43, "text": "Follow PEP 8, lines of 100 characters at most.", "reason": "useless", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 44, "text": "Give clear names to variables and functions.", "reason": "useless", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 45, "text": "A docstring for every public function.", "reason": "useless", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 36, "text": "Think step by step and announce your plan before writing code.", "reason": "useless", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 37, "text": "Do not invent Django APIs: if you are not sure a function exists, say so instead of guessing.", "reason": "outdated", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 38, "text": "Always give the complete file, never an excerpt with `# ... rest unchanged`", "reason": "harmful", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 51, "text": "The code must run under Python 3.8, the version of the production server", "reason": "outdated", "ask_owner": true },
+    { "path": "CLAUDE.md", "line": 17, "text": "Python 3.8 on the server: no `match`, no `X | Y`.", "reason": "outdated", "ask_owner": true },
+    { "path": "AGENTS.md", "line": 52, "text": "Stay on the Django 4.2 LTS APIs, the host only validates LTS versions", "reason": "outdated", "ask_owner": true },
     { "path": "AGENTS.md", "line": 30, "text": "python manage.py test --settings=cursus.settings_ci", "reason": "outdated", "ask_owner": false },
-    { "path": "CLAUDE.md", "line": 18, "text": "E-mails : toute inscription créée envoie sa confirmation, par `enrollments/notifications.py`. Pas de signal.", "reason": "harmful", "ask_owner": false }
+    { "path": "CLAUDE.md", "line": 18, "text": "E-mails: every enrollment created sends its confirmation, through `enrollments/notifications.py`. No signal.", "reason": "harmful", "ask_owner": false }
   ],
   "instruction_files": [
     { "path": "AGENTS.md", "loaded_lines": 67, "instruction_pct": 30, "reference_pct": 35, "noise_pct": 35, "justified_rules": false, "maintenance_clause": false },
     { "path": "CLAUDE.md", "loaded_lines": 23, "instruction_pct": 55, "reference_pct": 20, "noise_pct": 25, "justified_rules": false, "maintenance_clause": false }
   ],
   "remediation": [
-    { "order": 1, "priority": "P1", "verdict": "SPLIT", "element": "agents-md", "action": "Réécrire AGENTS.md au palier 1 : mode, commandes confirmées, règles avec incident et statut réel, Interdits ; retirer les lignes listées dans removals après les deux questions au propriétaire.", "depends_on": [], "check": "harness status au palier 1.", "needs_human_approval": true },
-    { "order": 2, "priority": "P2", "verdict": "MERGE", "element": "claude-md", "action": "Reporter dans AGENTS.md la commande de test et le test de requêtes, puis réduire CLAUDE.md à `@AGENTS.md`.", "depends_on": ["agents-md"], "check": "CLAUDE.md fait une ligne.", "needs_human_approval": true },
-    { "order": 3, "priority": "P2", "verdict": "PUSH_DOWN", "element": "wf-ci", "action": "Ajouter l'étape qui refuse la modification d'une migration existante.", "depends_on": [], "check": "Une PR qui retouche une migration appliquée est rouge.", "needs_human_approval": false },
-    { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "admin-enrollment", "action": "Fermer l'ajout direct d'une inscription dans l'admin, ou le faire passer par services.enroll().", "depends_on": [], "check": "Test d'admin sur une session pleine.", "needs_human_approval": false }
+    { "order": 1, "priority": "P1", "verdict": "SPLIT", "element": "agents-md", "action": "Rewrite AGENTS.md at level 1: mode, confirmed commands, rules with incident and real status, Forbidden; remove the lines listed in removals after the two questions to the owner.", "depends_on": [], "check": "harness status at level 1.", "needs_human_approval": true },
+    { "order": 2, "priority": "P2", "verdict": "MERGE", "element": "claude-md", "action": "Carry the test command and the query test over into AGENTS.md, then reduce CLAUDE.md to `@AGENTS.md`.", "depends_on": ["agents-md"], "check": "CLAUDE.md is one line long.", "needs_human_approval": true },
+    { "order": 3, "priority": "P2", "verdict": "PUSH_DOWN", "element": "wf-ci", "action": "Add the step that rejects the modification of an existing migration.", "depends_on": [], "check": "A PR that touches up an applied migration is red.", "needs_human_approval": false },
+    { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "admin-enrollment", "action": "Close the direct add of an enrollment in the admin, or route it through services.enroll().", "depends_on": [], "check": "Admin test on a full session.", "needs_human_approval": false }
   ],
   "unverified": [
-    "Le verrou select_for_update : aucune base PostgreSQL disponible, SQLite l'ignore.",
-    "La version de Python et de Django en production : déduites de requirements.txt et de ci.yml, à confirmer par le propriétaire."
+    "The select_for_update lock: no PostgreSQL database available, SQLite ignores it.",
+    "The version of Python and Django in production: deduced from requirements.txt and ci.yml, to be confirmed by the owner."
   ]
 }

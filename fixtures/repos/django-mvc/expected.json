@@ -28,15 +28,15 @@
     "must_surface": [
       {
         "id": "I1",
-        "what": "aucun e-mail depuis un signal, aucun e-mail par ligne dans un traitement en masse, avec l'incident de l'import",
+        "what": "no e-mail from a signal, no e-mail per row in a bulk job, with the incident of the import",
         "any_of": [
           "post_save",
-          "confirmations-en-masse"
+          "bulk-confirmations"
         ]
       },
       {
         "id": "I2",
-        "what": "toute inscription passe par services.enroll() et son verrou, avec l'incident de la session surbookée",
+        "what": "every enrollment goes through services.enroll() and its lock, with the incident of the overbooked session",
         "any_of": [
           "select_for_update",
           "services.enroll",
@@ -45,7 +45,7 @@
       },
       {
         "id": "I3",
-        "what": "pas de requête par ligne dans une liste, et le test qui le garantit depuis 2025",
+        "what": "no query per row in a list, and the test that has guaranteed it since 2025",
         "any_of": [
           "test_queries",
           "assertnumqueries"
@@ -53,14 +53,14 @@
       },
       {
         "id": "I4",
-        "what": "une migration appliquée ne se modifie plus",
+        "what": "an applied migration is no longer modified",
         "any_of": [
           "migration"
         ]
       },
       {
         "id": "I5",
-        "what": "plafond de lignes d'un traitement lancé depuis une page, dit par l'équipe et écrit nulle part ailleurs",
+        "what": "row cap of a job started from a page, told by the team and written nowhere else",
         "any_of": [
           "cursus_import_max_rows"
         ],
@@ -72,7 +72,7 @@
     "must_not_write": [
       {
         "id": "N1",
-        "what": "commande de test qui n'existe plus",
+        "what": "test command that no longer exists",
         "any_of": [
           "settings_ci"
         ],
@@ -80,35 +80,34 @@
       },
       {
         "id": "N2",
-        "what": "style générique",
+        "what": "generic style",
         "any_of": [
           "pep 8",
           "pep8",
-          "noms clairs",
+          "clear names",
           "docstring"
         ]
       },
       {
         "id": "N3",
-        "what": "consignes écrites pour d'anciens modèles",
+        "what": "instructions written for old models",
         "any_of": [
-          "étape par étape",
           "step by step",
-          "invente pas",
-          "fichier complet",
-          "reste inchangé"
+          "do not invent",
+          "complete file",
+          "rest unchanged"
         ]
       },
       {
         "id": "N4",
-        "what": "compatibilité Python 3.8, périmée",
+        "what": "Python 3.8 compatibility, stale",
         "any_of": [
           "3.8"
         ]
       },
       {
         "id": "N5",
-        "what": "limite à Django 4.2 LTS, périmée",
+        "what": "limit to Django 4.2 LTS, stale",
         "any_of": [
           "4.2",
           "db_default",
@@ -117,7 +116,7 @@
       },
       {
         "id": "N6",
-        "what": "vérification à la main avec un outil qui n'est plus installé",
+        "what": "check by hand with a tool that is no longer installed",
         "any_of": [
           "debug-toolbar",
           "debug_toolbar"
@@ -139,24 +138,23 @@
     "only_level_material": true,
     "never_guarded": [
       {
-        "what": "e-mails en masse, un par ligne : seule la revue ; la moitié post_save de la règle est gardée par enrollments/tests/test_services.py, test_saving_an_enrollment_sends_nothing",
+        "what": "bulk e-mails, one per row: review only; the post_save half of the rule is guarded by enrollments/tests/test_services.py, test_saving_an_enrollment_sends_nothing",
         "rule_keywords": [
-          "masse",
-          "par ligne",
-          "bulk"
+          "bulk",
+          "per row"
         ],
         "rule_all_of": [
           "mail"
         ]
       },
       {
-        "what": "verrou d'inscription : invérifiable sous SQLite",
+        "what": "enrollment lock: cannot be verified under SQLite",
         "rule_keywords": [
           "select_for_update"
         ]
       },
       {
-        "what": "migration appliquée immuable : le job a disparu",
+        "what": "applied migration immutable: the job is gone",
         "rule_all_of": [
           "migration",
           "appli"
@@ -289,7 +287,7 @@
       "pep 8",
       "pep8",
       "docstring",
-      "noms clairs"
+      "clear names"
     ],
     "removals": [
       {
@@ -297,7 +295,7 @@
         "any_of": [
           "pep 8",
           "pep8",
-          "noms clairs",
+          "clear names",
           "docstring"
         ],
         "reasons": [
@@ -307,8 +305,8 @@
       {
         "id": "N3",
         "any_of": [
-          "étape par étape",
-          "invente pas"
+          "step by step",
+          "do not invent"
         ],
         "reasons": [
           "useless",
@@ -318,8 +316,8 @@
       {
         "id": "N3b",
         "any_of": [
-          "fichier complet",
-          "reste inchangé"
+          "complete file",
+          "rest unchanged"
         ],
         "reasons": [
           "harmful",
@@ -367,24 +365,23 @@
     ],
     "never_guarded": [
       {
-        "what": "e-mails en masse, un par ligne : seule la revue ; la moitié post_save de la règle est gardée par enrollments/tests/test_services.py, test_saving_an_enrollment_sends_nothing",
+        "what": "bulk e-mails, one per row: review only; the post_save half of the rule is guarded by enrollments/tests/test_services.py, test_saving_an_enrollment_sends_nothing",
         "rule_keywords": [
-          "masse",
-          "par ligne",
-          "bulk"
+          "bulk",
+          "per row"
         ],
         "rule_all_of": [
           "mail"
         ]
       },
       {
-        "what": "verrou d'inscription : invérifiable sous SQLite",
+        "what": "enrollment lock: cannot be verified under SQLite",
         "rule_keywords": [
           "select_for_update"
         ]
       },
       {
-        "what": "migration appliquée immuable : le job a disparu",
+        "what": "applied migration immutable: the job is gone",
         "rule_all_of": [
           "migration",
           "appli"

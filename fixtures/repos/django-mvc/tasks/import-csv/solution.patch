@@ -1,17 +1,17 @@
 diff --git a/README.md b/README.md
-index 19fb0c6..1cef41a 100644
+index 3b8782e..cb490dd 100644
 --- a/README.md
 +++ b/README.md
-@@ -27,6 +27,7 @@ python3 -m venv .venv
- | `/sessions/<id>/` | tous | une session et son formulaire d'inscription |
- | `/sessions/<id>/enroll/` | tous | `POST` : s'inscrire ; confirmé s'il reste une place, sinon liste d'attente |
- | `/sessions/<id>/roster/` | staff | les inscrits d'une session |
-+| `/sessions/<id>/import/` | staff | inscrire les lignes d'un CSV `email,full_name` ; aucun e-mail n'est envoyé |
- | `/enrollments/<id>/cancel/` | staff | `POST` : annuler ; la place libérée va au premier de la liste d'attente |
- | `/admin/` | staff | formations, sessions, inscriptions |
+@@ -28,6 +28,7 @@ python3 -m venv .venv
+ | `/sessions/<id>/` | everyone | a session and its enrollment form |
+ | `/sessions/<id>/enroll/` | everyone | `POST`: enroll; confirmed if a seat is left, otherwise waiting list |
+ | `/sessions/<id>/roster/` | staff | the people enrolled in a session |
++| `/sessions/<id>/import/` | staff | enroll the rows of a CSV `email,full_name`; no e-mail is sent |
+ | `/enrollments/<id>/cancel/` | staff | `POST`: cancel; the freed seat goes to the head of the waiting list |
+ | `/admin/` | staff | courses, sessions, enrollments |
  
 diff --git a/catalog/tests/test_queries.py b/catalog/tests/test_queries.py
-index 2c47d5a..6afdf88 100644
+index cd9fa25..1e3f5de 100644
 --- a/catalog/tests/test_queries.py
 +++ b/catalog/tests/test_queries.py
 @@ -6,6 +6,7 @@ A template that reaches for a relation or a count on each row breaks these tests
@@ -34,21 +34,21 @@ index 2c47d5a..6afdf88 100644
          with self.assertNumQueries(4):
              response = self.client.get(reverse("enrollments:roster", args=[session.pk]))
          self.assertContains(response, "@example.test", count=25)
-+        self.assertContains(response, "importé par lea", count=5)
++        self.assertContains(response, "imported by lea", count=5)
 diff --git a/cursus/settings.py b/cursus/settings.py
-index c3f6746..4e430ba 100644
+index 6cf785c..b7a6312 100644
 --- a/cursus/settings.py
 +++ b/cursus/settings.py
 @@ -81,3 +81,7 @@ EMAIL_HOST_USER = os.environ.get("CURSUS_SMTP_USER", "")
  EMAIL_HOST_PASSWORD = os.environ.get("CURSUS_SMTP_PASSWORD", "")
  EMAIL_USE_TLS = bool(os.environ.get("CURSUS_SMTP_HOST"))
- DEFAULT_FROM_EMAIL = "Service formation <formation@cursus.example>"
+ DEFAULT_FROM_EMAIL = "Training department <training@cursus.example>"
 +
 +# The host cuts any request at 30 seconds: a job started from a page handles at most this many rows.
 +# The host may lower it without a release.
 +CURSUS_IMPORT_MAX_ROWS = int(os.environ.get("CURSUS_IMPORT_MAX_ROWS", "500"))
 diff --git a/enrollments/admin.py b/enrollments/admin.py
-index 5db86e5..266c52a 100644
+index 44397f1..360e9d1 100644
 --- a/enrollments/admin.py
 +++ b/enrollments/admin.py
 @@ -10,6 +10,7 @@ class EnrollmentAdmin(admin.ModelAdmin):
@@ -58,9 +58,9 @@ index 5db86e5..266c52a 100644
 +    readonly_fields = ("imported_by", "imported_at")
      actions = ["cancel_selected"]
  
-     @admin.action(description="Annuler les inscriptions sélectionnées")
+     @admin.action(description="Cancel the selected enrollments")
 diff --git a/enrollments/forms.py b/enrollments/forms.py
-index 13b5041..c173889 100644
+index 47f45bf..137fe72 100644
 --- a/enrollments/forms.py
 +++ b/enrollments/forms.py
 @@ -1,6 +1,37 @@
@@ -73,37 +73,37 @@ index 13b5041..c173889 100644
  
  
  class EnrollmentForm(forms.Form):
-     full_name = forms.CharField(label="Nom et prénom", max_length=200)
-     email = forms.EmailField(label="Adresse e-mail")
+     full_name = forms.CharField(label="Full name", max_length=200)
+     email = forms.EmailField(label="E-mail address")
 +
 +
 +class ImportForm(forms.Form):
 +    """A CSV file with the header `email,full_name`. The cleaned value is the list of its rows."""
 +
-+    file = forms.FileField(label="Fichier CSV")
++    file = forms.FileField(label="CSV file")
 +
 +    def clean_file(self) -> list[dict[str, str]]:
 +        try:
 +            text = self.cleaned_data["file"].read().decode("utf-8-sig")
 +        except UnicodeDecodeError:
-+            raise ValidationError("Le fichier doit être encodé en UTF-8.")
++            raise ValidationError("The file must be encoded in UTF-8.")
 +        reader = csv.DictReader(io.StringIO(text))
 +        if not {"email", "full_name"} <= set(reader.fieldnames or []):
-+            raise ValidationError("L'en-tête attendu est « email,full_name ».")
++            raise ValidationError("The expected header is “email,full_name”.")
 +        rows = []
 +        for number, line in enumerate(reader, start=2):
 +            row = {"email": (line["email"] or "").strip().lower(), "full_name": (line["full_name"] or "").strip()}
 +            try:
 +                validate_email(row["email"])
 +            except ValidationError:
-+                raise ValidationError(f"Ligne {number} : adresse e-mail invalide.")
++                raise ValidationError(f"Line {number}: invalid e-mail address.")
 +            if not row["full_name"]:
-+                raise ValidationError(f"Ligne {number} : le nom manque.")
++                raise ValidationError(f"Line {number}: the name is missing.")
 +            rows.append(row)
 +        return rows
 diff --git a/enrollments/migrations/0003_enrollment_import_trace.py b/enrollments/migrations/0003_enrollment_import_trace.py
 new file mode 100644
-index 0000000..e365769
+index 0000000..36292cf
 --- /dev/null
 +++ b/enrollments/migrations/0003_enrollment_import_trace.py
 @@ -0,0 +1,35 @@
@@ -126,7 +126,7 @@ index 0000000..e365769
 +            model_name="enrollment",
 +            name="imported_at",
 +            field=models.DateTimeField(
-+                blank=True, null=True, verbose_name="importé le"
++                blank=True, null=True, verbose_name="imported on"
 +            ),
 +        ),
 +        migrations.AddField(
@@ -138,12 +138,12 @@ index 0000000..e365769
 +                on_delete=django.db.models.deletion.SET_NULL,
 +                related_name="+",
 +                to=settings.AUTH_USER_MODEL,
-+                verbose_name="importé par",
++                verbose_name="imported by",
 +            ),
 +        ),
 +    ]
 diff --git a/enrollments/models.py b/enrollments/models.py
-index bbded83..805fb5d 100644
+index bc380ff..39e300b 100644
 --- a/enrollments/models.py
 +++ b/enrollments/models.py
 @@ -1,3 +1,4 @@
@@ -152,23 +152,23 @@ index bbded83..805fb5d 100644
  from django.db.models import Q
  
 @@ -14,6 +15,15 @@ class Enrollment(models.Model):
-     status = models.CharField("statut", max_length=12, choices=Status.choices)
-     created_at = models.DateTimeField("inscrit le", auto_now_add=True)
-     cancelled_at = models.DateTimeField("annulé le", null=True, blank=True)
+     status = models.CharField("status", max_length=12, choices=Status.choices)
+     created_at = models.DateTimeField("enrolled on", auto_now_add=True)
+     cancelled_at = models.DateTimeField("cancelled on", null=True, blank=True)
 +    imported_by = models.ForeignKey(
 +        settings.AUTH_USER_MODEL,
 +        null=True,
 +        blank=True,
 +        on_delete=models.SET_NULL,
 +        related_name="+",
-+        verbose_name="importé par",
++        verbose_name="imported by",
 +    )
-+    imported_at = models.DateTimeField("importé le", null=True, blank=True)
++    imported_at = models.DateTimeField("imported on", null=True, blank=True)
  
      class Meta:
          ordering = ["created_at", "id"]
 diff --git a/enrollments/services.py b/enrollments/services.py
-index 0cd649a..0c45598 100644
+index 0cd649a..75558bd 100644
 --- a/enrollments/services.py
 +++ b/enrollments/services.py
 @@ -1,7 +1,9 @@
@@ -233,7 +233,7 @@ index 0cd649a..0c45598 100644
 +def import_enrollments(session: Session, rows: list[dict[str, str]], *, imported_by) -> ImportReport:
 +    """Enrolls every row of a file, or none of them. Each row goes through enroll(): the seat lock
 +    and the waiting list apply as they do on the site. No e-mail leaves: a bulk job never sends one
-+    message per row (docs/postmortems/2024-03-confirmations-en-masse.md)."""
++    message per row (docs/postmortems/2024-03-bulk-confirmations.md)."""
 +    if len(rows) > settings.CURSUS_IMPORT_MAX_ROWS:
 +        raise TooManyRows(len(rows))
 +    report = ImportReport()
@@ -258,47 +258,47 @@ index 0cd649a..0c45598 100644
      enrollment is returned, None when nobody was waiting."""
 diff --git a/enrollments/templates/enrollments/import.html b/enrollments/templates/enrollments/import.html
 new file mode 100644
-index 0000000..d543429
+index 0000000..a9c1215
 --- /dev/null
 +++ b/enrollments/templates/enrollments/import.html
 @@ -0,0 +1,27 @@
 +{% extends "base.html" %}
 +
-+{% block title %}Importer des inscriptions : {{ session.course.title }}{% endblock %}
++{% block title %}Import enrollments: {{ session.course.title }}{% endblock %}
 +
 +{% block content %}
-+<h1>Importer des inscriptions : {{ session.course.title }}</h1>
-+<p>{{ session.starts_at|date:"l j F Y, H:i" }}, {{ session.location }}, {{ session.capacity }} places.</p>
++<h1>Import enrollments: {{ session.course.title }}</h1>
++<p>{{ session.starts_at|date:"l j F Y, H:i" }}, {{ session.location }}, {{ session.capacity }} seats.</p>
 +
 +{% if report %}
 +<ul class="report">
-+  <li>{{ report.enrolled }} ligne{{ report.enrolled|pluralize }} inscrite{{ report.enrolled|pluralize }},
-+    dont {{ report.waitlisted }} en liste d'attente.</li>
-+  <li>{{ report.skipped|length }} ligne{{ report.skipped|length|pluralize }} ignorée{{ report.skipped|length|pluralize }}
-+    (adresse déjà inscrite){% if report.skipped %} : {{ report.skipped|join:", " }}{% endif %}.</li>
++  <li>{{ report.enrolled }} row{{ report.enrolled|pluralize }} enrolled,
++    {{ report.waitlisted }} of them on the waiting list.</li>
++  <li>{{ report.skipped|length }} row{{ report.skipped|length|pluralize }} skipped
++    (address already enrolled){% if report.skipped %}: {{ report.skipped|join:", " }}{% endif %}.</li>
 +</ul>
-+<p>Aucun e-mail n'a été envoyé aux personnes importées.</p>
++<p>No e-mail was sent to the imported people.</p>
 +{% endif %}
 +
 +<form method="post" enctype="multipart/form-data">
 +  {% csrf_token %}
 +  {{ form.as_p }}
-+  <p>Fichier CSV en UTF-8, en-tête <code>email,full_name</code>.</p>
-+  <button type="submit">Importer</button>
++  <p>UTF-8 CSV file, header <code>email,full_name</code>.</p>
++  <button type="submit">Import</button>
 +</form>
 +
-+<p><a href="{% url 'enrollments:roster' session.pk %}">Liste des inscrits</a></p>
++<p><a href="{% url 'enrollments:roster' session.pk %}">Roster</a></p>
 +{% endblock %}
 diff --git a/enrollments/templates/enrollments/roster.html b/enrollments/templates/enrollments/roster.html
-index ce21529..5a00f86 100644
+index d9137a0..f578eef 100644
 --- a/enrollments/templates/enrollments/roster.html
 +++ b/enrollments/templates/enrollments/roster.html
 @@ -8,7 +8,7 @@
  
  <table>
    <thead>
--    <tr><th>Nom</th><th>Adresse e-mail</th><th>Statut</th><th>Inscrit le</th><th></th></tr>
-+    <tr><th>Nom</th><th>Adresse e-mail</th><th>Statut</th><th>Inscrit le</th><th>Origine</th><th></th></tr>
+-    <tr><th>Name</th><th>E-mail address</th><th>Status</th><th>Enrolled on</th><th></th></tr>
++    <tr><th>Name</th><th>E-mail address</th><th>Status</th><th>Enrolled on</th><th>Origin</th><th></th></tr>
    </thead>
    <tbody>
      {% for enrollment in enrollments %}
@@ -308,8 +308,8 @@ index ce21529..5a00f86 100644
        <td>{{ enrollment.created_at|date:"d/m/Y H:i" }}</td>
 +      <td>
 +        {% if enrollment.imported_at %}
-+          importé{% if enrollment.imported_by %} par {{ enrollment.imported_by.username }}{% endif %}
-+          le {{ enrollment.imported_at|date:"d/m/Y H:i" }}
++          imported{% if enrollment.imported_by %} by {{ enrollment.imported_by.username }}{% endif %}
++          on {{ enrollment.imported_at|date:"d/m/Y H:i" }}
 +        {% else %}
 +          site
 +        {% endif %}
@@ -321,21 +321,21 @@ index ce21529..5a00f86 100644
        </td>
      </tr>
      {% empty %}
--    <tr><td colspan="5">Aucune inscription.</td></tr>
-+    <tr><td colspan="6">Aucune inscription.</td></tr>
+-    <tr><td colspan="5">No enrollment.</td></tr>
++    <tr><td colspan="6">No enrollment.</td></tr>
      {% endfor %}
    </tbody>
  </table>
  
--<p><a href="{{ session.get_absolute_url }}">Retour à la session</a></p>
+-<p><a href="{{ session.get_absolute_url }}">Back to the session</a></p>
 +<p>
-+  <a href="{% url 'enrollments:import' session.pk %}">Importer un fichier CSV</a>
-+  <a href="{{ session.get_absolute_url }}">Retour à la session</a>
++  <a href="{% url 'enrollments:import' session.pk %}">Import a CSV file</a>
++  <a href="{{ session.get_absolute_url }}">Back to the session</a>
 +</p>
  {% endblock %}
 diff --git a/enrollments/tests/test_import.py b/enrollments/tests/test_import.py
 new file mode 100644
-index 0000000..1c0b8fd
+index 0000000..aad688f
 --- /dev/null
 +++ b/enrollments/tests/test_import.py
 @@ -0,0 +1,95 @@
@@ -408,7 +408,7 @@ index 0000000..1c0b8fd
 +        self.client.force_login(get_user_model().objects.create_user("lea", is_staff=True))
 +
 +    def post(self, content):
-+        upload = SimpleUploadedFile("inscrits.csv", content.encode(), content_type="text/csv")
++        upload = SimpleUploadedFile("roster.csv", content.encode(), content_type="text/csv")
 +        return self.client.post(self.url, {"file": upload})
 +
 +    def test_import_page_is_for_staff_only(self):
@@ -419,21 +419,21 @@ index 0000000..1c0b8fd
 +
 +    def test_import_page_shows_the_report(self):
 +        response = self.post("email,full_name\nana@example.test,Ana\nbob@example.test,Bob\ncleo@example.test,Cleo\nana@example.test,Ana\n")
-+        self.assertContains(response, "3 lignes inscrites")
-+        self.assertContains(response, "dont 1 en liste d'attente")
-+        self.assertContains(response, "1 ligne ignorée")
++        self.assertContains(response, "3 rows enrolled")
++        self.assertContains(response, "1 of them on the waiting list")
++        self.assertContains(response, "1 row skipped")
 +
 +    def test_import_refuses_a_file_without_the_header(self):
-+        self.assertContains(self.post("ana@example.test,Ana\n"), "en-tête attendu")
++        self.assertContains(self.post("ana@example.test,Ana\n"), "expected header")
 +        self.assertFalse(Enrollment.objects.exists())
 +
 +    def test_import_refuses_the_whole_file_on_an_invalid_address(self):
-+        self.assertContains(self.post("email,full_name\nana@example.test,Ana\nnot-an-address,Bob\n"), "Ligne 3")
++        self.assertContains(self.post("email,full_name\nana@example.test,Ana\nnot-an-address,Bob\n"), "Line 3")
 +        self.assertFalse(Enrollment.objects.exists())
 +
 +    def test_roster_tells_who_imported(self):
 +        self.post("email,full_name\nana@example.test,Ana\n")
-+        self.assertContains(self.client.get(reverse("enrollments:roster", args=[self.session.pk])), "importé par lea")
++        self.assertContains(self.client.get(reverse("enrollments:roster", args=[self.session.pk])), "imported by lea")
 diff --git a/enrollments/urls.py b/enrollments/urls.py
 index 6beccca..76b5e6b 100644
 --- a/enrollments/urls.py
@@ -446,7 +446,7 @@ index 6beccca..76b5e6b 100644
      path("enrollments/<int:pk>/cancel/", views.cancel, name="cancel"),
  ]
 diff --git a/enrollments/views.py b/enrollments/views.py
-index d8e31d1..e22f186 100644
+index 52e515d..1cd3637 100644
 --- a/enrollments/views.py
 +++ b/enrollments/views.py
 @@ -1,3 +1,4 @@
@@ -481,9 +481,9 @@ index d8e31d1..e22f186 100644
 +        try:
 +            report = services.import_enrollments(session, form.cleaned_data["file"], imported_by=request.user)
 +        except services.SessionClosed:
-+            form.add_error(None, "Cette session a commencé : on n'y inscrit plus personne.")
++            form.add_error(None, "This session has started: nobody can be enrolled in it any more.")
 +        except services.TooManyRows:
-+            form.add_error(None, f"Ce fichier dépasse {settings.CURSUS_IMPORT_MAX_ROWS} lignes : découpez-le, personne n'a été inscrit.")
++            form.add_error(None, f"This file exceeds {settings.CURSUS_IMPORT_MAX_ROWS} rows: split it, nobody was enrolled.")
 +    return render(request, "enrollments/import.html", {"session": session, "form": form, "report": report})
  
  

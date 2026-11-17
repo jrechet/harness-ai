@@ -16,12 +16,12 @@ class Migration(migrations.Migration):
             name='Course',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('title', models.CharField(max_length=200, verbose_name='intitulé')),
+                ('title', models.CharField(max_length=200, verbose_name='title')),
                 ('slug', models.SlugField(unique=True)),
-                ('summary', models.TextField(blank=True, verbose_name='résumé')),
+                ('summary', models.TextField(blank=True, verbose_name='summary')),
             ],
             options={
-                'verbose_name': 'formation',
+                'verbose_name': 'course',
                 'ordering': ['title'],
             },
         ),
@@ -29,10 +29,10 @@ class Migration(migrations.Migration):
             name='Session',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('starts_at', models.DateTimeField(verbose_name='début')),
-                ('location', models.CharField(max_length=120, verbose_name='lieu')),
-                ('capacity', models.PositiveIntegerField(verbose_name='places')),
-                ('course', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='sessions', to='catalog.course', verbose_name='formation')),
+                ('starts_at', models.DateTimeField(verbose_name='start')),
+                ('location', models.CharField(max_length=120, verbose_name='location')),
+                ('capacity', models.PositiveIntegerField(verbose_name='seats')),
+                ('course', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='sessions', to='catalog.course', verbose_name='course')),
             ],
             options={
                 'ordering': ['starts_at', 'id'],
