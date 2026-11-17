@@ -1,0 +1,2 @@
+CREATE TABLE invoices (id INTEGER PRIMARY KEY, customer TEXT NOT NULL);
+CREATE TABLE lines (invoice INTEGER NOT NULL REFERENCES invoices(id), price TEXT NOT NULL, quantity INTEGER NOT NULL);

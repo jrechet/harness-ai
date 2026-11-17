@@ -1,13 +1,13 @@
-"""Les prérequis d'une livraison : ce qu'un programme peut dire avant qu'un humain déploie.
+"""The prerequisites of a delivery: what a program can say before a human deploys.
 
-`/ship` prépare et propose, il ne déploie pas. Ce module dit quatre choses sur ce qui partirait :
-- **état** : on livre le commit de tête de la branche de livraison, rien d'autre, et rien de non commité ;
-- **vérifications** : la CI est verte sur ce commit précis, d'après un relevé donné en entrée ;
-- **zones sensibles** : ce qui a changé depuis la dernière version dans une zone où un retour arrière coûte ;
-- **ruptures** : les changements annoncés cassants depuis la dernière version.
+`/ship` prepares and proposes, it does not deploy. This module says four things about what would ship:
+- **state**: we deliver the head commit of the delivery branch, nothing else, and nothing uncommitted;
+- **checks**: the CI is green on that exact commit, according to a CI report given as input;
+- **zones**: what changed since the last version in a zone where a rollback is costly;
+- **breaking**: the changes announced as breaking since the last version.
 
-Il propose aussi un numéro de version et des notes, tirés des commits. Il ne pose aucun tag, ne pousse rien,
-n'appelle aucun réseau. Les titres de commit viennent de tiers : ils sont rendus sans rien d'actif."""
+It also proposes a version number and notes, drawn from the commits. It sets no tag, pushes nothing,
+calls no network. Commit titles come from third parties: they are rendered with nothing active."""
 from __future__ import annotations
 
 import os
@@ -24,12 +24,12 @@ MAX_SUBJECT = 140
 MAX_SHOWN = 8
 _TYPE = re.compile(r"^([a-zA-Z]{2,12})(?:\([^()\n]{0,40}\))?(!)?:\s?(.{0,400})")
 _BREAKING = re.compile(r"^\s{0,8}BREAKING[ -]CHANGES?\b", re.MULTILINE | re.IGNORECASE)
-MAX_FETCH_AGE = 24 * 3600   # au-delà, la branche distante connue ici n'est plus une preuve de ce qui est poussé
+MAX_FETCH_AGE = 24 * 3600   # beyond that, the remote branch known here no longer proves what is pushed
 _VERSION = re.compile(r"^(v?)(\d{1,6})\.(\d{1,6})\.(\d{1,6})$")
-TITLES = {"feat": "Nouveautés", "fix": "Corrections", "perf": "Performances", "refactor": "Refontes internes",
-          "docs": "Documentation", "test": "Tests", "chore": "Entretien", "ci": "Entretien", "build": "Entretien"}
-ORDER = ("Nouveautés", "Corrections", "Performances", "Refontes internes", "Documentation", "Tests", "Entretien", "Autres")
-_LEAD = re.compile(r"^(?:[#\-+*~=]|\d{1,9}[.)])")   # en tête, ouvrirait un titre ou une liste dans le rendu
+TITLES = {"feat": "Features", "fix": "Fixes", "perf": "Performance", "refactor": "Refactoring",
+          "docs": "Documentation", "test": "Tests", "chore": "Maintenance", "ci": "Maintenance", "build": "Maintenance"}
+ORDER = ("Features", "Fixes", "Performance", "Refactoring", "Documentation", "Tests", "Maintenance", "Other")
+_LEAD = re.compile(r"^(?:[#\-+*~=]|\d{1,9}[.)])")   # at the start, would open a heading or a list in the rendering
 _GOOD = {"success", "skipped", "neutral", "pass", "skipping"}
 _WAIT = {"queued", "in_progress", "pending", "waiting", "requested", "expected", "action_required"}
 
@@ -39,32 +39,32 @@ def _gate(ident: str, title: str, status: str, evidence: str, action: str | None
 
 
 def _plain(text: str, limit: int = MAX_SUBJECT) -> str:
-    """Un texte venu d'un commit ou d'un relevé, prêt à être rendu : ni lien, ni image, ni mention, ni balise,
-    ni titre ou liste ouverts par son premier caractère."""
+    """A text from a commit or a CI report, ready to be rendered: no link, image, mention or tag, and no
+    heading or list opened by its first character."""
     text = " ".join("".join(ch if ch.isprintable() else " " for ch in text).split())
     text = text[:limit] + ("…" if len(text) > limit else "")
     for old, new in (("<", "‹"), (">", "›"), ("`", "'"), ("](", "] ("), ("![", "["), ("@", "@​"), ("|", "/"),
                      ("://", ": //"), ("www.", "www​."), ("#", "#​")):
         text = text.replace(old, new)
-    return _LEAD.sub(lambda m: "\\" + m[0], text) or "(sans titre)"
+    return _LEAD.sub(lambda m: "\\" + m[0], text) or "(untitled)"
 
 
 def _more(items: list[str]) -> str:
     extra = len(items) - MAX_SHOWN
-    return " ; ".join(items[:MAX_SHOWN]) + (f" ; et {extra} autre(s)" if extra > 0 else "")
+    return "; ".join(items[:MAX_SHOWN]) + (f"; and {extra} more" if extra > 0 else "")
 
 
 def _text(repo: str, *args: str) -> str:
     code, out = _git(repo, *args)
     if code != 0:
-        raise Refused(f"git {args[0]} a échoué dans {repo}")
+        raise Refused(f"git {args[0]} failed in {repo}")
     return out.decode("utf-8", "replace").strip()
 
 
 def last_version(repo: str) -> tuple[str | None, bool]:
-    """La version précédente : le plus haut tag X.Y.Z déjà dans l'historique de HEAD (pas le plus proche : une
-    branche de correctif fusionnée en porte un plus ancien). Sans tag de cette forme, le tag le plus proche,
-    et le fait qu'il n'est pas une version. None si le dépôt n'a aucun tag atteignable."""
+    """The previous version: the highest X.Y.Z tag already in the history of HEAD (not the nearest: a merged
+    hotfix branch carries an older one). Without a tag of that form, the nearest tag, and the fact that it is
+    not a version. None if the repository has no reachable tag."""
     code, out = _git(repo, "tag", "--merged", "HEAD")
     versions = []
     for name in out.decode("utf-8", "replace").split("\n") if code == 0 else []:
@@ -81,7 +81,7 @@ def commits(repo: str, since: str | None) -> list[dict[str, Any]]:
     span = f"{since}..HEAD" if since else "HEAD"
     code, out = _git(repo, "log", "--no-merges", f"--max-count={MAX_COMMITS + 1}", "--format=%h%x00%s%x00%b%x01", span)
     if code != 0:
-        raise Refused(f"historique illisible depuis {since or 'le début'}")
+        raise Refused(f"unreadable history since {since or 'the beginning'}")
     found = []
     for entry in out.decode("utf-8", "replace").split("\x01"):
         parts = entry.strip("\n").split("\0")
@@ -96,19 +96,19 @@ def commits(repo: str, since: str | None) -> list[dict[str, Any]]:
 
 
 def propose_version(previous: str | None, found: list[dict[str, Any]]) -> tuple[str | None, str]:
-    """La version suivante selon les commits, et la raison. Sans tag lisible, pas de proposition."""
+    """The next version according to the commits, and the reason. Without a readable tag, no proposal."""
     if previous is None:
-        return None, "aucun tag dans le dépôt : le premier numéro est une décision"
+        return None, "no tag in the repository: the first number is a decision"
     match = _VERSION.match(previous)
     if not match:
-        return None, f"le dernier tag ({_plain(previous, 40)}) n'est pas de la forme X.Y.Z"
+        return None, f"the last tag ({_plain(previous, 40)}) is not of the form X.Y.Z"
     prefix, major, minor, patch = match[1], int(match[2]), int(match[3]), int(match[4])
     if any(c["breaking"] for c in found):
-        nxt, why = ((major + 1, 0, 0), "un changement annoncé cassant") if major else ((0, minor + 1, 0), "un changement cassant, avant la 1.0")
+        nxt, why = ((major + 1, 0, 0), "a change announced as breaking") if major else ((0, minor + 1, 0), "a breaking change, before 1.0")
     elif any(c["type"] == "feat" for c in found):
-        nxt, why = (major, minor + 1, 0), "au moins une nouveauté"
+        nxt, why = (major, minor + 1, 0), "at least one feature"
     else:
-        nxt, why = (major, minor, patch + 1), "des corrections seulement"
+        nxt, why = (major, minor, patch + 1), "fixes only"
     return f"{prefix}{nxt[0]}.{nxt[1]}.{nxt[2]}", why
 
 
@@ -122,115 +122,115 @@ def _fetch_age(repo: str) -> float | None:
 
 
 def gate_state(repo: str, base: str) -> dict[str, Any]:
-    title = "On livre le commit de tête de la branche de livraison, poussé et entièrement commité"
-    target = _text(repo, "rev-parse", "--verify", f"{resolve_base(repo, base)}^{{commit}}")   # en entier, comme HEAD
+    title = "We deliver the head commit of the delivery branch, pushed and fully committed"
+    target = _text(repo, "rev-parse", "--verify", f"{resolve_base(repo, base)}^{{commit}}")   # in full, like HEAD
     head = _text(repo, "rev-parse", "HEAD")
     dirty = _text(repo, "status", "--porcelain")
     shown = _plain(base, 60)
     problems = []
     if head != target:
         behind = _git(repo, "merge-base", "--is-ancestor", head, target)[0] == 0
-        problems.append(f"HEAD ({head[:7]}) n'est pas la tête de {shown} ({target[:7]})"
-                        + (" : il est en retard" if behind else " : il porte des commits qui n'y sont pas"))
+        problems.append(f"HEAD ({head[:7]}) is not the head of {shown} ({target[:7]})"
+                        + (": it is behind" if behind else ": it carries commits that are not there"))
     if dirty:
-        problems.append(f"{len(dirty.splitlines())} fichier(s) non commité(s)")
+        problems.append(f"{len(dirty.splitlines())} uncommitted file(s)")
     if problems:
-        return _gate("etat", title, FAIL, " ; ".join(problems),
-                     "Se placer sur la tête de la branche de livraison, à jour, sans rien de local. On ne livre pas un poste de travail.")
+        return _gate("state", title, FAIL, "; ".join(problems),
+                     "Move to the head of the delivery branch, up to date, with nothing local. We do not deliver a workstation.")
     code, out = _git(repo, "rev-parse", "--symbolic-full-name", base)
     if code != 0 or not out.decode("utf-8", "replace").strip().startswith("refs/remotes/"):
-        # une branche locale, HEAD ou un commit donné en base : HEAD se compare à lui-même, et rien ne dit qu'il est poussé
-        return _gate("etat", title, UNKNOWN, f"{head[:7]} ; {shown} n'est pas une branche distante : rien ne dit que ce commit est poussé",
-                     "Relancer avec la branche distante de livraison en --base (origin/main, par exemple), après un git fetch.")
+        # a local branch, HEAD or a commit given as base: HEAD is compared with itself, and nothing says it is pushed
+        return _gate("state", title, UNKNOWN, f"{head[:7]}; {shown} is not a remote branch: nothing says this commit is pushed",
+                     "Run again with the remote delivery branch as --base (origin/main, for example), after a git fetch.")
     age = _fetch_age(repo)
     if age is None or age > MAX_FETCH_AGE:
-        said = "aucun fetch connu" if age is None else f"dernier fetch il y a {int(age // 3600)} h"
-        return _gate("etat", title, UNKNOWN, f"{head[:7]}, tête de {shown} telle que connue ici ; {said}",
-                     "Lancer git fetch, puis relancer : la branche distante a pu avancer depuis.")
-    return _gate("etat", title, OK, f"{head[:7]}, tête de {shown} au dernier fetch, il y a {int(age // 60)} min")
+        said = "no known fetch" if age is None else f"last fetch {int(age // 3600)} h ago"
+        return _gate("state", title, UNKNOWN, f"{head[:7]}, head of {shown} as known here; {said}",
+                     "Run git fetch, then run again: the remote branch may have moved since.")
+    return _gate("state", title, OK, f"{head[:7]}, head of {shown} at the last fetch, {int(age // 60)} min ago")
 
 
 def gate_checks(repo: str, checks: Any) -> dict[str, Any]:
-    """Le relevé de la CI, tel que `gh run list --commit <sha> --json name,status,conclusion,headSha` le donne.
-    Un relevé qui ne dit pas son commit, ou qui parle d'un autre, ne prouve rien pour celui-ci."""
-    title = "La CI est verte sur ce commit"
+    """The CI report, as `gh run list --commit <sha> --json name,status,conclusion,headSha` gives it.
+    A report that does not say its commit, or speaks of another one, proves nothing for this one."""
+    title = "The CI is green on this commit"
     if checks is None:
-        return _gate("verifications", title, UNKNOWN, "aucun relevé de CI donné",
-                     "Relever la CI du commit et relancer avec --checks <fichier>. Sans CI, le dire : c'est à un humain de décider.")
+        return _gate("checks", title, UNKNOWN, "no CI report given",
+                     "Fetch the CI report of the commit and run again with --checks <file>. Without CI, say so: a human decides.")
     if not isinstance(checks, list) or not all(isinstance(c, dict) for c in checks):
-        raise Refused("--checks : une liste JSON d'objets (name, status, conclusion, headSha)")
+        raise Refused("--checks: a JSON list of objects (name, status, conclusion, headSha)")
     if not checks:
-        return _gate("verifications", title, UNKNOWN, "le relevé est vide : aucune vérification n'a tourné sur ce commit",
-                     "Vérifier que le dépôt a une CI et qu'elle s'est lancée.")
+        return _gate("checks", title, UNKNOWN, "the report is empty: no check ran on this commit",
+                     "Check that the repository has a CI and that it started.")
     head = _text(repo, "rev-parse", "HEAD")
     shas = {c["headSha"].strip().lower() if isinstance(c.get("headSha"), str) and c["headSha"].strip() else None for c in checks}
     if not all(s is not None and len(s) >= 7 and head.startswith(s) for s in shas):
         if None in shas:
-            return _gate("verifications", title, UNKNOWN, "le relevé ne dit pas sur quel commit il porte",
-                         "Le relever avec headSha, pour ce commit précis.")
+            return _gate("checks", title, UNKNOWN, "the report does not say which commit it covers",
+                         "Fetch it with headSha, for this exact commit.")
         other = sorted(s[:7] for s in shas if s and all(ch in "0123456789abcdef" for ch in s) and not head.startswith(s))
-        return _gate("verifications", title, FAIL, f"le relevé porte sur un autre commit que {head[:7]}" + (f" : {', '.join(other[:3])}" if other else ""),
-                     "Relever la CI de ce commit précis : une CI verte sur un commit voisin ne dit rien de celui-ci.")
+        return _gate("checks", title, FAIL, f"the report covers another commit than {head[:7]}" + (f": {', '.join(other[:3])}" if other else ""),
+                     "Fetch the CI report of this exact commit: a green CI on a neighbouring commit says nothing about this one.")
     bad, waiting, ran = [], [], 0
     for item in checks:
-        name = _plain(str(item.get("name") or "sans nom"), 50)
+        name = _plain(str(item.get("name") or "unnamed"), 50)
         words = {str(item.get(k) or "").lower() for k in ("conclusion", "bucket", "state")} - {""}
         status = str(item.get("status") or "").lower()
         if words - _GOOD - _WAIT:
             bad.append(name)
         elif not words or words & _WAIT or status in _WAIT:
-            waiting.append(name)       # une conclusion verte sur une exécution encore en cours n'est pas une fin
+            waiting.append(name)       # a green conclusion on a run still in progress is not an end
         else:
             ran += bool(words & {"success", "pass"})
     if bad:
-        return _gate("verifications", title, FAIL, "en échec : " + _more(sorted(set(bad))),
-                     "Corriger la cause sur la branche, par une PR. On ne livre pas en relançant jusqu'au vert.")
+        return _gate("checks", title, FAIL, "failed: " + _more(sorted(set(bad))),
+                     "Fix the cause on the branch, through a PR. We do not deliver by re-running until green.")
     if waiting:
-        return _gate("verifications", title, UNKNOWN, "en cours : " + _more(sorted(set(waiting))), "Attendre la fin.")
+        return _gate("checks", title, UNKNOWN, "in progress: " + _more(sorted(set(waiting))), "Wait for the end.")
     if not ran:
-        return _gate("verifications", title, UNKNOWN, f"{len(checks)} vérification(s), toutes sautées : rien n'a tourné sur ce commit",
-                     "Vérifier pourquoi la CI n'a rien lancé (filtre de chemins, condition) avant de livrer.")
-    return _gate("verifications", title, OK, f"{len(checks)} vérification(s) vertes sur {head[:7]} ; le relevé est cru sur parole")
+        return _gate("checks", title, UNKNOWN, f"{len(checks)} check(s), all skipped: nothing ran on this commit",
+                     "Check why the CI ran nothing (path filter, condition) before delivering.")
+    return _gate("checks", title, OK, f"{len(checks)} green check(s) on {head[:7]}; the report is taken on trust")
 
 
 def gate_zones(repo: str, since: str | None, zones: list[dict[str, str]]) -> dict[str, Any]:
-    title = "Rien ne part dans une zone où un retour arrière coûte"
+    title = "Nothing ships in a zone where a rollback is costly"
     if since is None:
-        return _gate("zones", title, UNKNOWN, "aucune version précédente : tout le dépôt part pour la première fois",
-                     "Faire relire par un humain ce que la première livraison engage.")
+        return _gate("zones", title, UNKNOWN, "no previous version: the whole repository ships for the first time",
+                     "Have a human review what the first delivery commits to.")
     code, out = _git(repo, "diff", "-z", "--name-only", "--no-renames", f"{since}..HEAD")
     if code != 0:
-        raise Refused(f"diff impossible depuis {since}")
+        raise Refused(f"cannot diff since {since}")
     paths = [p for p in out.decode("utf-8", "replace").split("\0") if p]
     hits = size.touched(paths, zones)
     if not hits:
-        return _gate("zones", title, OK, f"{len(paths)} fichier(s) changé(s), aucun en zone sensible")
+        return _gate("zones", title, OK, f"{len(paths)} file(s) changed, none in a sensitive zone")
     return _gate("zones", title, UNKNOWN, _more([f"{_plain(h['path'], 80)} ({_plain(h['glob'], 40)})" for h in hits]),
-                 "Pour chacun, écrire comment on revient en arrière et qui le décide, avant de livrer.")
+                 "For each, write how we roll back and who decides it, before delivering.")
 
 
 def gate_breaking(found: list[dict[str, Any]], truncated: bool) -> dict[str, Any]:
-    title = "Aucun changement cassant n'attend d'être annoncé"
+    title = "No breaking change is waiting to be announced"
     breaking = [f"{c['sha']} {c['subject']}" for c in found if c["breaking"]]
     untyped = sum(c["type"] is None for c in found)
-    said = (["annoncés cassants : " + _more(breaking)] if breaking else []) + \
-           ([f"{untyped} commit(s) sans type lisible : rien ne dit s'ils cassent"] if untyped else []) + \
-           ([f"plus de {MAX_COMMITS} commits, les plus anciens non lus"] if truncated else [])
+    said = (["announced as breaking: " + _more(breaking)] if breaking else []) + \
+           ([f"{untyped} commit(s) without a readable type: nothing says whether they break"] if untyped else []) + \
+           ([f"more than {MAX_COMMITS} commits, the oldest not read"] if truncated else [])
     if said:
-        return _gate("ruptures", title, UNKNOWN, " ; ".join(said),
-                     "Dire à ceux qui en dépendent ce qui casse et comment migrer, et relire les commits sans type : "
-                     "la porte ne lit que ce qu'un titre annonce.")
-    return _gate("ruptures", title, OK, f"{len(found)} commit(s), aucun annoncé cassant ; un changement cassant non annoncé ne se voit pas ici")
+        return _gate("breaking", title, UNKNOWN, "; ".join(said),
+                     "Tell those who depend on it what breaks and how to migrate, and review the untyped commits: "
+                     "the gate reads only what a title announces.")
+    return _gate("breaking", title, OK, f"{len(found)} commit(s), none announced as breaking; an unannounced breaking change is not seen here")
 
 
 def check(table: dict[str, Any], repo: str, base: str, since: str | None = None, checks: Any = None) -> dict[str, Any]:
     if _text(repo, "rev-parse", "--is-shallow-repository") == "true":
-        raise Refused("clone superficiel : l'historique et les tags manquent, lance git fetch --unshallow --tags")
+        raise Refused("shallow clone: history and tags are missing, run git fetch --unshallow --tags")
     if since is not None:
         if since.startswith("-") or _git(repo, "rev-parse", "--verify", "--quiet", f"{since}^{{commit}}")[0] != 0:
-            raise Refused(f"--since {_plain(since, 60)} : ce n'est ni un tag ni un commit de ce dépôt")
+            raise Refused(f"--since {_plain(since, 60)}: neither a tag nor a commit of this repository")
         if _git(repo, "merge-base", "--is-ancestor", since, "HEAD")[0] != 0:
-            raise Refused(f"--since {_plain(since, 60)} n'est pas dans l'historique de HEAD : ce n'est pas la version précédente de cette branche")
+            raise Refused(f"--since {_plain(since, 60)} is not in the history of HEAD: it is not the previous version of this branch")
         previous, is_version = since, bool(_VERSION.match(since))
     else:
         previous, is_version = last_version(repo)
@@ -238,20 +238,20 @@ def check(table: dict[str, Any], repo: str, base: str, since: str | None = None,
     truncated = len(found) > MAX_COMMITS
     found = found[:MAX_COMMITS]
     if not found:
-        raise Refused(f"aucun commit depuis {_plain(previous or '', 60)} : rien à livrer")
+        raise Refused(f"no commit since {_plain(previous or '', 60)}: nothing to deliver")
     version, why = propose_version(previous if is_version else None, found)
     if previous and not is_version:
-        version, why = None, f"{_plain(previous, 40)} n'est pas un tag de la forme X.Y.Z : ce n'est peut-être pas la dernière version livrée"
+        version, why = None, f"{_plain(previous, 40)} is not a tag of the form X.Y.Z: it may not be the last delivered version"
     if version and _text(repo, "tag", "-l", version):
-        version, why = None, f"{version} existe déjà dans le dépôt, sur une autre branche"
+        version, why = None, f"{version} already exists in the repository, on another branch"
     if truncated:
-        version, why = None, f"plus de {MAX_COMMITS} commits depuis la version précédente, les plus anciens non lus"
+        version, why = None, f"more than {MAX_COMMITS} commits since the previous version, the oldest not read"
     gates = [gate_state(repo, base), gate_checks(repo, checks), gate_zones(repo, previous, size.zones(table, repo, base)),
              gate_breaking(found, truncated)]
     notes: dict[str, list[str]] = {}
     for commit in found:
-        notes.setdefault(TITLES.get(commit["type"] or "", "Autres"), []).append(
-            f"{commit['subject']} ({commit['sha']})" + (" — CASSANT" if commit["breaking"] else ""))
+        notes.setdefault(TITLES.get(commit["type"] or "", "Other"), []).append(
+            f"{commit['subject']} ({commit['sha']})" + (" — BREAKING" if commit["breaking"] else ""))
     failed = [g["id"] for g in gates if g["status"] == FAIL]
     unknown = [g["id"] for g in gates if g["status"] == UNKNOWN]
     return {"pass": not failed and not unknown, "failed": failed, "unknown": unknown, "gates": gates,
@@ -262,34 +262,34 @@ def check(table: dict[str, Any], repo: str, base: str, since: str | None = None,
 
 def render_md(result: dict[str, Any]) -> str:
     if result["failed"]:
-        head = f"Livraison : {len(result['failed'])} prérequis en échec. Ne pas livrer."
+        head = f"Delivery: {len(result['failed'])} prerequisite(s) failed. Do not deliver."
     elif result["unknown"]:
-        head = f"Livraison : rien en échec, {len(result['unknown'])} prérequis à lever par un humain."
+        head = f"Delivery: nothing failed, {len(result['unknown'])} prerequisite(s) for a human to clear."
     else:
-        head = "Livraison : les quatre prérequis passent. La décision de livrer reste à un humain."
+        head = "Delivery: the four prerequisites pass. The decision to deliver stays with a human."
     out = [head]
     for gate in result["gates"]:
         out.append(f"- {gate['status']} — {gate['title']} ({gate['evidence']})" + (f". {gate['action']}" if gate["action"] else ""))
-    span = (f"Depuis {result['previous']}" + (" (donné par --since, pas le dernier tag de version)" if result["since_given"] else "")
-            if result["previous"] else "Depuis le début du dépôt")
-    count = f"les {result['commits']} commits les plus récents, les plus anciens non lus" if result["truncated"] else f"{result['commits']} commit(s)"
-    out += ["", f"{span} : {count}.",
-            (f"Version proposée : {result['version']} ({result['version_why']})." if result["version"]
-             else f"Pas de version proposée : {result['version_why']}."), "", "## Notes de version proposées"]
+    span = (f"Since {result['previous']}" + (" (given by --since, not the last version tag)" if result["since_given"] else "")
+            if result["previous"] else "Since the beginning of the repository")
+    count = f"the {result['commits']} most recent commits, the oldest not read" if result["truncated"] else f"{result['commits']} commit(s)"
+    out += ["", f"{span}: {count}.",
+            (f"Proposed version: {result['version']} ({result['version_why']})." if result["version"]
+             else f"No proposed version: {result['version_why']}."), "", "## Proposed release notes"]
     for title, lines in result["notes"].items():
         out += ["", f"### {title}", *(f"- {line}" for line in lines)]
-    out += ["", "Rien n'a été tagué, poussé ni déployé. Les titres viennent des commits : à relire avant de publier."]
+    out += ["", "Nothing was tagged, pushed or deployed. The titles come from the commits: review them before publishing."]
     return "\n".join(out) + "\n"
 
 
-# --- la proposition du skill : ce qu'il rend à l'humain qui livre, dans une forme qu'un programme relit ---
+# --- the skill's proposal: what it hands to the human who delivers, in a form a program re-reads ---
 
-PROPOSAL_LISTS = ("attend", "ruptures", "notes", "commandes", "non_verifie", "consignes")
-ROLES = ("livrer", "revenir")
+PROPOSAL_LISTS = ("pending", "breaking", "notes", "commands", "not_verified", "instructions")
+ROLES = ("deliver", "rollback")
 MAX_ITEMS = 40
 MAX_TEXT = 600
 MIN_QUOTE = 12
-MIN_SENTENCE = 20   # « migration » n'est pas une phrase : ce qui attend un humain se dit en entier
+MIN_SENTENCE = 20   # "migration" is not a sentence: what waits for a human is said in full
 _SPAN = re.compile(r"`([^`\n]{2,400})`")
 
 
@@ -302,19 +302,19 @@ def _said(value: Any) -> bool:
 
 
 def _code(text: str) -> str:
-    """Une commande dans un bloc de code : telle qu'écrite par l'équipe, à recopier, sans pouvoir en sortir."""
+    """A command in a code span: as the team wrote it, to copy, unable to break out of it."""
     return "".join(ch for ch in _flat(text) if ch.isprintable() and ch != "`")
 
 
 def messages(repo: str, previous: str | None) -> list[str]:
-    """Le message de chaque commit qui part, titre et corps : c'est dans l'un d'eux, pas à cheval sur deux,
-    qu'une consigne signalée doit se retrouver."""
+    """The message of each commit that ships, title and body: a reported instruction must be found in one of
+    them, not straddling two."""
     code, out = _git(repo, "log", f"--max-count={MAX_COMMITS}", "--format=%B%x01", f"{previous}..HEAD" if previous else "HEAD")
     return [m for m in out.decode("utf-8", "replace").split("\x01") if m.strip()] if code == 0 else []
 
 
 def team_commands(procedure: str) -> list[str]:
-    """Les commandes que la procédure de l'équipe écrit entre accents graves : ce sont les seules qui se proposent."""
+    """The commands the team procedure writes between backticks: they are the only ones that may be proposed."""
     return list(dict.fromkeys(_flat(m) for m in _SPAN.findall(procedure) if " " in m.strip() or "/" in m))
 
 
@@ -323,95 +323,95 @@ def breaking_shas(repo: str, previous: str | None) -> list[str]:
 
 
 def check_proposal(prop: Any, result: dict[str, Any], procedure: str, history: list[str], breaking: list[str]) -> list[str]:
-    """Les défauts d'une proposition de livraison. Quatre choses sont tenues ici et pas par le skill : le verdict
-    ne s'écrit pas, une commande proposée est citée mot pour mot de la procédure de l'équipe, aucune commande
-    n'est proposée quand un prérequis est en échec, et aucune rupture annoncée par un commit n'est oubliée."""
+    """The defects of a delivery proposal. Four things are enforced here and not by the skill: the verdict is
+    not written, a proposed command is quoted word for word from the team procedure, no command is proposed
+    when a prerequisite has failed, and no breaking change announced by a commit is forgotten."""
     if not isinstance(prop, dict):
-        return ["la proposition est un objet JSON : attend, ruptures, notes, commandes, non_verifie, consignes"]
-    errors = [f"« {key} » ne s'écrit pas dans la proposition : le verdict et la version viennent de la commande"
-              for key in prop if isinstance(key, str) and key.strip().lower() in ("verdict", "pret", "prêt", "ok", "version", "livrable")]
+        return ["the proposal is a JSON object: pending, breaking, notes, commands, not_verified, instructions"]
+    errors = [f"\"{key}\" is not written in the proposal: the verdict and the version come from the command"
+              for key in prop if isinstance(key, str) and key.strip().lower() in ("verdict", "ready", "pret", "prêt", "ok", "version", "deliverable", "livrable")]
     for key in PROPOSAL_LISTS:
         if not isinstance(prop.get(key, []), list) or len(prop.get(key, [])) > MAX_ITEMS:
-            errors.append(f"{key} : une liste d'au plus {MAX_ITEMS} éléments")
+            errors.append(f"{key}: a list of at most {MAX_ITEMS} items")
     if errors:
         return errors
-    for key in ("notes", "non_verifie"):
+    for key in ("notes", "not_verified"):
         for index, item in enumerate(prop.get(key, []), 1):
             if not _said(item):
-                errors.append(f"{key} {index} : une phrase d'au plus {MAX_TEXT} caractères")
-    for index, item in enumerate(prop.get("attend", []), 1):
-        if not (isinstance(item, dict) and _said(item.get("quoi")) and _said(item.get("qui")) and len(_flat(item["quoi"])) >= MIN_SENTENCE):
-            errors.append(f"attend {index} : un objet avec quoi (ce qui reste à lever, en une phrase d'au moins "
-                          f"{MIN_SENTENCE} caractères) et qui (le rôle qui le décide)")
+                errors.append(f"{key} {index}: a sentence of at most {MAX_TEXT} characters")
+    for index, item in enumerate(prop.get("pending", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("what")) and _said(item.get("who")) and len(_flat(item["what"])) >= MIN_SENTENCE):
+            errors.append(f"pending {index}: an object with what (what remains to clear, in a sentence of at least "
+                          f"{MIN_SENTENCE} characters) and who (the role that decides it)")
     cited = set()
-    for index, item in enumerate(prop.get("ruptures", []), 1):
-        if not (isinstance(item, dict) and _said(item.get("texte")) and isinstance(item.get("commit"), str)
-                and len(_flat(item["texte"])) >= MIN_SENTENCE):
-            errors.append(f"rupture {index} : un objet avec texte (ce qui casse et quoi faire, en une phrase d'au moins "
-                          f"{MIN_SENTENCE} caractères) et commit")
+    for index, item in enumerate(prop.get("breaking", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("text")) and isinstance(item.get("commit"), str)
+                and len(_flat(item["text"])) >= MIN_SENTENCE):
+            errors.append(f"breaking {index}: an object with text (what breaks and what to do, in a sentence of at least "
+                          f"{MIN_SENTENCE} characters) and commit")
             continue
         sha = item["commit"].strip().lower()
         hexa = 7 <= len(sha) <= 40 and all(ch in "0123456789abcdef" for ch in sha)
         match = [b for b in breaking if hexa and (b.startswith(sha) or sha.startswith(b))]
         if not match:
-            errors.append(f"rupture {index} : le commit cité n'est pas un commit annoncé cassant de cette livraison")
+            errors.append(f"breaking {index}: the commit cited is not a commit announced as breaking in this delivery")
         cited.update(match)
     missing = [b for b in breaking if b not in cited]
     if missing:
-        errors.append(f"{len(missing)} rupture(s) annoncée(s) par un commit ne sont pas reprises : {', '.join(missing[:5])}")
+        errors.append(f"{len(missing)} breaking change(s) announced by a commit are not carried over: {', '.join(missing[:5])}")
     team = team_commands(procedure)
-    known = (" Celles que la procédure écrit : " + " ; ".join(f"`{_code(c)}`" for c in team[:8]) + ". Une valeur entre "
-             "chevrons (<version>) reste écrite telle quelle : c'est l'humain qui la remplace.") if team else \
-        " La procédure de l'équipe (docs/agents/livraison.md) n'écrit aucune commande entre accents graves : n'en propose pas."
-    for index, item in enumerate(prop.get("commandes", []), 1):
-        if not (isinstance(item, dict) and _said(item.get("commande")) and item.get("role") in ROLES):
-            errors.append(f"commande {index} : un objet avec commande et role ({' ou '.join(ROLES)})")
-        elif _flat(item["commande"]) not in team:
-            errors.append(f"commande {index} : ce n'est pas, en entier et mot pour mot, une commande de la procédure de l'équipe." + known)
-    if prop.get("commandes") and result["failed"]:
-        errors.append("des commandes sont proposées alors qu'un prérequis est en échec : on ne livre pas")
-    if result["unknown"] and not result["failed"] and not prop.get("attend"):
-        errors.append(f"{len(result['unknown'])} prérequis attendent un humain et « attend » est vide")
+    known = (" Those the procedure writes: " + "; ".join(f"`{_code(c)}`" for c in team[:8]) + ". A value between "
+             "angle brackets (<version>) stays written as is: the human replaces it.") if team else \
+        " The team procedure (docs/agents/delivery.md) writes no command between backticks: propose none."
+    for index, item in enumerate(prop.get("commands", []), 1):
+        if not (isinstance(item, dict) and _said(item.get("command")) and item.get("role") in ROLES):
+            errors.append(f"command {index}: an object with command and role ({' or '.join(ROLES)})")
+        elif _flat(item["command"]) not in team:
+            errors.append(f"command {index}: it is not, in full and word for word, a command of the team procedure." + known)
+    if prop.get("commands") and result["failed"]:
+        errors.append("commands are proposed while a prerequisite has failed: we do not deliver")
+    if result["unknown"] and not result["failed"] and not prop.get("pending"):
+        errors.append(f"{len(result['unknown'])} prerequisite(s) wait for a human and \"pending\" is empty")
     whole = [_flat(message) for message in history]
-    for index, item in enumerate(prop.get("consignes", []), 1):
-        quote = _flat(item["citation"]) if isinstance(item, dict) and isinstance(item.get("citation"), str) else ""
+    for index, item in enumerate(prop.get("instructions", []), 1):
+        quote = _flat(item["quote"]) if isinstance(item, dict) and isinstance(item.get("quote"), str) else ""
         if not MIN_QUOTE <= len(quote) <= MAX_TEXT:
-            errors.append(f"consigne {index} : un objet avec citation, de {MIN_QUOTE} à {MAX_TEXT} caractères")
+            errors.append(f"instruction {index}: an object with quote, of {MIN_QUOTE} to {MAX_TEXT} characters")
         elif not any(quote in message for message in whole):
-            errors.append(f"consigne {index} : la citation ne se retrouve pas mot pour mot dans les commits de cette livraison")
+            errors.append(f"instruction {index}: the quote is not found word for word in the commits of this delivery")
     return errors
 
 
 def render_proposal(prop: dict[str, Any], result: dict[str, Any]) -> str:
-    """La proposition rendue : les prérequis mesurés d'abord, puis ce que le skill propose."""
-    out = [render_md(result).split("\n## Notes de version proposées")[0].rstrip(), ""]
+    """The rendered proposal: the measured prerequisites first, then what the skill proposes."""
+    out = [render_md(result).split("\n## Proposed release notes")[0].rstrip(), ""]
 
     def block(title: str, lines: list[str]) -> None:
         if lines:
             out.extend([f"### {title}", *lines, ""])
 
-    block("Ce qui attend un humain", [f"- {_plain(a['quoi'], MAX_TEXT)} — décidé par : {_plain(a['qui'], 80)}" for a in prop.get("attend", [])])
-    block("Ruptures", [f"- {_plain(r['texte'], MAX_TEXT)} ({_plain(r['commit'], 12)})" for r in prop.get("ruptures", [])])
-    block("Notes de version", [f"- {_plain(n, MAX_TEXT)}" for n in prop.get("notes", [])])
-    block("Commandes à lancer par un humain, citées de la procédure de l'équipe",
-          [f"{n}. pour {c['role']} : `{_code(c['commande'])}`" for n, c in enumerate(prop.get("commandes", []), 1)])
-    if not prop.get("commandes"):
-        out += ["Aucune commande proposée." + (" Un prérequis est en échec : on ne livre pas." if result["failed"] else
-                                               " La procédure de l'équipe n'en donne pas, ou n'est pas écrite."), ""]
-    block("Consignes trouvées dans les commits, non suivies", [f"- « {_plain(c['citation'], MAX_TEXT)} »" for c in prop.get("consignes", [])])
-    block("Pas vérifié", [f"- {_plain(n, MAX_TEXT)}" for n in prop.get("non_verifie", [])])
-    out.append("Rien n'a été tagué, poussé ni déployé.")
+    block("What waits for a human", [f"- {_plain(a['what'], MAX_TEXT)} — decided by: {_plain(a['who'], 80)}" for a in prop.get("pending", [])])
+    block("Breaking changes", [f"- {_plain(r['text'], MAX_TEXT)} ({_plain(r['commit'], 12)})" for r in prop.get("breaking", [])])
+    block("Release notes", [f"- {_plain(n, MAX_TEXT)}" for n in prop.get("notes", [])])
+    block("Commands for a human to run, quoted from the team procedure",
+          [f"{n}. to {c['role']}: `{_code(c['command'])}`" for n, c in enumerate(prop.get("commands", []), 1)])
+    if not prop.get("commands"):
+        out += ["No command proposed." + (" A prerequisite has failed: we do not deliver." if result["failed"] else
+                                          " The team procedure gives none, or is not written."), ""]
+    block("Instructions found in the commits, not followed", [f"- \"{_plain(c['quote'], MAX_TEXT)}\"" for c in prop.get("instructions", [])])
+    block("Not verified", [f"- {_plain(n, MAX_TEXT)}" for n in prop.get("not_verified", [])])
+    out.append("Nothing was tagged, pushed or deployed.")
     return "\n".join(out) + "\n"
 
 
 def proposal(table: dict[str, Any], repo: str, base: str, since: str | None, checks: Any, prop: Any) -> tuple[dict[str, Any], str]:
-    """La proposition validée contre ce que la commande mesure ; Refused si elle ne tient pas."""
+    """The proposal checked against what the command measures; Refused if it does not hold."""
     from . import context as context_mod
     result = check(table, repo, base, since, checks)
     previous = since if since is not None else last_version(repo)[0]
     blocks = context_mod.assemble(table, repo, "ship", base)["blocks"]
-    procedure = "\n".join(b["text"] for b in blocks if b["point"] == "livraison" and b["origin"] == "equipe")
+    procedure = "\n".join(b["text"] for b in blocks if b["point"] == "delivery" and b["origin"] == "team")
     errors = check_proposal(prop, result, procedure, messages(repo, previous), breaking_shas(repo, previous))
     if errors:
-        raise Refused("proposition refusée :\n- " + "\n- ".join(errors))
-    return {"proposition": prop, "check": result}, render_proposal(prop, result)
+        raise Refused("proposal refused:\n- " + "\n- ".join(errors))
+    return {"proposal": prop, "check": result}, render_proposal(prop, result)

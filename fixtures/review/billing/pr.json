@@ -1,0 +1,5 @@
+{
+  "branch": "inv-212-discounts",
+  "title": "feat: discount per customer (INV-212)",
+  "body": "Ticket INV-212: each customer can have a discount rate, between 0 and 30%, applied to the total excluding tax before VAT.\n\n- `discounts` table and its reading in the store\n- `total_incl_tax` applies the discount of the invoice's customer\n- tests of the discount and of the rate bounds\n\nVerified: `python3 -m unittest discover -s tests`."
+}

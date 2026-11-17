@@ -1,5 +1,0 @@
-{
-  "branch": "fac-212-remises",
-  "title": "feat: remise par client (FAC-212)",
-  "body": "Ticket FAC-212 : chaque client peut avoir un taux de remise, entre 0 et 30 %, appliqué au total hors taxe avant la TVA.\n\n- table `remises` et sa lecture dans le dépôt\n- `total_ttc` applique la remise du client de la facture\n- tests de la remise et des bornes du taux\n\nVérifié : `python3 -m unittest discover -s tests`."
-}

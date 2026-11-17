@@ -1,12 +1,12 @@
-"""Les portes de `/qa` : ce qu'un programme peut dire des tests d'un changement.
+"""The gates of `/qa`: what a program can say about the tests of a change.
 
-Quatre portes, chacune `ok`, `échec`, ou `non mesuré` quand le dépôt ne donne pas de quoi trancher :
-- **désactivés** : le diff ne saute, ne désactive ni ne supprime aucun test ;
-- **répété** : la commande de test passe plusieurs fois de suite (un test instable échoue ici) ;
-- **couverture** : les lignes ajoutées sont exécutées, d'après un rapport lcov ou Cobertura du dépôt ;
-- **critères** : chaque critère d'acceptation du ticket a un test nommé qui existe, ou une raison écrite.
+Four gates, each `ok`, `failed`, or `unmeasured` when the repository gives nothing to decide on:
+- **disabled**: the diff skips, disables or deletes no test;
+- **repeat**: the test command passes several times in a row (a flaky test fails here);
+- **coverage**: the added lines are executed, according to an lcov or Cobertura report of the repository;
+- **criteria**: each acceptance criterion of the ticket has a named test that exists, or a written reason.
 
-Écrire les tests est le travail de l'agent. Dire qu'ils tiennent ne l'est pas : c'est ce module."""
+Writing the tests is the agent's job. Saying that they hold is not: that is this module."""
 from __future__ import annotations
 
 import contextlib
@@ -24,9 +24,9 @@ from . import size, ticket
 from .context import Refused, _git, resolve_base
 from .devgrade import _changed_lines
 
-OK, FAIL, UNKNOWN = "ok", "échec", "non mesuré"
-RUN_TIMEOUT = 600      # par passage
-RUN_BUDGET = 1800      # pour tous les passages
+OK, FAIL, UNKNOWN = "ok", "failed", "unmeasured"
+RUN_TIMEOUT = 600      # per run
+RUN_BUDGET = 1800      # for all runs
 MAX_REPORT = 50_000_000
 MIN_REASON = 15
 _SKIP = re.compile(r"unittest\.skip|(?:^|\s)@skip\w*\b|\bfrom\s+(?:unittest|pytest)\b[^\n#]{0,40}\bimport\b[^\n#]{0,120}\bskip\w*\b|\bskipTest\b|\bSkipTest\b|pytest\.mark\.(?:skip|xfail)|pytest\.(?:skip|xfail)\(|importorskip|"
@@ -57,7 +57,7 @@ def _comment(line: str) -> bool:
 
 
 def skips(lines: list[str]) -> bool:
-    """Une de ces lignes saute ou désactive un test. Une ligne de commentaire qui en parle ne saute rien."""
+    """One of these lines skips or disables a test. A comment line that talks about it skips nothing."""
     return any(_SKIP.search(line) for line in lines if not _comment(line))
 
 
@@ -74,9 +74,9 @@ def _names(lines: list[str]) -> set[str]:
 
 
 def gate_disabled(repo: str, base: str, paths: list[str], spared: Sequence[re.Pattern[str]] = ()) -> dict[str, Any]:
-    """Aucun test sauté, désactivé, retiré ou supprimé par le diff. Ce qui ne se tranche pas par règle
-    (la configuration des tests a changé, des affirmations ont disparu) rend la porte non mesurée."""
-    title = "Aucun test désactivé, retiré ni supprimé"
+    """No test skipped, disabled, removed or deleted by the diff. What a rule cannot decide
+    (the test configuration changed, assertions disappeared) leaves the gate unmeasured."""
+    title = "No test disabled, removed or deleted"
     code, out = _git(repo, "diff", "-z", "--name-only", "--diff-filter=D", "-M", f"{resolve_base(repo, base)}...HEAD")
     deleted = [p for p in out.decode("utf-8", "replace").split("\0")
                if p and is_test(p) and not any(r.match(p) for r in spared)] if code == 0 else []
@@ -95,90 +95,90 @@ def gate_disabled(repo: str, base: str, paths: list[str], spared: Sequence[re.Pa
                 sum(bool(_ASSERT.search(line)) for line in removed) > sum(bool(_ASSERT.search(line)) for line in added):
             weakened.append(path)
     if deleted or skipped or gone:
-        said = ([f"supprimé : {p}" for p in deleted[:3]] + [f"sauté ou désactivé : {p}" for p in skipped[:3]]
-                + [f"test retiré ou renommé : {g}" for g in gone[:3]])
-        return _gate("desactives", title, FAIL, " ; ".join(said),
-                     "Remettre le test et corriger ce qui le fait échouer. Si le retrait est voulu (un test qui porte sur "
-                     "le skip lui-même, un renommage), un humain le dit dans la PR : la porte ne le tranche pas.")
+        said = ([f"deleted: {p}" for p in deleted[:3]] + [f"skipped or disabled: {p}" for p in skipped[:3]]
+                + [f"test removed or renamed: {g}" for g in gone[:3]])
+        return _gate("disabled", title, FAIL, "; ".join(said),
+                     "Put the test back and fix what makes it fail. If the removal is intended (a test about "
+                     "the skip itself, a rename), a human says so in the PR: the gate does not decide it.")
     if config or weakened:
-        said = [f"configuration des tests modifiée : {p}" for p in config[:3]] + [f"moins d'affirmations qu'avant : {p}" for p in weakened[:3]]
-        return _gate("desactives", title, UNKNOWN, " ; ".join(said),
-                     "Dire dans la PR ce que ce changement fait aux tests collectés et aux affirmations.")
-    return _gate("desactives", title, OK, "rien de sauté, de retiré ni de supprimé")
+        said = [f"test configuration changed: {p}" for p in config[:3]] + [f"fewer assertions than before: {p}" for p in weakened[:3]]
+        return _gate("disabled", title, UNKNOWN, "; ".join(said),
+                     "Say in the PR what this change does to the collected tests and to the assertions.")
+    return _gate("disabled", title, OK, "nothing skipped, removed or deleted")
 
 
 def _argv(command: str) -> list[str]:
     try:
         argv = shlex.split(command)
     except ValueError as exc:
-        raise Refused(f"--run illisible : {exc}") from exc
+        raise Refused(f"--run unreadable: {exc}") from exc
     if not argv:
-        raise Refused("--run est vide")
+        raise Refused("--run is empty")
     if any(t in _SHELL for t in argv) or re.match(r"^\w+=", argv[0]) or argv[0] in ("cd", "export", "source", "."):
-        raise Refused("--run est lancé sans shell : pas de &&, de tube, de redirection ni de VAR=valeur en tête. "
-                      "Donne une commande du dépôt (make test, ./scripts/test.sh), ou sh -c '…'")
+        raise Refused("--run is started without a shell: no &&, pipe, redirection or leading VAR=value. "
+                      "Give a command of the repository (make test, ./scripts/test.sh), or sh -c '…'")
     return argv
 
 
 def gate_repeat(repo: str, command: str | None, runs: int) -> dict[str, Any]:
-    """La commande de test, lancée plusieurs fois : toutes passent, ou c'est un échec ou un test instable.
-    Elle tourne dans le dépôt, sans bac à sable ; les variables qui ont l'air de secrets ne lui sont pas passées."""
-    title = f"La suite passe {runs} fois de suite"
+    """The test command, run several times: all runs pass, or it is a failure or a flaky test.
+    It runs in the repository, without a sandbox; variables that look like secrets are not passed to it."""
+    title = f"The suite passes {runs} times in a row"
     if not command:
-        return _gate("repete", title, UNKNOWN, "aucune commande de test donnée",
-                     "Relancer avec --run \"<la commande de test du dépôt>\".")
+        return _gate("repeat", title, UNKNOWN, "no test command given",
+                     "Run again with --run \"<the repository's test command>\".")
     argv = _argv(command)
     env = {k: v for k, v in os.environ.items() if not _SECRET.search(k)}
     passed, last, started = 0, "", time.monotonic()
     for index in range(runs):
         if time.monotonic() - started > RUN_BUDGET:
-            return _gate("repete", title, FAIL, f"{index} passage(s) en plus de {RUN_BUDGET} s : budget dépassé",
-                         "Donner une commande plus ciblée : la suite entière est trop lente pour être répétée.")
+            return _gate("repeat", title, FAIL, f"{index} run(s) in more than {RUN_BUDGET} s: budget exceeded",
+                         "Give a narrower command: the whole suite is too slow to be repeated.")
         with tempfile.TemporaryFile() as log:
             try:
                 proc = subprocess.Popen(argv, cwd=repo, stdout=log, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                         env=env, start_new_session=True)
             except OSError as exc:
-                return _gate("repete", title, FAIL, f"{argv[0]} : {type(exc).__name__}",
-                             "La commande ne se lance pas depuis la racine du dépôt : vérifier son nom et son chemin.")
+                return _gate("repeat", title, FAIL, f"{argv[0]}: {type(exc).__name__}",
+                             "The command does not start from the repository root: check its name and its path.")
             try:
                 code = proc.wait(timeout=RUN_TIMEOUT)
             except subprocess.TimeoutExpired:
                 with contextlib.suppress(OSError):
-                    os.killpg(proc.pid, signal.SIGKILL)   # le groupe entier : un lanceur laisse des enfants
+                    os.killpg(proc.pid, signal.SIGKILL)   # the whole group: a launcher leaves children behind
                 proc.wait()
-                return _gate("repete", title, FAIL, f"passage {index + 1} : plus de {RUN_TIMEOUT} s",
-                             "La suite ne rend pas la main : chercher un test qui attend une entrée, un port ou un verrou.")
+                return _gate("repeat", title, FAIL, f"run {index + 1}: more than {RUN_TIMEOUT} s",
+                             "The suite does not return: look for a test waiting for input, a port or a lock.")
             if code != 0:
                 log.seek(max(0, log.tell() - 4000))
                 last = " ".join(log.read().decode("utf-8", "replace").strip().splitlines()[-1:])[:160]
             passed += code == 0
     if passed == runs:
-        return _gate("repete", title, OK, f"{runs} passages sur {runs}, dans le même ordre : un test qui échoue rarement "
-                                          "ou selon l'ordre peut encore passer")
+        return _gate("repeat", title, OK, f"{runs} runs out of {runs}, in the same order: a test that fails rarely "
+                                          "or depending on the order can still pass")
     if passed:
-        return _gate("repete", title, FAIL, f"instable : {passed} passages sur {runs} ({last})",
-                     "Trouver ce qui rend le test instable (ordre, horloge, réseau, état partagé) : ne pas le relancer jusqu'à ce qu'il passe.")
-    return _gate("repete", title, FAIL, f"0 passage sur {runs} ({last})", "Corriger le code ou le test qui échoue.")
+        return _gate("repeat", title, FAIL, f"flaky: {passed} runs out of {runs} ({last})",
+                     "Find what makes the test flaky (order, clock, network, shared state): do not rerun it until it passes.")
+    return _gate("repeat", title, FAIL, f"0 runs out of {runs} ({last})", "Fix the failing code or test.")
 
 
 def read_coverage(path: str) -> dict[str, dict[int, int]]:
-    """Par fichier, les lignes mesurées et leur nombre de passages, lus d'un rapport lcov ou Cobertura."""
+    """Per file, the measured lines and their hit counts, read from an lcov or Cobertura report."""
     try:
         with open(path, encoding="utf-8", errors="replace") as fh:
             text = fh.read(MAX_REPORT + 1)
     except OSError as exc:
-        raise Refused(f"{path} : rapport de couverture illisible ({exc})") from exc
+        raise Refused(f"{path}: unreadable coverage report ({exc})") from exc
     if len(text) > MAX_REPORT:
-        raise Refused(f"{path} : rapport de plus de {MAX_REPORT} caractères, non lu")
+        raise Refused(f"{path}: report over {MAX_REPORT} characters, not read")
     found: dict[str, dict[int, int]] = {}
     if text.lstrip().startswith("<"):
         if "<!DOCTYPE" in text or "<!ENTITY" in text:
-            raise Refused(f"{path} : un rapport XML avec DOCTYPE ou entités n'est pas lu")
+            raise Refused(f"{path}: an XML report with a DOCTYPE or entities is not read")
         try:
             root = ET.fromstring(text)
         except ET.ParseError as exc:
-            raise Refused(f"{path} : XML illisible ({exc})") from exc
+            raise Refused(f"{path}: unreadable XML ({exc})") from exc
         for cls in root.iter("class"):
             lines = found.setdefault((cls.get("filename") or "").replace("\\", "/"), {})
             for line in cls.iter("line"):
@@ -200,11 +200,11 @@ def read_coverage(path: str) -> dict[str, dict[int, int]]:
 
 
 def added_lines(repo: str, base: str) -> dict[str, set[int]]:
-    """Par fichier, les seules lignes que le diff ajoute ou réécrit : une suppression n'en ajoute aucune."""
+    """Per file, only the lines the diff adds or rewrites: a deletion adds none."""
     commit = resolve_base(repo, base)
     code, out = _git(repo, "diff", "-z", "--name-only", "--no-renames", "--diff-filter=AM", f"{commit}...HEAD")
     if code != 0:
-        raise Refused(f"diff impossible entre {base} et HEAD")
+        raise Refused(f"no diff possible between {base} and HEAD")
     found: dict[str, set[int]] = {}
     for raw in filter(None, out.split(b"\0")):
         path = raw.decode("utf-8", "replace")
@@ -220,7 +220,7 @@ def added_lines(repo: str, base: str) -> dict[str, set[int]]:
 
 
 def _report_key(path: str, measured: dict[str, dict[int, int]]) -> str | None:
-    """L'entrée du rapport qui désigne ce fichier : le plus long suffixe commun, sur des segments entiers."""
+    """The report entry that names this file: the longest common suffix, on whole segments."""
     parts = path.split("/")
     best, score = None, 0
     for key in measured:
@@ -234,17 +234,17 @@ def _report_key(path: str, measured: dict[str, dict[int, int]]) -> str | None:
 
 
 def gate_coverage(repo: str, base: str, report: str | None, threshold: int) -> dict[str, Any]:
-    """La part des lignes ajoutées, dans le code hors tests, que les tests exécutent. Le rapport est
-    cru sur parole : rien n'empêche de l'écrire à la main, et la porte ne prétend pas le contraire."""
-    title = f"Les lignes ajoutées sont exécutées par les tests (au moins {threshold} %)"
+    """The share of added lines, in non-test code, that the tests execute. The report is
+    taken at its word: nothing prevents writing it by hand, and the gate does not claim otherwise."""
+    title = f"The added lines are executed by the tests (at least {threshold} %)"
     if not report:
-        return _gate("couverture", title, UNKNOWN, "aucun rapport de couverture donné",
-                     "Produire un rapport lcov ou Cobertura avec l'outil du dépôt, puis relancer avec --coverage <fichier>.")
+        return _gate("coverage", title, UNKNOWN, "no coverage report given",
+                     "Produce an lcov or Cobertura report with the repository's tool, then run again with --coverage <file>.")
     measured = read_coverage(report)
     stamp = (_git(repo, "log", "-1", "--format=%ct", "HEAD")[1] or b"").decode().strip()
     if stamp.isdigit() and os.path.getmtime(report) < int(stamp):
-        return _gate("couverture", title, UNKNOWN, "le rapport est plus ancien que le dernier commit",
-                     "Reproduire le rapport sur cette branche, après le dernier commit.")
+        return _gate("coverage", title, UNKNOWN, "the report is older than the last commit",
+                     "Produce the report again on this branch, after the last commit.")
     changed = {p: lines for p, lines in added_lines(repo, base).items()
                if lines and p.endswith(_CODE_EXT) and not is_test(p) and not _TEST_CONFIG.search(p)}
     total = hit = 0
@@ -257,105 +257,105 @@ def gate_coverage(repo: str, base: str, report: str | None, threshold: int) -> d
             absent.append(path)
             continue
         if key in used:
-            return _gate("couverture", title, UNKNOWN, f"chemin ambigu dans le rapport : {key} vaut pour {used[key]} et {path}",
-                         "Produire le rapport avec des chemins relatifs à la racine du dépôt.")
+            return _gate("coverage", title, UNKNOWN, f"ambiguous path in the report: {key} stands for {used[key]} and {path}",
+                         "Produce the report with paths relative to the repository root.")
         used[key] = path
         seen = [n for n in sorted(lines) if n in measured[key]]
         total += len(seen)
         hit += sum(measured[key][n] > 0 for n in seen)
         missed += [f"{path}:{n}" for n in seen if measured[key][n] == 0]
     share = 100 * hit // total if total else 0
-    evidence = f"{hit} lignes sur {total} ({share} %), {len(changed) - len(absent)} fichier(s) sur {len(changed)} mesuré(s)"
+    evidence = f"{hit} lines out of {total} ({share} %), {len(changed) - len(absent)} file(s) out of {len(changed)} measured"
     if missed:
-        evidence += f" ; jamais exécutées : {', '.join(missed[:4])}"
+        evidence += f"; never executed: {', '.join(missed[:4])}"
     if total and share < threshold:
-        return _gate("couverture", title, FAIL, evidence,
-                     "Écrire le test qui passe par ces lignes, ou dire dans la PR pourquoi elles n'en ont pas.")
+        return _gate("coverage", title, FAIL, evidence,
+                     "Write the test that goes through these lines, or say in the PR why they have none.")
     if absent or not total:
-        return _gate("couverture", title, UNKNOWN, evidence + (f" ; absents du rapport : {', '.join(absent[:4])}" if absent else ""),
-                     "Un fichier changé absent du rapport n'est exécuté par aucun test, ou le rapport ne le suit pas : le vérifier.")
-    return _gate("couverture", title, OK, evidence)
+        return _gate("coverage", title, UNKNOWN, evidence + (f"; missing from the report: {', '.join(absent[:4])}" if absent else ""),
+                     "A changed file missing from the report is executed by no test, or the report does not track it: check it.")
+    return _gate("coverage", title, OK, evidence)
 
 
 def _defined(name: str, text: str) -> bool:
-    """Le nom figure comme un mot entier sur une ligne qui n'est pas un commentaire."""
+    """The name appears as a whole word on a line that is not a comment."""
     pattern = re.compile(r"(?<![\w])" + re.escape(name) + r"(?![\w])")
     return any(pattern.search(line) for line in text.splitlines() if not line.lstrip().startswith(("#", "//", "*", "/*")))
 
 
 def gate_criteria(repo: str, ticket_text: str | None, mapping: Any) -> dict[str, Any]:
-    """Chaque critère d'acceptation a un test nommé qui existe dans un fichier de test du dépôt, ou une
-    raison écrite. Un critère laissé sans test attend un humain ; aucun critère testé est un échec."""
-    title = "Chaque critère d'acceptation a son test"
+    """Each acceptance criterion has a named test that exists in a test file of the repository, or a
+    written reason. A criterion left without a test waits for a human; no tested criterion is a failure."""
+    title = "Each acceptance criterion has its test"
     if ticket_text is None or mapping is None:
-        return _gate("criteres", title, UNKNOWN, "ticket ou correspondance absents",
-                     "Relancer avec --ticket <ticket.md> et --trace <correspondance.json>.")
+        return _gate("criteria", title, UNKNOWN, "ticket or mapping missing",
+                     "Run again with --ticket <ticket.md> and --trace <mapping.json>.")
     criteria = ticket.check(ticket_text, [])["criteria"]
     if not criteria:
-        return _gate("criteres", title, UNKNOWN, "le ticket ne liste aucun critère", "Passer le ticket par le skill ticket d'abord.")
-    rows = mapping.get("criteres") if isinstance(mapping, dict) else None
-    spared = mapping.get("non_couverts", []) if isinstance(mapping, dict) else None
+        return _gate("criteria", title, UNKNOWN, "the ticket lists no criterion", "Run the ticket through the ticket skill first.")
+    rows = mapping.get("criteria") if isinstance(mapping, dict) else None
+    spared = mapping.get("not_covered", []) if isinstance(mapping, dict) else None
     if not isinstance(rows, list) or not isinstance(spared, list):
-        raise Refused("correspondance : un objet {criteres: [{critere, tests}], non_couverts: [{critere, pourquoi}]}")
+        raise Refused("mapping: an object {criteria: [{criterion, tests}], not_covered: [{criterion, reason}]}")
     covered: dict[int, list[str]] = {}
     for row in rows:
-        if not (isinstance(row, dict) and type(row.get("critere")) is int and isinstance(row.get("tests"), list)
+        if not (isinstance(row, dict) and type(row.get("criterion")) is int and isinstance(row.get("tests"), list)
                 and all(isinstance(t, str) and t.strip() for t in row["tests"])):
-            raise Refused(f"correspondance : ligne mal formée ({row!r:.80})")
-        covered.setdefault(row["critere"], []).extend(row["tests"])
-    excused = {r["critere"] for r in spared if isinstance(r, dict) and type(r.get("critere")) is int
-               and isinstance(r.get("pourquoi"), str) and len(r["pourquoi"].strip()) >= MIN_REASON}
+            raise Refused(f"mapping: malformed row ({row!r:.80})")
+        covered.setdefault(row["criterion"], []).extend(row["tests"])
+    excused = {r["criterion"] for r in spared if isinstance(r, dict) and type(r.get("criterion")) is int
+               and isinstance(r.get("reason"), str) and len(r["reason"].strip()) >= MIN_REASON}
     root = os.path.realpath(repo)
     problems = []
     for number in range(1, len(criteria) + 1):
         tests = covered.get(number, [])
         if not tests and number not in excused:
-            problems.append(f"critère {number} sans test ni raison d'au moins {MIN_REASON} caractères")
+            problems.append(f"criterion {number} without a test or a reason of at least {MIN_REASON} characters")
         for ref in tests:
             path, _, name = ref.partition("::")
             path, name = path.strip(), name.split("::")[-1].strip()
             if "\0" in path or len(path) > 300:
-                problems.append(f"critère {number} : chemin de test illisible")
+                problems.append(f"criterion {number}: unreadable test path")
                 continue
             full = os.path.realpath(os.path.join(repo, path))
             if not name:
-                problems.append(f"critère {number} : {ref} ne nomme pas de test (chemin::nom)")
+                problems.append(f"criterion {number}: {ref} does not name a test (path::name)")
             elif path.startswith("/") or os.path.commonpath([root, full]) != root or not os.path.isfile(full):
-                problems.append(f"critère {number} : {path} n'existe pas dans le dépôt")
+                problems.append(f"criterion {number}: {path} does not exist in the repository")
             elif not is_test(path):
-                problems.append(f"critère {number} : {path} n'est pas un fichier de test")
+                problems.append(f"criterion {number}: {path} is not a test file")
             else:
                 with open(full, encoding="utf-8", errors="replace") as fh:
                     if not _defined(name, fh.read(2_000_000)):
-                        problems.append(f"critère {number} : {name} introuvable dans {path}")
+                        problems.append(f"criterion {number}: {name} not found in {path}")
     unknown = sorted((set(covered) | excused) - set(range(1, len(criteria) + 1)))
     if unknown:
-        problems.append(f"critère(s) {', '.join(map(str, unknown))} : le ticket n'en a que {len(criteria)}")
+        problems.append(f"criterion(s) {', '.join(map(str, unknown))}: the ticket has only {len(criteria)}")
     tested = [n for n in range(1, len(criteria) + 1) if covered.get(n)]
     if not problems and not tested:
-        problems.append("aucun critère n'a de test : tous sont excusés")
+        problems.append("no criterion has a test: all are excused")
     if problems:
-        return _gate("criteres", title, FAIL, " ; ".join(problems[:5]),
-                     "Écrire le test manquant, ou inscrire le critère dans non_couverts avec sa raison.")
+        return _gate("criteria", title, FAIL, "; ".join(problems[:5]),
+                     "Write the missing test, or put the criterion in not_covered with its reason.")
     shared = {ref for refs in covered.values() for ref in refs if sum(ref in r for r in covered.values()) > max(1, len(criteria) // 2)}
     if excused or shared:
-        said = [f"{len(tested)} critères sur {len(criteria)} testés"]
-        said += [f"sans test, avec raison : {sorted(excused)}"] if excused else []
-        said += [f"un même test pour plus de la moitié des critères : {', '.join(sorted(shared)[:2])}"] if shared else []
-        return _gate("criteres", title, UNKNOWN, " ; ".join(said),
-                     "Faire valider par un humain les critères sans test, et vérifier qu'un seul test porte bien plusieurs critères.")
-    return _gate("criteres", title, OK, f"{len(criteria)} critères sur {len(criteria)}")
+        said = [f"{len(tested)} criteria out of {len(criteria)} tested"]
+        said += [f"without a test, with a reason: {sorted(excused)}"] if excused else []
+        said += [f"one same test for more than half of the criteria: {', '.join(sorted(shared)[:2])}"] if shared else []
+        return _gate("criteria", title, UNKNOWN, "; ".join(said),
+                     "Have a human approve the criteria without a test, and check that a single test really covers several criteria.")
+    return _gate("criteria", title, OK, f"{len(criteria)} criteria out of {len(criteria)}")
 
 
 def run_gates(table: dict[str, Any], repo: str, base: str, command: str | None = None, runs: int | None = None,
               coverage: str | None = None, ticket_text: str | None = None, mapping: Any = None) -> dict[str, Any]:
     stats = size.diff_stats(repo, base)
     if not stats:
-        raise Refused(f"aucun changement entre {base} et HEAD : rien à vérifier")
+        raise Refused(f"no change between {base} and HEAD: nothing to check")
     dirty = _git(repo, "status", "--porcelain")[1].decode("utf-8", "replace").strip()
-    if dirty:   # deux portes lisent HEAD, deux lisent le disque : elles doivent parler du même changement
-        raise Refused("la copie de travail n'est pas commitée (" + dirty.splitlines()[0].strip() + "…) : commite les tests, "
-                      "et garde le rapport de couverture et la correspondance hors du dépôt")
+    if dirty:   # two gates read HEAD, two read the disk: they must talk about the same change
+        raise Refused("the working copy is not committed (" + dirty.splitlines()[0].strip() + "…): commit the tests, "
+                      "and keep the coverage report and the mapping outside the repository")
     settings = table["qa"]
     gates = [gate_disabled(repo, base, [s["path"] for s in stats]),
              gate_repeat(repo, command, runs or settings["runs"]),
@@ -368,13 +368,13 @@ def run_gates(table: dict[str, Any], repo: str, base: str, command: str | None =
 
 def render_md(result: dict[str, Any]) -> str:
     if result["failed"]:
-        head = f"QA : {len(result['failed'])} porte(s) en échec."
+        head = f"QA: {len(result['failed'])} gate(s) failed."
     elif result["unknown"]:
-        head = f"QA : rien en échec, {len(result['unknown'])} porte(s) non mesurée(s)."
+        head = f"QA: nothing failed, {len(result['unknown'])} gate(s) unmeasured."
     else:
-        head = "QA : les quatre portes passent."
+        head = "QA: all four gates pass."
     out = [head]
     for gate in result["gates"]:
         out.append(f"- {gate['status']} — {gate['title']} ({gate['evidence']})" + (f". {gate['action']}" if gate["action"] else ""))
-    out.append("Une porte non mesurée n'est pas une porte passée : dis-le dans la PR.")
+    out.append("An unmeasured gate is not a passed gate: say so in the PR.")
     return "\n".join(out) + "\n"

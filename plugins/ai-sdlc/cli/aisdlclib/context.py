@@ -1,9 +1,13 @@
-"""Assemble le contexte d'une phase : la convention du socle, puis ce que l'équipe ajoute.
+"""Assemble the context of a phase: the base convention, then what the team adds.
 
-L'assemblage est fait ici, par des règles écrites, pas par le modèle : deux textes contradictoires
-laissés au modèle, il en choisit un au hasard. Chaque bloc porte sa provenance. Une surcharge qui
-sert de porte (revue, sécurité…) se lit sur la branche de base : une PR ne peut pas alléger sa propre
-revue. Une surcharge invalide arrête tout : on ne relit pas avec des règles à moitié comprises."""
+The assembly is done here, by written rules, not by the model: given two contradicting texts, the
+model picks one at random. Each block carries its provenance. An override that acts as a gate (review,
+security…) is read on the base branch: a PR cannot lighten its own review. An invalid override stops
+everything: we do not review with half-understood rules.
+
+Team overrides are written by people, so they are read in both languages: the file
+`docs/agents/<point>.md` under its English name, or failing that under its former French name; in the
+header, `mode: append|replace` or `ajoute|remplace`, and `why:` or `pourquoi:`."""
 from __future__ import annotations
 
 import json
@@ -11,11 +15,14 @@ import os
 import subprocess
 from typing import Any
 
-MODES = ("ajoute", "remplace")
+from .points import FORMER_NAMES
+
+MODES = ("append", "replace")
+FORMER_MODES = {"ajoute": "append", "remplace": "replace"}
 
 
 class Refused(ValueError):
-    """La demande ne peut pas être servie telle quelle ; le message dit quoi corriger."""
+    """The request cannot be served as is; the message says what to fix."""
 
 
 # A git command only hangs this long on a stalled disk; a CI runner on spinning disks under load needs
@@ -26,7 +33,7 @@ def _git(repo: str, *args: str) -> tuple[int, bytes]:
     try:
         out = subprocess.run(["git", "-C", repo, "-c", "core.fsmonitor=false", "-c", "core.hooksPath=/dev/null", *args], capture_output=True, timeout=GIT_TIMEOUT)
     except (OSError, subprocess.TimeoutExpired) as exc:
-        raise Refused(f"git {args[0]} n'a pas répondu dans {repo} : {exc}") from exc
+        raise Refused(f"git {args[0]} did not answer in {repo}: {exc}") from exc
     return out.returncode, out.stdout
 
 
@@ -34,44 +41,44 @@ def _decode(raw: bytes, rel: str) -> str:
     try:
         return raw.decode("utf-8")
     except UnicodeDecodeError as exc:
-        raise Refused(f"{rel} : le fichier n'est pas du texte UTF-8") from exc
+        raise Refused(f"{rel}: the file is not UTF-8 text") from exc
 
 
 def resolve_base(repo: str, base: str) -> str:
     if not base or base.startswith("-"):
-        raise Refused(f"branche de base {base!r} invalide : un nom de branche, de tag ou un commit")
+        raise Refused(f"invalid base branch {base!r}: a branch name, a tag or a commit")
     code, out = _git(repo, "rev-parse", "--short", "--verify", "--quiet", f"{base}^{{commit}}")
     if code != 0 or not out.strip():
-        shown = "".join(ch if ch.isprintable() else "?" for ch in base)[:80]   # la valeur vient de la ligne de commande
-        raise Refused(f"branche de base {shown} introuvable dans {repo} : passe --base <ref>")
+        shown = "".join(ch if ch.isprintable() else "?" for ch in base)[:80]   # the value comes from the command line
+        raise Refused(f"base branch {shown} not found in {repo}: pass --base <ref>")
     return out.decode("ascii", "replace").strip()
 
 
 def _is_head(repo: str, commit: str) -> bool:
-    """La base est-elle le commit relu lui-même ? Alors rien ne sépare la PR de ses propres règles."""
+    """Is the base the reviewed commit itself? Then nothing separates the PR from its own rules."""
     code, out = _git(repo, "rev-parse", "--short", "--verify", "--quiet", "HEAD^{commit}")
     return code == 0 and out.decode("ascii", "replace").strip() == commit
 
 
 def _read_at(repo: str, commit: str, rel: str) -> str | None:
-    """Le fichier tel qu'il est dans ce commit ; None s'il n'y est pas. Toute autre erreur refuse :
-    une porte qui ne peut pas lire ses règles ne les remplace pas par le défaut."""
+    """The file as it is in this commit; None if it is not there. Any other error refuses:
+    a gate that cannot read its rules does not replace them with the default."""
     code, out = _git(repo, "ls-tree", commit, "--", rel)
     if code != 0:
-        raise Refused(f"{rel} : lecture impossible dans {commit}")
+        raise Refused(f"{rel}: cannot be read in {commit}")
     entry = out.decode("utf-8", "replace").strip()
     if not entry:
         return None
     if not entry.startswith("100"):
-        raise Refused(f"{rel} : attendu un fichier ordinaire dans {commit}, pas un lien ni un dossier")
+        raise Refused(f"{rel}: expected a regular file in {commit}, not a link or a folder")
     code, out = _git(repo, "show", f"{commit}:{rel}")
     if code != 0:
-        raise Refused(f"{rel} : lecture impossible dans {commit}")
+        raise Refused(f"{rel}: cannot be read in {commit}")
     return _decode(out, rel)
 
 
 def is_file_at(repo: str, commit: str, rel: str) -> bool:
-    """Ce chemin est-il un fichier ordinaire de ce commit ? Sans lire son contenu, et sans motif de chemin."""
+    """Is this path a regular file of this commit? Without reading its content, and without path patterns."""
     if not rel or rel.startswith(("/", "-")) or ".." in rel.split("/") or "\0" in rel or len(rel) > 300:
         return False
     if rel.endswith("/") or "." in (rel, *rel.split("/")) or "" in rel.split("/"):
@@ -84,71 +91,83 @@ def is_file_at(repo: str, commit: str, rel: str) -> bool:
 def _read_worktree(repo: str, rel: str) -> str | None:
     path = os.path.join(repo, rel)
     if os.path.islink(path):
-        raise Refused(f"{rel} : attendu un fichier ordinaire, pas un lien")
+        raise Refused(f"{rel}: expected a regular file, not a link")
     if not os.path.isfile(path):
         return None
     try:
         with open(path, "rb") as fh:
             return _decode(fh.read(), rel)
     except OSError as exc:
-        raise Refused(f"{rel} : lecture impossible ({exc})") from exc
+        raise Refused(f"{rel}: cannot be read ({exc})") from exc
 
 
 def parse_override(name: str, point: dict[str, Any], text: str, budget: int) -> dict[str, Any]:
-    """L'en-tête et le corps d'une surcharge ; Refused si elle ne respecte pas le contrat du point."""
+    """The header and body of an override; Refused if it does not respect the point's contract.
+    The former French point name and header words are accepted; `mode` comes out in English."""
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---" or "---" not in [line.strip() for line in lines[1:]]:
-        raise Refused(f"{name} : en-tête manquant (--- point: {name} / mode: ajoute ---)")
+        raise Refused(f"{name}: missing header (--- point: {name} / mode: append ---)")
     end = [line.strip() for line in lines[1:]].index("---") + 1
     header = {}
     for line in lines[1:end]:
         key, sep, value = line.split("#", 1)[0].partition(":")
         if sep and key.strip():
             header[key.strip()] = value.strip()
-    if header.get("point") != name:
-        raise Refused(f"{name} : l'en-tête dit point: {header.get('point')}, le fichier s'appelle {name}.md")
-    mode = header.get("mode")
+    if header.get("point") not in (name, FORMER_NAMES.get(name)):
+        raise Refused(f"{name}: the header says point: {header.get('point')}, the file is the override of {name}")
+    mode = FORMER_MODES.get(header.get("mode"), header.get("mode"))
     if mode not in MODES:
-        raise Refused(f"{name} : mode {mode} inconnu ({', '.join(MODES)})")
-    if mode == "remplace" and not point["replaceable"]:
-        raise Refused(f"{name} : ce point ne se remplace pas, une équipe peut seulement y ajouter (mode: ajoute)")
-    if mode == "remplace" and not header.get("pourquoi"):
-        raise Refused(f"{name} : remplace exige un champ pourquoi dans l'en-tête")
+        raise Refused(f"{name}: unknown mode {header.get('mode')} ({', '.join(MODES)})")
+    why = header.get("why") or header.get("pourquoi")
+    if mode == "replace" and not point["replaceable"]:
+        raise Refused(f"{name}: this point cannot be replaced, a team can only append to it (mode: append)")
+    if mode == "replace" and not why:
+        raise Refused(f"{name}: replace requires a why field in the header")
     body = [line for line in lines[end + 1:] if line.strip()]
     if any(line.lstrip().startswith("#") for line in body):
-        raise Refused(f"{name} : pas de titre (ligne en #) dans une surcharge, seulement des règles")
+        raise Refused(f"{name}: no heading (line starting with #) in an override, only rules")
     if len(body) > budget:
-        raise Refused(f"{name} : {len(body)} lignes, au plus {budget} ; ce qui déborde va dans un skill d'équipe")
-    return {"mode": mode, "why": header.get("pourquoi"), "text": "\n".join(body), "lines": len(body)}
+        raise Refused(f"{name}: {len(body)} lines, at most {budget}; what overflows goes into a team skill")
+    return {"mode": mode, "why": why, "text": "\n".join(body), "lines": len(body)}
+
+
+def override_paths(table: dict[str, Any], name: str) -> list[str]:
+    """Where a point's override is looked for, in order: its English name, then its former French name."""
+    names = [name] + ([FORMER_NAMES[name]] if name in FORMER_NAMES else [])
+    return [f"{table['override_dir']}/{n}.md" for n in names]
 
 
 def _override(table: dict[str, Any], repo: str, name: str, base: str, commit: str,
-              worktree: bool) -> tuple[dict[str, Any] | None, str | None]:
-    """La surcharge d'un point là où elle doit se lire, et un avertissement si une autre existe ailleurs."""
+              worktree: bool) -> tuple[dict[str, Any] | None, list[str]]:
+    """A point's override where it must be read, and warnings if another version exists elsewhere."""
     point = table["points"][name]
-    rel = f"{table['override_dir']}/{name}.md"
+    rels = override_paths(table, name)
     on_base = point["branch"] == "base" and not worktree
-    warning = None
+    warnings = []
     if on_base:
-        text = _read_at(repo, commit, rel)
-        try:  # la copie de travail ne sert qu'à prévenir : illisible, elle ne bloque pas la revue
-            here = _read_worktree(repo, rel)
-        except Refused:
-            here = ""
-        if here is not None and here != text:
-            warning = f"{rel} diffère de {base} dans la copie de travail : c'est la version de {base} qui est lue"
+        found = {rel: text for rel in rels if (text := _read_at(repo, commit, rel)) is not None}
+        for rel in rels:
+            try:  # the working tree only serves to warn: unreadable, it does not block the review
+                here = _read_worktree(repo, rel)
+            except Refused:
+                here = ""
+            if here is not None and here != found.get(rel):
+                warnings.append(f"{rel} differs from {base} in the working tree: the {base} version is read")
     else:
-        text = _read_worktree(repo, rel)
-    if text is None:
-        return None, warning
+        found = {rel: text for rel in rels if (text := _read_worktree(repo, rel)) is not None}
+    if not found:
+        return None, warnings
+    rel, text = next(iter(found.items()))
+    if len(found) > 1:
+        warnings.append(f"{' and '.join(found)} both exist: {rel} is read, the other is ignored")
     parsed = parse_override(name, point, text, table["budget_lines"])
-    source = {"path": rel, "ref": base if on_base else "copie de travail",
+    source = {"path": rel, "ref": base if on_base else "working tree",
               "commit": commit if on_base else None, "mode": parsed["mode"], "why": parsed["why"]}
-    return {**parsed, "source": source}, warning
+    return {**parsed, "source": source}, warnings
 
 
 def read_level(repo: str) -> int | None:
-    """Le palier harness-ai du dépôt, lu dans .harness/state.json sans rien y écrire."""
+    """The harness-ai level of the repository, read from .harness/state.json without writing anything."""
     try:
         with open(os.path.join(repo, ".harness", "state.json"), encoding="utf-8") as fh:
             reached = json.load(fh).get("level", {}).get("reached")
@@ -160,23 +179,22 @@ def read_level(repo: str) -> int | None:
 def assemble(table: dict[str, Any], repo: str, phase: str, base: str, worktree: bool = False) -> dict[str, Any]:
     from . import points as points_mod
     if phase not in table["phases"]:
-        raise Refused(f"phase {phase} inconnue ({', '.join(table['phases'])})")
+        raise Refused(f"unknown phase {phase} ({', '.join(table['phases'])})")
     commit = resolve_base(repo, base)
     blocks, warnings = [], []
     for name, point in table["points"].items():
         if phase not in point["read_by"]:
             continue
-        override, warning = _override(table, repo, name, base, commit, worktree)
-        if warning:
-            warnings.append(warning)
+        override, found = _override(table, repo, name, base, commit, worktree)
+        warnings += found
         default = points_mod.default_text(point)
-        if default and not (override and override["mode"] == "remplace"):
-            blocks.append({"point": name, "origin": "socle", "text": default, "source": {"path": point["default"]}})
+        if default and not (override and override["mode"] == "replace"):
+            blocks.append({"point": name, "origin": "base", "text": default, "source": {"path": point["default"]}})
         if override:
-            blocks.append({"point": name, "origin": "equipe", "text": override["text"], "source": override["source"]})
+            blocks.append({"point": name, "origin": "team", "text": override["text"], "source": override["source"]})
     same = _is_head(repo, commit)
     if same and not worktree:
-        warnings.append(f"{base} est le commit relu lui-même : rien ne sépare ce changement de ses propres règles")
+        warnings.append(f"{base} is the reviewed commit itself: nothing separates this change from its own rules")
     reached = read_level(repo)
     needed = table["phases"][phase]["min_level"]
     return {"phase": phase, "base": base, "commit": commit, "gate": not worktree and not same, "blocks": blocks,
@@ -185,7 +203,7 @@ def assemble(table: dict[str, Any], repo: str, phase: str, base: str, worktree: 
 
 
 def status(table: dict[str, Any], repo: str, base: str) -> list[dict[str, Any]]:
-    """Chaque point d'extension : convention du socle, surchargé, ou surcharge invalide."""
+    """Each extension point: base convention, overridden, or invalid override."""
     commit = resolve_base(repo, base)
     rows = []
     for name, point in table["points"].items():
@@ -194,49 +212,49 @@ def status(table: dict[str, Any], repo: str, base: str) -> list[dict[str, Any]]:
         try:
             override, _ = _override(table, repo, name, base, commit, worktree=False)
         except Refused as exc:
-            rows.append({**row, "state": "invalide", "reason": str(exc)})
+            rows.append({**row, "state": "invalid", "reason": str(exc)})
             continue
         if override:
-            row = {**row, "state": "surchargé", "mode": override["mode"], "lines": override["lines"],
+            row = {**row, "state": "overridden", "mode": override["mode"], "lines": override["lines"],
                    "path": override["source"]["path"]}
         rows.append(row)
     return rows
 
 
-# --- Rendu -----------------------------------------------------------------------------------------
+# --- Rendering -------------------------------------------------------------------------------------
 
 def render_context_md(result: dict[str, Any]) -> str:
     level = result["level"]
-    seen = "non mesuré (lance harness status)" if level["reached"] is None else str(level["reached"])
-    out = [f"# Contexte de la phase {result['phase']}", "",
-           f"Branche de base : {result['base']} ({result['commit']}). Palier harness-ai : {seen}, "
-           f"la phase s'ouvre au palier {level['needed']}."]
+    seen = "unmeasured (run harness status)" if level["reached"] is None else str(level["reached"])
+    out = [f"# Context of the {result['phase']} phase", "",
+           f"Base branch: {result['base']} ({result['commit']}). harness-ai level: {seen}, "
+           f"the phase opens at level {level['needed']}."]
     if not level["open"]:
-        out.append("Le palier requis n'est pas atteint : la phase reste utilisable, ses résultats sont à prendre comme un essai.")
+        out.append("The required level is not reached: the phase remains usable, its results are to be taken as a trial.")
     if not result["gate"]:
-        out.append("Ce contexte ne vaut pas pour une porte : les règles ne viennent pas d'une branche de base distincte.")
-    out += [f"Attention : {w}" for w in result["warnings"]]
+        out.append("This context does not count for a gate: the rules do not come from a separate base branch.")
+    out += [f"Warning: {w}" for w in result["warnings"]]
     for block in result["blocks"]:
         src = block["source"]
-        if block["origin"] == "socle":
-            title = f"{block['point']} — socle ({src['path']})"
+        if block["origin"] == "base":
+            title = f"{block['point']} — base ({src['path']})"
         else:
             where = f"{src['ref']} {src['commit']}" if src["commit"] else src["ref"]
-            title = f"{block['point']} — équipe ({src['path']} @ {where}, {src['mode']})"
+            title = f"{block['point']} — team ({src['path']} @ {where}, {src['mode']})"
         out += ["", f"## {title}", "", block["text"]]
     if not result["blocks"]:
-        out += ["", "Aucune convention ni surcharge pour cette phase."]
+        out += ["", "No convention and no override for this phase."]
     return "\n".join(out) + "\n"
 
 
 def render_status_md(rows: list[dict[str, Any]]) -> str:
-    out = ["| Point | Lu par | État |", "|---|---|---|"]
+    out = ["| Point | Read by | State |", "|---|---|---|"]
     for row in rows:
-        if row["state"] == "surchargé":
-            state = f"surchargé : {row['mode']}, {row['lines']} lignes ({row['path']})"
-        elif row["state"] == "invalide":
-            state = f"invalide : {row['reason']}"
+        if row["state"] == "overridden":
+            state = f"overridden: {row['mode']}, {row['lines']} lines ({row['path']})"
+        elif row["state"] == "invalid":
+            state = f"invalid: {row['reason']}"
         else:
-            state = "convention du framework" if row["has_default"] else "aucune convention encore"
+            state = "framework convention" if row["has_default"] else "no convention yet"
         out.append(f"| `{row['point']}` | {', '.join(row['read_by'])} | {state} |")
     return "\n".join(out) + "\n"

@@ -1,0 +1,40 @@
+# Template: the gates of the ai-sdlc plugin run on each pull request of a team repository.
+# Copy to .github/workflows/gates.yml, then:
+#   1. replace <runner> with the team's runner, and <plugin repository> with where it is fetched from;
+#   2. pin `ref` to a precise version of the plugin, not to a branch;
+#   3. make the "gates" check required through a ruleset or a "required workflow" of the forge:
+#      without it, a pull request can remove this file, or change it, and pass. This file comes
+#      from the pull request; the code of the gates comes from the plugin repository, at the pinned version;
+#      and do not make it required while the job can be skipped: a skipped check counts as passed;
+#   4. write docs/agents/gates.json on the target branch if the repository has a test command to
+#      replay or a folder to keep out of reading. It is read on the target branch, not in the PR:
+#      a PR to an unprotected branch takes that branch's settings;
+#   5. on a runner that is not disposable, do not run the test command of a PR coming from a fork.
+name: Gates
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: <runner>
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the gates compare with the target branch and read the history of the PR
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: <plugin repository>
+          ref: <version>
+          path: .ai-sdlc
+      # The team's scanners run here, with a SARIF output outside the repository, then are
+      # passed through --report. A coverage report is passed through --coverage.
+      - name: Gates of the pull request
+        env:
+          TARGET: ${{ github.base_ref }}   # never interpolated into the command: a branch name can carry shell
+        run: python3 .ai-sdlc/plugins/ai-sdlc/cli/ai_sdlc.py ci pr . --base "origin/$TARGET"

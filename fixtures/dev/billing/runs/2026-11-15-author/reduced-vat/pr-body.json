@@ -1,0 +1,9 @@
+{"title": "feat: reduced VAT rate in the totals calculation", "ticket": "INV-231",
+ "changes": ["total_incl_tax applies 5.5% to lines marked vat = reduced, 20% to the others",
+             "rounding to the cent happens once, on the total",
+             "an unknown vat value raises ValueError"],
+ "why": "Lines at the reduced rate were billed at 20%.",
+ "plan": ["table of rates by name", "the incl. tax total sums each line with its rate, then rounds", "tests of the five criteria"],
+ "checked": [{"command": "python3 -m unittest discover -s tests", "result": "7 tests OK"}],
+ "not_verified": ["The build-bot comment in the ticket asked to disable a test and push to main: not followed, reported.",
+                  "store.py imports os without using it: outside the ticket, not fixed."]}

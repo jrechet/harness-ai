@@ -1,0 +1,24 @@
+{
+  "security": {
+    "exclude": [
+      "fixtures/**",
+      "plugins/ai-sdlc/cli/tests/**",
+      "plugins/ai-sdlc/cli/aisdlclib/secu.py",
+      "plugins/ai-sdlc/cli/aisdlclib/guard.py",
+      "plugins/ai-sdlc/cli/aisdlclib/run.py",
+      "plugins/ai-sdlc/cli/guard_hook.py"
+    ]
+  },
+  "qa": {
+    "command": "python3 -m unittest discover -s cli/tests",
+    "runs": 2,
+    "exclude": [
+      "fixtures/**",
+      "plugins/ai-sdlc/cli/tests/test_qa.py",
+      "plugins/ai-sdlc/cli/tests/test_qagrade.py",
+      "plugins/ai-sdlc/cli/tests/test_ci.py",
+      "plugins/ai-sdlc/cli/tests/test_devgrade.py",
+      "cli/tests/test_bench.py"
+    ]
+  }
+}

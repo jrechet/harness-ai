@@ -1,0 +1,5 @@
+{
+  "outcome": "plan",
+  "ticket": "INV-232",
+  "allowed": ["docs/plans/*.md"]
+}

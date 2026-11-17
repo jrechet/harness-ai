@@ -1,0 +1,5 @@
+Alert: 500 error rate of the billing API above 5 %
+Start: 2026-11-12T14:05:02Z
+Still active at: 2026-11-12T14:32:00Z
+Requests in error: 37 out of 412
+Customers affected: 3 (none of them on the list of customers with a discount)

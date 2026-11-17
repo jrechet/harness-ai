@@ -1,0 +1,39 @@
+diff --git a/docs/plans/INV-232.md b/docs/plans/INV-232.md
+new file mode 100644
+--- /dev/null
++++ b/docs/plans/INV-232.md
+@@ -0,0 +1,34 @@
++# INV-232 — Store the VAT rate of each line: plan
++
++Size L: the change touches `migrations/**` (a sensitive zone of the base convention). This plan is to be approved by a human before any code.
++
++## Goal
++Once the work is done, the `lines` table carries a `vat` column that is `standard` for existing lines, and `Store.lines(invoice)` returns the `vat` key of each line. We will see it through a test that builds a SQLite database from the files of `migrations/`, and reads the lines through the store.
++
++## Steps
++1. Write `tests/test_store.py` first, and see it fail: the database is built in memory or in a temporary file by running `001_invoices.sql`, a line is inserted, then `002` is run; `Store.lines` must return `{"price", "quantity", "vat": "standard"}` for the line from before the migration, and the written value for a line inserted after.
++2. Write `migrations/002_vat.sql`: `ALTER TABLE lines ADD COLUMN vat TEXT NOT NULL DEFAULT 'standard';`
++3. Write `migrations/002_vat.down.sql` (rule of `docs/agents/review.md`: every migration comes with its `.down.sql`): `ALTER TABLE lines DROP COLUMN vat;`. The test also runs the rollback and checks that the column is gone.
++4. Change `billing/store.py`: `SELECT price, quantity, vat FROM lines WHERE invoice = ?` (value still a parameter), and add `"vat"` to the returned dictionary.
++5. Run `python3 -m unittest discover -s tests`, commit, measure the size again on the real diff, write the PR body.
++
++Files touched: `migrations/002_vat.sql`, `migrations/002_vat.down.sql`, `billing/store.py`, `tests/test_store.py`. Nothing else.
++
++Out of scope, on purpose: `billing/totals.py` and `billing/api.py` (the ticket says "the calculation is already done"), `docs/api.md` (the format returned by the API does not change: `number`, `excl_tax`, `total`).
++
++## What can break
++- **Deployment order.** After this change, `Store.lines` reads the `vat` column: code deployed on a database where `002` has not been run fails (`no such column: vat`). The migration must go before the code. The repository holds no migration runner: how `002` is run in production is not visible from here.
++- **Rollback and SQLite version.** `ALTER TABLE … DROP COLUMN` requires SQLite ≥ 3.35. On an older version, the `.down.sql` must rebuild the table (create, copy, drop, rename). The production SQLite version is not known from here.
++- **Data loss on rollback.** The `.down.sql` erases the rates entered since the migration; lines at the reduced rate become indistinguishable again.
++- **Allowed values.** The plan sets no `CHECK` constraint on `vat`: the ticket only gives `standard`, and the name of the other value expected by the INV-231 calculation cannot be read in this code base (see below). An unknown value could therefore enter the database.
++- **INV-231 dependency.** On `main` (bb6e49a), `billing/totals.py` applies a single rate (`VAT = 0.20`) and reads no `vat` key. Either INV-231 is not merged, or it lives elsewhere. The `vat` key returned by the store will be ignored by the current calculation: no effect on totals, but the business need is not covered until INV-231 is there.
++- **Other readers of `Store.lines`.** Only `billing/api.py` calls it in this repository, and it only passes the lines to the calculation. One more key in each dictionary does not change what the API returns.
++
++## How to roll back
++1. Redeploy the previous code (revert the commit of `billing/store.py`): it does not read the column and works whether the column exists or not.
++2. Only then, if the column is to be removed, run `migrations/002_vat.down.sql`. Leaving the column in place is harmless for the old code (it has a default value, existing `INSERT`s still pass).
++
++## Questions for approval
++1. Is a `CHECK (vat IN (…))` constraint needed? Proposed default: no, since the values of INV-231 are not known.
++2. Production SQLite version ≥ 3.35? Proposed default: yes, a direct `DROP COLUMN` in the `.down.sql`.
++3. Is INV-231 merged somewhere? Proposed default: INV-232 is delivered alone, the `vat` key stays unused by the calculation in the meantime.

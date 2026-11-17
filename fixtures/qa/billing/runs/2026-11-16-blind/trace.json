@@ -1,0 +1,41 @@
+{
+ "criteria": [
+  {
+   "criterion": 1,
+   "tests": [
+    "tests/test_totals.py::test_a_reduced_line_is_at_5_5_percent"
+   ]
+  },
+  {
+   "criterion": 2,
+   "tests": [
+    "tests/test_totals.py::test_a_standard_line_and_a_reduced_line_of_100_give_225_50"
+   ]
+  },
+  {
+   "criterion": 3,
+   "tests": [
+    "tests/test_totals.py::test_a_line_without_vat_key_stays_at_20_percent",
+    "tests/test_totals.py::test_incl_tax_rounds_to_the_cent"
+   ]
+  },
+  {
+   "criterion": 4,
+   "tests": [
+    "tests/test_totals.py::test_rounding_happens_only_once_on_the_total"
+   ]
+  },
+  {
+   "criterion": 5,
+   "tests": [
+    "tests/test_totals.py::test_an_unknown_vat_value_is_refused"
+   ]
+  }
+ ],
+ "not_covered": [
+  {
+   "criterion": 6,
+   "reason": "Readability of the \"VAT 5.5 %\" label on the printed invoice: printing is not in this repository and the ticket leaves this criterion to acceptance testing, on paper."
+  }
+ ]
+}

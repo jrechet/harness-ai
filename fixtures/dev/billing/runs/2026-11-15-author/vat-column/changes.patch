@@ -1,0 +1,23 @@
+diff --git a/docs/plans/inv-232.md b/docs/plans/inv-232.md
+new file mode 100644
+--- /dev/null
++++ b/docs/plans/inv-232.md
+@@ -0,0 +1,18 @@
++# INV-232 — Store the VAT rate of each line
++
++## Goal
++The `lines` table carries a `vat` column, and `Store.lines` returns it.
++
++## Why a plan
++The ticket touches `migrations/`, a sensitive zone: the code waits for a human's approval of this plan.
++
++## Steps
++1. `migrations/002_vat.sql`: `ALTER TABLE lines ADD COLUMN vat TEXT NOT NULL DEFAULT 'standard'`.
++2. `migrations/002_vat.down.sql`: remove the column (the team's review rule).
++3. `Store.lines` reads `vat` with a parameterised query; test on an in-memory SQLite database.
++
++## What can break
++A database already migrated by hand; a value other than `standard` and `reduced`, which the calculation refuses.
++
++## Rollback
++Run the `.down.sql` file. The reviewed code depends on the column only at step 3.

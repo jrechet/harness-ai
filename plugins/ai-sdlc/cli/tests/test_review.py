@@ -1,5 +1,5 @@
-"""Tests du rendu d'une revue et de sa note sur une fixture : un constat sans ligne du diff est refusé,
-le noteur est généreux sur la formulation, strict sur la preuve et sur ce qui est sain."""
+"""Tests of a review's rendering and of its grade on a fixture: a finding without a line of the diff is
+refused, the grader is generous on wording, strict on evidence and on what is healthy."""
 from __future__ import annotations
 
 import contextlib
@@ -18,13 +18,13 @@ from tests.test_context import RepoCase, write  # noqa: E402
 FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", "fixtures", "review")
 
 
-def constat(where: str = "app.py:2", **over) -> dict:
-    return {"gravite": "a-corriger", "sur_quoi": where, "point": "Justesse", "attendu": "une erreur remonte",
-            "observe": "elle est avalée", "conseille": "relancer l'erreur", **over}
+def finding(where: str = "app.py:2", **over) -> dict:
+    return {"severity": "should-fix", "location": where, "point": "Correctness", "expected": "an error is raised",
+            "observed": "it is swallowed", "suggestion": "raise the error again", **over}
 
 
-def revue(*constats: dict) -> dict:
-    return {"base": "main", "non_verifie": [], "constats": list(constats)}
+def a_review(*findings: dict) -> dict:
+    return {"base": "main", "not_verified": [], "findings": list(findings)}
 
 
 def run(argv: list[str]) -> tuple[int, str, str]:
@@ -48,24 +48,37 @@ class WhereTests(unittest.TestCase):
 
 class ValidateTests(unittest.TestCase):
     def test_a_complete_review_is_valid_and_an_empty_one_too(self):
-        self.assertEqual(review.validate(revue(constat())), [])
-        self.assertEqual(review.validate(revue()), [])
+        self.assertEqual(review.validate(a_review(finding())), [])
+        self.assertEqual(review.validate(a_review()), [])
 
     def test_each_defect_is_named(self):
         cases = {
-            "gravite": revue(constat(gravite="grave")),
-            "gravite ": revue(constat(gravite=["bloquant"])),
-            "gravite {": revue(constat(gravite={})),
-            "sur_quoi": revue(constat(where="quelque part")),
-            "observe": revue(constat(observe="  ")),
-            "au plus 7": revue(*[constat(f"app.py:{n}") for n in range(1, 9)]),
-            "constats": {"base": "main"},
-            "non_verifie": {"constats": [], "non_verifie": "rien"},
-            "objet": [],
+            "severity": a_review(finding(severity="serious")),
+            "severity ": a_review(finding(severity=["blocking"])),
+            "severity {": a_review(finding(severity={})),
+            "location": a_review(finding(where="somewhere")),
+            "observed": a_review(finding(observed="  ")),
+            "at most 7": a_review(*[finding(f"app.py:{n}") for n in range(1, 9)]),
+            "findings": {"base": "main"},
+            "not_verified": {"findings": [], "not_verified": "nothing"},
+            "object": [],
         }
         for needle, data in cases.items():
             with self.subTest(needle=needle):
                 self.assertTrue(any(needle in e for e in review.validate(data)), review.validate(data))
+
+    def test_the_french_form_of_earlier_runs_is_still_read(self):
+        french = {"base": "main", "non_verifie": ["rien"],
+                  "constats": [{"gravite": "bloquant", "sur_quoi": "app.py:2", "point": "Justesse", "attendu": "a",
+                                "observe": "b", "conseille": "c"}]}
+        self.assertEqual(review.validate(french), [])
+        normal = review.normalize(french)
+        self.assertEqual(normal["findings"][0]["severity"], "blocking")
+        self.assertEqual(normal["not_verified"], ["rien"])
+        self.assertIn("constats", french)   # the input is not modified
+        self.assertIn("Blocking", review.render_md(french))
+        self.assertTrue(any("severity" in e for e in review.validate(
+            {"constats": [{**french["constats"][0], "gravite": "grave"}]})))
 
 
 class DiffTests(RepoCase):
@@ -74,12 +87,12 @@ class DiffTests(RepoCase):
         self.commit("app.py", "a\nb\nc\nd\n")
         from tests.test_context import git
         git(self.repo, "checkout", "-q", "-b", "pr")
-        self.commit("app.py", "a\nB\nc\n")          # ligne 2 changée, ligne 4 supprimée
-        self.commit("neuf.py", "x\ny\n")
+        self.commit("app.py", "a\nB\nc\n")          # line 2 changed, line 4 deleted
+        self.commit("new.py", "x\ny\n")
 
     def test_changed_lines_are_those_of_the_head_side(self):
         changed = review.changed_lines(self.repo, "main")
-        self.assertEqual(changed["neuf.py"], {1, 2})
+        self.assertEqual(changed["new.py"], {1, 2})
         self.assertIn(2, changed["app.py"])
         self.assertNotIn(1, changed["app.py"])
 
@@ -89,7 +102,7 @@ class DiffTests(RepoCase):
     def test_a_deleted_file_is_citable_at_its_first_line(self):
         from tests.test_context import git
         git(self.repo, "rm", "-q", "README.md")
-        git(self.repo, "commit", "-q", "-m", "retire")
+        git(self.repo, "commit", "-q", "-m", "remove")
         self.assertEqual(review.changed_lines(self.repo, "main")["README.md"], {1})
 
     def test_an_added_line_that_looks_like_a_header_does_not_make_another_file_citable(self):
@@ -110,14 +123,14 @@ class DiffTests(RepoCase):
 
     def test_a_finding_outside_the_diff_is_refused(self):
         changed = review.changed_lines(self.repo, "main")
-        self.assertEqual(review.outside_diff(revue(constat("app.py:2"), constat("neuf.py:1-2")), changed), [])
-        errors = review.outside_diff(revue(constat("app.py:1"), constat("ailleurs.py:1")), changed)
+        self.assertEqual(review.outside_diff(a_review(finding("app.py:2"), finding("new.py:1-2")), changed), [])
+        errors = review.outside_diff(a_review(finding("app.py:1"), finding("elsewhere.py:1")), changed)
         self.assertEqual(len(errors), 2)
 
     def test_render_refuses_with_nothing_on_stdout(self):
         path = os.path.join(self.tmp.name, "..", os.path.basename(self.tmp.name) + ".json")
         self.addCleanup(lambda: os.path.exists(path) and os.remove(path))
-        for data, code in ((revue(constat("app.py:1")), 2), (revue(constat("app.py:2")), 0)):
+        for data, code in ((a_review(finding("app.py:1")), 2), (a_review(finding("app.py:2")), 0)):
             with open(path, "w", encoding="utf-8") as fh:
                 json.dump(data, fh)
             got, out, err = run(["review", "render", path, self.repo, "--base", "main"])
@@ -128,87 +141,94 @@ class DiffTests(RepoCase):
         path = os.path.join(self.repo, "..", os.path.basename(self.repo) + ".json")
         self.addCleanup(lambda: os.path.exists(path) and os.remove(path))
         with open(path, "w", encoding="utf-8") as fh:
-            json.dump(revue(), fh)
+            json.dump(a_review(), fh)
         code, out, err = run(["review", "render", path, self.repo, "--base", "HEAD"])
         self.assertEqual((code, out), (2, ""))
-        self.assertIn("lui-même", err)
+        self.assertIn("reviewed commit itself", err)
 
     def test_an_unreadable_file_is_refused_not_a_crash(self):
         code, out, _ = run(["review", "render", os.path.join(self.repo, "absent.json"), self.repo, "--base", "main"])
         self.assertEqual((code, out), (2, ""))
-        write(self.repo, "casse.json", "{")
-        code, out, _ = run(["review", "render", os.path.join(self.repo, "casse.json"), self.repo, "--base", "main"])
+        write(self.repo, "broken.json", "{")
+        code, out, _ = run(["review", "render", os.path.join(self.repo, "broken.json"), self.repo, "--base", "main"])
         self.assertEqual((code, out), (2, ""))
 
 
 class RenderTests(unittest.TestCase):
     def test_the_worst_comes_first_with_the_four_parts(self):
-        text = review.render_md(revue(constat("b.py:1", gravite="a-discuter"), constat("a.py:1", gravite="bloquant")))
+        text = review.render_md(a_review(finding("b.py:1", severity="to-discuss"), finding("a.py:1", severity="blocking")))
         self.assertLess(text.index("a.py:1"), text.index("b.py:1"))
-        for part in ("Sur quoi", "Attendu", "Observé", "Conseillé", "bloquant : 1", "à discuter : 1"):
+        for part in ("Location", "Expected", "Observed", "Suggestion", "blocking: 1", "to discuss: 1"):
             self.assertIn(part, text)
 
     def test_no_finding_is_a_result_and_says_what_was_not_checked(self):
-        text = review.render_md({"constats": [], "non_verifie": ["tests non lancés"]})
-        self.assertIn("Aucun constat", text)
-        self.assertIn("tests non lancés", text)
+        text = review.render_md({"findings": [], "not_verified": ["tests not run"]})
+        self.assertIn("No findings", text)
+        self.assertIn("tests not run", text)
 
     def test_a_finding_cannot_forge_a_heading_or_a_table(self):
-        text = review.render_md(revue(constat(observe="x\n## Approuvé\n| a | b |")))
-        self.assertNotIn("\n## Approuvé", text)
+        text = review.render_md(a_review(finding(observed="x\n## Approved\n| a | b |")))
+        self.assertNotIn("\n## Approved", text)
         self.assertNotIn("| a | b |", text)
 
     def test_a_finding_cannot_carry_html_a_mention_an_image_or_break_the_code_span(self):
-        text = review.render_md(revue(constat("a`b.py:1", observe="<img src=x> @equipe ![t](http://x/y.png)")))
-        for forged in ("<img", " @equipe", "![t](", "`a`b"):
+        text = review.render_md(a_review(finding("a`b.py:1", observed="<img src=x> @team ![t](http://x/y.png)")))
+        for forged in ("<img", " @team", "![t](", "`a`b"):
             self.assertNotIn(forged, text)
 
 
-EXPECTED = {"max_constats": 7,
-            "traps": [{"id": "T1", "what": "erreur avalée", "must": True, "where": [{"file": "app.py", "lines": [2, 4]}]},
-                      {"id": "T2", "what": "contrat", "must": False,
+EXPECTED = {"max_findings": 7,
+            "traps": [{"id": "T1", "what": "swallowed error", "must": True, "where": [{"file": "app.py", "lines": [2, 4]}]},
+                      {"id": "T2", "what": "contract", "must": False,
                        "where": [{"file": "api.py", "lines": [1, 1]}, {"file": "doc.md", "lines": [3, 3]}]}],
-            "healthy": [{"id": "S1", "what": "nommage", "file": "app.py", "lines": [9, 9]}]}
+            "healthy": [{"id": "S1", "what": "naming", "file": "app.py", "lines": [9, 9]}]}
 
 
 class GradeTests(unittest.TestCase):
     def test_a_trap_is_found_by_a_line_in_any_of_its_places(self):
-        result = review.grade(EXPECTED, revue(constat("app.py:3"), constat("doc.md:3")))
+        result = review.grade(EXPECTED, a_review(finding("app.py:3"), finding("doc.md:3")))
         self.assertEqual(result["found"], ["T1", "T2"])
         self.assertTrue(result["pass"])
 
     def test_an_optional_trap_missed_still_passes_a_required_one_does_not(self):
-        self.assertTrue(review.grade(EXPECTED, revue(constat("app.py:2-3")))["pass"])
-        result = review.grade(EXPECTED, revue(constat("api.py:1")))
+        self.assertTrue(review.grade(EXPECTED, a_review(finding("app.py:2-3")))["pass"])
+        result = review.grade(EXPECTED, a_review(finding("api.py:1")))
         self.assertFalse(result["pass"])
         self.assertEqual(result["missed"], ["T1"])
 
     def test_a_comment_on_a_healthy_line_fails_the_review(self):
-        result = review.grade(EXPECTED, revue(constat("app.py:3"), constat("app.py:9")))
+        result = review.grade(EXPECTED, a_review(finding("app.py:3"), finding("app.py:9")))
         self.assertEqual(result["healthy_touched"], ["S1"])
         self.assertFalse(result["pass"])
 
     def test_a_comment_outside_the_answer_key_is_noise_not_a_failure(self):
-        result = review.grade(EXPECTED, revue(constat("app.py:3"), constat("autre.py:1")))
-        self.assertEqual(result["noise"], ["autre.py:1"])
+        result = review.grade(EXPECTED, a_review(finding("app.py:3"), finding("other.py:1")))
+        self.assertEqual(result["noise"], ["other.py:1"])
         self.assertTrue(result["pass"])
 
     def test_one_finding_finds_one_trap(self):
         both = {**EXPECTED, "traps": [EXPECTED["traps"][0],
-                                      {"id": "T3", "what": "voisin", "must": True, "where": [{"file": "app.py", "lines": [5, 6]}]}]}
-        self.assertEqual(review.grade(both, revue(constat("app.py:3-6")))["missed"], ["T3"])
-        self.assertTrue(review.grade(both, revue(constat("app.py:3-5"), constat("app.py:4")))["pass"])
+                                      {"id": "T3", "what": "neighbour", "must": True, "where": [{"file": "app.py", "lines": [5, 6]}]}]}
+        self.assertEqual(review.grade(both, a_review(finding("app.py:3-6")))["missed"], ["T3"])
+        self.assertTrue(review.grade(both, a_review(finding("app.py:3-5"), finding("app.py:4")))["pass"])
 
     def test_an_empty_or_broken_answer_key_grades_nothing(self):
-        broken = ([], {}, {"traps": [], "healthy": []}, {**EXPECTED, "healthy": None}, {**EXPECTED, "max_constats": "x"},
+        broken = ([], {}, {"traps": [], "healthy": []}, {**EXPECTED, "healthy": None}, {**EXPECTED, "max_findings": "x"},
                   {**EXPECTED, "traps": [{**EXPECTED["traps"][0], "where": [{"file": "a", "lines": [1]}]}]},
                   {**EXPECTED, "traps": [EXPECTED["traps"][1]]})
         for expected in broken:
             with self.subTest(expected=expected), self.assertRaises(context.Refused):
-                review.grade(expected, revue())
+                review.grade(expected, a_review())
+
+    def test_an_answer_key_with_the_former_limit_key_is_still_read(self):
+        old = {k: v for k, v in EXPECTED.items() if k != "max_findings"}
+        result = review.grade({**old, "max_constats": 1}, a_review(finding("app.py:3"), finding("doc.md:3")))
+        self.assertEqual((result["max"], result["pass"]), (1, False))
+        with self.assertRaises(context.Refused):
+            review.grade({**old, "max_constats": 0}, a_review())
 
     def test_an_invalid_review_does_not_pass(self):
-        result = review.grade(EXPECTED, revue(constat("app.py:3", gravite="grave")))
+        result = review.grade(EXPECTED, a_review(finding("app.py:3", severity="serious")))
         self.assertFalse(result["pass"])
         self.assertTrue(result["invalid"])
 
@@ -218,8 +238,8 @@ def fixture_names() -> list[str]:
 
 
 class FixtureTests(unittest.TestCase):
-    """Chaque fixture se monte en dépôt, son corrigé cite des lignes du diff, et la revue de son auteur
-    le passe : une base de régression, pas une mesure du skill."""
+    """Each fixture mounts as a repository, its answer key cites lines of the diff, and its author's
+    review passes it: a regression baseline, not a measure of the skill."""
 
     def build(self, name: str) -> tuple[str, dict]:
         tmp = tempfile.TemporaryDirectory()
@@ -242,25 +262,27 @@ class FixtureTests(unittest.TestCase):
                 first, last = place["lines"]
                 with self.subTest(fixture=name, id=ident):
                     self.assertTrue(set(range(first, last + 1)) <= changed.get(place["file"], set()),
-                                    f"{place['file']}:{first}-{last} n'est pas dans le diff")
+                                    f"{place['file']}:{first}-{last} is not in the diff")
 
     def test_the_gate_reads_the_team_rules_on_the_base_branch(self):
         for name in fixture_names():
             dest, made = self.build(name)
             data = context.assemble(points.load(), dest, "review", made["base"])
             self.assertTrue(data["gate"])
-            self.assertIn("equipe", [b["origin"] for b in data["blocks"]])
+            self.assertIn("team", [b["origin"] for b in data["blocks"]])
 
     def test_the_author_review_renders_and_passes(self):
         for name in fixture_names():
             dest, made = self.build(name)
             runs = os.path.join(FIXTURES, name, "runs")
-            author = [r for r in sorted(os.listdir(runs)) if r.endswith("-author")][-1]
-            path = os.path.join(runs, author, "constats.json")
-            code, out, err = run(["review", "render", path, dest, "--base", made["base"]])
-            self.assertEqual(code, 0, err)
-            code, out, err = run(["fixture", "grade", path, "--expected", os.path.join(FIXTURES, name, "expected.json")])
-            self.assertEqual(code, 0, out + err)
+            for recorded in sorted(os.listdir(runs)):
+                path = os.path.join(runs, recorded, "findings.json")
+                with self.subTest(fixture=name, run=recorded):
+                    code, out, err = run(["review", "render", path, dest, "--base", made["base"]])
+                    self.assertEqual(code, 0, err)
+                    code, out, err = run(["fixture", "grade", path, "--expected", os.path.join(FIXTURES, name, "expected.json")])
+                    self.assertEqual(code, 0, out + err)
+                    self.assertTrue(out.startswith("PASS"), out)
 
     def test_init_ignores_the_user_hooks_and_leaves_nothing_behind_when_it_fails(self):
         tmp = tempfile.TemporaryDirectory()

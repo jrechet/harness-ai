@@ -1,0 +1,14 @@
+{
+  "ticket": "INV-242",
+  "ready": true,
+  "size_l": true,
+  "flags": [
+    {"id": "T1", "what": "size L: a migration is in a sensitive zone, an approved plan is needed", "any": ["(?i)size L|sensitive zone|plan\\b|taille L|zone sensible"], "in": ["gaps", "split", "questions"]},
+    {"id": "T2", "what": "the rate as `float` or `REAL` contradicts the repository rule on amounts", "any": ["(?i)float|\\bREAL\\b|decimal"], "in": ["gaps", "questions", "criteria"]},
+    {"id": "T3", "what": "\"performance stays good\" cannot be checked", "any": ["(?i)performan"], "in": ["gaps", "questions", "criteria"]},
+    {"id": "T4", "what": "the migration comes with its rollback (team review rule)", "any": ["(?i)\\bdown\\b|roll ?back|retour arri[èe]re"], "in": ["gaps", "questions", "criteria", "split"], "optional": true},
+    {"id": "T5", "what": "the API format changes: `docs/api.md` must be updated, and \"one key per invoice\" does not say which rate", "any": ["(?i)docs/api\\.md|per invoice|par facture|format"], "in": ["gaps", "questions", "criteria", "split"], "optional": true}
+  ],
+  "forbidden": [],
+  "min": {"split": 2}
+}

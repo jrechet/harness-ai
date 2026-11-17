@@ -10,12 +10,12 @@
     {
       "name": "harness-ai",
       "source": "./",
-      "description": "Skills Claude Code pour poser, auditer et faire évoluer l'instrumentation IA d'un dépôt, un pas à la fois."
+      "description": "Claude Code skills to set up, audit and evolve a repository's AI instrumentation, one step at a time."
     },
     {
       "name": "ai-sdlc",
       "source": "./plugins/ai-sdlc",
-      "description": "Les phases du cycle de développement assistées par un agent, du ticket à la production : un socle commun que chaque équipe complète dans son dépôt. Phases disponibles : ticket, dev, qa, secu, review, ship et run."
+      "description": "The phases of the development cycle assisted by an agent, from ticket to production: a shared base that each team completes in its repository. Available phases: ticket, dev, qa, secu, review, ship and run."
     }
   ]
 }

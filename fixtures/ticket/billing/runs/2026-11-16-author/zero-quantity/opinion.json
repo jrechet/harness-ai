@@ -1,0 +1,9 @@
+{
+  "gaps": [],
+  "criteria": [],
+  "split": [],
+  "questions": [
+    {"question": "Is a non-integer quantity (1.5) accepted?", "default": "Yes, as today: the ticket refuses only zero and negative values."}
+  ],
+  "instructions": []
+}

@@ -1,2 +1,0 @@
-CREATE TABLE factures (id INTEGER PRIMARY KEY, client TEXT NOT NULL);
-CREATE TABLE lignes (facture INTEGER NOT NULL REFERENCES factures(id), prix TEXT NOT NULL, quantite INTEGER NOT NULL);

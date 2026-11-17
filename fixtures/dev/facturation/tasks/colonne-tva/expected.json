@@ -1,5 +1,0 @@
-{
-  "outcome": "plan",
-  "ticket": "FAC-232",
-  "allowed": ["docs/plans/*.md"]
-}
