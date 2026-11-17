@@ -1,27 +1,28 @@
-# release-skill — pièges plantés
+# release-skill — planted traps
 
-Un skill de release qui fait tout, son sous-agent et deux règles d'AGENTS.md. Mesure harness-design en revue : chaque morceau mal rangé doit être déplacé vers une destination acceptée, avec sa preuve (`chemin:ligne`), et aucun morceau sain ne doit être touché.
+A release skill that does everything, its subagent and two AGENTS.md rules. Measures harness-design in review: each misplaced piece must be moved to an accepted destination, with its evidence (`path:line`), and no healthy piece may be touched.
 
-| Id | Où | Ce qui est planté | Ce que le plan doit dire |
+| Id | Where | What is planted | What the plan must say |
 |---|---|---|---|
-| T1 | `SKILL.md:14` | « Ne publie jamais hors de main », racontée | Limite que personne ne contourne : protection côté serveur, ou paramètres gérés |
-| T2 | `SKILL.md:12` | Le calcul de version en prose | Calcul : sous-commande ou script testé, éventuellement branché sur un hook ou un workflow |
-| T3 | `SKILL.md:13` | « Vérifie que le changelog a son entrée » | Règle vérifiable, incident si manquée : check bloquant |
-| T4 | `SKILL.md:16` | `npm publish` avec le jeton copié sur le poste | Livraison avec droits : workflow ; la permission ou la protection serveur sont acceptées pour le jeton |
-| T5 | `SKILL.md:8` | L'arborescence du dépôt | Rien à écrire |
-| T6 | `AGENTS.md:6` | « L'agent ne lit jamais .npmrc.publish » | Limite de l'agent : permission |
-| T7 | `SKILL.md:19` | « Ne commence pas s'il reste des fichiers non commités », que le propriétaire dit sans gravité mais à ne pas oublier | Une vérification en code : hook ou script. Le piège : la laisser en étape du skill parce que ce n'est pas un incident |
-| S2 | `SKILL.md:17` | Rédiger l'annonce | Sain : jugement de l'agent, décrit par le skill (`current: session`) |
-| S3 | `release-reviewer.md` | Sous-agent en lecture seule, regard indépendant | Sain |
-| S4 | `AGENTS.md:7` | Règle qui cite son check CI | Sain : le check existe, la ligne le cite (`current: ci_check`) |
+| T1 | `SKILL.md:14` | "Never publish outside main", told as a story | A limit nobody overrides: server-side protection, or managed settings |
+| T2 | `SKILL.md:12` | The version computation in prose | Computation: tested subcommand or script, possibly wired to a hook or a workflow |
+| T3 | `SKILL.md:13` | "Check that the changelog has its entry" | Checkable rule, an incident if missed: blocking check |
+| T4 | `SKILL.md:16` | `npm publish` with the token copied onto the workstation | Delivery with rights: workflow; permission or server-side protection are accepted for the token |
+| T5 | `SKILL.md:8` | The repository tree | Nothing to write |
+| T6 | `AGENTS.md:6` | "The agent never reads .npmrc.publish" | A limit of the agent: permission |
+| T7 | `SKILL.md:19` | "Do not start if uncommitted files remain", which the owner calls harmless but not to be forgotten | A check in code: hook or script. The trap: leaving it as a step of the skill because it is not an incident |
+| S2 | `SKILL.md:17` | Writing the announcement | Healthy: agent judgment, described by the skill (`current: session`) |
+| S3 | `release-reviewer.md` | Read-only subagent, independent look | Healthy |
+| S4 | `AGENTS.md:7` | A rule that cites its CI check | Healthy: the check exists, the line cites it (`current: ci_check`) |
 
-Le noteur est généreux sur la destination (plusieurs sont acceptées), strict sur la preuve (le morceau doit citer la bonne ligne) et sur les éléments sains (aucun ne doit recevoir un verdict autre que KEEP). Un élément sain porte sa nature : un morceau d'une autre nature tiré de la même ligne est un autre morceau.
+The grader is generous on the destination (several are accepted), strict on the evidence (the piece must cite the right line) and on healthy items (none may receive a verdict other than KEEP). A healthy item carries its nature: a piece of another nature drawn from the same line is another piece.
 
-`request.md` et `artifact/` se donnent à l'agent évalué ; `traps.md`, `expected.json` et `runs/` jamais. `runs/2026-11-15-author/` est le plan de l'auteur des pièges : une base de régression, pas une mesure.
+`request.md` and `artifact/` are given to the evaluated agent; `traps.md`, `expected.json` and `runs/` never. `runs/2026-11-15-author/` is the plan of the author of the traps: a regression baseline, not a measurement.
 
-## Révisions
+## Revisions
 
-- 2026-11-15, après la première exécution à l'aveugle (`runs/2026-11-15-blind`) : S1 (« taguer et pousser », ligne 15) est retiré, c'est une livraison dans la grille de harness-audit et non un élément sain ; le workflow que cite `AGENTS.md:7` est ajouté à `artifact/`, sans lui S4 n'était pas vérifiable ; le noteur distingue par leur nature deux morceaux tirés d'une même ligne. Les exécutions d'avant cette date ne se comparent pas à celles d'après.
-- 2026-11-15, après la seconde exécution (`runs/2026-11-15-blind-2`) : la grille reçoit la destination `release_gate` (« rien ne se publie sans »), que T3 accepte désormais. Aucune exécution rangée ne change de note : les deux passaient déjà T3.
-- 2026-11-15, après l'exécution sur la fixture tenue à l'écart : T7 est ajouté, en dernière ligne du skill pour ne décaler aucune preuve. Il reprend ici, où l'on a le droit de corriger, le cas qui a échoué là-bas. Les exécutions d'avant ne contiennent pas cette ligne.
-- 2026-11-15, après `runs/2026-11-15-blind-3` : la question `incident` de la grille reçoit la réponse `forget` (« du temps perdu, mais ça ne doit pas pouvoir être oublié »). Le plan de l'auteur passe T7 par ce chemin. Le corrigé de T7 n'a pas changé.
+- 2026-11-15, after the first blind run (`runs/2026-11-15-blind`): S1 ("tag and push", line 15) is withdrawn, it is a delivery in the harness-audit grid and not a healthy item; the workflow that `AGENTS.md:7` cites is added to `artifact/`, without it S4 could not be checked; the grader tells apart by their nature two pieces drawn from the same line. Runs from before this date do not compare with those after.
+- 2026-11-15, after the second run (`runs/2026-11-15-blind-2`): the grid receives the destination `release_gate` ("nothing is published without it"), which T3 now accepts. No stored run changes score: both already passed T3.
+- 2026-11-15, after the run on the held-out fixture: T7 is added, as the last line of the skill so as to shift no evidence. It takes up here, where correcting is allowed, the case that failed there. Runs from before do not contain this line.
+- 2026-11-15, after `runs/2026-11-15-blind-3`: the `incident` question of the grid receives the answer `forget` ("lost time, but it must not be possible to forget it"). The author's plan passes T7 by this path. The answer key of T7 has not changed.
+- 2026-11-17: translated into English; the original French version is in git history. Line for line: no evidence moved. In the artifact, the package is renamed `paquet-demo` → `demo-package` and the subagent's JSON key `ecarts` → `gaps`. The held-out fixture `ticket-vers-pr` is renamed `ticket-to-pr`. The `check.md` and `plan.md` of the recorded runs are translated in the wording of today's CLI where the grid text had not changed since, by hand elsewhere; the commit ids the runs cite are unchanged.

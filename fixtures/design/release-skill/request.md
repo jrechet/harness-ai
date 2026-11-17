@@ -1,14 +1,14 @@
-# Revue demandée
+# Review requested
 
-Revois le skill `release`, son sous-agent et les règles d'`AGENTS.md` dans `artifact/` : chaque morceau est-il à sa place ?
+Review the `release` skill, its subagent and the rules of `AGENTS.md` in `artifact/`: is each piece in its place?
 
-Ce que le propriétaire répond si on le lui demande :
-- Personne, développeur compris, ne doit pouvoir publier hors de `main`. Une publication depuis une branche a déjà cassé des clients.
-- Une version publiée sans entrée de changelog est un incident : le support ne sait plus quoi répondre.
-- Une version mal calculée est un incident aussi.
-- Le jeton du registre ne doit jamais être lisible par l'agent ; un développeur de l'équipe y a accès.
-- Le ton de l'annonce est libre.
-- Une release lancée avec des fichiers non commités n'est pas un incident : elle échoue plus loin et on perd dix minutes. Mais l'agent ne doit pas pouvoir oublier de le vérifier.
-- La forge est GitHub, avec GitHub Actions. Le dépôt n'a pas de CLI ; ses scripts sont dans `package.json`.
+What the owner answers if asked:
+- Nobody, developers included, must be able to publish outside `main`. A publication from a branch has already broken customers.
+- A version published without a changelog entry is an incident: support no longer knows what to answer.
+- A miscomputed version is an incident too.
+- The registry token must never be readable by the agent; a developer of the team has access to it.
+- The tone of the announcement is free.
+- A release started with uncommitted files is not an incident: it fails further on and ten minutes are lost. But the agent must not be able to forget to check it.
+- The forge is GitHub, with GitHub Actions. The repository has no CLI; its scripts are in `package.json`.
 
-Rends ton plan dans `pieces.json`, au format de `harness place plan`, avec `current` et `evidence` (`chemin:ligne`, chemin relatif à `artifact/`) pour chaque morceau.
+Hand in your plan in `pieces.json`, in the format of `harness place plan`, with `current` and `evidence` (`path:line`, path relative to `artifact/`) for each piece.

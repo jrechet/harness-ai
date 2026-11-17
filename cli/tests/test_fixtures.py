@@ -468,8 +468,8 @@ class RemovalGraderTests(unittest.TestCase):
             "N2": {"path": "CLAUDE.md", "line": 62, "text": "Use meaningful variable names.", "reason": "useless"},
             "N3": {"path": "CLAUDE.md", "line": 71, "text": "IMPORTANT: Think step by step before making any change.", "reason": "useless"},
             "N3b": {"path": "CLAUDE.md", "line": 74, "text": "Never apply partial edits to a file larger than 500 lines", "reason": "harmful"},
-            "N4": {"path": "apps/web/CLAUDE.md", "line": 6, "text": "Pas d'optional chaining : IE11", "reason": "outdated", "ask_owner": True},
-            "N5": {"path": "apps/web/CLAUDE.md", "line": 5, "text": "importe-le depuis ../../api/src/tickets/service.ts", "reason": "harmful"},
+            "N4": {"path": "apps/web/CLAUDE.md", "line": 6, "text": "No optional chaining: IE11", "reason": "outdated", "ask_owner": True},
+            "N5": {"path": "apps/web/CLAUDE.md", "line": 5, "text": "import it from ../../api/src/tickets/service.ts", "reason": "harmful"},
         }
         base.update(override)
         return {"removals": [r for r in base.values() if r]}

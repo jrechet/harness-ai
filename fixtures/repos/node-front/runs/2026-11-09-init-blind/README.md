@@ -1,20 +1,20 @@
-# Exécution à l'aveugle de harness-init sur un repo déjà instrumenté — 2026-11-09
+# Blind run of harness-init on an already instrumented repo — 2026-11-09
 
-Cas le plus fréquent en pratique : le repo a déjà un AGENTS.md, des stubs qui divergent, un contrat. Copie de node-front telle quelle, branche `develop`. Réponses d'entretien : délégation (« on a déjà un agent de nuit, autant l'assumer »), 4 devs, GitHub Actions + eslint maison + stylelint + size-limit + husky « et un script i18n dont je ne sais plus ce qu'il vérifie », Claude Code + Copilot + Cursor, première tâche « ajouter un composant, on a un skill mais je ne sais pas s'il est bon », interdits : `src/payment`, tokens sans ticket, PR d'agent sans relecture humaine.
+The most frequent case in practice: the repo already has an AGENTS.md, stubs that diverge, a contract. Copy of node-front as is, branch `develop`. Interview answers: delegation ("we already have a night agent, we may as well own it"), 4 devs, GitHub Actions + in-house eslint + stylelint + size-limit + husky "and an i18n script, I no longer know what it checks", Claude Code + Copilot + Cursor, first task "add a component, we have a skill but I do not know whether it is good", forbidden: `src/payment`, tokens without a ticket, an agent's PR without human review.
 
-Résultat : palier 1 **5/5**, AGENTS.md 44 → 51 lignes fusionné et non écrasé, Copilot et Cursor ramenés à des stubs, contrat `add-component` complété, `.harness/` commité. Voir `diff.patch`.
+Result: level 1 **5/5**, AGENTS.md 44 → 51 lines merged and not overwritten, Copilot and Cursor brought back to stubs, `add-component` contract completed, `.harness/` committed. See `diff.patch`.
 
-Ce qu'il a fait des pièges de la fixture, sans les connaître :
+What it did with the fixture's traps, without knowing them:
 
-| Piège | Ce que l'init en a fait |
+| Trap | What the init did with it |
 |---|---|
-| T1 mode contredit par l'agent de nuit | Délégation assumée ; nouvel Interdit « pas de PR d'agent fusionnée sans relecture humaine » ; `agent-fix-i18n.yml` BLOCK P1 à l'audit |
-| T3 « Vérifiée par » mensonger | Règle `t()` **requalifiée** (non vérifiée) après lecture de `check-i18n.mjs` ; le script n'est crédité que pour la parité des clés ; `NewBadge.vue:6` cité comme violation |
-| T5 procédure dupliquée qui diverge | Section retirée d'AGENTS.md, story **obligatoire** tranchée dans le contrat |
-| T6 Copilot et Cursor divergents | Remplacés par les stubs du template, six contradictions listées dans le compte rendu |
-| T7 marqueur périmé | **Gardé tel quel**, « pour ne pas simuler un harvest » : le bon réflexe, désormais dans le skill |
-| T8 couverture racontée | Requalifiée (non vérifiée), cible `coverage.thresholds` |
-| T10 bruit | Retiré (PascalCase, `const`) |
-| T11 `<script setup>` gardé par eslint sans le dire | Passé en « Vérifiée par : eslint.config.js » |
+| T1 mode contradicted by the night agent | Delegation owned; new Forbidden item "no agent PR merged without human review"; `agent-fix-i18n.yml` BLOCK P1 at the audit |
+| T3 lying "Enforced by" | `t()` rule **requalified** (unverified) after reading `check-i18n.mjs`; the script is only credited with the parity of the keys; `NewBadge.vue:6` cited as a violation |
+| T5 duplicated procedure that diverges | Section removed from AGENTS.md, story **mandatory** settled in the contract |
+| T6 diverging Copilot and Cursor | Replaced by the template's stubs, six contradictions listed in the report |
+| T7 stale marker | **Kept as is**, "so as not to fake a harvest": the right reflex, now in the skill |
+| T8 narrated coverage | Requalified (unverified), target `coverage.thresholds` |
+| T10 noise | Removed (PascalCase, `const`) |
+| T11 `<script setup>` guarded by eslint without saying so | Moved to "Enforced by: eslint.config.js" |
 
-Son audit de gate contre les pièges : 6/7 ; le seul écart est T6, que l'init venait justement de corriger, donc KEEP est le bon verdict. Aucune faiblesse notable ; les trois questions qu'il a posées en fin de compte rendu (retirer l'auto-merge, supprimer le script mort, branche par défaut) sont exactement celles qu'un propriétaire doit trancher.
+Its gate audit against the traps: 6/7; the only gap is T6, which the init had just fixed, so KEEP is the right verdict. No notable weakness; the three questions it asked at the end of the report (remove the auto-merge, delete the dead script, default branch) are exactly those an owner must settle.

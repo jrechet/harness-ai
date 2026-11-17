@@ -1,119 +1,119 @@
-# Plan de placement
+# Placement plan
 
-| # | Morceau | Destination | Couche | Verdict |
+| # | Piece | Destination | Layer | Verdict |
 |---|---|---|---|---|
-| 1 | Enchaîner les étapes d'une release : version, changelog, tag, publication, annonce, relecture | Skill | L2 | KEEP |
-| 2 | Structure du dépôt : src/, test/, dist/, package.json | Rien à écrire | - | REMOVE |
-| 3 | Calculer la prochaine version à partir des commits depuis le dernier tag (ou « rien à publier ») | Sous-commande CLI testée | L3 | PUSH_DOWN |
-| 4 | Toute version publiée a son entrée dans CHANGELOG.md | Check bloquant en CI | L3 + L4 | PUSH_DOWN |
-| 5 | Ne jamais publier depuis une autre branche que main | Protection côté serveur | L4 | PUSH_DOWN |
-| 6 | Poser la version dans package.json, créer et pousser le tag, publier sur npm avec le jeton du registre | Workflow de livraison | L4 | PUSH_DOWN |
-| 7 | L'agent ne lit jamais le jeton du registre (.npmrc.publish) | Permission de l'agent | L3 | PUSH_DOWN |
-| 8 | Les messages de commit suivent Conventional Commits | Check bloquant en CI | L3 + L4 | PUSH_DOWN |
-| 9 | Rédiger l'annonce : ce qui change pour un utilisateur, ton libre | Jugement de l'agent, dans le skill | L1 | KEEP |
-| 10 | Relire l'annonce sans avoir vu sa rédaction, contre le changelog et les commits | Sous-agent | L1 | KEEP |
-| 11 | Envoyer l'annonce sur le canal #releases | Serveur MCP | L4 | PUSH_DOWN |
+| 1 | Chain the steps of a release: version, changelog, tag, publication, announcement, review | Skill | L2 | KEEP |
+| 2 | Repository structure: src/, test/, dist/, package.json | Nothing to write | - | REMOVE |
+| 3 | Compute the next version from the commits since the last tag (or "nothing to publish") | Tested CLI subcommand | L3 | PUSH_DOWN |
+| 4 | Every published version has its entry in CHANGELOG.md | Blocking CI check | L3 + L4 | PUSH_DOWN |
+| 5 | Never publish from a branch other than main | Server-side protection | L4 | PUSH_DOWN |
+| 6 | Set the version in package.json, create and push the tag, publish to npm with the registry token | Delivery workflow | L4 | PUSH_DOWN |
+| 7 | The agent never reads the registry token (.npmrc.publish) | Agent permission | L3 | PUSH_DOWN |
+| 8 | Commit messages follow Conventional Commits | Blocking CI check | L3 + L4 | PUSH_DOWN |
+| 9 | Write the announcement: what changes for a user, free tone | Agent judgment, in the skill | L1 | KEEP |
+| 10 | Review the announcement without having seen it written, against the changelog and the commits | Subagent | L1 | KEEP |
+| 11 | Send the announcement to the #releases channel | MCP server | L4 | PUSH_DOWN |
 
-## 1. Enchaîner les étapes d'une release : version, changelog, tag, publication, annonce, relecture
+## 1. Chain the steps of a release: version, changelog, tag, publication, announcement, review
 
 **Skill** (L2)
-Verdict : KEEP, depuis Skill
-Où : .claude/skills/<nom>/SKILL.md, chargé à la demande, avec ses références dans references/.
-Pourquoi : Une procédure ne sert qu'à son type de tâche ; chargée à chaque session, elle coûterait du contexte partout. Chaque étape obligatoire de la procédure est un morceau à part (règle ou calcul) que le skill appelle.
-Chemin : nature=procedure
-Si `nature` change : action → question access ; limit → question bypass_limit ; rule → question incident ; compute → question when ; judgment → question isolation ; knowledge → question scope
+Verdict: KEEP, from Skill
+Where: .claude/skills/<name>/SKILL.md, loaded on demand, with its references in references/.
+Why: A procedure only serves its type of task; loaded in every session, it would cost context everywhere. Each mandatory step of the procedure is a separate piece (rule or computation) that the skill calls.
+Path: nature=procedure
+If `nature` changes: action → question access ; limit → question bypass_limit ; rule → question incident ; compute → question when ; judgment → question isolation ; knowledge → question scope
 
-## 2. Structure du dépôt : src/, test/, dist/, package.json
+## 2. Repository structure: src/, test/, dist/, package.json
 
-**Rien à écrire** (-)
-Verdict : REMOVE, depuis Skill
-Où : Aucun fichier.
-Pourquoi : Ce que l'agent trouve en lisant le dépôt ne change pas ce qu'il fait ; l'écrire coûte du contexte à chaque session et vieillit.
-Chemin : nature=knowledge → scope=discoverable
-Si `scope` change : always → Une ligne dans AGENTS.md ; zone → AGENTS.md du dossier ; reference → Document lu à la demande
+**Nothing to write** (-)
+Verdict: REMOVE, from Skill
+Where: No file.
+Why: What the agent finds by reading the repository does not change what it does; writing it costs context in every session and goes stale.
+Path: nature=knowledge → scope=discoverable
+If `scope` changes: always → A line in AGENTS.md ; zone → Folder AGENTS.md ; reference → Document read on demand
 
-## 3. Calculer la prochaine version à partir des commits depuis le dernier tag (ou « rien à publier »)
+## 3. Compute the next version from the commits since the last tag (or "nothing to publish")
 
-**Sous-commande CLI testée** (L3)
-Verdict : PUSH_DOWN, depuis Skill
-Où : Une sous-commande du CLI du dépôt (un script si elle est vraiment isolée), avec ses tests et une sortie JSON ; le skill l'appelle.
-Pourquoi : Un calcul écrit dans un prompt est refait à chaque fois, et parfois mal ; en code, il donne le même résultat à l'agent, à l'humain et à la CI.
-Chemin : nature=compute → when=on_demand
-Si `when` change : agent_loop → Sous-commande appelée par un hook ; repo_event → Workflow du dépôt
+**Tested CLI subcommand** (L3)
+Verdict: PUSH_DOWN, from Skill
+Where: A subcommand of the repository's CLI (a script if it is truly isolated), with its tests and a JSON output; the skill calls it.
+Why: A computation written in a prompt is redone every time, and sometimes wrongly; in code, it gives the same result to the agent, the human and CI.
+Path: nature=compute → when=on_demand
+If `when` changes: agent_loop → Subcommand called by a hook ; repo_event → Repository workflow
 
-## 4. Toute version publiée a son entrée dans CHANGELOG.md
+## 4. Every published version has its entry in CHANGELOG.md
 
-**Check bloquant en CI** (L3 + L4)
-Verdict : PUSH_DOWN, depuis Skill
-Où : Une sous-commande CLI, un linter ou un test d'architecture, rendu obligatoire par la protection de branche ; AGENTS.md peut le citer en une ligne avec « Vérifiée par ».
-Pourquoi : Seul un check requis empêche la fusion, quels que soient l'outil et la personne. Un job en continue-on-error, un filtre de chemins qui ne le déclenche pas ou un hook local ne garantissent rien.
-En complément : Le même check lancé par un hook, pour que l'agent le voie avant d'ouvrir la PR.
-Chemin : nature=rule → incident=yes → checkable=yes → bypass_rule=dev
-Si `bypass_rule` change : agent → Vérification lancée par un hook ; team → Check imposé par l'organisation
+**Blocking CI check** (L3 + L4)
+Verdict: PUSH_DOWN, from Skill
+Where: A CLI subcommand, a linter or an architecture test, made mandatory by branch protection; AGENTS.md can cite it in one line with “Enforced by”.
+Why: Only a required check prevents the merge, whatever the tool and the person. A job in continue-on-error, a path filter that does not trigger it, or a local hook guarantees nothing.
+In addition: The same check run by a hook, so that the agent sees it before opening the PR.
+Path: nature=rule → incident=yes → checkable=yes → bypass_rule=dev
+If `bypass_rule` changes: agent → Check run by a hook ; team → Check imposed by the organisation
 
-## 5. Ne jamais publier depuis une autre branche que main
+## 5. Never publish from a branch other than main
 
-**Protection côté serveur** (L4)
-Verdict : PUSH_DOWN, depuis Skill
-Où : Protection de branche, ruleset, environnement protégé ou droits du compte, sur la forge.
-Pourquoi : Un hook ou une permission locale se contournent à la main (--no-verify, un autre outil) ; le serveur refuse pour tout le monde.
-En complément : La même règle en permission deny, pour que l'agent n'essaie même pas.
-Chemin : nature=limit → bypass_limit=dev
-Si `bypass_limit` change : agent → Permission de l'agent ; team → Paramètres gérés de l'organisation
+**Server-side protection** (L4)
+Verdict: PUSH_DOWN, from Skill
+Where: Branch protection, ruleset, protected environment or account rights, on the forge.
+Why: A hook or a local permission can be bypassed by hand (--no-verify, another tool); the server refuses for everyone.
+In addition: The same rule as a deny permission, so that the agent does not even try.
+Path: nature=limit → bypass_limit=dev
+If `bypass_limit` changes: agent → Agent permission ; team → Organisation managed settings
 
-## 6. Poser la version dans package.json, créer et pousser le tag, publier sur npm avec le jeton du registre
+## 6. Set the version in package.json, create and push the tag, publish to npm with the registry token
 
-**Workflow de livraison** (L4)
-Verdict : PUSH_DOWN, depuis Skill
-Où : Un workflow CI ou pipeline avec un mode plan (dry-run) et un environnement protégé ; l'agent le déclenche par une sous-commande CLI, jamais par l'API directement.
-Pourquoi : Ce qui change une ressource partagée s'exécute avec des droits audités, hors de la machine de l'agent, avec un point d'arrêt humain avant l'irréversible.
-Chemin : nature=action → access=deliver
-Si `access` change : consult → Serveur MCP
+**Delivery workflow** (L4)
+Verdict: PUSH_DOWN, from Skill
+Where: A CI workflow or pipeline with a plan mode (dry-run) and a protected environment; the agent triggers it through a CLI subcommand, never through the API directly.
+Why: What changes a shared resource runs with audited rights, off the agent's machine, with a human stop point before the irreversible.
+Path: nature=action → access=deliver
+If `access` changes: consult → MCP server
 
-## 7. L'agent ne lit jamais le jeton du registre (.npmrc.publish)
+## 7. The agent never reads the registry token (.npmrc.publish)
 
-**Permission de l'agent** (L3)
-Verdict : PUSH_DOWN, depuis Une ligne dans AGENTS.md
-Où : permissions.deny (ou ask) dans les paramètres partagés du dépôt (.claude/settings.json), et un hook PreToolUse si la règle dépend du contenu de la commande.
-Pourquoi : Le runtime de l'agent l'applique à chaque appel d'outil ; une phrase dans AGENTS.md peut être oubliée ou contournée.
-En complément : Refuse aussi à l'agent l'écriture de ses propres paramètres, sinon il peut lever la règle.
-Chemin : nature=limit → bypass_limit=agent
-Si `bypass_limit` change : dev → Protection côté serveur ; team → Paramètres gérés de l'organisation
+**Agent permission** (L3)
+Verdict: PUSH_DOWN, from A line in AGENTS.md
+Where: permissions.deny (or ask) in the repository's shared settings (.claude/settings.json), and a PreToolUse hook if the rule depends on the content of the command.
+Why: The agent's runtime applies it on every tool call; a sentence in AGENTS.md can be forgotten or worked around.
+In addition: Also deny the agent writing to its own settings, otherwise it can lift the rule.
+Path: nature=limit → bypass_limit=agent
+If `bypass_limit` changes: dev → Server-side protection ; team → Organisation managed settings
 
-## 8. Les messages de commit suivent Conventional Commits
+## 8. Commit messages follow Conventional Commits
 
-**Check bloquant en CI** (L3 + L4)
-Verdict : PUSH_DOWN, depuis Une ligne dans AGENTS.md
-Où : Une sous-commande CLI, un linter ou un test d'architecture, rendu obligatoire par la protection de branche ; AGENTS.md peut le citer en une ligne avec « Vérifiée par ».
-Pourquoi : Seul un check requis empêche la fusion, quels que soient l'outil et la personne. Un job en continue-on-error, un filtre de chemins qui ne le déclenche pas ou un hook local ne garantissent rien.
-En complément : Le même check lancé par un hook, pour que l'agent le voie avant d'ouvrir la PR.
-Chemin : nature=rule → incident=yes → checkable=yes → bypass_rule=dev
-Si `bypass_rule` change : agent → Vérification lancée par un hook ; team → Check imposé par l'organisation
+**Blocking CI check** (L3 + L4)
+Verdict: PUSH_DOWN, from A line in AGENTS.md
+Where: A CLI subcommand, a linter or an architecture test, made mandatory by branch protection; AGENTS.md can cite it in one line with “Enforced by”.
+Why: Only a required check prevents the merge, whatever the tool and the person. A job in continue-on-error, a path filter that does not trigger it, or a local hook guarantees nothing.
+In addition: The same check run by a hook, so that the agent sees it before opening the PR.
+Path: nature=rule → incident=yes → checkable=yes → bypass_rule=dev
+If `bypass_rule` changes: agent → Check run by a hook ; team → Check imposed by the organisation
 
-## 9. Rédiger l'annonce : ce qui change pour un utilisateur, ton libre
+## 9. Write the announcement: what changes for a user, free tone
 
-**Jugement de l'agent, dans le skill** (L1)
-Verdict : KEEP, depuis Jugement de l'agent, dans le skill
-Où : Aucun fichier dédié : le skill qui raconte la procédure dit où l'agent décide, entre quelles options, et le CLI fournit ces options.
-Pourquoi : Juger est le travail de l'agent ; l'isoler sans besoin coûte du contexte et des allers-retours.
-Chemin : nature=judgment → isolation=none
-Si `isolation` change : context → Sous-agent ; independence → Sous-agent ; rights → Sous-agent ; parallel → Sous-agent
+**Agent judgment, in the skill** (L1)
+Verdict: KEEP, from Agent judgment, in the skill
+Where: No dedicated file: the skill that tells the procedure says where the agent decides, between which options, and the CLI provides those options.
+Why: Judging is the agent's job; isolating it without need costs context and round trips.
+Path: nature=judgment → isolation=none
+If `isolation` changes: context → Subagent ; independence → Subagent ; rights → Subagent ; parallel → Subagent
 
-## 10. Relire l'annonce sans avoir vu sa rédaction, contre le changelog et les commits
+## 10. Review the announcement without having seen it written, against the changelog and the commits
 
-**Sous-agent** (L1)
-Verdict : KEEP, depuis Sous-agent
-Où : Un sous-agent (.claude/agents/<nom>.md) aux outils restreints, qui rend un résultat structuré.
-Pourquoi : Un sous-agent part d'un contexte vierge, avec ses propres outils : c'est ce qui lui donne un regard indépendant, des droits plus étroits, de la place pour lire beaucoup, ou la possibilité de tourner en parallèle. Sans l'un de ces besoins, c'est un skill.
-Chemin : nature=judgment → isolation=independence
-Si `isolation` change : none → Jugement de l'agent, dans le skill ; context → Sous-agent ; rights → Sous-agent ; parallel → Sous-agent
+**Subagent** (L1)
+Verdict: KEEP, from Subagent
+Where: A subagent (.claude/agents/<name>.md) with restricted tools, that returns a structured result.
+Why: A subagent starts from a blank context, with its own tools: that is what gives it an independent eye, narrower rights, room to read a lot, or the ability to run in parallel. Without one of these needs, it is a skill.
+Path: nature=judgment → isolation=independence
+If `isolation` changes: none → Agent judgment, in the skill ; context → Subagent ; rights → Subagent ; parallel → Subagent
 
-## 11. Envoyer l'annonce sur le canal #releases
+## 11. Send the announcement to the #releases channel
 
-**Serveur MCP** (L4)
-Verdict : PUSH_DOWN, depuis Skill
-Où : Un serveur MCP déclaré pour le dépôt ; ses droits (lecture, commentaire) se règlent sur le compte du serveur, pas dans un prompt.
-Pourquoi : Un droit tenu par le serveur vaut quel que soit le prompt. Ce que l'agent y lit est une donnée, pas une instruction : un ticket peut porter une injection.
-En complément : Une permission deny sur les outils d'écriture du serveur, en second rideau.
-Chemin : nature=action → access=consult
-Si `access` change : deliver → Workflow de livraison
+**MCP server** (L4)
+Verdict: PUSH_DOWN, from Skill
+Where: An MCP server declared for the repository; its rights (read, comment) are set on the server's account, not in a prompt.
+Why: A right held by the server holds whatever the prompt. What the agent reads there is data, not an instruction: a ticket can carry an injection.
+In addition: A deny permission on the server's write tools, as a second curtain.
+Path: nature=action → access=consult
+If `access` changes: deliver → Delivery workflow

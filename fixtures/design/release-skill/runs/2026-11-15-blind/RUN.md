@@ -1,19 +1,19 @@
-# 2026-11-15 — harness-design à l'aveugle sur release-skill
+# 2026-11-15 — harness-design blind on release-skill
 
-Un agent neuf, dans un kit sans corrigé : `request.md`, `artifact/`, le skill et le CLI (commit c057229). Il s'est arrêté au plan. Environ 103 000 tokens, 71 secondes. Une seule exécution : un point, pas une moyenne.
+A fresh agent, in a kit without the answer key: `request.md`, `artifact/`, the skill and the CLI (commit c057229). It stopped at the plan. About 103,000 tokens, 71 seconds. A single run: one point, not an average.
 
-**Résultat : 6 pièges trouvés sur 6, 3 éléments sains déplacés sur 4** (`check.md`). Le corrigé et le noteur n'ont pas été modifiés.
+**Result: 6 traps found out of 6, 3 healthy items moved out of 4** (`check.md`). The answer key and the grader were not modified.
 
-## Les trois éléments sains déplacés, et leur cause
+## The three healthy items moved, and their cause
 
-| Id | Ce que l'agent a fait | Cause |
+| Id | What the agent did | Cause |
 |---|---|---|
-| S1 | A réuni « taguer et pousser » (ligne 15) et « publier » (ligne 16) en une action de livraison, envoyée au workflow | **Corrigé discutable.** La grille L1–L4 de harness-audit range « tag » en L4 : l'agent a sans doute raison, et S1 n'est pas un élément sain |
-| S2 | A gardé « rédiger l'annonce » en place, mais a découpé un morceau « envoyer sur #releases » qui cite la même ligne, envoyé vers MCP | **Noteur trop grossier.** Il note à la ligne : deux morceaux tirés d'une même ligne ne se distinguent pas. L'envoi n'est écrit nulle part dans l'artefact, l'agent l'a déduit |
-| S4 | A laissé la règle Conventional Commits en `agents_md`, donc PUSH_DOWN | **Fixture incomplète, et trou du skill.** Le workflow cité n'est pas dans `artifact/`. L'agent l'a dit dans ses notes. Le skill ne dit pas quoi faire quand le check cité est introuvable |
+| S1 | Joined "tag and push" (line 15) and "publish" (line 16) into one delivery action, sent to the workflow | **Debatable answer key.** The L1–L4 grid of harness-audit puts "tag" in L4: the agent is probably right, and S1 is not a healthy item |
+| S2 | Kept "write the announcement" in place, but split off a piece "send to #releases" that cites the same line, sent to MCP | **Grader too coarse.** It grades by line: two pieces drawn from the same line cannot be told apart. The sending is written nowhere in the artifact, the agent inferred it |
+| S4 | Left the Conventional Commits rule in `agents_md`, hence PUSH_DOWN | **Incomplete fixture, and a gap in the skill.** The cited workflow is not in `artifact/`. The agent said so in its notes. The skill does not say what to do when the cited check cannot be found |
 
-## Ce que l'agent dit du skill et de la grille (`notes.md`)
+## What the agent says about the skill and the grid (`notes.md`)
 
-- `access` n'a pas de réponse pour « écrire dans un système externe » (poster un message) : il a répondu `consult` sans conviction.
-- Une contrainte propre à un skill (« trois lignes au plus ») n'a pas de `scope`.
-- Deux corrections de contenu ne s'expriment pas dans un plan de placement : l'étape qui fait copier le jeton par l'agent est à réécrire, pas à déplacer ; le sous-agent n'a pas l'outil pour lire les commits.
+- `access` has no answer for "writing to an external system" (posting a message): it answered `consult` without conviction.
+- A constraint specific to a skill ("three lines at most") has no `scope`.
+- Two content corrections cannot be expressed in a placement plan: the step that has the agent copy the token is to be rewritten, not moved; the subagent lacks the tool to read the commits.

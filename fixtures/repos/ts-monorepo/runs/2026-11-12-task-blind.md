@@ -1,28 +1,28 @@
-# Campagne du 2026-11-12 — tâche `escalated` rejouée sur ses trois bras
+# Campaign of 2026-11-12 — task `escalated` replayed on its three arms
 
-Le projet corrigé le 2026-11-11 : contrôle de types par workspace, aucune commande qui rejoue tout, énoncé sans le libellé, et un fait écrit nulle part dans le dépôt, la version du package partagé que `deskly-infra` épingle. Agents neutres et confinés, un tirage par bras.
+The project corrected on 2026-11-11: type check per workspace, no command that replays everything, statement without the label, and one fact written nowhere in the repository, the version of the shared package that `deskly-infra` pins. Neutral, confined agents, one draw per arm.
 
-| Bras | Instructions du dépôt | Note | Contrôles manqués | Tokens neufs | Tours | Durée |
+| Arm | Repository instructions | Score | Checks missed | New tokens | Turns | Duration |
 |---|---|---|---|---|---|---|
-| `bare` | aucune | 6/8 | `shared_version`, `guards_intact` | 66 000 | 25 | 75 s |
-| `asis` | le `CLAUDE.md` généré | 7/8 | `shared_version` | 70 000 | 32 | 86 s |
-| `harness` | `AGENTS.md` du pas 1 | 8/8 | aucun | 60 000 | 15 | 58 s |
+| `bare` | none | 6/8 | `shared_version`, `guards_intact` | 66,000 | 25 | 75 s |
+| `asis` | the generated `CLAUDE.md` | 7/8 | `shared_version` | 70,000 | 32 | 86 s |
+| `harness` | `AGENTS.md` of step 1 | 8/8 | none | 60,000 | 15 | 58 s |
 
-## Ce que la mesure dit
-**Le fait écrit nulle part ailleurs départage, comme prévu.** Seul le bras qui le porte monte la version, et il dit pourquoi : « c'est la règle du dépôt, pour que `deskly-infra` redéploie le stockage ». Les deux autres ne peuvent pas le deviner et ne le devinent pas.
+## What the measurement says
+**The fact written nowhere else separates the arms, as planned.** Only the arm that carries it bumps the version, and it says why: "it is the repository's rule, so that `deskly-infra` redeploys the storage". The other two cannot guess it and do not guess it.
 
-Ce résultat est celui que la construction du banc annonce. Il montre deux choses, pas plus : qu'un fait posé dans le harness arrive jusqu'au travail rendu, et qu'un agent ne l'invente pas. Il ne dit rien de la façon dont le fait est entré dans le harness : le recueillir auprès du propriétaire est le travail du pas 1, que cette campagne ne joue pas.
+This result is the one the bench's construction announces. It shows two things, no more: that a fact set in the harness reaches the work handed in, and that an agent does not invent it. It says nothing about how the fact entered the harness: collecting it from the owner is the work of step 1, which this campaign does not play.
 
-**Le web n'a cassé sur aucun bras.** La tentation d'origine, s'arrêter au modèle partagé et à l'API, n'a pris personne : les trois agents ont lancé les tests et les types du web. L'agent sans instructions a trouvé le post-mortem et en a tiré la leçon tout seul.
+**The web broke on no arm.** The original temptation, stopping at the shared model and the API, caught nobody: the three agents ran the web's tests and types. The agent without instructions found the post-mortem and drew the lesson from it on its own.
 
-**Le harness coûte moins.** Quinze tours contre vingt-cinq et trente-deux. Sur un tirage, c'est un indice.
+**The harness costs less.** Fifteen turns against twenty-five and thirty-two. On one draw, it is a hint.
 
-## Un défaut du noteur
-Le bras `bare` perd le contrôle `guards_intact` pour avoir **corrigé** le trou de CI : il a ajouté `packages/shared/**` au filtre du job `web`, en citant l'incident du 9 juin. C'est une bonne action que le contrôle punit, parce qu'il interdit toute modification de la CI au lieu d'interdire son affaiblissement. Sans ce défaut le bras ferait 7/8. La note du registre n'a pas été retouchée.
+## A defect of the grader
+The `bare` arm loses the `guards_intact` check for having **fixed** the CI gap: it added `packages/shared/**` to the filter of the `web` job, citing the incident of June 9. It is a good action that the check punishes, because it forbids any change to the CI instead of forbidding its weakening. Without this defect the arm would score 7/8. The score in the registry was not touched.
 
-Corrigé le même jour, avec l'accord du propriétaire : le contrôle `ci_not_weakened` n'interdit plus que de retirer un contrôle ou de le rendre non bloquant. Renotée, cette exécution ne manque plus que le fait écrit nulle part ailleurs.
+Fixed the same day, with the owner's agreement: the `ci_not_weakened` check now only forbids removing a check or making it non-blocking. Regraded, this run only misses the fact written nowhere else.
 
-## Ce qu'elle ne dit pas
-Un tirage par bras, un seul modèle.
+## What it does not say
+One draw per arm, a single model.
 
-Un reste de la session de campagne atteint encore les agents : l'environnement distant leur donne ses consignes d'attribution, qu'un compte rendu recopie en bas d'une description de PR. Il touche tous les bras de la même façon et ne porte sur aucun contrôle.
+A remnant of the campaign session still reaches the agents: the remote environment gives them its attribution instructions, which one report copies at the bottom of a PR description. It touches all the arms the same way and bears on no check.

@@ -1,19 +1,19 @@
 ---
 name: release
-description: Publie une nouvelle version du paquet sur le registre npm. Utiliser quand on demande de « sortir une version », « faire une release » ou « publier ».
+description: Publishes a new version of the package to the npm registry. Use when asked to "cut a version", "do a release" or "publish".
 ---
 
 # Release
 
-Structure du dépôt : `src/` le code, `test/` les tests, `dist/` le build, `package.json` le manifeste.
+Repository structure: `src/` the code, `test/` the tests, `dist/` the build, `package.json` the manifest.
 
-## Déroulé
+## Steps
 
-1. Calcule la prochaine version à partir des commits depuis le dernier tag : un commit `feat:` monte la mineure, un `fix:` monte le correctif, un `!` ou `BREAKING CHANGE` monte la majeure. Sans aucun de ces commits, il n'y a rien à publier.
-2. Vérifie que `CHANGELOG.md` contient une entrée pour cette version. S'il n'y en a pas, arrête-toi et demande-la.
-3. Ne publie jamais depuis une autre branche que `main` : vérifie avec `git branch --show-current` avant de continuer.
-4. Mets la version dans `package.json`, crée le tag `v<version>` et pousse-le.
-5. Publie avec `npm publish`. Le jeton du registre est dans `.npmrc.publish` : copie-le dans `.npmrc` le temps de la commande, puis retire-le.
-6. Rédige l'annonce pour le canal `#releases` : ce qui change pour un utilisateur, en trois lignes au plus, sans reprendre le changelog mot pour mot.
-7. Fais relire l'annonce par le sous-agent `release-reviewer` avant de l'envoyer.
-8. Ne commence pas une release s'il reste des fichiers non commités : vérifie avec `git status` et arrête-toi s'il y en a.
+1. Compute the next version from the commits since the last tag: a `feat:` commit bumps the minor, a `fix:` bumps the patch, a `!` or `BREAKING CHANGE` bumps the major. Without any of these commits, there is nothing to publish.
+2. Check that `CHANGELOG.md` contains an entry for this version. If there is none, stop and ask for it.
+3. Never publish from a branch other than `main`: check with `git branch --show-current` before continuing.
+4. Set the version in `package.json`, create the tag `v<version>` and push it.
+5. Publish with `npm publish`. The registry token is in `.npmrc.publish`: copy it into `.npmrc` for the duration of the command, then remove it.
+6. Write the announcement for the `#releases` channel: what changes for a user, in three lines at most, without repeating the changelog word for word.
+7. Have the announcement reviewed by the `release-reviewer` subagent before sending it.
+8. Do not start a release if uncommitted files remain: check with `git status` and stop if there are any.

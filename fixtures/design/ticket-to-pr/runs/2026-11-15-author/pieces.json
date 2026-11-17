@@ -1,0 +1,125 @@
+[
+  {
+    "piece": "Read the Jira ticket and its acceptance criteria",
+    "answers": {
+      "nature": "action",
+      "access": "consult"
+    },
+    "evidence": [
+      "tool-request.md:5"
+    ]
+  },
+  {
+    "piece": "No work without acceptance criteria",
+    "answers": {
+      "nature": "rule",
+      "incident": "forget",
+      "checkable": "yes",
+      "bypass_rule": "agent"
+    },
+    "evidence": [
+      "tool-request.md:6"
+    ]
+  },
+  {
+    "piece": "Branch, tests first, code, PR",
+    "answers": {
+      "nature": "procedure"
+    },
+    "evidence": [
+      "tool-request.md:7"
+    ]
+  },
+  {
+    "piece": "Branch name derived from the ticket",
+    "answers": {
+      "nature": "compute",
+      "when": "on_demand"
+    },
+    "evidence": [
+      "tool-request.md:8"
+    ]
+  },
+  {
+    "piece": "No merging of its own PR nor without approval",
+    "answers": {
+      "nature": "limit",
+      "bypass_limit": "dev"
+    },
+    "evidence": [
+      "tool-request.md:9"
+    ]
+  },
+  {
+    "piece": "The agent does not modify .github/workflows/",
+    "answers": {
+      "nature": "limit",
+      "bypass_limit": "agent"
+    },
+    "evidence": [
+      "tool-request.md:10"
+    ]
+  },
+  {
+    "piece": "No PR merges with red tests",
+    "answers": {
+      "nature": "rule",
+      "incident": "yes",
+      "checkable": "yes",
+      "bypass_rule": "dev"
+    },
+    "evidence": [
+      "tool-request.md:11"
+    ]
+  },
+  {
+    "piece": "Review the diff against the criteria, with a fresh look",
+    "answers": {
+      "nature": "judgment",
+      "isolation": "independence"
+    },
+    "evidence": [
+      "tool-request.md:12"
+    ]
+  },
+  {
+    "piece": "Split into commits",
+    "answers": {
+      "nature": "judgment",
+      "isolation": "none"
+    },
+    "evidence": [
+      "tool-request.md:13"
+    ]
+  },
+  {
+    "piece": "Comment on the ticket with the link to the PR",
+    "answers": {
+      "nature": "action",
+      "access": "write"
+    },
+    "evidence": [
+      "tool-request.md:14"
+    ]
+  },
+  {
+    "piece": "The project is in TypeScript with pnpm",
+    "answers": {
+      "nature": "knowledge",
+      "scope": "discoverable"
+    },
+    "evidence": [
+      "tool-request.md:15"
+    ]
+  },
+  {
+    "piece": "An existing migration is not modified",
+    "answers": {
+      "nature": "knowledge",
+      "scope": "zone"
+    },
+    "evidence": [
+      "tool-request.md:16"
+    ]
+  }
+]

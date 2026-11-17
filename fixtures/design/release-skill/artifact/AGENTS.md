@@ -1,7 +1,7 @@
-# paquet-demo — instructions pour les agents
+# demo-package — instructions for agents
 
-Mode : assistance.
+Mode: assistance.
 
-## Règles
-- L'agent ne lit jamais `.npmrc.publish` hors d'une release. Pourquoi : le jeton a fuité dans un journal de session en mars. (non vérifiée) [2026-03]
-- Les messages de commit suivent Conventional Commits. Pourquoi : la version en est déduite. Vérifiée par : `.github/workflows/ci.yml` (job `commitlint`) [2025-09]
+## Rules
+- The agent never reads `.npmrc.publish` outside a release. Why: the token leaked into a session log in March. (unverified) [2026-03]
+- Commit messages follow Conventional Commits. Why: the version is derived from them. Enforced by: `.github/workflows/ci.yml` (job `commitlint`) [2025-09]

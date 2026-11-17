@@ -1,6 +1,6 @@
 {
   "audit": {
-    "process": "shopfront — ajout de composant et traduction automatisée",
+    "process": "shopfront — adding a component and automated translation",
     "scope": "fixtures/repos/node-front/repo (AGENTS.md, CLAUDE.md, .cursor/rules, .github/copilot-instructions.md, .claude/skills, scripts, tools, .github/workflows, eslint/stylelint/husky/vitest, package.json)",
     "date": "2026-11-09",
     "health_score": 0,
@@ -16,10 +16,10 @@
       "calls": ["script-i18n-report"],
       "verdict": "BLOCK",
       "priority": "P1",
-      "finding": "Un agent traduit avec Edit et Bash(git *) sans restriction de chemin puis gh pr merge --auto fusionne dans main la première PR du bot sans relecture humaine, sans dry_run ni environnement protégé, alors que la seule CI pertinente (parité de clés) passe par construction.",
+      "finding": "An agent translates with Edit and Bash(git *) with no path restriction, then gh pr merge --auto merges the bot's first PR into main with no human review, no dry_run and no protected environment, while the only relevant CI (key parity) passes by construction.",
       "evidence": [".github/workflows/agent-fix-i18n.yml:5", ".github/workflows/agent-fix-i18n.yml:18-19", ".github/workflows/agent-fix-i18n.yml:22", ".github/workflows/ci.yml:25", "AGENTS.md:3"],
-      "target": "L4 prépare (report JSON, court-circuit si vide, input dry_run), L1 traduit et ouvre une PR brouillon avec Edit(src/locales/en.json) seulement, la fusion repasse par un humain ; plus d'auto-merge.",
-      "check": "Un run dry_run=true produit l'artefact missing.json et aucune PR ; un run réel produit une PR brouillon non fusionnable sans approbation ; aucune occurrence de 'pr merge --auto'."
+      "target": "L4 prepares (JSON report, short-circuit if empty, dry_run input), L1 translates and opens a draft PR with Edit(src/locales/en.json) only, the merge goes back through a human; no more auto-merge.",
+      "check": "A dry_run=true run produces the missing.json artifact and no PR; a real run produces a draft PR that cannot be merged without approval; no occurrence of 'pr merge --auto'."
     },
     {
       "id": "agents-md",
@@ -30,10 +30,10 @@
       "calls": ["skill-add-component", "package-json-scripts", "eslint-plugin-design-tokens", "stylelintrc", "script-check-i18n", "wf-ci"],
       "verdict": "PUSH_DOWN",
       "priority": "P1",
-      "finding": "Deux des trois « Vérifiée par » sont faux (check-i18n ne lit pas les templates, no-raw-color ne visite pas le template), cinq règles obligatoires n'ont aucun garde-fou (story+test, couverture, tokens.css, eslint-disable, src/payment PCI), et la règle story se contredit entre l.20 et l.33.",
+      "finding": "Two of the three \"Enforced by\" are false (check-i18n does not read the templates, no-raw-color does not visit the template), five mandatory rules have no guardrail (story+test, coverage, tokens.css, eslint-disable, src/payment PCI), and the story rule contradicts itself between l.20 and l.33.",
       "evidence": ["AGENTS.md:17", "AGENTS.md:18", "AGENTS.md:20", "AGENTS.md:21", "AGENTS.md:27", "AGENTS.md:28", "AGENTS.md:29", "AGENTS.md:33", "scripts/check-i18n.mjs:2", "tools/eslint-plugin-design-tokens/index.js:11", "src/components/NewBadge.vue:6"],
-      "target": "Chaque règle obligatoire pointe vers un garde-fou L3/L4 réel (eslint vue-i18n/no-raw-text, check-components, coverage thresholds, CODEOWNERS), 'Vérifiée par' n'est écrit que quand c'est vrai, l.31-37 remplacées par le pointeur vers le skill, l.23-24 supprimées, l.3 mentionne le workflow autonome.",
-      "check": "Pour chaque 'Vérifiée par', un test rouge volontaire (texte en dur dans un template, composant sans story, hex dans :style) fait échouer ci.yml ; une seule formulation de la règle story dans le dépôt."
+      "target": "Each mandatory rule points to a real L3/L4 guardrail (eslint vue-i18n/no-raw-text, check-components, coverage thresholds, CODEOWNERS), 'Enforced by' is only written when it is true, l.31-37 replaced by the pointer to the skill, l.23-24 removed, l.3 mentions the autonomous workflow.",
+      "check": "For each 'Enforced by', a deliberate red test (hard-coded text in a template, component without a story, hex in :style) makes ci.yml fail; a single wording of the story rule in the repository."
     },
     {
       "id": "cursor-vue-mdc",
@@ -44,10 +44,10 @@
       "calls": [],
       "verdict": "MERGE",
       "priority": "P2",
-      "finding": "Trois des quatre règles contredisent AGENTS.md et le linter : Options API tolérée sous 50 lignes (eslint la refuse partout), hex toléré avec TODO, story facultative.",
+      "finding": "Three of the four rules contradict AGENTS.md and the linter: Options API tolerated under 50 lines (eslint refuses it everywhere), hex tolerated with a TODO, story optional.",
       "evidence": [".cursor/rules/vue.mdc:5", ".cursor/rules/vue.mdc:6", ".cursor/rules/vue.mdc:7", "eslint.config.js:11", "AGENTS.md:17", "AGENTS.md:20"],
-      "target": "Fichier réduit à un pointeur vers AGENTS.md ou généré depuis lui, sans règle propre.",
-      "check": "Aucune règle de vue.mdc ne contredit une règle eslint/stylelint active ni AGENTS.md."
+      "target": "File reduced to a pointer to AGENTS.md or generated from it, with no rule of its own.",
+      "check": "No rule of vue.mdc contradicts an active eslint/stylelint rule or AGENTS.md."
     },
     {
       "id": "copilot-instructions",
@@ -58,10 +58,10 @@
       "calls": ["package-json-scripts"],
       "verdict": "MERGE",
       "priority": "P2",
-      "finding": "Quatre consignes contredisent AGENTS.md (Options API, hex en override, story optionnelle, chaînes en dur acceptées en admin) et la commande 'npm test' n'existe pas dans package.json.",
+      "finding": "Four instructions contradict AGENTS.md (Options API, hex in overrides, story optional, hard-coded strings accepted in admin) and the command 'npm test' does not exist in package.json.",
       "evidence": [".github/copilot-instructions.md:3", ".github/copilot-instructions.md:4", ".github/copilot-instructions.md:5", ".github/copilot-instructions.md:6", ".github/copilot-instructions.md:7", "package.json:5-14"],
-      "target": "Pointeur vers AGENTS.md ou contenu généré ; commandes reprises de la table AGENTS.md:9-14.",
-      "check": "Toute commande citée existe dans package.json ; aucune exception à une règle d'AGENTS.md."
+      "target": "Pointer to AGENTS.md or generated content; commands taken from the table AGENTS.md:9-14.",
+      "check": "Every command cited exists in package.json; no exception to a rule of AGENTS.md."
     },
     {
       "id": "skill-add-component",
@@ -72,10 +72,10 @@
       "calls": ["package-json-scripts", "vitest-config"],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "L'étape 6 fait comparer à l'œil le pourcentage de couverture avec main (retour non structuré, non reproductible), l.9 impose la story 'même sans UI' alors qu'AGENTS.md:33 l'exempte, et les étapes 1-5 dupliquent AGENTS.md:32-36.",
+      "finding": "Step 6 has the coverage percentage compared by eye with main (unstructured return, not reproducible), l.9 imposes the story 'even with no UI' while AGENTS.md:33 exempts it, and steps 1-5 duplicate AGENTS.md:32-36.",
       "evidence": [".claude/skills/add-component/SKILL.md:9", ".claude/skills/add-component/SKILL.md:13", "AGENTS.md:33", "vitest.config.ts:3"],
-      "target": "L'étape 6 devient 'lance npm run test:unit' une fois coverage.thresholds en place ; règle story tranchée et vérifiée par check-components ; AGENTS.md ne garde que le pointeur.",
-      "check": "Le skill ne contient plus de vérification manuelle d'un chiffre ; npm run test:unit échoue quand la couverture passe sous le seuil."
+      "target": "Step 6 becomes 'run npm run test:unit' once coverage.thresholds is in place; story rule settled and enforced by check-components; AGENTS.md keeps only the pointer.",
+      "check": "The skill no longer contains a manual check of a number; npm run test:unit fails when coverage goes under the threshold."
     },
     {
       "id": "script-i18n-report",
@@ -86,10 +86,10 @@
       "calls": [],
       "verdict": "MERGE",
       "priority": "P2",
-      "finding": "Duplique mot pour mot flatten et la lecture des locales de check-i18n.mjs, sans test, avec un seul sens (fr→en) et sans sortie courte quand la liste est vide.",
+      "finding": "Duplicates word for word flatten and the reading of the locales of check-i18n.mjs, with no test, in one direction only (fr→en) and with no short exit when the list is empty.",
       "evidence": ["scripts/i18n-report.mjs:5-10", "scripts/check-i18n.mjs:5-10"],
-      "target": "Une seule commande (check-i18n.mjs --json ou scripts/i18n.mjs check|report) avec un test vitest ; le workflow appelle la sous-commande.",
-      "check": "Un seul flatten dans scripts/ ; agent-fix-i18n.yml n'appelle plus i18n-report.mjs."
+      "target": "A single command (check-i18n.mjs --json or scripts/i18n.mjs check|report) with a vitest test; the workflow calls the subcommand.",
+      "check": "A single flatten in scripts/; agent-fix-i18n.yml no longer calls i18n-report.mjs."
     },
     {
       "id": "eslint-plugin-design-tokens",
@@ -100,10 +100,10 @@
       "calls": [],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "Le visiteur Literal nu n'est appelé que sur le <script> : les littéraux du <template> (:style, style=\"\") ne sont pas vus malgré l'en-tête qui promet 'templates et styles inline' ; pas de RuleTester ; faux positifs sur des ancres comme '#add'.",
+      "finding": "The bare Literal visitor is only called on the <script>: the literals of the <template> (:style, style=\"\") are not seen despite the header that promises 'templates and inline styles'; no RuleTester; false positives on anchors such as '#add'.",
       "evidence": ["tools/eslint-plugin-design-tokens/index.js:1", "tools/eslint-plugin-design-tokens/index.js:3", "tools/eslint-plugin-design-tokens/index.js:11"],
-      "target": "Règle réécrite avec defineTemplateBodyVisitor (VLiteral/Literal/TemplateElement du template) en plus du script, regex ancrée sur une valeur CSS, tests RuleTester.",
-      "check": "Un composant avec <span style=\"color:#fff\"> fait échouer npm run lint ; router.push('#add') ne le fait pas ; les tests de la règle tournent dans test:unit."
+      "target": "Rule rewritten with defineTemplateBodyVisitor (VLiteral/Literal/TemplateElement of the template) on top of the script, regex anchored on a CSS value, RuleTester tests.",
+      "check": "A component with <span style=\"color:#fff\"> makes npm run lint fail; router.push('#add') does not; the rule's tests run in test:unit."
     },
     {
       "id": "stylelintrc",
@@ -114,10 +114,10 @@
       "calls": [],
       "verdict": "SPLIT",
       "priority": "P2",
-      "finding": "color-no-hex couvre src/styles/tokens.css, seul endroit légitime pour des hex, donc la règle et son exception partagent le même périmètre ; stylelint-config-standard et postcss-html (pour les .vue) ne sont pas déclarés : la garde '<style> sans hex' ne tourne pas telle quelle.",
+      "finding": "color-no-hex covers src/styles/tokens.css, the only legitimate place for hex values, so the rule and its exception share the same scope; stylelint-config-standard and postcss-html (for the .vue files) are not declared: the guard '<style> without hex' does not run as is.",
       "evidence": [".stylelintrc.json:1", "package.json:9", "package.json:17-28", "src/styles/tokens.css:2-5"],
-      "target": "ignoreFiles pour tokens.css, overrides postcss-html pour *.vue, dépendances déclarées.",
-      "check": "npm run lint:style passe sur le dépôt tel quel, échoue sur un .vue avec color:#fff dans <style>, ne signale rien dans tokens.css."
+      "target": "ignoreFiles for tokens.css, postcss-html overrides for *.vue, dependencies declared.",
+      "check": "npm run lint:style passes on the repository as is, fails on a .vue with color:#fff in <style>, reports nothing in tokens.css."
     },
     {
       "id": "script-legacy-theme-migrate",
@@ -128,10 +128,10 @@
       "calls": [],
       "verdict": "BLOCK",
       "priority": "P3",
-      "finding": "Script mort (aucun appelant, 'plus appelée' en l.1), inexécutable en ESM (require avec type: module) et destructif sans dry-run.",
+      "finding": "Dead script (no caller, 'no longer called' at l.1), cannot run in ESM (require with type: module) and destructive with no dry-run.",
       "evidence": ["scripts/legacy-theme-migrate.js:1", "scripts/legacy-theme-migrate.js:2", "scripts/legacy-theme-migrate.js:7", "package.json:4"],
-      "target": "Supprimé.",
-      "check": "Fichier absent ; grep -r legacy-theme-migrate vide."
+      "target": "Deleted.",
+      "check": "File absent; grep -r legacy-theme-migrate empty."
     },
     {
       "id": "husky-pre-commit",
@@ -142,10 +142,10 @@
       "calls": ["package-json-scripts"],
       "verdict": "BLOCK",
       "priority": "P3",
-      "finding": "Hook jamais installé : husky absent des devDependencies et pas de script prepare ; garde fictive.",
+      "finding": "Hook never installed: husky absent from the devDependencies and no prepare script; a fictitious guard.",
       "evidence": [".husky/pre-commit:1", "package.json:5-14", "package.json:17-28"],
-      "target": "Brancher (husky + prepare, ajouter lint:style et check:i18n) ou supprimer.",
-      "check": "Après npm ci, un commit avec un hex en dur est refusé localement ; ou .husky/ n'existe plus."
+      "target": "Wire it (husky + prepare, add lint:style and check:i18n) or delete it.",
+      "check": "After npm ci, a commit with a hard-coded hex is refused locally; or .husky/ no longer exists."
     },
     {
       "id": "claude-md",
@@ -156,10 +156,10 @@
       "calls": ["agents-md"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Un seul include @AGENTS.md : source unique, pas de duplication.",
+      "finding": "A single include @AGENTS.md: single source, no duplication.",
       "evidence": ["CLAUDE.md:1"],
-      "target": "Inchangé ; modèle pour vue.mdc et copilot-instructions.md.",
-      "check": "Le fichier reste un include seul."
+      "target": "Unchanged; a model for vue.mdc and copilot-instructions.md.",
+      "check": "The file stays a lone include."
     },
     {
       "id": "script-check-i18n",
@@ -170,10 +170,10 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Vérifie la parité des clés fr/en avec exit 1 et message typé, appelé par le CLI et la CI ; seul défaut : la promesse excessive faite à son sujet dans AGENTS.md:18.",
+      "finding": "Checks the parity of the fr/en keys with exit 1 and a typed message, called by the CLI and the CI; its only flaw: the excessive promise made about it in AGENTS.md:18.",
       "evidence": ["scripts/check-i18n.mjs:2", "scripts/check-i18n.mjs:13-15", "package.json:12", ".github/workflows/ci.yml:25"],
-      "target": "Inchangé ; accueille le mode --json issu de la fusion avec i18n-report.",
-      "check": "Un test vitest couvre la parité sur deux fixtures."
+      "target": "Unchanged; takes in the --json mode that comes from the merge with i18n-report.",
+      "check": "A vitest test covers the parity on two fixtures."
     },
     {
       "id": "eslint-config",
@@ -184,10 +184,10 @@
       "calls": ["eslint-plugin-design-tokens"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Porte deux garde-fous réels (no-raw-color, component-api-style script-setup) sur src/** ; c'est ici qu'atterrit vue-i18n/no-raw-text.",
+      "finding": "Carries two real guardrails (no-raw-color, component-api-style script-setup) on src/**; this is where vue-i18n/no-raw-text lands.",
       "evidence": ["eslint.config.js:7", "eslint.config.js:10", "eslint.config.js:11"],
-      "target": "Inchangé dans sa structure ; ajout des règles vue-i18n et eslint-comments.",
-      "check": "npm run lint reste la commande unique du job lint."
+      "target": "Unchanged in its structure; the vue-i18n and eslint-comments rules are added.",
+      "check": "npm run lint stays the single command of the lint job."
     },
     {
       "id": "package-json-scripts",
@@ -198,10 +198,10 @@
       "calls": ["eslint-config", "stylelintrc", "vitest-config", "script-check-i18n"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "CLI du dépôt correctement exposée et cohérente avec la table AGENTS.md:9-14 ; les dépendances manquantes qui empêchent certains scripts de tourner sont listées dans unverified.",
+      "finding": "The repository's CLI is correctly exposed and consistent with the table AGENTS.md:9-14; the missing dependencies that keep some scripts from running are listed in unverified.",
       "evidence": ["package.json:5-16"],
-      "target": "Inchangé ; ajout de check:components et des devDependencies manquantes.",
-      "check": "Chaque script cité par un fichier d'instructions existe."
+      "target": "Unchanged; check:components and the missing devDependencies are added.",
+      "check": "Each script cited by an instruction file exists."
     },
     {
       "id": "vitest-config",
@@ -212,10 +212,10 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Bonne couche ; recevra coverage.thresholds et le reporter json-summary pour porter la règle 'la couverture ne baisse pas'.",
+      "finding": "Right layer; will receive coverage.thresholds and the json-summary reporter to carry the rule 'coverage does not go down'.",
       "evidence": ["vitest.config.ts:3"],
-      "target": "Ajout de coverage.thresholds (+ autoUpdate) et json-summary.",
-      "check": "npm run test:unit échoue quand on supprime AppButton.spec.ts."
+      "target": "coverage.thresholds (+ autoUpdate) and json-summary are added.",
+      "check": "npm run test:unit fails when AppButton.spec.ts is deleted."
     },
     {
       "id": "wf-ci",
@@ -226,10 +226,10 @@
       "calls": ["package-json-scripts", "script-check-i18n"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Cinq jobs indépendants, un par ligne de la table AGENTS.md ; recevra le job de complétude des composants et la garde de couverture.",
+      "finding": "Five independent jobs, one per line of the AGENTS.md table; will receive the component completeness job and the coverage guard.",
       "evidence": [".github/workflows/ci.yml:4-41"],
-      "target": "Ajout d'un job components (check-components) ; la couverture est portée par vitest.",
-      "check": "Un composant sans story ou sans spec rend la CI rouge."
+      "target": "A components job (check-components) is added; coverage is carried by vitest.",
+      "check": "A component without a story or without a spec turns the CI red."
     },
     {
       "id": "wf-deploy-preview",
@@ -240,29 +240,29 @@
       "calls": ["package-json-scripts"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Modèle L4 sain : environment protégé, secret tenu en L4, sortie --json relue par jq plutôt qu'un log.",
+      "finding": "A healthy L4 model: protected environment, secret held in L4, --json output read back by jq rather than a log.",
       "evidence": [".github/workflows/deploy-preview.yml:7", ".github/workflows/deploy-preview.yml:13", ".github/workflows/deploy-preview.yml:15"],
-      "target": "Inchangé.",
-      "check": "Le commentaire de PR contient l'URL issue de deploy.json."
+      "target": "Unchanged.",
+      "check": "The PR comment contains the URL that comes from deploy.json."
     }
   ],
   "process_leaks": [
-    { "rule": "Toute chaîne visible passe par t(), jamais de texte en dur dans un template", "told_in": "AGENTS.md:18", "if_skipped": "Texte non traduit livré en production (incident #198) ; NewBadge.vue:6 livre « Nouveau » en dur et passe toute la CI, car check-i18n.mjs ne lit que les JSON (scripts/check-i18n.mjs:2)", "belongs_in": "L3", "guard_tool": "@intlify/eslint-plugin-vue-i18n règles vue-i18n/no-raw-text et vue-i18n/no-missing-keys dans eslint.config.js (job lint de ci.yml)" },
-    { "rule": "Un composant a une story Storybook", "told_in": "AGENTS.md:20", "if_skipped": "Composant jamais relu visuellement ; NewBadge.vue n'a pas de story et la CI est verte ; quatre formulations contradictoires (AGENTS.md:33, SKILL.md:9, vue.mdc:7, copilot-instructions.md:5)", "belongs_in": "L3", "guard_tool": "scripts/check-components.mjs (glob src/components/*.vue → exige .stories.ts, exit 1) branché dans ci.yml" },
-    { "rule": "Un composant a un test unitaire", "told_in": "AGENTS.md:20", "if_skipped": "Composant non testé ; NewBadge.vue n'a pas de spec et la CI est verte", "belongs_in": "L3", "guard_tool": "scripts/check-components.mjs (exige .spec.ts) branché dans ci.yml" },
-    { "rule": "La couverture unitaire ne baisse pas", "told_in": "AGENTS.md:21", "if_skipped": "Perte silencieuse de tests (incident #240) ; la seule vérification est à l'œil dans SKILL.md:13, vitest.config.ts:3 n'a pas de thresholds", "belongs_in": "L3", "guard_tool": "coverage.thresholds (+ autoUpdate) et reporter json-summary dans vitest.config.ts, ou diff de couverture vs main en PR gate" },
-    { "rule": "Ne jamais toucher src/payment/ (module PCI)", "told_in": "AGENTS.md:29", "if_skipped": "Modification d'un module PCI sans revue propriétaire ; l'agent de agent-fix-i18n.yml:19 a Edit sans restriction et auto-merge", "belongs_in": "L4", "guard_tool": ".github/CODEOWNERS + revue requise par la protection de branche ; Edit(src/locales/en.json) dans le workflow" },
-    { "rule": "Ne jamais modifier src/styles/tokens.css sans ticket design", "told_in": "AGENTS.md:27", "if_skipped": "Dérive du thème sans validation design", "belongs_in": "L4", "guard_tool": ".github/CODEOWNERS (équipe design) + template de PR avec champ ticket" },
-    { "rule": "Pas de couleur en dur dans le template (attribut style, :style)", "told_in": "AGENTS.md:17", "if_skipped": "Hex oublié dans un template → thème sombre cassé (incident #212) ; no-raw-color ne visite que le <script> (tools/eslint-plugin-design-tokens/index.js:11)", "belongs_in": "L3", "guard_tool": "Règle no-raw-color réécrite avec defineTemplateBodyVisitor + RuleTester ; stylelint avec customSyntax postcss-html" },
-    { "rule": "Pas d'eslint-disable sans justification datée", "told_in": "AGENTS.md:28", "if_skipped": "Règles contournées silencieusement (hygiène)", "belongs_in": "L3", "guard_tool": "@eslint-community/eslint-plugin-eslint-comments règle require-description" },
-    { "rule": "L'humain relit chaque diff avant fusion", "told_in": "AGENTS.md:3", "if_skipped": "Traductions hallucinées fusionnées dans main sans relecture (agent-fix-i18n.yml:21-23)", "belongs_in": "L4", "guard_tool": "Suppression de l'auto-merge, environment protégé avec reviewers requis, protection de branche" }
+    { "rule": "Every visible string goes through t(), never hard-coded text in a template", "told_in": "AGENTS.md:18", "if_skipped": "Untranslated text shipped to production (incident #198); NewBadge.vue:6 ships a hard-coded \"New\" and passes the whole CI, because check-i18n.mjs only reads the JSON files (scripts/check-i18n.mjs:2)", "belongs_in": "L3", "guard_tool": "@intlify/eslint-plugin-vue-i18n rules vue-i18n/no-raw-text and vue-i18n/no-missing-keys in eslint.config.js (lint job of ci.yml)" },
+    { "rule": "A component has a Storybook story", "told_in": "AGENTS.md:20", "if_skipped": "Component never reviewed visually; NewBadge.vue has no story and the CI is green; four contradictory wordings (AGENTS.md:33, SKILL.md:9, vue.mdc:7, copilot-instructions.md:5)", "belongs_in": "L3", "guard_tool": "scripts/check-components.mjs (glob src/components/*.vue → requires .stories.ts, exit 1) wired into ci.yml" },
+    { "rule": "A component has a unit test", "told_in": "AGENTS.md:20", "if_skipped": "Untested component; NewBadge.vue has no spec and the CI is green", "belongs_in": "L3", "guard_tool": "scripts/check-components.mjs (requires .spec.ts) wired into ci.yml" },
+    { "rule": "Unit coverage does not go down", "told_in": "AGENTS.md:21", "if_skipped": "Silent loss of tests (incident #240); the only check is by eye in SKILL.md:13, vitest.config.ts:3 has no thresholds", "belongs_in": "L3", "guard_tool": "coverage.thresholds (+ autoUpdate) and json-summary reporter in vitest.config.ts, or coverage diff vs main as a PR gate" },
+    { "rule": "Never touch src/payment/ (PCI module)", "told_in": "AGENTS.md:29", "if_skipped": "Change to a PCI module with no owner review; the agent of agent-fix-i18n.yml:19 has unrestricted Edit and auto-merge", "belongs_in": "L4", "guard_tool": ".github/CODEOWNERS + review required by branch protection; Edit(src/locales/en.json) in the workflow" },
+    { "rule": "Never change src/styles/tokens.css without a design ticket", "told_in": "AGENTS.md:27", "if_skipped": "Theme drift with no design validation", "belongs_in": "L4", "guard_tool": ".github/CODEOWNERS (design team) + PR template with a ticket field" },
+    { "rule": "No hard-coded color in the template (style attribute, :style)", "told_in": "AGENTS.md:17", "if_skipped": "Hex forgotten in a template → broken dark theme (incident #212); no-raw-color only visits the <script> (tools/eslint-plugin-design-tokens/index.js:11)", "belongs_in": "L3", "guard_tool": "no-raw-color rule rewritten with defineTemplateBodyVisitor + RuleTester; stylelint with customSyntax postcss-html" },
+    { "rule": "No eslint-disable without a dated justification", "told_in": "AGENTS.md:28", "if_skipped": "Rules bypassed silently (hygiene)", "belongs_in": "L3", "guard_tool": "@eslint-community/eslint-plugin-eslint-comments rule require-description" },
+    { "rule": "A person reviews every diff before merge", "told_in": "AGENTS.md:3", "if_skipped": "Hallucinated translations merged into main with no review (agent-fix-i18n.yml:21-23)", "belongs_in": "L4", "guard_tool": "Removal of the auto-merge, protected environment with required reviewers, branch protection" }
   ],
   "guarded_rules": [
-    { "rule": "Composition API <script setup> uniquement", "told_in": "AGENTS.md:19", "guarded_by": "eslint.config.js:11 (vue/component-api-style script-setup), .github/workflows/ci.yml:11" },
-    { "rule": "Bundle initial sous 250 kB gzip", "told_in": "AGENTS.md:22", "guarded_by": "package.json:16 (size-limit), .github/workflows/ci.yml:33" },
-    { "rule": "Parité des clés fr/en dans les locales", "told_in": "AGENTS.md:13", "guarded_by": "scripts/check-i18n.mjs:13-15, .github/workflows/ci.yml:25" },
-    { "rule": "Pas de couleur en dur dans le <script> et les fichiers .css (garde partielle)", "told_in": "AGENTS.md:17", "guarded_by": "eslint.config.js:10 + tools/eslint-plugin-design-tokens/index.js:11-13 ; .stylelintrc.json:1 (si la config tourne)" },
-    { "rule": "Table « si tu touches X, lance Y, vérifié en CI par ci.yml job Z »", "told_in": "AGENTS.md:9-14", "guarded_by": ".github/workflows/ci.yml:4-41 (jobs lint, unit, i18n, size, e2e)" }
+    { "rule": "Composition API <script setup> only", "told_in": "AGENTS.md:19", "guarded_by": "eslint.config.js:11 (vue/component-api-style script-setup), .github/workflows/ci.yml:11" },
+    { "rule": "Initial bundle under 250 kB gzip", "told_in": "AGENTS.md:22", "guarded_by": "package.json:16 (size-limit), .github/workflows/ci.yml:33" },
+    { "rule": "Parity of the fr/en keys in the locales", "told_in": "AGENTS.md:13", "guarded_by": "scripts/check-i18n.mjs:13-15, .github/workflows/ci.yml:25" },
+    { "rule": "No hard-coded color in the <script> and the .css files (partial guard)", "told_in": "AGENTS.md:17", "guarded_by": "eslint.config.js:10 + tools/eslint-plugin-design-tokens/index.js:11-13 ; .stylelintrc.json:1 (if the config runs)" },
+    { "rule": "Table \"if you touch X, run Y, enforced in CI by ci.yml job Z\"", "told_in": "AGENTS.md:9-14", "guarded_by": ".github/workflows/ci.yml:4-41 (jobs lint, unit, i18n, size, e2e)" }
   ],
   "instruction_files": [
     { "path": "AGENTS.md", "loaded_lines": 45, "instruction_pct": 45, "reference_pct": 45, "noise_pct": 10, "justified_rules": true, "maintenance_clause": true },
@@ -272,29 +272,29 @@
     { "path": ".claude/skills/add-component/SKILL.md", "loaded_lines": 14, "instruction_pct": 100, "reference_pct": 0, "noise_pct": 0, "justified_rules": true, "maintenance_clause": false }
   ],
   "remediation": [
-    { "order": 1, "priority": "P1", "verdict": "BLOCK", "element": "wf-agent-fix-i18n", "action": "Retirer l'auto-merge, restreindre allowedTools à Edit(src/locales/en.json) et gh pr create, ajouter inputs.dry_run, court-circuiter si missing.json est vide, ouvrir la PR en brouillon et la cibler par l'URL de gh pr create.", "depends_on": [], "check": "Run dry_run=true : artefact et aucune PR ; run réel : PR brouillon non fusionnable sans revue ; aucune occurrence de 'pr merge --auto'.", "needs_human_approval": true },
-    { "order": 2, "priority": "P1", "verdict": "PUSH_DOWN", "element": "agents-md", "action": "Ajouter @intlify/eslint-plugin-vue-i18n (no-raw-text, no-missing-keys) dans eslint.config.js et corriger NewBadge.vue:6.", "depends_on": [], "check": "npm run lint échoue sur NewBadge.vue avant correction et passe après ; le job lint est rouge sur un template avec texte en dur.", "needs_human_approval": false },
-    { "order": 3, "priority": "P1", "verdict": "PUSH_DOWN", "element": "agents-md", "action": "Créer .github/CODEOWNERS pour src/payment/ et src/styles/tokens.css, activer la revue requise par la protection de branche, ajouter un template de PR avec champ ticket design.", "depends_on": [1], "check": "Une PR touchant src/payment/ exige l'approbation du propriétaire ; le workflow agent ne peut pas y écrire.", "needs_human_approval": true },
-    { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "eslint-plugin-design-tokens", "action": "Réécrire no-raw-color avec defineTemplateBodyVisitor, regex ancrée, ajouter des tests RuleTester.", "depends_on": [], "check": "Test rouge sur style=\"color:#fff\" dans un template ; vert sur '#add'.", "needs_human_approval": false },
-    { "order": 5, "priority": "P2", "verdict": "SPLIT", "element": "stylelintrc", "action": "Déclarer stylelint-config-standard et postcss-html, overrides pour *.vue, ignoreFiles src/styles/tokens.css.", "depends_on": [], "check": "npm run lint:style vert sur le dépôt, rouge sur un <style> avec hex, silencieux sur tokens.css.", "needs_human_approval": false },
-    { "order": 6, "priority": "P2", "verdict": "PUSH_DOWN", "element": "agents-md", "action": "Trancher la règle story (recommandé : obligatoire), créer scripts/check-components.mjs exigeant .stories.ts et .spec.ts par composant, job components dans ci.yml, compléter NewBadge.", "depends_on": [], "check": "CI rouge sur le dépôt tel quel, verte après ajout des deux fichiers de NewBadge.", "needs_human_approval": true },
-    { "order": 7, "priority": "P2", "verdict": "PUSH_DOWN", "element": "vitest-config", "action": "Ajouter coverage.thresholds (+ autoUpdate) et le reporter json-summary dans vitest.config.ts.", "depends_on": [], "check": "npm run test:unit échoue quand on supprime AppButton.spec.ts.", "needs_human_approval": false },
-    { "order": 8, "priority": "P2", "verdict": "MERGE", "element": "script-i18n-report", "action": "Fusionner dans check-i18n.mjs (--json) ou scripts/i18n.mjs check|report avec un test vitest, mettre à jour le workflow.", "depends_on": [1], "check": "Un seul flatten dans scripts/ ; le workflow appelle la sous-commande.", "needs_human_approval": true },
-    { "order": 9, "priority": "P2", "verdict": "PUSH_DOWN", "element": "skill-add-component", "action": "Supprimer la vérification manuelle de couverture (l.13), aligner l.9 sur la règle story tranchée, référencer check:components.", "depends_on": [6, 7], "check": "Le skill ne demande plus d'ouvrir coverage/index.html.", "needs_human_approval": false },
-    { "order": 10, "priority": "P2", "verdict": "MERGE", "element": "cursor-vue-mdc", "action": "Remplacer par un pointeur vers AGENTS.md ou un contenu généré depuis lui.", "depends_on": [6], "check": "Aucune règle propre ; zéro contradiction avec eslint/stylelint.", "needs_human_approval": false },
-    { "order": 11, "priority": "P2", "verdict": "MERGE", "element": "copilot-instructions", "action": "Remplacer par un pointeur vers AGENTS.md ; remplacer npm test par les commandes de AGENTS.md:9-14.", "depends_on": [6], "check": "Toute commande citée existe dans package.json.", "needs_human_approval": false },
-    { "order": 12, "priority": "P1", "verdict": "PUSH_DOWN", "element": "agents-md", "action": "Réécrire les 'Vérifiée par' (l.17-18) selon les garde-fous réels, ajouter ceux des l.20-21 et 27-29, remplacer l.31-37 par le pointeur vers le skill, supprimer l.23-24, mentionner le workflow autonome en l.3.", "depends_on": [2, 3, 4, 5, 6, 7], "check": "Chaque 'Vérifiée par' a un test rouge reproductible ; une seule formulation de la règle story dans le dépôt.", "needs_human_approval": false },
-    { "order": 13, "priority": "P3", "verdict": "PUSH_DOWN", "element": "eslint-config", "action": "Ajouter @eslint-community/eslint-plugin-eslint-comments règle require-description.", "depends_on": [], "check": "Un eslint-disable sans description fait échouer npm run lint.", "needs_human_approval": false },
-    { "order": 14, "priority": "P3", "verdict": "BLOCK", "element": "script-legacy-theme-migrate", "action": "Supprimer scripts/legacy-theme-migrate.js.", "depends_on": [], "check": "Fichier absent, grep vide.", "needs_human_approval": true },
-    { "order": 15, "priority": "P3", "verdict": "BLOCK", "element": "husky-pre-commit", "action": "Brancher husky (devDependency + prepare, ajouter lint:style et check:i18n) ou supprimer .husky/.", "depends_on": [5], "check": "Commit local refusé sur un hex en dur, ou dossier absent.", "needs_human_approval": true }
+    { "order": 1, "priority": "P1", "verdict": "BLOCK", "element": "wf-agent-fix-i18n", "action": "Remove the auto-merge, restrict allowedTools to Edit(src/locales/en.json) and gh pr create, add inputs.dry_run, short-circuit if missing.json is empty, open the PR as a draft and target it by the URL of gh pr create.", "depends_on": [], "check": "dry_run=true run: artifact and no PR; real run: draft PR that cannot be merged without review; no occurrence of 'pr merge --auto'.", "needs_human_approval": true },
+    { "order": 2, "priority": "P1", "verdict": "PUSH_DOWN", "element": "agents-md", "action": "Add @intlify/eslint-plugin-vue-i18n (no-raw-text, no-missing-keys) in eslint.config.js and fix NewBadge.vue:6.", "depends_on": [], "check": "npm run lint fails on NewBadge.vue before the fix and passes after; the lint job is red on a template with hard-coded text.", "needs_human_approval": false },
+    { "order": 3, "priority": "P1", "verdict": "PUSH_DOWN", "element": "agents-md", "action": "Create .github/CODEOWNERS for src/payment/ and src/styles/tokens.css, turn on the review required by branch protection, add a PR template with a design ticket field.", "depends_on": [1], "check": "A PR touching src/payment/ requires the owner's approval; the agent workflow cannot write there.", "needs_human_approval": true },
+    { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "eslint-plugin-design-tokens", "action": "Rewrite no-raw-color with defineTemplateBodyVisitor, anchored regex, add RuleTester tests.", "depends_on": [], "check": "Red test on style=\"color:#fff\" in a template; green on '#add'.", "needs_human_approval": false },
+    { "order": 5, "priority": "P2", "verdict": "SPLIT", "element": "stylelintrc", "action": "Declare stylelint-config-standard and postcss-html, overrides for *.vue, ignoreFiles src/styles/tokens.css.", "depends_on": [], "check": "npm run lint:style green on the repository, red on a <style> with hex, silent on tokens.css.", "needs_human_approval": false },
+    { "order": 6, "priority": "P2", "verdict": "PUSH_DOWN", "element": "agents-md", "action": "Settle the story rule (recommended: mandatory), create scripts/check-components.mjs requiring .stories.ts and .spec.ts per component, components job in ci.yml, complete NewBadge.", "depends_on": [], "check": "CI red on the repository as is, green after the two files of NewBadge are added.", "needs_human_approval": true },
+    { "order": 7, "priority": "P2", "verdict": "PUSH_DOWN", "element": "vitest-config", "action": "Add coverage.thresholds (+ autoUpdate) and the json-summary reporter in vitest.config.ts.", "depends_on": [], "check": "npm run test:unit fails when AppButton.spec.ts is deleted.", "needs_human_approval": false },
+    { "order": 8, "priority": "P2", "verdict": "MERGE", "element": "script-i18n-report", "action": "Merge into check-i18n.mjs (--json) or scripts/i18n.mjs check|report with a vitest test, update the workflow.", "depends_on": [1], "check": "A single flatten in scripts/; the workflow calls the subcommand.", "needs_human_approval": true },
+    { "order": 9, "priority": "P2", "verdict": "PUSH_DOWN", "element": "skill-add-component", "action": "Remove the manual coverage check (l.13), align l.9 with the settled story rule, reference check:components.", "depends_on": [6, 7], "check": "The skill no longer asks to open coverage/index.html.", "needs_human_approval": false },
+    { "order": 10, "priority": "P2", "verdict": "MERGE", "element": "cursor-vue-mdc", "action": "Replace with a pointer to AGENTS.md or content generated from it.", "depends_on": [6], "check": "No rule of its own; zero contradiction with eslint/stylelint.", "needs_human_approval": false },
+    { "order": 11, "priority": "P2", "verdict": "MERGE", "element": "copilot-instructions", "action": "Replace with a pointer to AGENTS.md; replace npm test with the commands of AGENTS.md:9-14.", "depends_on": [6], "check": "Every command cited exists in package.json.", "needs_human_approval": false },
+    { "order": 12, "priority": "P1", "verdict": "PUSH_DOWN", "element": "agents-md", "action": "Rewrite the 'Enforced by' (l.17-18) according to the real guardrails, add those of l.20-21 and 27-29, replace l.31-37 with the pointer to the skill, remove l.23-24, mention the autonomous workflow at l.3.", "depends_on": [2, 3, 4, 5, 6, 7], "check": "Each 'Enforced by' has a reproducible red test; a single wording of the story rule in the repository.", "needs_human_approval": false },
+    { "order": 13, "priority": "P3", "verdict": "PUSH_DOWN", "element": "eslint-config", "action": "Add @eslint-community/eslint-plugin-eslint-comments rule require-description.", "depends_on": [], "check": "An eslint-disable without a description makes npm run lint fail.", "needs_human_approval": false },
+    { "order": 14, "priority": "P3", "verdict": "BLOCK", "element": "script-legacy-theme-migrate", "action": "Delete scripts/legacy-theme-migrate.js.", "depends_on": [], "check": "File absent, grep empty.", "needs_human_approval": true },
+    { "order": 15, "priority": "P3", "verdict": "BLOCK", "element": "husky-pre-commit", "action": "Wire husky (devDependency + prepare, add lint:style and check:i18n) or delete .husky/.", "depends_on": [5], "check": "Local commit refused on a hard-coded hex, or folder absent.", "needs_human_approval": true }
   ],
   "unverified": [
-    "Aucun script exécuté (pas de node_modules, dépôt non modifiable) : le comportement de stylelint sur les .vue et tokens.css est déduit de .stylelintrc.json:1, package.json:9,17-28 et de la documentation stylelint 16, pas observé.",
-    "Dépendances absentes de package.json:17-28 mais importées ou supposées : stylelint-config-standard, postcss-html, @testing-library/vue (AppButton.spec.ts:1), jsdom (vitest.config.ts:3), @playwright/test (tests/e2e/cart.spec.ts:1), husky, @storybook/vue3-vite ; si c'est l'état réel, les jobs lint, unit et e2e de ci.yml ne peuvent pas être verts.",
-    "src/payment/ n'existe pas dans le dépôt : l'interdit AGENTS.md:29 est audité comme règle, pas contre du code.",
-    "Paramètres du dépôt distant non lisibles : protection de branche, reviewers requis, règles de l'environnement preview (deploy-preview.yml:7), configuration de app/acme-bot, secrets BOT_TOKEN / ANTHROPIC_API_KEY / NETLIFY_AUTH_TOKEN.",
-    "Issues #212, #198, #240 et PR #231 citées dans AGENTS.md non consultables (dépôt synthétique, README.md:3).",
-    "Comportement de gh pr list --author app/acme-bot … .[0] (agent-fix-i18n.yml:22) sans PR ouverte : supposé échouer sur un argument vide.",
-    "Historique git non consulté (consigne) : impossible de dater la dérive entre AGENTS.md, vue.mdc et copilot-instructions.md."
+    "No script run (no node_modules, repository not to be modified): the behaviour of stylelint on the .vue files and tokens.css is deduced from .stylelintrc.json:1, package.json:9,17-28 and the stylelint 16 documentation, not observed.",
+    "Dependencies absent from package.json:17-28 but imported or assumed: stylelint-config-standard, postcss-html, @testing-library/vue (AppButton.spec.ts:1), jsdom (vitest.config.ts:3), @playwright/test (tests/e2e/cart.spec.ts:1), husky, @storybook/vue3-vite; if that is the real state, the lint, unit and e2e jobs of ci.yml cannot be green.",
+    "src/payment/ does not exist in the repository: the forbidden item AGENTS.md:29 is audited as a rule, not against code.",
+    "Settings of the remote repository not readable: branch protection, required reviewers, rules of the preview environment (deploy-preview.yml:7), configuration of app/acme-bot, secrets BOT_TOKEN / ANTHROPIC_API_KEY / NETLIFY_AUTH_TOKEN.",
+    "Issues #212, #198, #240 and PR #231 cited in AGENTS.md cannot be consulted (synthetic repository, README.md:3).",
+    "Behaviour of gh pr list --author app/acme-bot … .[0] (agent-fix-i18n.yml:22) with no open PR: assumed to fail on an empty argument.",
+    "Git history not consulted (instruction): impossible to date the drift between AGENTS.md, vue.mdc and copilot-instructions.md."
   ]
 }

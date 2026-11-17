@@ -1,23 +1,23 @@
 # deskly
 
-Outil de support interne : des tickets, leurs statuts, une API et une page web. Monorepo npm workspaces en TypeScript, exécuté tel quel par Node 22 (pas d'étape de compilation).
+Internal support tool: tickets, their statuses, an API and a web page. An npm workspaces monorepo in TypeScript, run as is by Node 22 (no compile step).
 
-Dépôt **synthétique** : une fixture du projet harness-ai.
+**Synthetic** repository: a fixture of the harness-ai project.
 
 ```
-apps/api         API HTTP des tickets
-apps/web         page web
-packages/shared  modèle du ticket, statuts, transitions, validation
-tools/           contrôle des frontières entre workspaces
-docs/            décisions et incidents
+apps/api         HTTP API for tickets
+apps/web         web page
+packages/shared  ticket model, statuses, transitions, validation
+tools/           check of the boundaries between workspaces
+docs/            decisions and incidents
 ```
 
-Il n'y a pas de commande « tout tester » : le vrai dépôt met vingt-cinq minutes à tout rejouer, on lance donc le workspace qu'on touche, et la CI fait de même.
+There is no "test everything" command: the real repository takes twenty-five minutes to replay everything, so we run the workspace we touch, and the CI does the same.
 
 ```bash
 npm install
-npm run test:api          # les tests d'un workspace : test:shared, test:api, test:web
-npm run typecheck:api     # ses types : typecheck:shared, typecheck:api, typecheck:web
+npm run test:api          # the tests of one workspace: test:shared, test:api, test:web
+npm run typecheck:api     # its types: typecheck:shared, typecheck:api, typecheck:web
 npm run check:boundaries
 npm run dev:api
 ```

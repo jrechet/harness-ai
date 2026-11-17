@@ -1,21 +1,21 @@
 # Notes
 
-## Ce qui m'a gêné
-- **Pré-condition sans gravité (fichiers non commités, morceau 11).** « Pas un incident, mais l'agent ne doit pas pouvoir l'oublier » n'a pas de chemin évident. En `rule`, `incident=no` envoie vers `scope`, donc vers du texte que l'agent peut sauter : la grille n'a pas de « règle sans gravité mais tenue pour l'agent ». J'ai répondu `limit` + `bypass_limit=agent` (Permission, avec hook PreToolUse sur la commande de release), parce que la phrase borne une action de l'agent et qu'un développeur peut passer outre sans incident. `compute` + `when=agent_loop` (hook) menait à un endroit voisin ; rien dans le skill ne départage les deux.
-- **Version mal calculée = incident.** La grille n'a pas de question `incident` sous `compute` : la réponse du propriétaire ne change pas la destination du calcul (CLI). Elle justifierait une règle « la version publiée est celle que le calcul rend », en étape bloquante du workflow de livraison, mais ce morceau n'existe pas dans l'artefact et le skill ne dit pas si une revue peut ajouter un morceau sans `current`. Je ne l'ai pas ajouté.
-- **`current` d'une phrase de skill que rien ne tient.** Le skill donne `session` pour un choix laissé à l'agent et `ci_check` pour une règle portée par un check, mais pas le cas courant : une vérification ou une action racontée dans le SKILL.md. J'ai mis `skill`.
-- **`when` du calcul de version** : `on_demand` (le skill et le workflow de livraison l'appellent tous deux), pas `repo_event`. La grille ne dit pas quoi répondre quand deux appelants existent.
-- **Dépôt sans CLI** : la destination dit « sous-commande du CLI du dépôt » ; ici ce sera un script de `package.json` (le tableau de l'étape 5 le prévoit, pas le texte du plan).
-- `place plan` accepte `evidence` sans le vérifier ni l'afficher ; seul `report from-place` s'en sert.
+## What got in the way
+- **Harmless precondition (uncommitted files, piece 11).** "Not an incident, but the agent must not be able to forget it" has no obvious path. As a `rule`, `incident=no` sends to `scope`, hence to text the agent can skip: the grid has no "harmless rule, yet held for the agent". I answered `limit` + `bypass_limit=agent` (Permission, with a PreToolUse hook on the release command), because the sentence bounds an action of the agent and a developer can override it without an incident. `compute` + `when=agent_loop` (hook) led to a neighbouring place; nothing in the skill decides between the two.
+- **Miscomputed version = incident.** The grid has no `incident` question under `compute`: the owner's answer does not change the destination of the computation (CLI). It would justify a rule "the published version is the one the computation returns", as a blocking step of the delivery workflow, but that piece does not exist in the artifact and the skill does not say whether a review may add a piece without `current`. I did not add it.
+- **`current` of a skill sentence that nothing holds.** The skill gives `session` for a choice left to the agent and `ci_check` for a rule carried by a check, but not the common case: a check or an action told as a story in the SKILL.md. I put `skill`.
+- **`when` of the version computation**: `on_demand` (the skill and the delivery workflow both call it), not `repo_event`. The grid does not say what to answer when two callers exist.
+- **Repository without a CLI**: the destination says "subcommand of the repository's CLI"; here it will be a `package.json` script (the table of step 5 provides for it, not the text of the plan).
+- `place plan` accepts `evidence` without checking or displaying it; only `report from-place` uses it.
 
-## Sous le plan (ni morceaux, ni placés)
-- À confirmer : le job `commitlint` (ci.yml:12) est-il un check requis sur `main` ? Réglage de la forge, illisible d'ici. Il ne tourne que sur `pull_request` vers `main`.
-- Contradiction : SKILL.md:16 demande à l'agent de copier le jeton dans `.npmrc`, AGENTS.md:6 l'autorise « hors d'une release » seulement, le propriétaire dit « jamais lisible par l'agent ». Une fois la publication dans le workflow de livraison (morceau 6), le jeton devient un secret d'environnement protégé sur GitHub et la phrase disparaît du skill ; l'exception « hors d'une release » d'AGENTS.md:6 tombe.
-- Morceau 5 : la protection est l'environnement protégé GitHub restreint à `main` (réglage d'administrateur), pas le `git branch --show-current` du skill.
-- Étape à déplacer : la vérification `git status` est en étape 8 (SKILL.md:19) alors qu'elle conditionne le début ; la vérification de branche (étape 3) vient après le calcul.
-- Outil manquant : `release-reviewer` n'a que `Read, Grep` et doit lire « les commits depuis le dernier tag » ; il lui faut un accès à l'historique git, ou que la liste lui soit fournie.
-- Morceau 10 : aucun serveur MCP n'est déclaré dans l'artefact (pas de `.mcp.json` ni de `.claude/settings.json`) ; le skill ne dit pas par quel moyen l'annonce part aujourd'hui.
+## Under the plan (neither pieces, nor placed)
+- To confirm: is the `commitlint` job (ci.yml:12) a required check on `main`? A forge setting, unreadable from here. It only runs on `pull_request` to `main`.
+- Contradiction: SKILL.md:16 asks the agent to copy the token into `.npmrc`, AGENTS.md:6 allows it "outside a release" only, the owner says "never readable by the agent". Once publication is in the delivery workflow (piece 6), the token becomes a protected environment secret on GitHub and the sentence disappears from the skill; the "outside a release" exception of AGENTS.md:6 falls.
+- Piece 5: the protection is the GitHub protected environment restricted to `main` (an administrator setting), not the `git branch --show-current` of the skill.
+- Step to move: the `git status` check is in step 8 (SKILL.md:19) whereas it conditions the start; the branch check (step 3) comes after the computation.
+- Missing tool: `release-reviewer` only has `Read, Grep` and must read "the commits since the last tag"; it needs access to the git history, or to be given the list.
+- Piece 10: no MCP server is declared in the artifact (no `.mcp.json` nor `.claude/settings.json`); the skill does not say by what means the announcement goes out today.
 
-## Non placé
-- `Mode : assistance` (AGENTS.md:3) : hors de la demande (les règles), laissé hors du plan.
-- Rien d'autre : les 12 morceaux ont une destination, `place plan` sort en code 0.
+## Not placed
+- `Mode: assistance` (AGENTS.md:3): outside the request (the rules), left out of the plan.
+- Nothing else: the 12 pieces have a destination, `place plan` exits with code 0.

@@ -10,7 +10,7 @@ fixtures/repos/<name>/
 ├── owner.md         # sample projects: the fictional owner's answers, given in advance
 ├── owner.json       # optional: the same owner, who answers only what they are asked
 ├── tasks/<id>/      # sample projects: a typical task, its hidden tests, its solution, a tempted solution
-└── runs/            # dated runs, graded by fixture check; <date>-pas1-author = the author's step 1
+└── runs/            # dated runs, graded by fixture check; <date>-step1-author = the author's step 1
 ```
 
 Two families. The **audit fixtures** (`java-back`, `node-front`, `python-cli`) carry a damaged harness and little code: they measure what the audit finds. The **sample projects** (`go-hexa`, `ts-monorepo`, `django-mvc`, `vibe-app`, `microservices`) are real small projects, one per architecture style, whose code runs and whose tests pass: they measure the path, from level 0 upwards. `owner.md` is given to the evaluated agent; `traps.md`, `expected.json`, `owner.json` and `runs/` never are: the owner of `owner.json` answers during the session, through a command that `bench init` lays in the kit.
@@ -53,7 +53,7 @@ Models to read before writing: `repos/go-hexa` (bare start) and `repos/ts-monore
 - **An owner who says nothing unprompted.** With `owner.md`, the answers are given in advance, including what the owner adds unprompted: an interview that asks no question still collects the oral fact, and the measurement says nothing about the interview. `owner.json` carries the same answers, each behind its triggers (`any_of`, whole words, case- and accent-insensitive, `*` for a word ending). The answer that carries the oral fact says so with `fact`; its triggers are what a real owner would hear as an invitation to say it: what is written nowhere, what gets repeated in review, a trap for a newcomer, "anything else to add?", or the subject itself. Neither the mode, nor the team, nor the CI triggers it. `fixture check` verifies that the fact escapes through no other answer, nor through the greeting, nor through the default answer. `bench init` keeps the exchange in `interview.md` and says whether the fact was asked for. No model plays the owner: a question always gets the same answer.
 - **Each fact has its opposite.** Next to the real incident, a generic rule without an incident; next to the guardrail that blocks, a declared guardrail that does not; next to the command that works, a stale command. It is the gap between the two that is measured.
 - **The repository README** gives the bench away on a single line, "**Synthetic** repository: a fixture of the harness-ai project" (French fixtures: "Dépôt **synthétique** : une fixture du projet harness-ai"): it is removed from working copies. It never cites `traps.md`.
-- **An author's step 1** in `runs/<date>-pas1-author/`: `AGENTS.md`, the `CLAUDE.md` stub, the subfolder notes kept, `REMOVE.txt` if it deletes files from the repository (one path per line), and `RUN.md` which says what was removed and why. Level 1 and nothing else: no Maintenance, no marker, no Working process, no contract. Each rule carries its date `[YYYY-MM]`, that of the incident or of the decision. It is the grader's regression baseline and the bench's `harness` arm. The bench takes the last `runs/*-author` folder that holds an `AGENTS.md`, whatever the rest of its name.
+- **An author's step 1** in `runs/<date>-step1-author/`: `AGENTS.md`, the `CLAUDE.md` stub, the subfolder notes kept, `REMOVE.txt` if it deletes files from the repository (one path per line), and `RUN.md` which says what was removed and why. Level 1 and nothing else: no Maintenance, no marker, no Working process, no contract. Each rule carries its date `[YYYY-MM]`, that of the incident or of the decision. It is the grader's regression baseline and the bench's `harness` arm. The bench takes the last `runs/*-author` folder that holds an `AGENTS.md`, whatever the rest of its name.
 
 ### expected.json
 
@@ -172,7 +172,7 @@ python3 cli/harness.py bench play go-hexa deposit --arm harness --work-root /tmp
     --overlay fixtures/repos/go-hexa/runs/<date>-init-blind/overlay --out fixtures/repos/go-hexa/runs/<date>-task-blind-init
 ```
 
-Runs recorded before 2026-11-16 name the agent's report `compte-rendu.md` and the interview `entretien.md` / `entretien.json`; the bench now writes `report.md`, `interview.md` and `interview.json`. The registry `results.jsonl` keeps its past `note` fields in French: they are records.
+A run names the agent's report `report.md`, the interview `interview.md` / `interview.json` and the author's step 1 `<date>-step1-author`; the fixtures recorded in French were renamed when they were translated, and their original names are in git history. The `note` fields of the registry `results.jsonl` were translated on 2026-11-17; the paths and scores they sit beside are unchanged.
 
 Deciding on a campaign and interpreting it remains the job of the `harness-stress` skill, on request.
 
@@ -181,5 +181,5 @@ Deciding on a campaign and interpreting it remains the job of the `harness-stres
 ```bash
 python3 cli/harness.py fixture check java-back
 python3 cli/harness.py fixture check java-back --audit fixtures/repos/java-back/repo/.harness/audit.json
-python3 cli/harness.py fixture check go-hexa --init fixtures/repos/go-hexa/runs/2026-11-10-pas1-author
+python3 cli/harness.py fixture check go-hexa --init fixtures/repos/go-hexa/runs/2026-11-10-step1-author
 ```

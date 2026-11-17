@@ -12,5 +12,5 @@ jobs:
       - run: npm ci && npm run build
       - run: npx netlify deploy --dir=dist --alias=pr-${{ github.event.number }} --json > deploy.json
         env: { NETLIFY_AUTH_TOKEN: "${{ secrets.NETLIFY_AUTH_TOKEN }}" }
-      - run: gh pr comment ${{ github.event.number }} --body "Preview : $(jq -r .deploy_url deploy.json)"
+      - run: gh pr comment ${{ github.event.number }} --body "Preview: $(jq -r .deploy_url deploy.json)"
         env: { GH_TOKEN: "${{ github.token }}" }
