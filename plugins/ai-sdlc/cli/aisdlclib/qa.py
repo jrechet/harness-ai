@@ -18,7 +18,7 @@ import subprocess
 import tempfile
 import time
 import xml.etree.ElementTree as ET
-from typing import Any
+from typing import Any, Sequence
 
 from . import size, ticket
 from .context import Refused, _git, resolve_base
@@ -73,12 +73,13 @@ def _names(lines: list[str]) -> set[str]:
     return {next(g for g in m.groups() if g) for line in lines for m in _TEST_NAME.finditer(line)}
 
 
-def gate_disabled(repo: str, base: str, paths: list[str]) -> dict[str, Any]:
+def gate_disabled(repo: str, base: str, paths: list[str], spared: Sequence[re.Pattern[str]] = ()) -> dict[str, Any]:
     """Aucun test sauté, désactivé, retiré ou supprimé par le diff. Ce qui ne se tranche pas par règle
     (la configuration des tests a changé, des affirmations ont disparu) rend la porte non mesurée."""
     title = "Aucun test désactivé, retiré ni supprimé"
     code, out = _git(repo, "diff", "-z", "--name-only", "--diff-filter=D", "-M", f"{resolve_base(repo, base)}...HEAD")
-    deleted = [p for p in out.decode("utf-8", "replace").split("\0") if p and is_test(p)] if code == 0 else []
+    deleted = [p for p in out.decode("utf-8", "replace").split("\0")
+               if p and is_test(p) and not any(r.match(p) for r in spared)] if code == 0 else []
     skipped, gone, weakened = [], [], []
     config = [p for p in paths if _TEST_CONFIG.search(p)]
     for path in paths:
