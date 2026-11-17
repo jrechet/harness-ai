@@ -52,9 +52,9 @@ class BenchCase(unittest.TestCase):
                              "node_modules/x/index.js": "x\n"}.items():
             write(self.fx, f"repo/{rel}", content)
         write(self.fx, "expected.json", json.dumps({"fixture": "demo", "status": {"level_reached": 0}, "init": {"min_level": 1}}))
-        write(self.fx, "runs/2026-01-01-pas1-author/AGENTS.md", "# demo\n\nMode: **delegation**.\n")
-        write(self.fx, "runs/2026-01-01-pas1-author/CLAUDE.md", "@AGENTS.md\n")
-        write(self.fx, "runs/2026-01-01-pas1-author/RUN.md", "run note\n")
+        write(self.fx, "runs/2026-01-01-step1-author/AGENTS.md", "# demo\n\nMode: **delegation**.\n")
+        write(self.fx, "runs/2026-01-01-step1-author/CLAUDE.md", "@AGENTS.md\n")
+        write(self.fx, "runs/2026-01-01-step1-author/RUN.md", "run note\n")
         write(self.fx, "tasks/sub/task.json", json.dumps(TASK))
         write(self.fx, "tasks/sub/task.md", "Add sub.\n")
         write(self.fx, "tasks/sub/acceptance/test_zz.py", TEST_ZZ)
@@ -98,7 +98,7 @@ class ArmTests(BenchCase):
 
     def test_harness_arm_removes_what_the_step_removed(self):
         write(self.fx, "repo/PLAN.md", "abandoned plan\n")
-        write(self.fx, "runs/2026-01-01-pas1-author/REMOVE.txt", "# deleted by the step\nPLAN.md\n../outside-the-repo\n")
+        write(self.fx, "runs/2026-01-01-step1-author/REMOVE.txt", "# deleted by the step\nPLAN.md\n../outside-the-repo\n")
         work = self.work("harness")
         self.assertFalse(os.path.exists(os.path.join(work, "PLAN.md")))
         self.assertFalse(os.path.exists(os.path.join(work, "REMOVE.txt")))

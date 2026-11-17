@@ -1,67 +1,67 @@
-# Cursus — guide pour les assistants de code
+# Cursus — guide for code assistants
 
-Ce fichier s'adresse aux assistants (Copilot, Cursor, Claude) qui proposent du code sur ce dépôt. Lis-le en entier avant de répondre.
+This file is for the assistants (Copilot, Cursor, Claude) that propose code on this repository. Read it in full before answering.
 
-## Le projet
+## The project
 
-Cursus gère les inscriptions aux sessions de formation : catalogue, inscription en ligne, liste d'attente, e-mail de confirmation. Django, pages rendues côté serveur, SQLite en développement, PostgreSQL en production.
+Cursus manages enrollments in training sessions: catalog, online enrollment, waiting list, confirmation e-mail. Django, server-rendered pages, SQLite in development, PostgreSQL in production.
 
 ```
 cursus/
-├── settings.py          réglages
-└── urls.py              URL racine
+├── settings.py          settings
+└── urls.py              root URLs
 catalog/
 ├── models.py            Course, Session
-├── views.py             liste et détail des sessions
+├── views.py             session list and detail
 └── templates/catalog/
 enrollments/
 ├── models.py            Enrollment
-├── services.py          inscrire, annuler
+├── services.py          enroll, cancel
 ├── notifications.py     e-mails
-├── views.py             inscription, pages du staff
+├── views.py             enrollment, staff pages
 └── templates/enrollments/
-docs/                    décisions, incidents, exploitation
+docs/                    decisions, incidents, operations
 ```
 
-## Commandes
+## Commands
 
 ```bash
 python manage.py runserver
-python manage.py test --settings=cursus.settings_ci    # réglages de la CI : base en mémoire, e-mails factices
+python manage.py test --settings=cursus.settings_ci    # CI settings: in-memory database, dummy e-mails
 python manage.py makemigrations && python manage.py migrate
 ```
 
-## Comment répondre
+## How to answer
 
-- Réfléchis étape par étape et annonce ton plan avant d'écrire du code.
-- N'invente pas d'API Django : si tu n'es pas sûr qu'une fonction existe, dis-le au lieu de deviner.
-- Donne toujours le fichier complet, jamais un extrait avec `# ... reste inchangé` : on colle ta réponse telle quelle dans l'éditeur.
-- Réponds en français. Le code, lui, est en anglais.
+- Think step by step and announce your plan before writing code.
+- Do not invent Django APIs: if you are not sure a function exists, say so instead of guessing.
+- Always give the complete file, never an excerpt with `# ... rest unchanged`: we paste your answer as is into the editor.
+- Answer in French. The code itself is in English.
 
 ## Style
 
-- Respecte PEP 8, lignes de 100 caractères au plus.
-- Donne des noms clairs aux variables et aux fonctions.
-- Une docstring pour chaque fonction publique.
-- Pas de code commenté, pas de `print` oublié.
-- Écris un test pour chaque changement.
+- Follow PEP 8, lines of 100 characters at most.
+- Give clear names to variables and functions.
+- A docstring for every public function.
+- No commented-out code, no forgotten `print`.
+- Write a test for every change.
 
-## Compatibilité
+## Compatibility
 
-- Le code doit tourner sous Python 3.8, la version du serveur de production : pas de `match`, pas de `X | Y` dans les annotations, pas de `str.removeprefix`.
-- Reste sur les API de Django 4.2 LTS, l'hébergeur ne valide que les versions LTS : pas de `db_default`, pas de `GeneratedField`, rien de ce qui arrive avec la 5.
+- The code must run under Python 3.8, the version of the production server: no `match`, no `X | Y` in annotations, no `str.removeprefix`.
+- Stay on the Django 4.2 LTS APIs, the host only validates LTS versions: no `db_default`, no `GeneratedField`, nothing that comes with 5.
 
-## Règles du projet
+## Project rules
 
-- **E-mails.** Aucun envoi d'e-mail dans un signal `post_save` ni dans `save()` : un signal part à chaque sauvegarde, d'où qu'elle vienne. L'envoi est un appel explicite depuis `enrollments/services.py`, après le commit. Un traitement en masse (import, commande de gestion, action d'admin) n'envoie jamais un e-mail par ligne. Depuis l'incident de mars 2024, 4 312 e-mails en onze minutes et le compte SMTP suspendu : `docs/postmortems/2024-03-confirmations-en-masse.md`.
-- **Capacité.** Toute inscription passe par `enrollments.services.enroll()`, qui verrouille la session (`select_for_update`) avant de compter les places. Ne crée jamais une `Enrollment` confirmée à la main, ni dans une vue ni dans un script. Depuis l'incident de septembre 2024, quinze confirmés pour douze places : `docs/postmortems/2024-09-session-surbookee.md`.
-- **Migrations appliquées.** Une migration déjà appliquée ne se modifie jamais, on en ajoute une nouvelle. Vérifié par : le job `frozen-migrations` de la CI, qui refuse toute PR touchant un fichier de migration existant.
-- **Migrations oubliées.** Après tout changement de modèle, lance `makemigrations` et commite le fichier généré. Relis ta PR avant de la proposer : une migration oubliée casse le déploiement.
-- **Requêtes.** Une page de liste ne fait pas une requête par ligne : `select_related` et `annotate` dans la vue, jamais un `count()` ni une relation suivie dans le template. Avant de proposer une PR qui touche une liste, ouvre la page avec django-debug-toolbar et compte les requêtes.
-- **Dates.** `timezone.now()`, jamais `datetime.now()` : le projet est en `USE_TZ = True`.
-- **Services.** La logique métier vit dans `services.py`, pas dans les vues, les modèles ni les templates : `docs/adr/0001-logique-metier-dans-les-services.md`.
+- **E-mails.** No e-mail is sent in a `post_save` signal nor in `save()`: a signal fires on every save, wherever it comes from. Sending is an explicit call from `enrollments/services.py`, after the commit. A bulk job (import, management command, admin action) never sends one e-mail per row. Since the incident of March 2024, 4,312 e-mails in eleven minutes and the SMTP account suspended: `docs/postmortems/2024-03-bulk-confirmations.md`.
+- **Capacity.** Every enrollment goes through `enrollments.services.enroll()`, which locks the session (`select_for_update`) before counting the seats. Never create a confirmed `Enrollment` by hand, neither in a view nor in a script. Since the incident of September 2024, fifteen confirmed for twelve seats: `docs/postmortems/2024-09-overbooked-session.md`.
+- **Applied migrations.** A migration already applied is never modified, a new one is added. Enforced by: the CI job `frozen-migrations`, which rejects any PR touching an existing migration file.
+- **Forgotten migrations.** After any model change, run `makemigrations` and commit the generated file. Reread your PR before proposing it: a forgotten migration breaks the deployment.
+- **Queries.** A list page does not run one query per row: `select_related` and `annotate` in the view, never a `count()` nor a followed relation in the template. Before proposing a PR that touches a list, open the page with django-debug-toolbar and count the queries.
+- **Dates.** `timezone.now()`, never `datetime.now()`: the project is in `USE_TZ = True`.
+- **Services.** Business logic lives in `services.py`, not in views, models nor templates: `docs/adr/0001-business-logic-in-services.md`.
 
 ## Git
 
-- Une branche par sujet, une PR vers `main`.
-- Messages de commit en français, à l'impératif.
+- One branch per topic, one PR to `main`.
+- Commit messages in French, in the imperative.

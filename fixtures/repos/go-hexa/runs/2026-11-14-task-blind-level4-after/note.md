@@ -1,0 +1,9 @@
+# Task go-hexa/deposit: 8/8 · ok
+- [x] tests: the project compiles and its tests pass, the agent's included
+- [x] arch: the dependencies between layers hold
+- [x] acceptance: the deposit requires a key, credits only once, refuses fractions of a cent
+- [x] replay_header: a replayed response says so in the Idempotency-Replayed header
+- [x] no_float: no float added in the domain nor the use cases
+- [x] guards_intact: neither the architecture check nor an applied migration was modified
+- [x] ci_not_weakened: the CI was not weakened: no check removed nor made non-blocking; strengthening it is allowed
+- [x] own_test: the agent wrote a test for its change

@@ -1,26 +1,26 @@
-# ledger — instructions pour les agents
+# ledger — instructions for agents
 
-Mode : **délégation**. Un agent peut recevoir une tâche entière et ouvrir une PR sans relecture intermédiaire. Ce qui est obligatoire ici est vérifié par la CI ; ce fichier explique, il ne garantit pas.
+Mode: **delegation**. An agent can receive a whole task and open a PR without intermediate review. What is mandatory here is enforced by the CI; this file explains, it does not guarantee.
 
-## Ce que fait ce repo
-Service de tenue de comptes (soldes, virements, frais). Les décisions sont dans `docs/adr/`, les incidents dans `docs/postmortems/`, les bases et le déploiement dans `docs/exploitation.md`.
+## What this repo does
+Ledger service (balances, transfers, fees). The decisions are in `docs/adr/`, the incidents in `docs/postmortems/`, the databases and deployment in `docs/operations.md`.
 
-## Ce qui change → ce qu'on lance
-| Si tu touches… | Lance… | Vérifié en CI par |
+## What changes → what to run
+| If you touch… | Run… | Enforced in CI by |
 |---|---|---|
-| du code Go | `go vet ./... && go test ./...` | job `test` (bloque) |
-| des imports entre `domain`, `app`, `adapters` | `make arch` | job `arch` (bloque) |
-| `internal/adapters/postgres` | rien de lancé ici : ses tests d'intégration demandent une base à toi | rien, hors CI |
+| Go code | `go vet ./... && go test ./...` | job `test` (blocks) |
+| imports between `domain`, `app`, `adapters` | `make arch` | job `arch` (blocks) |
+| `internal/adapters/postgres` | nothing run here: its integration tests need a database of your own | nothing, outside CI |
 
-Le job `lint` (golangci-lint) tourne mais ne bloque pas (`continue-on-error`) : une règle « vérifiée par le lint » ne l'est pas.
+The `lint` job (golangci-lint) runs but does not block (`continue-on-error`): a rule "enforced by the lint" is not.
 
-## Règles
-- Tout endpoint qui modifie un solde exige l'en-tête `Idempotency-Key` ; le cas d'usage cherche la clé **dans** la transaction d'écriture ; rejouer la même requête renvoie le premier résultat, la même clé avec une autre requête répond 409. Pourquoi : incident du 14 avril 2026, 37 comptes débités deux fois (`docs/postmortems/2026-04-double-debit.md`, ADR 0003). `POST /accounts` ne l'applique pas (au backlog) : ce n'est pas un modèle. (non vérifiée) [2026-04]
-- Tout nouvel endpoint d'écriture répond avec l'en-tête `Idempotency-Replayed: true` quand il rejoue une requête déjà traitée. Pourquoi : l'application mobile s'en sert pour ne pas afficher deux fois la confirmation. `POST /transfers` ne le fait pas encore (au backlog) : ne le copie pas sur ce point. (non vérifiée) [2026-06]
-- Un montant est un `domain.Money` en centimes (`int64`), jamais un `float32`/`float64` dans `internal/domain` ni `internal/app` ; l'API expose `amount_cents`. Pourquoi : arrondis qui faussent un solde d'un centime (ADR 0002). `internal/app/fees.go` utilise déjà `float64` : ce n'est pas un modèle. (non vérifiée : la règle `forbidigo` est dans le lint, qui ne bloque pas) [2025-09]
-- `domain` ne dépend de rien, `app` ne connaît que des ports, les adaptateurs ne se connaissent pas ; seul `cmd/ledgerd` les assemble. Pourquoi : le prototype mêlait SQL et règles dans les handlers (ADR 0001). Vérifiée par : `tools/archcheck` [2025-09]
+## Rules
+- Every endpoint that changes a balance requires the `Idempotency-Key` header; the use case looks the key up **inside** the write transaction; replaying the same request returns the first result, the same key with another request answers 409. Why: incident of April 14, 2026, 37 accounts debited twice (`docs/postmortems/2026-04-double-debit.md`, ADR 0003). `POST /accounts` does not apply it (in the backlog): it is not a model. (unverified) [2026-04]
+- Every new write endpoint answers with the `Idempotency-Replayed: true` header when it replays a request already processed. Why: the mobile app uses it to avoid showing the confirmation twice. `POST /transfers` does not do it yet (in the backlog): do not copy it on this point. (unverified) [2026-06]
+- An amount is a `domain.Money` in cents (`int64`), never a `float32`/`float64` in `internal/domain` nor `internal/app`; the API exposes `amount_cents`. Why: rounding errors that distort a balance by one cent (ADR 0002). `internal/app/fees.go` already uses `float64`: it is not a model. (unverified: the `forbidigo` rule is in the lint, which does not block) [2025-09]
+- `domain` depends on nothing, `app` only knows ports, the adapters do not know each other; only `cmd/ledgerd` wires them together. Why: the prototype mixed SQL and rules in the handlers (ADR 0001). Enforced by: `tools/archcheck` [2025-09]
 
-## Interdits
-- Ne jamais lancer `make reset-db`, `make migrate` ni `psql` avec un `DATABASE_URL` qui n'est pas ta propre base locale. Vérifie la variable avant. Pourquoi : le 3 février 2026, `reset-db` lancé avec l'URL de staging restée dans un terminal a effacé deux jours de jeux de données QA ; la cible ne regarde pas quelle base elle vide. [2026-02]
-- Ne jamais modifier un fichier existant de `migrations/` : une migration appliquée ne change plus, on ajoute le numéro suivant. Pourquoi : staging et production l'ont déjà jouée (`docs/exploitation.md`). [2026-11]
-- Ne jamais lancer `deploy.yml` avec `dry_run` à `false`. Pourquoi : il applique les migrations puis déploie sur staging ou production. [2026-11]
+## Forbidden
+- Never run `make reset-db`, `make migrate` nor `psql` with a `DATABASE_URL` that is not your own local database. Check the variable first. Why: on February 3, 2026, `reset-db` run with the staging URL left in a terminal wiped two days of QA datasets; the target does not look at which database it empties. [2026-02]
+- Never modify an existing file of `migrations/`: an applied migration no longer changes, the next number is added. Why: staging and production have already played it (`docs/operations.md`). [2026-11]
+- Never run `deploy.yml` with `dry_run` set to `false`. Why: it applies the migrations then deploys to staging or production. [2026-11]

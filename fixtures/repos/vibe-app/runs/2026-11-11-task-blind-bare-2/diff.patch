@@ -1,31 +1,31 @@
 diff --git a/NOTES.md b/NOTES.md
-index 210c32d..67cdfed 100644
+index ee0108b..4464ea4 100644
 --- a/NOTES.md
 +++ b/NOTES.md
-@@ -9,7 +9,9 @@ Notes prises au fil des sessions. Pas triées.
+@@ -9,7 +9,9 @@ Notes taken as the sessions went. Not sorted.
    { "id": "evt_3fa9c1", "type": "payment.succeeded", "created": 1773478800,
      "data": { "orderId": "ord_5d0c2a91be", "paymentId": "pay_88c1", "amountCents": 1240 } }
    ```
--- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On ne traite que le premier.
-+- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On traite `payment.succeeded` (payée, le stock part) et `payment.refunded` (remboursée, le stock revient si la commande était payée) ; `payment.failed` est ignoré.
-+- Annulation (`POST /orders/:id/cancel`) : seulement une commande `pending`, sinon 409. Logique dans `services/orders.js` (`cancelOrder`, `refundOrder`), partagée v1/v2. La route est en v1 aussi, parce que la v2 n'est pas branchée et que la fonctionnalité doit marcher maintenant.
-+- Limite connue : le lien de paiement reste valable après une annulation. Si le client paie quand même, `payment.succeeded` passe la commande à `paid` (l'argent est encaissé) ; à rembourser à la main dans PayFlux.
- - Signature : en-tête `X-Payflux-Signature`, HMAC-SHA256 en hexadécimal du corps brut, avec le secret du webhook. Vérifier sur le corps tel qu'il arrive, pas sur le JSON reformaté.
- - Doc PayFlux, « Livraison des webhooks » (recopié le 2026-03-15) : livraison « au moins une fois ». Nouvelle tentative à +30 s, +5 min, +1 h, +6 h puis +24 h tant que la réponse n'est pas un 2xx reçu en moins de 5 s. Un événement déjà acquitté peut être relivré. L'`id` de l'événement ne change pas d'une livraison à l'autre.
- - L'URL du webhook se règle dans le tableau de bord PayFlux, Développeurs > Webhooks.
+-- Types seen: `payment.succeeded`, `payment.failed`, `payment.refunded`. Only the first is handled.
++- Types seen: `payment.succeeded`, `payment.failed`, `payment.refunded`. We handle `payment.succeeded` (paid, the stock leaves) and `payment.refunded` (refunded, the stock comes back if the order was paid); `payment.failed` is ignored.
++- Cancellation (`POST /orders/:id/cancel`): only a `pending` order, otherwise 409. Logic in `services/orders.js` (`cancelOrder`, `refundOrder`), shared by v1 and v2. The route is in v1 too, because v2 is not wired in and the feature must work now.
++- Known limit: the payment link stays valid after a cancellation. If the customer pays all the same, `payment.succeeded` moves the order to `paid` (the money is cashed); to refund by hand in PayFlux.
+ - Signature: `X-Payflux-Signature` header, hex HMAC-SHA256 of the raw body, with the webhook secret. Verify on the body as it arrives, not on the reformatted JSON.
+ - PayFlux doc, "Webhook delivery" (copied on 2026-03-15): "at least once" delivery. New attempt at +30 s, +5 min, +1 h, +6 h then +24 h as long as the answer is not a 2xx received within 5 s. An event already acknowledged may be redelivered. The event's `id` does not change from one delivery to the next.
+ - The webhook URL is set in the PayFlux dashboard, Developers > Webhooks.
 diff --git a/TODO.md b/TODO.md
-index 531307e..4628eb1 100644
+index 509f45d..67791de 100644
 --- a/TODO.md
 +++ b/TODO.md
-@@ -5,7 +5,7 @@ Liste de l'utilisateur, dans l'ordre où il l'a demandé.
- - [x] Commander depuis le téléphone
- - [x] Payer en ligne
- - [x] Export des commandes pour le matin (`scripts/export-orders.js`)
--- [ ] Annuler une commande (demandé le 2026-05-10)
-+- [x] Annuler une commande (demandé le 2026-05-10) — avant paiement ; une commande payée se rembourse dans PayFlux et le stock revient
- - [ ] SMS quand la commande est prête
- - [ ] Mot de passe pour voir les commandes
- - [ ] Finir la v2 (webhook) et la brancher
+@@ -5,7 +5,7 @@ The user's list, in the order he asked.
+ - [x] Order from the phone
+ - [x] Pay online
+ - [x] Export of the orders for the morning (`scripts/export-orders.js`)
+-- [ ] Cancel an order (asked on 2026-05-10)
++- [x] Cancel an order (asked on 2026-05-10) — before payment; a paid order is refunded in PayFlux and the stock comes back
+ - [ ] SMS when the order is ready
+ - [ ] Password to see the orders
+ - [ ] Finish v2 (webhook) and wire it in
 diff --git a/src/routes-v2/orders.js b/src/routes-v2/orders.js
 index 1c7b853..3c2b97e 100644
 --- a/src/routes-v2/orders.js
@@ -184,7 +184,7 @@ index 3a0c0ac..5417f62 100644
 +  return true;
 +}
 diff --git a/test/orders.test.js b/test/orders.test.js
-index 9ea4d01..3004ae1 100644
+index e6f03f4..fe9acab 100644
 --- a/test/orders.test.js
 +++ b/test/orders.test.js
 @@ -84,3 +84,27 @@ test('an unknown order answers 404', async () => {
@@ -216,7 +216,7 @@ index 9ea4d01..3004ae1 100644
 +  assert.equal(res.status, 404);
 +});
 diff --git a/test/routes-v2.test.js b/test/routes-v2.test.js
-index ef10e4a..80569cb 100644
+index 8f9ba1b..84833eb 100644
 --- a/test/routes-v2.test.js
 +++ b/test/routes-v2.test.js
 @@ -85,6 +85,23 @@ test('v2 cancels an order', async () => {
@@ -244,7 +244,7 @@ index ef10e4a..80569cb 100644
    const res = await call(createRouter(memoryStore()), 'GET', '/nope');
    assert.equal(res.handled, false);
 diff --git a/test/webhook.test.js b/test/webhook.test.js
-index 97a9e16..73cf4a3 100644
+index d567024..97b73aa 100644
 --- a/test/webhook.test.js
 +++ b/test/webhook.test.js
 @@ -85,3 +85,67 @@ test('an event for an unknown order answers 404', async () => {

@@ -1,4 +1,4 @@
-"""Point d'entrée `piloto`."""
+"""Entry point of `piloto`."""
 from __future__ import annotations
 
 import argparse
@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
         print("ok")
         return 0
     if args.cmd == "diff":
-        # Cas non couvert par piloto.net : on passe par ssh directement.
+        # Case not covered by piloto.net: we go through ssh directly.
         out = subprocess.run(["ssh", f"{args.user}@{args.host}", "cat", args.remote], capture_output=True, text=True)
         print(out.stdout)
         return out.returncode

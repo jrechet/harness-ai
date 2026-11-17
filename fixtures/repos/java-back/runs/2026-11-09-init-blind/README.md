@@ -1,11 +1,11 @@
-# Exécution à l'aveugle de harness-init — 2026-11-09
+# Blind run of harness-init — 2026-11-09
 
-Dépôt nu : java-back sans `CLAUDE.md` ni `.claude/` (`harness fixture bare java-back <dest>`), sur une branche `develop`. Réponses d'entretien fournies : délégation, 3 devs, GitHub Actions « je ne sais pas ce qui est vraiment vérifié », Claude Code seul, première tâche « la release, faite à la main avec des scripts », interdits : prod sans validation humaine, migration appliquée, push sur main.
+Bare repository: java-back without `CLAUDE.md` or `.claude/` (`harness fixture bare java-back <dest>`), on a `develop` branch. Interview answers provided: delegation, 3 devs, GitHub Actions "I do not know what is really verified", Claude Code only, first task "the release, done by hand with scripts", forbidden: prod without human validation, applied migration, push to main.
 
-Résultat : `AGENTS.md` de 44 lignes, palier 1 **5/5**, stub `CLAUDE.md`, contrat `release` de 45 lignes, `.harness/state.json` et `audit.json` commités.
+Result: `AGENTS.md` of 44 lines, level 1 **5/5**, `CLAUDE.md` stub, `release` contract of 45 lines, `.harness/state.json` and `audit.json` committed.
 
-Ce que le contrat produit évite, sans avoir vu les pièges : pas de lecture de `SUCCESS` dans un log (`gh run watch --exit-status`), pré-conditions en commandes et non en phrases, validation humaine explicite avant déclenchement, version donnée par l'humain et non déduite de la branche (« `release.mjs` le fait et se trompe »), et la mise à jour de `VERSION` après release, le défaut non planté trouvé par le premier audit aveugle.
+What the contract produced avoids, without having seen the traps: no reading of `SUCCESS` in a log (`gh run watch --exit-status`), preconditions as commands and not as sentences, explicit human validation before the trigger, version given by the human and not inferred from the branch ("`release.mjs` does and gets it wrong"), and the update of `VERSION` after the release, the unplanted defect found by the first blind audit.
 
-Son audit de gate contre les pièges de java-back : 6/8, les deux absents (T1, T2) portaient sur le `CLAUDE.md` retiré ; donc complet sur ce qui existait. Il a aussi relevé `gradlew` absent du dépôt et un commentaire d'`ArchitectureTest` pointant vers un `CLAUDE.md` inexistant, deux faits vrais.
+Its gate audit against the traps of java-back: 6/8, the two missing ones (T1, T2) were about the removed `CLAUDE.md`; so complete on what existed. It also noted `gradlew` absent from the repository and a comment of `ArchitectureTest` pointing to a `CLAUDE.md` that does not exist, two true facts.
 
-Faiblesse relevée : la règle « un contrôleur ne dépend jamais d'un repository » porte un « Pourquoi » inventé (« garder les règles testables hors HTTP ») alors qu'aucun incident n'est connu. Le skill demande désormais d'écrire « décision d'architecture, pas d'incident connu » plutôt que d'inventer.
+Weakness noted: the rule "a controller never depends on a repository" carries an invented "Why" ("to keep the rules testable outside HTTP") although no incident is known. The skill now asks to write "architecture decision, no known incident" rather than inventing.

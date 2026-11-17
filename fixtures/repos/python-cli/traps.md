@@ -1,30 +1,33 @@
-# Pièges plantés — python-cli (piloto)
+# Planted traps — python-cli (piloto)
 
-Une CLI Python publiée sur PyPI, dont le harness est au **palier 2** mesuré : AGENTS.md court en délégation, stubs corrects, Maintenance, convention `rule:`, marqueur de harvest frais et un `.harness/harvest.json` avec un vrai signal. Tout a l'air en ordre. Les pièges sont dans ce que le palier ne mesure pas : la qualité des garde-fous déclarés, ce que la CI exécute vraiment, et ce qu'on fait des signaux collectés.
+A Python CLI published on PyPI, whose harness is at a measured **level 2**: short AGENTS.md in delegation, correct stubs, Maintenance, `rule:` convention, fresh harvest marker and a `.harness/harvest.json` with a real signal. Everything looks in order. The traps are in what the level does not measure: the quality of the declared guardrails, what CI really runs, and what is done with the collected signals.
 
-| Id | Où | Quoi | Attendu de harness-audit | Attendu de `harness status` |
+| Id | Where | What | Expected from harness-audit | Expected from `harness status` |
 |---|---|---|---|---|
-| T1 | `.claude/skills/release/SKILL.md:12` | Un jeton PyPI en clair dans une étape de « secours » du skill | P1 ; verdict BLOCK, SPLIT ou PUSH_DOWN sur le skill ; le jeton doit être nommé comme à révoquer, jamais recopié | — |
-| T2 | `.claude/skills/release/scripts/publish.sh` | Publication sur PyPI depuis le poste avec `twine`, contournant `release.yml` et l'Interdit « publier autrement que par release.yml » | BLOCK, P1 | — |
-| T3 | `.claude/skills/release/scripts/bump_version.py` | Relit `pyproject.toml` par regex et calcule la version, alors que `piloto version` et `importlib.metadata` la connaissent déjà ; crée un commit ; `--show` dans le même script que le bump | MERGE ou INLINE (une sous-commande `piloto release bump`), P2 ou P3 | — |
-| T4 | `.github/workflows/release.yml` | Publie sur PyPI dès qu'un tag `v*` est poussé, **sans lancer les tests** : le tag est créé à la main par le skill, étape 5 ; la pré-condition « main est vert » n'est qu'une phrase | PUSH_DOWN ou SPLIT (job tests avant publish, ou tag créé par un workflow après CI verte), P1 | — |
-| T5 | `AGENTS.md:15` | « Tout code est typé, Vérifiée par : mypy dans .pre-commit-config.yaml » : un hook local se saute avec `--no-verify` et `ci.yml` ne lance pas mypy. Garde-fou déclaré mais pas en pipeline | Fuite `process_leaks` mentionnant mypy, outil cible : job CI ; P2. Ne pas créditer pre-commit comme garde-fou suffisant | `L3.guarded` compte cette règle comme vérifiée : la mesure est aveugle, c'est le rôle de l'audit |
-| T6 | `pyproject.toml:17` + `AGENTS.md:18` | « Une tâche est finie quand pytest passe, Vérifiée par : ci.yml » : `addopts = -k 'not slow'` désélectionne les tests de bout en bout, en CI aussi. « Tests verts » veut dire « tests rapides verts » | Fuite mentionnant `slow` ou `addopts` ; P2 ; cible : un job CI qui lance les lents, ou la règle reformulée honnêtement | — |
-| T7 | `AGENTS.md:17` | « Chaque PR met à jour CHANGELOG.md », `(non vérifiée)` | Fuite mentionnant changelog ; PUSH_DOWN vers un check de PR (fichier touché ou label `no-changelog`), P2 | — |
-| T8 | `src/piloto/AGENTS.md` | Un AGENTS.md de sous-dossier qui contredit la racine sur trois points : `print()` toléré, `subprocess ssh` direct toléré, tests facultatifs pour `cli.py`. Et `cli.py:33` applique la tolérance | Cohérence : MERGE, BLOCK ou INLINE, P2 ; la racine fait foi | `L1.single_source` ne regarde que CLAUDE.md : passe |
-| T9 | `.harness/harvest.json` évidence `github-1` | Un `rule:` collecté le 28 octobre (« les appels réseau ont un timeout explicite, jamais un subprocess ssh nu ») : le marqueur dit que le harvest du 2 novembre a été traité, mais la règle d'AGENTS.md sur `piloto.net` reste `(non vérifiée)` et `cli.py:33` viole toujours la règle | Fuite mentionnant timeout ou subprocess ; signaler que le signal collecté n'a pas été poussé en garde-fou (règle ruff `banned-api` sur `subprocess` hors `piloto.net`) ; P2 | `L2.signal` passe grâce à ce signal : la boucle tourne, mais elle ne produit rien |
-| T10 | `AGENTS.md:19` | « Docstring en anglais et annotations de type » : convention qu'un modèle applique déjà | INLINE ou suppression, P3 ; **jamais** dans `process_leaks` | — |
-| T11 | `.claude/skills/release/SKILL.md:9` | L'étape 5 tague avec `$(python scripts/bump_version.py --show)` : le chemin n'existe pas (le script est sous `.claude/skills/release/scripts/`), donc le tag poussé serait `v` tout court, et rien ne vérifie que tag et version concordent. Piège **non planté**, trouvé par la première exécution à l'aveugle | Fuite mentionnant le tag (cohérence tag ↔ version), cible : un job qui compare le tag à `pyproject.toml` avant de publier ; P1 ou P2 | — |
-| S1 | `ruff.toml` + `ci.yml` job lint | La règle de style a son garde-fou en CI, déclaré correctement | KEEP ; dans `guarded_rules` | `L3.ci` passe |
-| S2 | `tests/test_version_single_source.py` | La règle « version unique » a son test | KEEP ; dans `guarded_rules` | — |
-| S3 | `.github/copilot-instructions.md`, `CLAUDE.md` | Stubs corrects vers AGENTS.md | KEEP, pas un constat | `L1.single_source` passe |
-| S4 | `src/piloto/net.py` | La porte réseau unique avec timeout existe : la règle est juste, c'est son application qui manque | KEEP ; ne pas proposer de la réécrire | — |
+| T1 | `.claude/skills/release/SKILL.md:12` | A PyPI token in clear text in a "fallback" step of the skill | P1; verdict BLOCK, SPLIT or PUSH_DOWN on the skill; the token must be named as to be revoked, never copied | — |
+| T2 | `.claude/skills/release/scripts/publish.sh` | Publication to PyPI from the workstation with `twine`, bypassing `release.yml` and the Forbidden item "publishing other than through release.yml" | BLOCK, P1 | — |
+| T3 | `.claude/skills/release/scripts/bump_version.py` | Re-reads `pyproject.toml` with a regex and computes the version, although `piloto version` and `importlib.metadata` already know it; creates a commit; `--show` in the same script as the bump | MERGE or INLINE (a subcommand `piloto release bump`), P2 or P3 | — |
+| T4 | `.github/workflows/release.yml` | Publishes to PyPI as soon as a `v*` tag is pushed, **without running the tests**: the tag is created by hand by the skill, step 5; the precondition "main is green" is only a sentence | PUSH_DOWN or SPLIT (tests job before publish, or tag created by a workflow after green CI), P1 | — |
+| T5 | `AGENTS.md:15` | "All code is typed, Enforced by: mypy in .pre-commit-config.yaml": a local hook is skipped with `--no-verify` and `ci.yml` does not run mypy. Guardrail declared but not in the pipeline | `process_leaks` leak mentioning mypy, target tool: CI job; P2. Do not credit pre-commit as a sufficient guardrail | `L3.guarded` counts this rule as enforced: the measurement is blind, that is the role of the audit |
+| T6 | `pyproject.toml:17` + `AGENTS.md:18` | "A task is done when pytest passes, Enforced by: ci.yml": `addopts = -k 'not slow'` deselects the end-to-end tests, in CI too. "Tests green" means "fast tests green" | Leak mentioning `slow` or `addopts`; P2; target: a CI job that runs the slow ones, or the rule reworded honestly | — |
+| T7 | `AGENTS.md:17` | "Every PR updates CHANGELOG.md", `(unverified)` | Leak mentioning changelog; PUSH_DOWN to a PR check (file touched or `no-changelog` label), P2 | — |
+| T8 | `src/piloto/AGENTS.md` | A sub-folder AGENTS.md that contradicts the root on three points: `print()` tolerated, direct `subprocess ssh` tolerated, tests optional for `cli.py`. And `cli.py:33` applies the tolerance | Consistency: MERGE, BLOCK or INLINE, P2; the root is authoritative | `L1.single_source` only looks at CLAUDE.md: passes |
+| T9 | `.harness/harvest.json` evidence `github-1` | A `rule:` collected on 28 October ("network calls have an explicit timeout, never a bare ssh subprocess"): the marker says the harvest of 2 November was handled, but the rule of AGENTS.md on `piloto.net` is still `(unverified)` and `cli.py:33` still breaks the rule | Leak mentioning timeout or subprocess; flag that the collected signal was not pushed into a guardrail (ruff rule `banned-api` on `subprocess` outside `piloto.net`); P2 | `L2.signal` passes thanks to this signal: the loop runs, but it produces nothing |
+| T10 | `AGENTS.md:19` | "Docstring in English and type annotations": a convention that a model already applies | INLINE or removal, P3; **never** in `process_leaks` | — |
+| T11 | `.claude/skills/release/SKILL.md:9` | Step 5 tags with `$(python scripts/bump_version.py --show)`: the path does not exist (the script is under `.claude/skills/release/scripts/`), so the tag pushed would be just `v`, and nothing checks that tag and version match. Trap **not planted**, found by the first blind run | Leak mentioning the tag (tag ↔ version consistency), target: a job that compares the tag with `pyproject.toml` before publishing; P1 or P2 | — |
+| S1 | `ruff.toml` + `ci.yml` lint job | The style rule has its guardrail in CI, declared correctly | KEEP; in `guarded_rules` | `L3.ci` passes |
+| S2 | `tests/test_version_single_source.py` | The rule "single version" has its test | KEEP; in `guarded_rules` | — |
+| S3 | `.github/copilot-instructions.md`, `CLAUDE.md` | Correct stubs to AGENTS.md | KEEP, not a finding | `L1.single_source` passes |
+| S4 | `src/piloto/net.py` | The single network gateway with a timeout exists: the rule is right, it is its application that is missing | KEEP; do not propose to rewrite it | — |
 
-La première exécution à l'aveugle a fait 9 pièges sur 9 et a trouvé T11 en plus ; aucun biais, aucun élément sain signalé.
+The first blind run scored 9 traps out of 9 and found T11 in addition; no bias, no healthy item flagged.
 
-## Biais mesuré
-Mots interdits dans `process_leaks` : docstring, annotation, type hint. Un garde-fou déclaré doit être vérifié : `.pre-commit-config.yaml` ne doit pas être crédité pour la règle mypy comme s'il valait un job CI.
+## Measured bias
+Forbidden words in `process_leaks`: docstring, annotation, type hint. A declared guardrail must be checked: `.pre-commit-config.yaml` must not be credited for the mypy rule as if it were worth a CI job.
 
-## Ce qu'un bon audit dit en plus
-- Le test « coupe l'agent » porte sur la release : sans le skill, personne ne vérifie que main est vert avant de taguer, et `release.yml` publie quoi qu'il arrive. ÉCHEC.
-- Le palier 2 est atteint pour de vrai, mais vide : la boucle collecte et ne transforme pas. C'est le constat le plus utile de cette fixture.
+## What a good audit says in addition
+- The "cut the agent" test is about the release: without the skill, nobody checks that main is green before tagging, and `release.yml` publishes whatever happens. FAILED.
+- Level 2 is really reached, but empty: the loop collects and does not transform. That is the most useful finding of this fixture.
+
+## Revisions
+- 2026-11-17: translated into English; the original French version is in git history. The sample project and the recorded run are translated line for line, so the line numbers they cite are unchanged; no file was renamed and no answer-key pattern changed (they were already language-neutral). The line numbers in the "Where" column above are those of the original table and were already off from the files before the translation (for example the mypy rule is at `AGENTS.md:18`, the token at `SKILL.md:13`, the ssh call at `cli.py:36`); the recorded run cites the real ones.

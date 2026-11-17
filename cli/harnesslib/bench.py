@@ -751,7 +751,7 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     pa.add_argument("--no-record", action="store_true", help="do not write to the registry")
     ps = sub.add_parser("step", help="plays one harness-step step with a neutral agent, from a harness in place")
     ps.add_argument("fixture")
-    ps.add_argument("--from", dest="start", required=True, help="the starting harness, in the overlay/ format (runs/<date>-pas1-author, …/overlay)")
+    ps.add_argument("--from", dest="start", required=True, help="the starting harness, in the overlay/ format (runs/<date>-step1-author, …/overlay)")
     ps.add_argument("--target", type=int, choices=[1, 2, 3, 4], help="the target level, written before the step")
     ps.add_argument("--work-root", required=True, help="temporary folder outside this repository")
     ps.add_argument("--out", help="where to file the outputs (default: the fixture's runs/<date>-step-blind)")

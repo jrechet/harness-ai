@@ -1,3 +1,3 @@
 # billing-api
 
-API de facturation (Spring Boot 3, Gradle, PostgreSQL). Dépôt **synthétique** : une fixture du projet harness-ai, avec des pièges d'instrumentation IA plantés volontairement.
+Billing API (Spring Boot 3, Gradle, PostgreSQL). **Synthetic** repository: a fixture of the harness-ai project, with AI instrumentation traps planted on purpose.

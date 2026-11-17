@@ -6,8 +6,8 @@ import { createRouter } from '../src/routes-v2/index.js';
 function memoryStore() {
   let db = {
     products: [
-      { id: 'croissant', name: 'Croissant pur beurre', priceCents: 120, stock: 10 },
-      { id: 'tarte-pommes', name: 'Tarte aux pommes, 6 parts', priceCents: 1650, stock: 1 },
+      { id: 'croissant', name: 'All-butter croissant', priceCents: 120, stock: 10 },
+      { id: 'apple-tart', name: 'Apple tart, 6 slices', priceCents: 1650, stock: 1 },
     ],
     orders: [],
     nextOrderNumber: 1,
@@ -73,7 +73,7 @@ test('v2 reports every validation error at once', async () => {
 
 test('v2 refuses an order above the stock', async () => {
   const router = createRouter(memoryStore());
-  const res = await call(router, 'POST', '/orders', { customer, items: [{ productId: 'tarte-pommes', quantity: 2 }] });
+  const res = await call(router, 'POST', '/orders', { customer, items: [{ productId: 'apple-tart', quantity: 2 }] });
   assert.equal(res.status, 409);
 });
 

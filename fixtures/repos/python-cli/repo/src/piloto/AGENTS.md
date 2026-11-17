@@ -1,6 +1,6 @@
 # src/piloto
 
-Conventions du paquet :
-- Pour déboguer, `print()` suffit ; le logging structuré est réservé à `piloto.net`.
-- Un appel `subprocess.run(["ssh", ...])` direct est acceptable dans `cli.py` quand `piloto.net` ne couvre pas le cas.
-- Les tests ne sont obligatoires que pour `net.py` ; `cli.py` est couvert par les tests manuels de la release.
+Conventions of the package:
+- For debugging, `print()` is enough; structured logging is reserved for `piloto.net`.
+- A direct `subprocess.run(["ssh", ...])` call is acceptable in `cli.py` when `piloto.net` does not cover the case.
+- Tests are mandatory only for `net.py`; `cli.py` is covered by the manual tests of the release.

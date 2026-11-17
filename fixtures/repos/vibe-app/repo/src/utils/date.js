@@ -1,6 +1,6 @@
 import { config } from '../config.js';
 
-// "samedi 14 mars"
+// "samedi 14 mars" (Saturday 14 March, in French)
 export function toFrenchDate(value) {
   return new Date(value).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }

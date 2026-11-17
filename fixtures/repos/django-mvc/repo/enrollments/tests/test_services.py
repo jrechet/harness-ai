@@ -72,15 +72,15 @@ class EmailTests(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             enroll(session, "ana")
         self.assertEqual([m.to for m in mail.outbox], [["ana@example.test"]])
-        self.assertIn("Inscription confirmée", mail.outbox[0].subject)
-        self.assertIn("Salle Ampère", mail.outbox[0].body)
+        self.assertIn("Enrollment confirmed", mail.outbox[0].subject)
+        self.assertIn("Ampère Room", mail.outbox[0].body)
 
     def test_the_waiting_list_gets_its_own_message(self):
         session = make_session(capacity=1)
         enroll(session, "ana")
         with self.captureOnCommitCallbacks(execute=True):
             enroll(session, "bob")
-        self.assertIn("Liste d'attente", mail.outbox[-1].subject)
+        self.assertIn("Waiting list", mail.outbox[-1].subject)
 
     def test_a_promotion_is_announced(self):
         session = make_session(capacity=1)
@@ -89,7 +89,7 @@ class EmailTests(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             services.cancel(ana)
         self.assertEqual(mail.outbox[-1].to, ["bob@example.test"])
-        self.assertIn("Une place s'est libérée", mail.outbox[-1].subject)
+        self.assertIn("A seat has been freed", mail.outbox[-1].subject)
 
     def test_nothing_leaves_when_the_transaction_rolls_back(self):
         session = make_session()

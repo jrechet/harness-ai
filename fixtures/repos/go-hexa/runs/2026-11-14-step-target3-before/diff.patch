@@ -1,0 +1,314 @@
+diff --git a/.harness/config.json b/.harness/config.json
+new file mode 100644
+index 0000000..027c19d
+--- /dev/null
++++ b/.harness/config.json
+@@ -0,0 +1 @@
++{"schema": "harness-config/1", "target_level": 3}
+\ No newline at end of file
+diff --git a/.harness/state.json b/.harness/state.json
+new file mode 100644
+index 0000000..80e51e2
+--- /dev/null
++++ b/.harness/state.json
+@@ -0,0 +1,300 @@
++{
++  "schema": "harness-state/1",
++  "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-mzh126ia/repo",
++  "date": "2026-11-14",
++  "level": {
++    "reached": 1,
++    "name": "Framed",
++    "next": 2
++  },
++  "target": {
++    "level": 3,
++    "name": "Verified",
++    "reached": false
++  },
++  "levels": [
++    {
++      "level": 0,
++      "name": "None",
++      "summary": "No instruction file: the agent starts from zero at every session.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [],
++      "passed_checks": 0,
++      "total_checks": 0
++    },
++    {
++      "level": 1,
++      "name": "Framed",
++      "summary": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L1.source",
++          "label": "An instruction file exists (AGENTS.md)",
++          "passed": true,
++          "value": "AGENTS.md",
++          "next_action": null
++        },
++        {
++          "id": "L1.mode",
++          "label": "The line \"Mode: delegation | assistance\" is present",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null
++        },
++        {
++          "id": "L1.short",
++          "label": "The loaded file is at most 60 lines",
++          "passed": true,
++          "value": 32,
++          "next_action": null
++        },
++        {
++          "id": "L1.single_source",
++          "label": "CLAUDE.md is an @AGENTS.md stub (or absent)",
++          "passed": true,
++          "value": {
++            "exists": true,
++            "lines": 1,
++            "loaded_lines": 32,
++            "is_stub": true
++          },
++          "next_action": null
++        },
++        {
++          "id": "L1.forbidden",
++          "label": "A \"Forbidden\" section says what an agent never does",
++          "passed": true,
++          "value": true,
++          "next_action": null
++        }
++      ],
++      "passed_checks": 5,
++      "total_checks": 5
++    },
++    {
++      "level": 2,
++      "name": "Looped",
++      "summary": "The feedback loop runs: incidents become rules.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L2.maintenance",
++          "label": "A maintenance section says how the file evolves",
++          "passed": true,
++          "value": true,
++          "next_action": null
++        },
++        {
++          "id": "L2.rule_convention",
++          "label": "The `rule:` review convention is documented",
++          "passed": true,
++          "value": true,
++          "next_action": null
++        },
++        {
++          "id": "L2.marker_fresh",
++          "label": "A harvest ran less than 45 days ago",
++          "passed": true,
++          "value": 0,
++          "next_action": null
++        },
++        {
++          "id": "L2.signal",
++          "label": "The last harvest found at least one real signal (S1–S4)",
++          "passed": false,
++          "value": null,
++          "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet."
++        }
++      ],
++      "passed_checks": 3,
++      "total_checks": 4
++    },
++    {
++      "level": 3,
++      "name": "Verified",
++      "summary": "Mandatory rules are enforced by tools, not by text.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L3.ci",
++          "label": "A CI exists (workflows or .gitlab-ci.yml)",
++          "passed": true,
++          "value": [
++            "ci.yml",
++            "deploy.yml"
++          ],
++          "next_action": null
++        },
++        {
++          "id": "L3.guarded",
++          "label": "At least 50% of the rules are \"Enforced by\" a tool",
++          "passed": false,
++          "value": 0.12,
++          "next_action": "Push the narrated rules down to L3: custom lint, architecture test, PR check."
++        },
++        {
++          "id": "L3.justified",
++          "label": "At least 50% of the rules say why",
++          "passed": true,
++          "value": 1.0,
++          "next_action": null
++        },
++        {
++          "id": "L3.audit",
++          "label": "A harness-audit exists and has no open P1",
++          "passed": false,
++          "value": null,
++          "next_action": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s."
++        }
++      ],
++      "passed_checks": 2,
++      "total_checks": 4
++    },
++    {
++      "level": 4,
++      "name": "Delegated",
++      "summary": "Whole tasks are handed to the agent and come back clean.",
++      "achieved": false,
++      "in_scope": false,
++      "checks": [
++        {
++          "id": "L4.mode",
++          "label": "The mode is delegation",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null
++        },
++        {
++          "id": "L4.process",
++          "label": "A \"Working process\" section frames the agent",
++          "passed": false,
++          "value": false,
++          "next_action": "Add: when to stop and ask, definition of done, red CI, flaky test."
++        },
++        {
++          "id": "L4.contracts",
++          "label": "At least one task contract exists and is referenced",
++          "passed": false,
++          "value": 0,
++          "next_action": "Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in AGENTS.md."
++        },
++        {
++          "id": "L4.clean_prs",
++          "label": "The last harvest sees agent PRs with no after-the-fact correction",
++          "passed": false,
++          "value": null,
++          "next_action": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them."
++        },
++        {
++          "id": "L4.cut_the_agent",
++          "label": "The audit's \"cut the agent\" test passes",
++          "passed": false,
++          "value": null,
++          "next_action": "Push down to L3/L4 the steps that exist only in prompts."
++        }
++      ],
++      "passed_checks": 1,
++      "total_checks": 5
++    }
++  ],
++  "layers": {
++    "source": "estimate",
++    "layers": {
++      "L1": {
++        "total": null,
++        "misplaced": null
++      },
++      "L2": {
++        "total": 1,
++        "misplaced": null
++      },
++      "L3": {
++        "total": 1,
++        "misplaced": null
++      },
++      "L4": {
++        "total": 2,
++        "misplaced": null
++      }
++    },
++    "hint": "Run harness-audit for a measured layer view."
++  },
++  "next_actions": [
++    "Mark incidents in review with `rule:`; without a signal, the loop is not running yet."
++  ],
++  "dangling": [],
++  "facts": {
++    "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-mzh126ia/repo",
++    "date": "2026-11-14",
++    "instructions": {
++      "files": {
++        "AGENTS.md": {
++          "exists": true,
++          "lines": 32,
++          "loaded_lines": 32,
++          "is_stub": false
++        },
++        "CLAUDE.md": {
++          "exists": true,
++          "lines": 1,
++          "loaded_lines": 32,
++          "is_stub": true
++        },
++        ".github/copilot-instructions.md": {
++          "exists": false
++        },
++        ".cursor/rules": {
++          "exists": false,
++          "files": []
++        }
++      },
++      "source": {
++        "path": "AGENTS.md",
++        "mode": "delegation",
++        "lines": 32,
++        "rules_total": 8,
++        "rules_guarded": 1,
++        "rules_unguarded_marked": 4,
++        "rules_justified": 8,
++        "rules_dated": 8,
++        "oldest_rule_date": "2026-02",
++        "has_maintenance_section": true,
++        "has_process_section": false,
++        "has_forbidden_section": true,
++        "mentions_rule_convention": true,
++        "harvest_marker": {
++          "date": "2026-11-14",
++          "ref": "init"
++        }
++      }
++    },
++    "contracts": {
++      "count": 0,
++      "items": []
++    },
++    "guardrails": {
++      "tools": {
++        "golangci-lint": [
++          ".golangci.yml"
++        ]
++      },
++      "workflows": [
++        "ci.yml",
++        "deploy.yml"
++      ],
++      "has_ci": true
++    },
++    "audit": null,
++    "harvest": null,
++    "harvest_marker_age_days": 0,
++    "config": {
++      "target_level": 3
++    },
++    "dangling": []
++  }
++}

@@ -1,5 +1,5 @@
 """Settings for every environment. What differs between them comes from the environment variables
-listed in docs/exploitation.md; the defaults are the ones of a developer's machine."""
+listed in docs/operations.md; the defaults are the ones of a developer's machine."""
 import os
 from pathlib import Path
 
@@ -64,7 +64,7 @@ else:
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-LANGUAGE_CODE = "fr"
+LANGUAGE_CODE = "en"
 TIME_ZONE = "Europe/Paris"
 USE_I18N = True
 USE_TZ = True
@@ -80,4 +80,4 @@ EMAIL_HOST = os.environ.get("CURSUS_SMTP_HOST", "localhost")
 EMAIL_HOST_USER = os.environ.get("CURSUS_SMTP_USER", "")
 EMAIL_HOST_PASSWORD = os.environ.get("CURSUS_SMTP_PASSWORD", "")
 EMAIL_USE_TLS = bool(os.environ.get("CURSUS_SMTP_HOST"))
-DEFAULT_FROM_EMAIL = "Service formation <formation@cursus.example>"
+DEFAULT_FROM_EMAIL = "Training department <training@cursus.example>"

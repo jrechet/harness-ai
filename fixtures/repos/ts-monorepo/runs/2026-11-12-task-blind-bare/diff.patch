@@ -65,17 +65,17 @@ index 29fa40f..e67b2e7 100644
  test("an empty list says so", () => {
    assert.match(renderTicketList([]), /Aucun ticket/);
  });
-diff --git a/docs/postmortems/2026-06-statut-inconnu.md b/docs/postmortems/2026-06-statut-inconnu.md
-index 15a368b..25860e0 100644
---- a/docs/postmortems/2026-06-statut-inconnu.md
-+++ b/docs/postmortems/2026-06-statut-inconnu.md
-@@ -11,4 +11,6 @@ La PR ne touchait que `packages/shared`. Dans `ci.yml`, le filtre de chemins du
- - Un test web vérifie que chaque statut partagé a un libellé.
+diff --git a/docs/postmortems/2026-06-unknown-status.md b/docs/postmortems/2026-06-unknown-status.md
+index 6c0f9a8..d47a68c 100644
+--- a/docs/postmortems/2026-06-unknown-status.md
++++ b/docs/postmortems/2026-06-unknown-status.md
+@@ -11,4 +11,6 @@ The PR only touched `packages/shared`. In `ci.yml`, the path filter of the `web`
+ - A web test checks that every shared status has a label.
  
- ## Ce qui reste ouvert
-+Corrigé le 12 novembre 2026 : le filtre du job `web` inclut désormais `packages/shared/**` (PR du statut `escalated`). Le paragraphe ci-dessous est conservé pour l'historique.
+ ## What remains open
++Fixed on November 12, 2026: the filter of the `web` job now includes `packages/shared/**` (PR of the `escalated` status). The paragraph below is kept for the record.
 +
- Le filtre de chemins du job `web` n'a pas été corrigé. Les deux corrections ci-dessus ne protègent que si le job `web` tourne, ce qu'il ne fait toujours pas quand seul `packages/shared` change. La consigne en attendant : lancer `npm run test:web` et `npm run typecheck:web` à la main.
+ The path filter of the `web` job has not been fixed. The two fixes above only protect if the `web` job runs, which it still does not when only `packages/shared` changes. The instruction in the meantime: run `npm run test:web` and `npm run typecheck:web` by hand.
 diff --git a/packages/shared/src/ticket.test.ts b/packages/shared/src/ticket.test.ts
 index 033241a..df42d29 100644
 --- a/packages/shared/src/ticket.test.ts

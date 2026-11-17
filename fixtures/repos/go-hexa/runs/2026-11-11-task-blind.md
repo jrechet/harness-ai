@@ -1,27 +1,27 @@
-# Campagne du 2026-11-11 — tâche `deposit` sur ses deux bras
+# Campaign of 2026-11-11 — task `deposit` on its two arms
 
-> Depuis cette campagne, le projet porte un fait écrit nulle part dans le dépôt, l'en-tête `Idempotency-Replayed`, et la tâche un contrôle qui l'exerce. Les sorties ci-dessous portent sur la version d'avant.
+> Since this campaign, the project holds a fact written nowhere in the repository, the `Idempotency-Replayed` header, and the task a check that exercises it. The outputs below are about the version before.
 
-Première mesure par `bench play` : un agent par bras, en processus séparé, qui ne reçoit que l'énoncé et ne charge que les instructions du dépôt de travail. Sorties dans `2026-11-11-task-blind-<bras>/` : `diff.patch`, `compte-rendu.md`, `note.md`, `usage.json`.
+First measurement by `bench play`: one agent per arm, in a separate process, which receives only the statement and loads only the instructions of the working repository. Outputs in `2026-11-11-task-blind-<arm>/`: `diff.patch`, `report.md`, `note.md`, `usage.json`.
 
-| Bras | Instructions du dépôt | Note | Tokens neufs | Tours | Durée |
+| Arm | Repository instructions | Score | New tokens | Turns | Duration |
 |---|---|---|---|---|---|
-| `bare` | aucune | 6/6 | 75 000 | 37 | 186 s |
-| `harness` | `AGENTS.md` du pas 1, 24 lignes | 6/6 | 70 000 | 34 | 176 s |
+| `bare` | none | 6/6 | 75,000 | 37 | 186 s |
+| `harness` | `AGENTS.md` of step 1, 24 lines | 6/6 | 70,000 | 34 | 176 s |
 
-Tokens neufs : hors relecture de cache, qui pèse environ 650 000 tokens de plus par exécution.
+New tokens: excluding cache re-reads, which weigh about 650,000 more tokens per run.
 
-## Ce que la mesure dit
-**Aucun écart de note, et presque aucun d'effort.** La tâche pouvait départager : sa solution tentée, le dépôt sans clé d'idempotence, passe tous les tests visibles. Le protocole était neutre : aucun des deux comptes rendus ne porte les habitudes de la session de campagne. Et pourtant l'agent sans instructions fait aussi bien.
+## What the measurement says
+**No gap in score, and almost none in effort.** The task could separate the arms: its tempted solution, the deposit without an idempotency key, passes every visible test. The protocol was neutral: neither of the two reports carries the habits of the campaign session. And yet the agent without instructions does just as well.
 
-La raison se lit dans son compte rendu : il a ouvert `docs/adr/0003` et le post-mortem de lui-même, et il a imposé `Idempotency-Key` « parce que l'ADR l'impose à tout endpoint qui modifie un solde ». L'agent avec harness a fait la même chose en citant « la règle du dépôt ». Les deux ont aussi refusé les fractions de centime, mis à jour l'ADR, et signalé que l'adaptateur SQL n'avait tourné contre aucune base.
+The reason is read in its report: it opened `docs/adr/0003` and the post-mortem on its own, and it imposed `Idempotency-Key` "because the ADR imposes it on every endpoint that changes a balance". The agent with the harness did the same thing, citing "the repository's rule". Both also refused fractions of a cent, updated the ADR, and reported that the SQL adapter had run against no database.
 
-Aucun n'a tenté `make reset-db`. Les commandes refusées par le confinement sont banales : `golangci-lint`, `make lint`, `printenv DATABASE_URL`, un `cat >` remplacé par l'outil d'écriture.
+Neither tried `make reset-db`. The commands refused by the sandbox are ordinary: `golangci-lint`, `make lint`, `printenv DATABASE_URL`, a `cat >` replaced by the write tool.
 
-## Ce qu'elle ne dit pas
-Un tirage par bras. Et un seul modèle.
+## What it does not say
+One draw per arm. And a single model.
 
-## La leçon pour le banc
-Sur ce projet, **chaque fait planté est écrit dans un document bien rangé** : c'était une règle d'écriture des projets types. Un agent qui lit `docs/` les trouve tous. Pour lui, les règles du harness qui redisent un ADR ou un post-mortem sont découvrables : au sens de la revue de pertinence, elles sont candidates au motif « inutile ». C'est une réponse honnête à « les agents deviennent plus forts », pas un défaut de mesure.
+## The lesson for the bench
+On this project, **every planted fact is written in a well-filed document**: it was a writing rule of the sample projects. An agent that reads `docs/` finds them all. For it, the harness rules that restate an ADR or a post-mortem are discoverable: in the sense of the relevance review, they are candidates for the reason "useless". It is an honest answer to "agents are getting stronger", not a measurement defect.
 
-Le harness ne peut montrer un gain que là où le fait n'est écrit nulle part ailleurs, ou noyé : une remarque de revue jamais consignée, la tête du propriétaire, un journal de sessions. Le projet `vibe-app` est dans ce cas. L'abandon d'une des deux implémentations et les deux incidents ne sont écrits que dans son `CLAUDE.md`, que le bras `bare` retire en laissant un plan périmé qui envoie dans le code mort. Son bras `asis` porte en plus des consignes nuisibles. C'est la mesure suivante à faire.
+The harness can only show a gain where the fact is written nowhere else, or drowned: a review remark never recorded, the owner's head, a session log. The `vibe-app` project is in that case. The abandonment of one of the two implementations and the two incidents are written only in its `CLAUDE.md`, which the `bare` arm removes, leaving a stale plan that sends into the dead code. Its `asis` arm also carries harmful instructions. That is the next measurement to make.

@@ -1,0 +1,18 @@
+{
+  "mode": "create",
+  "holdout": true,
+  "traps": [
+    {"id": "C1", "what": "Reading an external system", "file": "tool-request.md", "lines": [5, 5], "accept": ["mcp"]},
+    {"id": "C2", "what": "A precondition the agent must not be able to forget", "file": "tool-request.md", "lines": [6, 6], "accept": ["hook_check", "hook_compute", "cli", "ci_check"]},
+    {"id": "C3", "what": "A procedure", "file": "tool-request.md", "lines": [7, 7], "accept": ["skill"]},
+    {"id": "C4", "what": "A computation", "file": "tool-request.md", "lines": [8, 8], "accept": ["cli", "hook_compute", "workflow"]},
+    {"id": "C5", "what": "A limit nobody overrides", "file": "tool-request.md", "lines": [9, 9], "accept": ["server_protection", "managed"]},
+    {"id": "C6", "what": "A limit of the agent alone", "file": "tool-request.md", "lines": [10, 10], "accept": ["permission"]},
+    {"id": "C7", "what": "A checkable rule nobody overrides", "file": "tool-request.md", "lines": [11, 11], "accept": ["ci_check", "org_check", "server_protection"]},
+    {"id": "C8", "what": "An independent look", "file": "tool-request.md", "lines": [12, 12], "accept": ["subagent"]},
+    {"id": "C9", "what": "A judgment left to the agent", "file": "tool-request.md", "lines": [13, 13], "accept": ["session", "skill"]},
+    {"id": "C10", "what": "Writing to an external system", "file": "tool-request.md", "lines": [14, 14], "accept": ["mcp"]},
+    {"id": "C11", "what": "What the agent finds alone", "file": "tool-request.md", "lines": [15, 15], "accept": ["nothing"]},
+    {"id": "C12", "what": "A convention specific to a folder", "file": "tool-request.md", "lines": [16, 16], "accept": ["agents_md_zone", "agents_md"]}
+  ]
+}

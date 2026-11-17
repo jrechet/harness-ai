@@ -3,7 +3,7 @@ defineProps<{ since: Date }>();
 </script>
 
 <template>
-  <span class="new-badge">Nouveau</span>
+  <span class="new-badge">New</span>
 </template>
 
 <style scoped>

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fails when a service imports another service, or when shared code imports a service.
 
-The check behind docs/adr/0001-trois-services-un-contrat.md; job `boundaries` of the CI.
+The check behind docs/adr/0001-three-services-one-contract.md; job `boundaries` of the CI.
 
     python3 tools/check_imports.py            # exit 0, or 1 with one line per violation
     python3 tools/check_imports.py --json     # the same, as a JSON array

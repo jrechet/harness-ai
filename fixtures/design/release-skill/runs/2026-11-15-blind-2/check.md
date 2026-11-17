@@ -1,11 +1,11 @@
-Pièges trouvés : 6/6 ; éléments sains déplacés : 0
+Traps found: 6/6; healthy items moved: 0
 
-- T1 found : Une limite que personne ne doit contourner, racontée dans le skill
-- T2 found : Un calcul de version écrit en prose
-- T3 found : Une vérification obligatoire racontée comme une étape
-- T4 found : Une publication avec jeton faite depuis le poste de l'agent
-- T5 found : L'arborescence, que l'agent trouve seul
-- T6 found : Une limite de l'agent écrite comme une règle d'AGENTS.md
-- S2 kept : Un jugement laissé à l'agent, décrit par le skill
-- S3 kept : Un sous-agent de relecture indépendante, en lecture seule
-- S4 kept : Une règle d'AGENTS.md portée par un check CI qu'elle cite
+- T1 found: A limit nobody must override, told as a story in the skill
+- T2 found: A version computation written in prose
+- T3 found: A mandatory check told as a step
+- T4 found: A publication with a token made from the agent's workstation
+- T5 found: The tree, which the agent finds alone
+- T6 found: A limit of the agent written as an AGENTS.md rule
+- S2 kept: A judgment left to the agent, described by the skill
+- S3 kept: An independent review subagent, read-only
+- S4 kept: An AGENTS.md rule carried by a CI check it cites

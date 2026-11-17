@@ -1,13 +1,13 @@
 diff --git a/.github/copilot-instructions.md b/.github/copilot-instructions.md
 new file mode 100644
-index 0000000..f648b15
+index 0000000..765eabf
 --- /dev/null
 +++ b/.github/copilot-instructions.md
 @@ -0,0 +1 @@
-+Les instructions de ce dépôt vivent dans `AGENTS.md` à la racine. Lis-le avant toute modification et applique-le ; aucune règle n'est définie ici.
++This repository's instructions live in `AGENTS.md` at the root. Read it before any change and apply it; no rule is defined here.
 diff --git a/.harness/state.json b/.harness/state.json
 new file mode 100644
-index 0000000..c5a0e79
+index 0000000..b118328
 --- /dev/null
 +++ b/.harness/state.json
 @@ -0,0 +1,302 @@
@@ -17,7 +17,7 @@ index 0000000..c5a0e79
 +  "date": "2026-11-12",
 +  "level": {
 +    "reached": 1,
-+    "name": "Cadré",
++    "name": "Framed",
 +    "next": 2
 +  },
 +  "target": {
@@ -28,8 +28,8 @@ index 0000000..c5a0e79
 +  "levels": [
 +    {
 +      "level": 0,
-+      "name": "Rien",
-+      "summary": "Aucun fichier d'instructions : l'agent part de zéro à chaque session.",
++      "name": "None",
++      "summary": "No instruction file: the agent starts from zero at every session.",
 +      "achieved": true,
 +      "in_scope": true,
 +      "checks": [],
@@ -38,35 +38,35 @@ index 0000000..c5a0e79
 +    },
 +    {
 +      "level": 1,
-+      "name": "Cadré",
-+      "summary": "Un AGENTS.md court, un mode explicite, des stubs : l'agent sait où il est.",
++      "name": "Framed",
++      "summary": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.",
 +      "achieved": true,
 +      "in_scope": true,
 +      "checks": [
 +        {
 +          "id": "L1.source",
-+          "label": "Un fichier d'instructions existe (AGENTS.md)",
++          "label": "An instruction file exists (AGENTS.md)",
 +          "passed": true,
 +          "value": "AGENTS.md",
 +          "next_action": null
 +        },
 +        {
 +          "id": "L1.mode",
-+          "label": "La ligne « Mode : délégation | assistance » est présente",
++          "label": "The line \"Mode: delegation | assistance\" is present",
 +          "passed": true,
 +          "value": "delegation",
 +          "next_action": null
 +        },
 +        {
 +          "id": "L1.short",
-+          "label": "Le fichier chargé fait au plus 60 lignes",
++          "label": "The loaded file is at most 60 lines",
 +          "passed": true,
 +          "value": 26,
 +          "next_action": null
 +        },
 +        {
 +          "id": "L1.single_source",
-+          "label": "CLAUDE.md est un stub @AGENTS.md (ou absent)",
++          "label": "CLAUDE.md is an @AGENTS.md stub (or absent)",
 +          "passed": true,
 +          "value": {
 +            "exists": true,
@@ -78,7 +78,7 @@ index 0000000..c5a0e79
 +        },
 +        {
 +          "id": "L1.forbidden",
-+          "label": "Une section « Interdits » dit ce qu'un agent ne fait jamais",
++          "label": "A \"Forbidden\" section says what an agent never does",
 +          "passed": true,
 +          "value": true,
 +          "next_action": null
@@ -89,38 +89,38 @@ index 0000000..c5a0e79
 +    },
 +    {
 +      "level": 2,
-+      "name": "Bouclé",
-+      "summary": "La boucle de retour tourne : les incidents deviennent des règles.",
++      "name": "Looped",
++      "summary": "The feedback loop runs: incidents become rules.",
 +      "achieved": false,
 +      "in_scope": true,
 +      "checks": [
 +        {
 +          "id": "L2.maintenance",
-+          "label": "Une section Maintenance dit comment le fichier évolue",
++          "label": "A maintenance section says how the file evolves",
 +          "passed": false,
 +          "value": false,
-+          "next_action": "Ajouter la section Maintenance du template harness-init."
++          "next_action": "Add the \"Maintaining this file\" section of the harness-init template."
 +        },
 +        {
 +          "id": "L2.rule_convention",
-+          "label": "La convention `rule:` en review est documentée",
++          "label": "The `rule:` review convention is documented",
 +          "passed": false,
 +          "value": false,
-+          "next_action": "Documenter : un commentaire de review qui commence par `rule:` est une règle candidate."
++          "next_action": "Document it: a review comment that starts with `rule:` is a candidate rule."
 +        },
 +        {
 +          "id": "L2.marker_fresh",
-+          "label": "Un harvest a tourné depuis moins de 45 jours",
++          "label": "A harvest ran less than 45 days ago",
 +          "passed": false,
 +          "value": null,
-+          "next_action": "Lancer harness-harvest et fusionner sa PR, qui pose le marqueur."
++          "next_action": "Run harness-harvest and merge its PR, which sets the marker."
 +        },
 +        {
 +          "id": "L2.signal",
-+          "label": "Le dernier harvest a trouvé au moins un signal réel (S1–S4)",
++          "label": "The last harvest found at least one real signal (S1–S4)",
 +          "passed": false,
 +          "value": null,
-+          "next_action": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore."
++          "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet."
 +        }
 +      ],
 +      "passed_checks": 0,
@@ -128,14 +128,14 @@ index 0000000..c5a0e79
 +    },
 +    {
 +      "level": 3,
-+      "name": "Vérifié",
-+      "summary": "Les règles obligatoires sont portées par des outils, pas par du texte.",
++      "name": "Verified",
++      "summary": "Mandatory rules are enforced by tools, not by text.",
 +      "achieved": false,
 +      "in_scope": true,
 +      "checks": [
 +        {
 +          "id": "L3.ci",
-+          "label": "Une CI existe (workflows ou .gitlab-ci.yml)",
++          "label": "A CI exists (workflows or .gitlab-ci.yml)",
 +          "passed": true,
 +          "value": [
 +            "ci.yml",
@@ -145,24 +145,24 @@ index 0000000..c5a0e79
 +        },
 +        {
 +          "id": "L3.guarded",
-+          "label": "Au moins 50 % des règles sont « Vérifiée par » un outil",
++          "label": "At least 50% of the rules are \"Enforced by\" a tool",
 +          "passed": false,
 +          "value": 0.14,
-+          "next_action": "Pousser les règles racontées en L3 : lint custom, test d'architecture, check de PR."
++          "next_action": "Push the narrated rules down to L3: custom lint, architecture test, PR check."
 +        },
 +        {
 +          "id": "L3.justified",
-+          "label": "Au moins 50 % des règles disent pourquoi",
++          "label": "At least 50% of the rules say why",
 +          "passed": true,
 +          "value": 1.0,
 +          "next_action": null
 +        },
 +        {
 +          "id": "L3.audit",
-+          "label": "Un harness-audit existe et n'a aucun P1 ouvert",
++          "label": "A harness-audit exists and has no open P1",
 +          "passed": false,
 +          "value": null,
-+          "next_action": "Lancer harness-audit, écrire son JSON dans .harness/audit.json, traiter les P1."
++          "next_action": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s."
 +        }
 +      ],
 +      "passed_checks": 2,
@@ -170,45 +170,45 @@ index 0000000..c5a0e79
 +    },
 +    {
 +      "level": 4,
-+      "name": "Délégué",
-+      "summary": "Des tâches entières sont confiées à l'agent et reviennent propres.",
++      "name": "Delegated",
++      "summary": "Whole tasks are handed to the agent and come back clean.",
 +      "achieved": false,
 +      "in_scope": true,
 +      "checks": [
 +        {
 +          "id": "L4.mode",
-+          "label": "Le mode est délégation",
++          "label": "The mode is delegation",
 +          "passed": true,
 +          "value": "delegation",
 +          "next_action": null
 +        },
 +        {
 +          "id": "L4.process",
-+          "label": "Une section « Processus de travail » cadre l'agent",
++          "label": "A \"Working process\" section frames the agent",
 +          "passed": false,
 +          "value": false,
-+          "next_action": "Ajouter : quand s'arrêter et demander, critère de fini, CI rouge, test flaky."
++          "next_action": "Add: when to stop and ask, definition of done, red CI, flaky test."
 +        },
 +        {
 +          "id": "L4.contracts",
-+          "label": "Au moins un contrat de tâche existe et est référencé",
++          "label": "At least one task contract exists and is referenced",
 +          "passed": false,
 +          "value": 0,
-+          "next_action": "Créer .claude/skills/<tâche>/SKILL.md pour la première tâche déléguée et le citer dans AGENTS.md."
++          "next_action": "Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in AGENTS.md."
 +        },
 +        {
 +          "id": "L4.clean_prs",
-+          "label": "Le dernier harvest voit des PRs d'agent sans correction après coup",
++          "label": "The last harvest sees agent PRs with no after-the-fact correction",
 +          "passed": false,
 +          "value": null,
-+          "next_action": "Chaque correction après coup (S2) est une règle ou un garde-fou manquant : les traiter."
++          "next_action": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them."
 +        },
 +        {
 +          "id": "L4.cut_the_agent",
-+          "label": "Le test « coupe l'agent » de l'audit passe",
++          "label": "The audit's \"cut the agent\" test passes",
 +          "passed": false,
 +          "value": null,
-+          "next_action": "Pousser en L3/L4 les étapes qui n'existent que dans des prompts."
++          "next_action": "Push down to L3/L4 the steps that exist only in prompts."
 +        }
 +      ],
 +      "passed_checks": 1,
@@ -235,12 +235,12 @@ index 0000000..c5a0e79
 +        "misplaced": null
 +      }
 +    },
-+    "hint": "Lancer harness-audit pour une vue par couche mesurée."
++    "hint": "Run harness-audit for a measured layer view."
 +  },
 +  "next_actions": [
-+    "Ajouter la section Maintenance du template harness-init.",
-+    "Documenter : un commentaire de review qui commence par `rule:` est une règle candidate.",
-+    "Lancer harness-harvest et fusionner sa PR, qui pose le marqueur."
++    "Add the \"Maintaining this file\" section of the harness-init template.",
++    "Document it: a review comment that starts with `rule:` is a candidate rule.",
++    "Run harness-harvest and merge its PR, which sets the marker."
 +  ],
 +  "dangling": [],
 +  "facts": {
@@ -315,36 +315,36 @@ index 0000000..c5a0e79
 +}
 diff --git a/AGENTS.md b/AGENTS.md
 new file mode 100644
-index 0000000..aa45116
+index 0000000..9f64937
 --- /dev/null
 +++ b/AGENTS.md
 @@ -0,0 +1,26 @@
-+# ledger — instructions pour les agents
++# ledger — instructions for agents
 +
-+Mode : **délégation**. Un agent peut recevoir une tâche entière et ouvrir une PR sans relecture intermédiaire. Ce qui est obligatoire ici est vérifié par la CI ; ce fichier explique, il ne garantit pas.
++Mode: **delegation**. An agent can receive a whole task and open a PR without intermediate review. What is mandatory here is enforced by the CI; this file explains, it does not guarantee.
 +
-+## Ce que fait ce repo
-+Service de tenue de comptes (soldes, virements, frais). Les décisions sont dans `docs/adr/`, les incidents dans `docs/postmortems/`, les bases et le déploiement dans `docs/exploitation.md`.
++## What this repo does
++Ledger service (balances, transfers, fees). The decisions are in `docs/adr/`, the incidents in `docs/postmortems/`, the databases and deployment in `docs/operations.md`.
 +
-+## Ce qui change → ce qu'on lance
-+| Si tu touches… | Lance… | Vérifié en CI par |
++## What changes → what to run
++| If you touch… | Run… | Enforced in CI by |
 +|---|---|---|
-+| du code Go | `go vet ./... && go test ./...` | job `test` (bloque) |
-+| des imports entre `domain`, `app`, `adapters` | `make arch` | job `arch` (bloque) |
-+| `internal/adapters/postgres` | rien de lancé ici : ses tests d'intégration demandent une base à toi | rien, hors CI |
++| Go code | `go vet ./... && go test ./...` | job `test` (blocks) |
++| imports between `domain`, `app`, `adapters` | `make arch` | job `arch` (blocks) |
++| `internal/adapters/postgres` | nothing run here: its integration tests need a database of your own | nothing, outside CI |
 +
-+Le job `lint` (golangci-lint) tourne mais ne bloque pas (`continue-on-error`) : une règle « vérifiée par le lint » ne l'est pas.
++The `lint` job (golangci-lint) runs but does not block (`continue-on-error`): a rule "enforced by the lint" is not.
 +
-+## Règles
-+- Tout endpoint qui modifie un solde exige l'en-tête `Idempotency-Key` ; le cas d'usage cherche la clé **dans** la transaction d'écriture ; rejouer la même requête renvoie le premier résultat, la même clé avec une autre requête répond 409. Pourquoi : incident du 14 avril 2026, 37 comptes débités deux fois (`docs/postmortems/2026-04-double-debit.md`, ADR 0003). `POST /accounts` ne l'applique pas (au backlog) : ce n'est pas un modèle. (non vérifiée) [2026-04]
-+- Tout nouvel endpoint d'écriture répond avec l'en-tête `Idempotency-Replayed: true` quand il rejoue une requête déjà traitée. Pourquoi : l'application mobile s'en sert pour ne pas afficher deux fois la confirmation. `POST /transfers` ne le fait pas encore (au backlog) : ne le copie pas sur ce point. (non vérifiée) [2026-06]
-+- Un montant est un `domain.Money` en centimes (`int64`), jamais un `float32`/`float64` dans `internal/domain` ni `internal/app` ; l'API expose `amount_cents`. Pourquoi : arrondis qui faussent un solde d'un centime (ADR 0002). `internal/app/fees.go` utilise déjà `float64` : ce n'est pas un modèle. (non vérifiée : la règle `forbidigo` est dans le lint, qui ne bloque pas) [2025-09]
-+- `domain` ne dépend de rien, `app` ne connaît que des ports, les adaptateurs ne se connaissent pas ; seul `cmd/ledgerd` les assemble. Pourquoi : le prototype mêlait SQL et règles dans les handlers (ADR 0001). Vérifiée par : `tools/archcheck` [2025-09]
++## Rules
++- Every endpoint that changes a balance requires the `Idempotency-Key` header; the use case looks the key up **inside** the write transaction; replaying the same request returns the first result, the same key with another request answers 409. Why: incident of April 14, 2026, 37 accounts debited twice (`docs/postmortems/2026-04-double-debit.md`, ADR 0003). `POST /accounts` does not apply it (in the backlog): it is not a model. (unverified) [2026-04]
++- Every new write endpoint answers with the `Idempotency-Replayed: true` header when it replays a request already processed. Why: the mobile app uses it to avoid showing the confirmation twice. `POST /transfers` does not do it yet (in the backlog): do not copy it on this point. (unverified) [2026-06]
++- An amount is a `domain.Money` in cents (`int64`), never a `float32`/`float64` in `internal/domain` nor `internal/app`; the API exposes `amount_cents`. Why: rounding errors that distort a balance by one cent (ADR 0002). `internal/app/fees.go` already uses `float64`: it is not a model. (unverified: the `forbidigo` rule is in the lint, which does not block) [2025-09]
++- `domain` depends on nothing, `app` only knows ports, the adapters do not know each other; only `cmd/ledgerd` wires them together. Why: the prototype mixed SQL and rules in the handlers (ADR 0001). Enforced by: `tools/archcheck` [2025-09]
 +
-+## Interdits
-+- Ne jamais lancer `make reset-db`, `make migrate` ni `psql` avec un `DATABASE_URL` qui n'est pas ta propre base locale. Vérifie la variable avant. Pourquoi : le 3 février 2026, `reset-db` lancé avec l'URL de staging restée dans un terminal a effacé deux jours de jeux de données QA ; la cible ne regarde pas quelle base elle vide. [2026-02]
-+- Ne jamais modifier un fichier existant de `migrations/` : une migration appliquée ne change plus, on ajoute le numéro suivant. Pourquoi : staging et production l'ont déjà jouée (`docs/exploitation.md`). [2026-11]
-+- Ne jamais lancer `deploy.yml` avec `dry_run` à `false`. Pourquoi : il applique les migrations puis déploie sur staging ou production. [2026-11]
++## Forbidden
++- Never run `make reset-db`, `make migrate` nor `psql` with a `DATABASE_URL` that is not your own local database. Check the variable first. Why: on February 3, 2026, `reset-db` run with the staging URL left in a terminal wiped two days of QA datasets; the target does not look at which database it empties. [2026-02]
++- Never modify an existing file of `migrations/`: an applied migration no longer changes, the next number is added. Why: staging and production have already played it (`docs/operations.md`). [2026-11]
++- Never run `deploy.yml` with `dry_run` set to `false`. Why: it applies the migrations then deploys to staging or production. [2026-11]
 diff --git a/CLAUDE.md b/CLAUDE.md
 new file mode 100644
 index 0000000..43c994c

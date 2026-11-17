@@ -1,8 +1,8 @@
-# Audit de django-mvc : 10/10 pièges et retraits trouvés · conforme
+# Audit of django-mvc: 10/10 traps and removals found · ok
 
 
-Renotée le 2026-11-14, avec l'accord du propriétaire : le noteur relit en entier la ligne qu'un retrait désigne, et le corrigé vise la moitié « e-mails en masse » de la règle, pas la moitié `post_save`, gardée par un test. La note d'origine :
+Regraded on 2026-11-14, with the owner's agreement: the grader rereads in full the line a removal points to, and the answer key targets the "bulk e-mails" half of the rule, not the `post_save` half, guarded by a test. The original note:
 
-# Audit de django-mvc : 10/10 pièges et retraits trouvés
-## Sains signalés
-- guarded_rules déclare gardée « Pas d'e-mail dans un signal post_save ni dans save() » par enrollments/tests/test_services.py:106-112 (job test de .github/workflows/ci.yml) : rien ne la vérifie (e-mails en masse : seule la revue)
+# Audit of django-mvc: 10/10 traps and removals found
+## Healthy items flagged
+- guarded_rules declares "No e-mail in a post_save signal nor in save()" guarded by enrollments/tests/test_services.py:106-112 (test job of .github/workflows/ci.yml): nothing verifies it (bulk e-mails: review only)

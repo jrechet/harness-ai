@@ -1,7 +1,7 @@
 {
   "name": "harness-ai",
   "version": "0.2.0",
-  "description": "Skills Claude Code pour poser, auditer et faire évoluer l'instrumentation IA d'un dépôt, un pas à la fois.",
+  "description": "Claude Code skills to set up, audit and evolve a repository's AI instrumentation, one step at a time.",
   "author": {
     "name": "jrechet"
   },

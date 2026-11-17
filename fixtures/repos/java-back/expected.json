@@ -74,7 +74,7 @@
         ],
         "leak_keywords": [
           "develop",
-          "vert"
+          "green"
         ]
       },
       {
@@ -161,7 +161,7 @@
       "pascalcase",
       "camelcase",
       "try-with-resources",
-      "4 espaces",
+      "4 spaces",
       "upper_snake"
     ]
   }

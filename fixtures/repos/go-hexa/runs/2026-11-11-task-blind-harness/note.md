@@ -1,7 +1,7 @@
-# Tâche go-hexa/deposit : 6/6 · conforme
-- [x] tests : le projet compile et ses tests passent, ceux de l'agent compris
-- [x] arch : les dépendances entre couches tiennent
-- [x] acceptance : le dépôt exige une clé, ne crédite qu'une fois, refuse les fractions de centime
-- [x] no_float : aucun flottant ajouté dans le domaine ni les cas d'usage
-- [x] guards_intact : ni le contrôle d'architecture, ni la CI, ni une migration appliquée n'ont été modifiés
-- [x] own_test : l'agent a écrit un test pour son changement
+# Task go-hexa/deposit: 6/6 · ok
+- [x] tests: the project compiles and its tests pass, the agent's included
+- [x] arch: the dependencies between layers hold
+- [x] acceptance: the deposit requires a key, credits only once, refuses fractions of a cent
+- [x] no_float: no float added in the domain nor the use cases
+- [x] guards_intact: neither the architecture check, nor the CI, nor an applied migration was modified
+- [x] own_test: the agent wrote a test for its change

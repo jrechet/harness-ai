@@ -1,45 +1,45 @@
 ---
 name: release
-description: Préparer, faire valider, déclencher et vérifier une release ou un hotfix de billing-api via le workflow release.yml. Utiliser dès qu'on demande de « sortir une version », « releaser », « livrer en prod », « faire un hotfix ». Ne déclenche jamais le workflow sans un « oui » explicite d'un humain (Interdit d'AGENTS.md).
+description: Prepare, get validated, trigger and verify a release or a hotfix of billing-api via the release.yml workflow. Use as soon as someone asks to "ship a version", "release", "deliver to prod", "do a hotfix". Never triggers the workflow without an explicit "yes" from a human (Forbidden item of AGENTS.md).
 ---
 
-# Release de billing-api
+# Releasing billing-api
 
-`release.yml` construit le jar, publie l'image `registry.acme.io/billing-api:<version>`, pose le tag `v<version>` **et déploie en production** dans le même job. Le déclencher, c'est déployer : la validation humaine est obligatoire avant.
+`release.yml` builds the jar, publishes the image `registry.acme.io/billing-api:<version>`, sets the tag `v<version>` **and deploys to production** in the same job. Triggering it is deploying: human validation is mandatory beforehand.
 
-## 1. Collecter — rien ne se déduit
-- **Version** `x.y.z` : décidée par l'humain et donnée dans la tâche. Absente → demande-la. Ne pas la déduire du nom de branche (`scripts/release.mjs` le fait et se trompe : une release depuis `develop` n'est pas toujours mineure).
-- **Ref** : une release part de `develop` ou `release/x.y.z` ; un hotfix part de `hotfix/*`. Autre branche → arrêt.
-- **Type** : release ou hotfix (le hotfix incrémente le patch ; l'input `hotfix` de `release.yml` n'est lu par aucune étape aujourd'hui).
+## 1. Collect — nothing is inferred
+- **Version** `x.y.z`: decided by the human and given in the task. Absent → ask for it. Do not infer it from the branch name (`scripts/release.mjs` does and gets it wrong: a release from `develop` is not always a minor).
+- **Ref**: a release starts from `develop` or `release/x.y.z`; a hotfix starts from `hotfix/*`. Other branch → stop.
+- **Type**: release or hotfix (the hotfix increments the patch; the `hotfix` input of `release.yml` is read by no step today).
 
-## 2. Pré-conditions — s'arrêter dès qu'une échoue
-1. CI verte sur le commit visé : `gh run list --workflow ci.yml --branch <ref> --limit 1 --json conclusion,headSha` → `success` et le SHA de la pointe.
-2. Tag absent : `git ls-remote --tags origin "v<x.y.z>"` ne renvoie rien.
-3. Version croissante : `x.y.z` est strictement supérieure au contenu de `VERSION`.
-4. Aucune migration modifiée dans la plage livrée : `git diff --name-status v<précédente>..<ref> -- src/main/resources/db/migration/` ne montre que des ajouts (`A`).
+## 2. Preconditions — stop as soon as one fails
+1. CI green on the targeted commit: `gh run list --workflow ci.yml --branch <ref> --limit 1 --json conclusion,headSha` → `success` and the SHA of the tip.
+2. Tag absent: `git ls-remote --tags origin "v<x.y.z>"` returns nothing.
+3. Increasing version: `x.y.z` is strictly greater than the content of `VERSION`.
+4. No migration modified in the delivered range: `git diff --name-status v<previous>..<ref> -- src/main/resources/db/migration/` shows only additions (`A`).
 
-## 3. Plan et validation
-Affiche le plan : version, ref, SHA, type, tag qui sera créé, image qui sera publiée, « déploie en production ». Puis **demande la validation** et attends un « oui » explicite. Pas de « oui » → la tâche s'arrête là, sans rien déclencher.
+## 3. Plan and validation
+Show the plan: version, ref, SHA, type, tag that will be created, image that will be published, "deploys to production". Then **ask for validation** and wait for an explicit "yes". No "yes" → the task stops there, without triggering anything.
 
-## 4. Déclenchement
+## 4. Trigger
 ```
 gh workflow run release.yml -f version=<x.y.z> -f ref=<ref> [-f hotfix=true]
-gh run list --workflow release.yml --limit 1 --json databaseId,url   # garde l'URL du run
+gh run list --workflow release.yml --limit 1 --json databaseId,url   # keep the URL of the run
 gh run watch <databaseId> --exit-status
 ```
-`release.yml` est un `workflow_dispatch` : GitHub ne l'accepte que depuis la branche par défaut du dépôt ; si la commande est refusée, c'est en général cette raison, pas une erreur de ta part.
+`release.yml` is a `workflow_dispatch`: GitHub only accepts it from the default branch of the repository; if the command is refused, that is usually the reason, not a mistake of yours.
 
-## 5. Vérification — pas de succès sur parole
-- `gh run view <databaseId> --json conclusion` → `success` (un « SUCCESS » dans le log n'est pas une preuve).
-- `git ls-remote --tags origin "v<x.y.z>"` renvoie le tag.
-- La production répond dans la nouvelle version (point de santé indiqué par l'équipe ; à défaut, demande-le et note-le ici).
+## 5. Verification — no success on someone's word
+- `gh run view <databaseId> --json conclusion` → `success` (a "SUCCESS" in the log is not evidence).
+- `git ls-remote --tags origin "v<x.y.z>"` returns the tag.
+- Production answers in the new version (health endpoint given by the team; failing that, ask for it and note it here).
 
-## 6. Après
-Le workflow ne met pas `VERSION` à jour : ouvre une PR vers `develop` qui le passe à `x.y.z`, en citant l'URL du run.
+## 6. Afterwards
+The workflow does not update `VERSION`: open a PR to `develop` that sets it to `x.y.z`, citing the URL of the run.
 
-## Cas d'abandon
-- Run en échec avant `docker push` : rien n'est publié, lis `gh run view <id> --log-failed`, corrige dans une PR, ne relance pas à l'aveugle.
-- Run en échec après `docker push` ou après le tag : l'image ou le tag existent sans déploiement. Ne relance pas, ne supprime rien : signale l'état exact (image, tag, run) et laisse l'humain décider.
+## Abort cases
+- Run failed before `docker push`: nothing is published, read `gh run view <id> --log-failed`, fix in a PR, do not re-run blindly.
+- Run failed after `docker push` or after the tag: the image or the tag exist without a deployment. Do not re-run, do not delete anything: report the exact state (image, tag, run) and let the human decide.
 
-## Fini quand
-Run `success` avec son URL, tag présent, production vérifiée, PR `VERSION` ouverte, et tout cela écrit dans le compte rendu de la tâche.
+## Done when
+Run `success` with its URL, tag present, production verified, `VERSION` PR opened, and all of that written in the report of the task.

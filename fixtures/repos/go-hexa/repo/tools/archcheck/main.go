@@ -1,5 +1,5 @@
 // Command archcheck fails when a package imports something its layer may not.
-// It is the check behind docs/adr/0001-architecture-hexagonale.md and runs in CI.
+// It is the check behind docs/adr/0001-hexagonal-architecture.md and runs in CI.
 //
 //	go run ./tools/archcheck            # exit 0, or 1 with one line per violation
 //	go run ./tools/archcheck -json      # same, as a JSON array

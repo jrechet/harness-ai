@@ -1,26 +1,26 @@
-# Propriétaire fictif — django-mvc (cursus)
+# Fictional owner — django-mvc (cursus)
 
-Ce fichier se donne à l'agent qui joue harness-init ou harness-audit à l'aveugle : ce sont les réponses de l'équipe. Les faits plantés sont dans le dépôt, à trouver, sauf un : celui que l'équipe ajoute d'elle-même plus bas ne se lit nulle part ailleurs.
+This file is given to the agent that plays harness-init or harness-audit blind: these are the team's answers. The planted facts are in the repository, to be found, except one: the one the team adds on its own below can be read nowhere else.
 
-## Réponses à l'entretien
-1. **Mode** : délégation. On veut confier des tickets entiers et relire la PR à la fin.
-2. **Équipe** : trois développeurs, dont aucun n'était là au démarrage du projet ; une responsable formation qui se sert de l'admin.
-3. **CI** : GitHub Actions, un seul job, `test`. Il bloque la fusion sur `main`.
-4. **Outils** : Claude Code pour deux d'entre nous, Copilot pour le troisième.
-5. **Première tâche à déléguer** : un traitement de données d'inscription, import ou export, de la vue jusqu'au test.
-6. **Interdits** : modifier une migration déjà appliquée ; envoyer un vrai e-mail depuis autre chose que la production ; sortir du serveur des données personnelles d'inscrits.
+## Answers to the interview
+1. **Mode**: delegation. We want to hand over whole tickets and review the PR at the end.
+2. **Team**: three developers, none of whom was there when the project started; a training manager who uses the admin.
+3. **CI**: GitHub Actions, a single job, `test`. It blocks the merge into `main`.
+4. **Tools**: Claude Code for two of us, Copilot for the third.
+5. **First task to delegate**: a job on enrollment data, import or export, from the view to the test.
+6. **Forbidden**: modifying a migration already applied; sending a real e-mail from anything other than production; taking personal data of enrolled people out of the server.
 
-## Ce que l'équipe ajoute d'elle-même
-« Une chose qui n'est écrite nulle part : l'hébergeur coupe toute requête à trente secondes. On a convenu avec lui, en février 2025, qu'un traitement lancé depuis une page ne dépasse pas 500 lignes, et que ce plafond se lit dans le réglage Django `CURSUS_IMPORT_MAX_ROWS`, pour qu'il puisse le baisser sans nous. Le réglage n'existe pas encore : aucun traitement de ce genre n'a été écrit. Au-delà du plafond, on refuse le fichier entier. »
+## What the team adds on its own
+"One thing that is written nowhere: the host cuts any request at thirty seconds. We agreed with it, in February 2025, that a job started from a page does not exceed 500 rows, and that this cap is read from the Django setting `CURSUS_IMPORT_MAX_ROWS`, so that it can lower it without us. The setting does not exist yet: no job of this kind has been written. Beyond the cap, we refuse the whole file."
 
-## Si l'agent pose d'autres questions
-- « D'où viennent AGENTS.md et CLAUDE.md ? » : AGENTS.md a été écrit à la main fin 2024 par la développeuse qui a monté le projet. Elle est partie début 2025 et personne ne l'a relu depuis. CLAUDE.md a été recopié de mémoire par l'un de nous quand on a commencé avec Claude Code ; depuis, quand on corrige quelque chose, c'est dans celui-là.
-- « Je peux retirer des lignes ? » : oui. Dis ce que tu retires et pourquoi.
-- « Le serveur est encore en Python 3.8 ? » : non. Il a été remplacé en février 2025, la production tourne en 3.12.
-- « Vous êtes tenus à Django 4.2 LTS ? » : plus depuis le changement d'hébergeur, au même moment. On suit les versions courantes, 5.1 aujourd'hui.
-- « La CI a changé ? » : oui, début 2025, avec l'hébergeur. On a repris les tests sur GitHub Actions. Personne n'a fait l'inventaire de ce que l'ancienne vérifiait d'autre.
-- « Pourquoi rien ne vérifie le verrou ? » : la CI tourne sous SQLite et personne n'a monté de PostgreSQL pour les tests.
-- Sur tout le reste : « regarde dans `docs/`, c'est écrit ». L'équipe ne sait rien de plus que ce que disent les post-mortems, l'ADR et la note d'exploitation.
+## If the agent asks other questions
+- "Where do AGENTS.md and CLAUDE.md come from?": AGENTS.md was written by hand at the end of 2024 by the developer who set up the project. She left at the beginning of 2025 and nobody has reread it since. CLAUDE.md was copied from memory by one of us when we started with Claude Code; since then, when we fix something, it is in that one.
+- "Can I remove lines?": yes. Say what you remove and why.
+- "Is the server still on Python 3.8?": no. It was replaced in February 2025, production runs on 3.12.
+- "Are you bound to Django 4.2 LTS?": not since the change of host, at the same time. We follow the current versions, 5.1 today.
+- "Has the CI changed?": yes, at the beginning of 2025, with the host. We took the tests over to GitHub Actions. Nobody made the inventory of what else the old one checked.
+- "Why does nothing verify the lock?": the CI runs under SQLite and nobody has set up a PostgreSQL for the tests.
+- On everything else: "look in `docs/`, it is written". The team knows nothing more than what the post-mortems, the ADR and the operations note say.
 
-## Ce que l'équipe attend
-Savoir ce qui tient encore dans un fichier écrit avec soin il y a deux ans, et ne garder qu'un seul fichier.
+## What the team expects
+To know what still holds in a file written with care two years ago, and to keep a single file.

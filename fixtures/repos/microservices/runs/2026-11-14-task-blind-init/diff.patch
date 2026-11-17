@@ -1,16 +1,16 @@
 diff --git a/README.md b/README.md
-index 74ccaef..a8ae4e6 100644
+index 0a1eb75..514214d 100644
 --- a/README.md
 +++ b/README.md
-@@ -33,7 +33,7 @@ docs/                     décisions, incidents, exploitation
+@@ -33,7 +33,7 @@ docs/                     decisions, incidents, operations
  
- | Service | Méthode | Chemin | Rôle |
+ | Service | Method | Path | Role |
  |---|---|---|---|
--| orders | POST | `/orders` | passer une commande : `customer_email`, `sku`, `quantity` |
-+| orders | POST | `/orders` | passer une commande : `customer_email`, `lines` (`[{"sku", "quantity"}, …]`, au moins une) ; l'ancienne forme `sku`, `quantity` reste acceptée |
- | orders | GET | `/orders/{id}` | lire une commande |
- | billing | GET | `/invoices` | les factures ; `?order_id=` pour celles d'une commande |
- | billing | GET | `/invoices/{number}` | lire une facture |
+-| orders | POST | `/orders` | place an order: `customer_email`, `sku`, `quantity` |
++| orders | POST | `/orders` | place an order: `customer_email`, `lines` (`[{"sku", "quantity"}, …]`, at least one); the old form `sku`, `quantity` is still accepted |
+ | orders | GET | `/orders/{id}` | read an order |
+ | billing | GET | `/invoices` | the invoices; `?order_id=` for those of one order |
+ | billing | GET | `/invoices/{number}` | read an invoice |
 @@ -58,7 +58,8 @@ from services.orders.app import create_app
  
  bus = InMemoryBus()
@@ -23,17 +23,17 @@ index 74ccaef..a8ae4e6 100644
  
 diff --git a/contracts/CHANGES.md b/contracts/CHANGES.md
 new file mode 100644
-index 0000000..38b6117
+index 0000000..7728a5d
 --- /dev/null
 +++ b/contracts/CHANGES.md
 @@ -0,0 +1,7 @@
-+# Changements des contrats
++# Contract changes
 +
-+Une ligne datée par contrat touché, la plus récente en haut. Les changements sont additifs (ADR 0001).
++One dated line per contract touched, most recent first. Changes are additive (ADR 0001).
 +
-+- 2026-11-14 — `api/invoice` : ajout de `lines` (`sku`, `quantity`, `unit_price_cents`, `amount_cents`), le détail de la facture.
-+- 2026-11-14 — `events/order.created` : ajout de `lines` (`sku`, `quantity`, `unit_price_cents`) ; `payload.sku` et `payload.quantity` restent publiés, marqués `deprecated`, et ne portent plus que la première ligne de la commande.
-+- 2026-11-14 — `api/order` : ajout de `lines` (`sku`, `quantity`, `unit_price_cents`) ; `sku` et `quantity` restent publiés, marqués `deprecated`, et ne portent plus que la première ligne de la commande.
++- 2026-11-14 — `api/invoice`: `lines` added (`sku`, `quantity`, `unit_price_cents`, `amount_cents`), the invoice's detail.
++- 2026-11-14 — `events/order.created`: `lines` added (`sku`, `quantity`, `unit_price_cents`); `payload.sku` and `payload.quantity` stay published, marked `deprecated`, and now carry only the first line of the order.
++- 2026-11-14 — `api/order`: `lines` added (`sku`, `quantity`, `unit_price_cents`); `sku` and `quantity` stay published, marked `deprecated`, and now carry only the first line of the order.
 diff --git a/contracts/api/invoice.json b/contracts/api/invoice.json
 index dc61ce9..a75b674 100644
 --- a/contracts/api/invoice.json

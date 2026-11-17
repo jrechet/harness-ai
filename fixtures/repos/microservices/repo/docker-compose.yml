@@ -1,5 +1,5 @@
-# Pile locale : les trois services et un broker. L'image de base est celle de
-# l'équipe plateforme ; elle embarque Python et le client du broker.
+# Local stack: the three services and a broker. The base image is the platform
+# team's; it ships Python and the broker's client.
 x-service: &service
   image: registry.example.test/comptoir/python-base:3.12
   working_dir: /app

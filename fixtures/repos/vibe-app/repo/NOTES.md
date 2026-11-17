@@ -1,47 +1,47 @@
 # NOTES
 
-Notes prises au fil des sessions. Pas triées.
+Notes taken as the sessions went. Not sorted.
 
 ## PayFlux
-- Compte de test de l'utilisateur, offre Starter : liens de paiement statiques, pas d'API de remboursement. Un remboursement se fait à la main dans le tableau de bord PayFlux (Paiements > la ligne > Rembourser) ; PayFlux envoie alors `payment.refunded`.
-- Enveloppe d'un événement :
+- The user's test account, Starter plan: static payment links, no refund API. A refund is made by hand in the PayFlux dashboard (Payments > the line > Refund); PayFlux then sends `payment.refunded`.
+- Envelope of an event:
   ```json
   { "id": "evt_3fa9c1", "type": "payment.succeeded", "created": 1773478800,
     "data": { "orderId": "ord_5d0c2a91be", "paymentId": "pay_88c1", "amountCents": 1240 } }
   ```
-- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On ne traite que le premier.
-- Signature : en-tête `X-Payflux-Signature`, HMAC-SHA256 en hexadécimal du corps brut, avec le secret du webhook. Vérifier sur le corps tel qu'il arrive, pas sur le JSON reformaté.
-- Doc PayFlux, « Livraison des webhooks » (recopié le 2026-03-15) : livraison « au moins une fois ». Nouvelle tentative à +30 s, +5 min, +1 h, +6 h puis +24 h tant que la réponse n'est pas un 2xx reçu en moins de 5 s. Un événement déjà acquitté peut être relivré. L'`id` de l'événement ne change pas d'une livraison à l'autre.
-- L'URL du webhook se règle dans le tableau de bord PayFlux, Développeurs > Webhooks.
+- Types seen: `payment.succeeded`, `payment.failed`, `payment.refunded`. Only the first is handled.
+- Signature: `X-Payflux-Signature` header, hex HMAC-SHA256 of the raw body, with the webhook secret. Verify on the body as it arrives, not on the reformatted JSON.
+- PayFlux doc, "Webhook delivery" (copied on 2026-03-15): "at least once" delivery. New attempt at +30 s, +5 min, +1 h, +6 h then +24 h as long as the answer is not a 2xx received within 5 s. An event already acknowledged may be redelivered. The event's `id` does not change from one delivery to the next.
+- The webhook URL is set in the PayFlux dashboard, Developers > Webhooks.
 
-## Debug du total (session 3)
+## Debugging the total (session 3)
 ```
 > 3 * 1.10
 3.3000000000000003
 > '1,20' + '1,20'
 '1,201,20'
 ```
-Réglé : centimes partout, quantités converties avec Number().
+Settled: cents everywhere, quantities converted with Number().
 
-## Essais curl
+## curl trials
 ```bash
 curl localhost:3000/api/products
 curl -X POST localhost:3000/api/orders -d '{"name":"Jean Test","items":[{"id":"croissant","qty":2}]}'
 curl -X POST localhost:3000/orders/ord_91e77c03fa/cancel
 ```
-(les deux premiers datent d'avant le renommage des routes en session 1)
+(the first two date from before the routes were renamed in session 1)
 
-## Formatage
-- `formatPrice(cents)` dans lib/format.js → « 12,50 € »
-- `formatMoney(euros)` dans utils/helpers.js → « 12,50 € » mais avec une espace insécable, les comparaisons de chaînes échouent
-- `toFrenchDate` dans utils/date.js, `formatDate` dans lib/format.js, `formatDateTime` dans utils/helpers.js : à fusionner un jour
+## Formatting
+- `formatPrice(cents)` in lib/format.js → "12,50 €"
+- `formatMoney(euros)` in utils/helpers.js → "12,50 €" but with a non-breaking space, string comparisons fail
+- `toFrenchDate` in utils/date.js, `formatDate` in lib/format.js, `formatDateTime` in utils/helpers.js: to merge one day
 
-## Installation à la boutique
-- PC de la caisse, Windows 10. Node installé par l'utilisateur avec l'installeur.
-- Lancer avec `start.bat` (double-clic). Laisser la fenêtre noire ouverte.
-- L'utilisateur copie le dossier `data/` sur une clé USB le vendredi soir.
+## Installation at the shop
+- Till PC, Windows 10. Node installed by the user with the installer.
+- Start with `start.bat` (double-click). Leave the black window open.
+- The user copies the `data/` folder to a USB stick on Friday evening.
 
-## Divers
-- Le lundi la boutique est fermée (`closedWeekday`), mais rien ne refuse une commande pour un lundi.
-- `GET /orders` est ouvert à tout le monde, avec les numéros de téléphone. À protéger.
-- Idée : envoyer le récapitulatif par e-mail plutôt que par SMS, c'est gratuit.
+## Miscellaneous
+- The shop is closed on Mondays (`closedWeekday`), but nothing refuses an order for a Monday.
+- `GET /orders` is open to everyone, with the phone numbers. To protect.
+- Idea: send the summary by e-mail rather than by SMS, it is free.

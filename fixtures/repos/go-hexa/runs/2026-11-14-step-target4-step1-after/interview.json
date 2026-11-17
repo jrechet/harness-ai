@@ -1,0 +1,56 @@
+[
+  {
+    "question": "What is the first task you want to delegate entirely to an agent on this repository?",
+    "ids": [
+      "mode",
+      "first-task"
+    ],
+    "answer": "Delegation. We want to hand over whole tickets and review the PR at the end.\nAdd an endpoint from a use case, from the handler down to the test."
+  },
+  {
+    "question": "When must an agent stop and ask instead of carrying on?",
+    "ids": [
+      "stop"
+    ],
+    "answer": "It stops and asks before touching a migration, the schema of an API contract or `deploy.yml`, and when the ticket is ambiguous about an amount or a rounding. The rest, it decides and writes it in the PR."
+  },
+  {
+    "question": "When is a task done (definition of done)?",
+    "ids": [
+      "done"
+    ],
+    "answer": "A task is done when `make test` and `make arch` pass, a test covers the change, and the PR says why in two lines."
+  },
+  {
+    "question": "What must the agent do when facing a red CI, and when facing a flaky test?",
+    "ids": [
+      "ci",
+      "red-ci"
+    ],
+    "answer": "GitHub Actions. The `test` and `arch` jobs block the merge. The `lint` job runs but does not block: there are too many inherited warnings.\nCI red because of its diff: it fixes it. Red for an unrelated cause: it reports it in the PR and does not touch it. A flaky test: it reruns once, then opens an issue; it never disables it."
+  },
+  {
+    "question": "Adding an endpoint necessarily changes the API contract: must the agent stop only when it modifies or removes an existing route or field (adding a new route or field being allowed)?",
+    "ids": [
+      "stop"
+    ],
+    "answer": "It stops and asks before touching a migration, the schema of an API contract or `deploy.yml`, and when the ticket is ambiguous about an amount or a rounding. The rest, it decides and writes it in the PR."
+  },
+  {
+    "question": "For migrations: can the agent ADD a migration file at the next number without asking, and only stop to modify an existing migration (already forbidden)? Or must it stop as soon as a new migration file is needed?",
+    "ids": [
+      "forbidden",
+      "stop",
+      "new-migration"
+    ],
+    "answer": "Touching a database that is not your own, modifying a migration already applied, running `deploy.yml` without `dry_run`.\nIt stops and asks before touching a migration, the schema of an API contract or `deploy.yml`, and when the ticket is ambiguous about an amount or a rounding. The rest, it decides and writes it in the PR.\nAdding a migration at the next number is the normal path: no need to ask. What needs my agreement is modifying an existing migration, or a migration that deletes or rewrites data."
+  },
+  {
+    "question": "An \"add an endpoint\" ticket necessarily adds a route to the API contract. If the agent must ask every time, the task cannot be delegated. I propose: adding a route or a field is allowed; renaming, removing or changing the type of an existing route or field needs your agreement. Agreed, yes or no?",
+    "ids": [
+      "mode",
+      "oral"
+    ],
+    "answer": "Delegation. We want to hand over whole tickets and review the PR at the end.\nOne thing that is written nowhere, and that we repeat at every review: when an endpoint replays a request already processed, its response carries the `Idempotency-Replayed: true` header. The mobile app has used it since June 2026 to avoid showing the confirmation twice. `POST /transfers` does not do it yet, it is in the backlog; every new write endpoint must do it."
+  }
+]

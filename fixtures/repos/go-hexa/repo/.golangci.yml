@@ -13,9 +13,9 @@ linters:
 linters-settings:
   forbidigo:
     forbid:
-      # docs/adr/0002-montants-en-centimes.md
+      # docs/adr/0002-amounts-in-cents.md
       - p: '^float(32|64)$'
-        msg: "pas de flottant pour un montant : int64 en centimes (ADR 0002)"
+        msg: "no float for an amount: int64 in cents (ADR 0002)"
 
 issues:
   exclude-rules:

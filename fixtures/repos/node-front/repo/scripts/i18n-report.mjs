@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Liste en JSON les clés présentes dans fr.json et absentes de en.json, pour le workflow agent-fix-i18n.
+// Lists as JSON the keys present in fr.json and missing from en.json, for the agent-fix-i18n workflow.
 import { readFileSync } from "node:fs";
 
 function flatten(obj, prefix = "") {

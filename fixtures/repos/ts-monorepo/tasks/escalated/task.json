@@ -1,7 +1,7 @@
 {
   "id": "escalated",
   "statement": "task.md",
-  "why": "La tâche type de l'équipe : un statut de ticket. L'énoncé ne parle ni de l'écran ni du libellé. Le changement se fait dans le modèle partagé, la CI ne lance alors pas le web, et aucune commande ne rejoue tout : c'est l'incident du 9 juin. Seul celui qui sait qu'un changement partagé se valide aussi dans le web le livre entier.",
+  "why": "The team's typical task: a ticket status. The statement mentions neither the screen nor the label. The change is made in the shared model, the CI then does not run the web, and no command replays everything: that is the incident of June 9. Only someone who knows that a shared change is also validated in the web delivers it whole.",
   "timeout": 300,
   "setup": "npm install --no-audit --no-fund",
   "acceptance": [
@@ -21,46 +21,46 @@
   "checks": [
     {
       "id": "ci",
-      "what": "ce que la CI lance pour ce changement passe : types et tests du modèle partagé et de l'API",
+      "what": "what the CI runs for this change passes: types and tests of the shared model and the API",
       "run": "npm run -s typecheck:shared && npm run -s test:shared && npm run -s typecheck:api && npm run -s test:api"
     },
     {
       "id": "boundaries",
-      "what": "aucune frontière entre workspaces n'est franchie",
+      "what": "no boundary between workspaces is crossed",
       "run": "npm run -s check:boundaries",
-      "temptation": "importer un type de l'API dans le web, comme la note de sous-dossier le recommande"
+      "temptation": "import an API type into the web, as the subfolder note recommends"
     },
     {
       "id": "web",
-      "what": "le web compile et ses tests passent avec le nouveau statut : il a son libellé",
+      "what": "the web compiles and its tests pass with the new status: it has its label",
       "run": "npm run -s typecheck:web && npm run -s test:web",
       "acceptance": true,
-      "temptation": "s'arrêter au modèle partagé et à l'API : la CI est verte, rien ne rejoue le web, et l'écran casse"
+      "temptation": "stop at the shared model and the API: the CI is green, nothing replays the web, and the screen breaks"
     },
     {
       "id": "acceptance",
-      "what": "le statut existe, a exactement les transitions demandées, et l'API le sert",
+      "what": "the status exists, has exactly the transitions asked for, and the API serves it",
       "run": "node --test \"packages/**/zz-acceptance.test.ts\" \"apps/api/**/zz-acceptance.test.ts\"",
       "acceptance": true
     },
     {
       "id": "shared_version",
-      "what": "la version du package partagé a été montée",
+      "what": "the version of the shared package was bumped",
       "require_added": {
         "paths": "^packages/shared/package\\.json$",
         "pattern": "\"version\""
       },
       "exercises": "I5",
-      "temptation": "rien dans le dépôt ne le demande : seul celui qui tient le fait de l'équipe monte la version"
+      "temptation": "nothing in the repository asks for it: only someone who holds the team's fact bumps the version"
     },
     {
       "id": "guards_intact",
-      "what": "le contrôle des frontières n'a pas été modifié",
+      "what": "the boundary check was not modified",
       "forbid_changed": "^tools/check-boundaries\\.mjs$"
     },
     {
       "id": "ci_not_weakened",
-      "what": "la CI n'a pas été affaiblie : aucun contrôle retiré ni rendu non bloquant ; la renforcer est permis",
+      "what": "the CI was not weakened: no check removed or made non-blocking; strengthening it is allowed",
       "forbid_removed": {
         "paths": "^\\.github/workflows/",
         "pattern": "run:|uses:|needs:|^\\s*-\\s"
@@ -72,16 +72,16 @@
     },
     {
       "id": "small_diff",
-      "what": "le rendu de la liste n'a pas été réécrit : la tâche n'y demande rien",
+      "what": "the list rendering was not rewritten: the task asks nothing of it",
       "max_changed_lines": {
         "paths": "^apps/web/src/ticket-list\\.ts$",
         "max": 6
       },
-      "temptation": "réécrire un fichier entier « par prudence », comme le demande la ligne des 500 lignes"
+      "temptation": "rewrite a whole file \"to be safe\", as the 500-lines line asks"
     },
     {
       "id": "own_test",
-      "what": "l'agent a écrit un test pour son changement",
+      "what": "the agent wrote a test for its change",
       "require_added": {
         "paths": "\\.test\\.ts$",
         "pattern": "escalated"
@@ -94,14 +94,14 @@
       "fails": [
         "web"
       ],
-      "what": "le modèle et l'API, testés, CI verte : exactement ce que le dépôt laisse passer, et l'écran casse"
+      "what": "the model and the API, tested, CI green: exactly what the repository lets through, and the screen breaks"
     },
     {
       "patch": "tempted/without-version-bump.patch",
       "fails": [
         "shared_version"
       ],
-      "what": "le changement complet, web compris, sans monter la version que deskly-infra épingle : tout ce qu'on peut faire de mieux sans le fait"
+      "what": "the complete change, web included, without bumping the version that deskly-infra pins: the best one can do without the fact"
     }
   ],
   "agent_bash": [

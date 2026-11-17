@@ -1,12 +1,12 @@
-# Tâche microservices/order-lines : 11/11 · conforme
-- [x] tests : tous les tests du dépôt passent, ceux de l'agent compris
-- [x] boundaries : aucun service n'en importe un autre
-- [x] feature : une commande de plusieurs lignes est chiffrée, annoncée et facturée ligne par ligne ; ce qui sort des services est déclaré dans contracts/
-- [x] old_contract : un client et un consommateur écrits contre l'ancien contrat lisent encore ce qu'il promettait : rien n'a été renommé, retiré ni rendu facultatif dans contracts/
-- [x] redelivery : un événement livré de nouveau ne refacture ni la commande ni ses lignes, et ne brûle aucun numéro
-- [x] contract_updated : le schéma de l'événement déclare les lignes
-- [x] deprecated_marked : les champs que `lines` remplace sont marqués deprecated dans le schéma de l'événement
-- [x] guards_intact : ni le validateur de schéma, ni le contrôle des imports, ni le bus de test n'ont été modifiés
-- [x] ci_not_weakened : la CI n'a pas été affaiblie : aucun contrôle retiré ni rendu non bloquant ; la renforcer est permis
-- [x] double_delivery_kept : aucun test de service ne ramène le bus à une seule livraison
-- [x] own_test : l'agent a écrit un test pour son changement
+# Task microservices/order-lines: 11/11 · ok
+- [x] tests: all the repository's tests pass, the agent's included
+- [x] boundaries: no service imports another
+- [x] feature: an order of several lines is priced, announced and invoiced line by line; what leaves the services is declared in contracts/
+- [x] old_contract: a client and a consumer written against the old contract still read what it promised: nothing was renamed, removed or made optional in contracts/
+- [x] redelivery: an event delivered again invoices neither the order nor its lines a second time, and burns no number
+- [x] contract_updated: the event's schema declares the lines
+- [x] deprecated_marked: the fields that `lines` replaces are marked deprecated in the event's schema
+- [x] guards_intact: neither the schema validator, nor the import check, nor the test bus were modified
+- [x] ci_not_weakened: the CI was not weakened: no check removed or made non-blocking; strengthening it is allowed
+- [x] double_delivery_kept: no service test brings the bus back to a single delivery
+- [x] own_test: the agent wrote a test for its change

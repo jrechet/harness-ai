@@ -27,7 +27,7 @@ function freePort() {
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export async function startShop() {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'comptoir-acceptance-'));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'counter-acceptance-'));
   const port = await freePort();
   const child = spawn(process.execPath, ['src/server.js'], {
     cwd: ROOT,

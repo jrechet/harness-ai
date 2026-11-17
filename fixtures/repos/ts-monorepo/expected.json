@@ -26,35 +26,35 @@
     "must_surface": [
       {
         "id": "I1",
-        "what": "un changement dans packages/shared ne déclenche pas le job web",
+        "what": "a change in packages/shared does not trigger the web job",
         "any_of": [
           "packages/shared"
         ]
       },
       {
         "id": "I2",
-        "what": "frontières entre workspaces et leur garde-fou",
+        "what": "boundaries between workspaces and their guardrail",
         "any_of": [
           "boundaries"
         ]
       },
       {
         "id": "I3",
-        "what": "escapeHtml sur toute valeur utilisateur, test d'intrusion",
+        "what": "escapeHtml on every user value, penetration test",
         "any_of": [
           "escapehtml"
         ]
       },
       {
         "id": "I4",
-        "what": "pas de pilote de base ici, le stockage vit dans deskly-infra",
+        "what": "no database driver here, storage lives in deskly-infra",
         "any_of": [
           "deskly-infra"
         ]
       },
       {
         "id": "I5",
-        "what": "un changement du modèle partagé monte la version du package, dit par l'équipe et écrit nulle part ailleurs",
+        "what": "a change to the shared model bumps the package version, said by the team and written nowhere else",
         "any_of": [
           "shared/package.json"
         ],
@@ -66,7 +66,7 @@
     "must_not_write": [
       {
         "id": "N1",
-        "what": "commandes qui n'existent pas",
+        "what": "commands that do not exist",
         "any_of": [
           "npm run lint",
           "npm run build"
@@ -75,32 +75,30 @@
       },
       {
         "id": "N2",
-        "what": "style générique",
+        "what": "generic style",
         "any_of": [
           "meaningful variable",
           "clean, readable",
           "prefer `const`",
           "prefer const",
           "functions small",
-          "code propre",
-          "noms de variables"
+          "clean code",
+          "variable names"
         ]
       },
       {
         "id": "N3",
-        "what": "consignes écrites pour d'anciens modèles",
+        "what": "instructions written for old models",
         "any_of": [
           "step by step",
-          "étape par étape",
           "hallucin",
           "expert senior",
-          "500 lines",
-          "500 lignes"
+          "500 lines"
         ]
       },
       {
         "id": "N4",
-        "what": "contrainte périmée",
+        "what": "outdated constraint",
         "any_of": [
           "ie11",
           "optional chaining"
@@ -108,23 +106,22 @@
       },
       {
         "id": "N5",
-        "what": "consigne qui contredit le garde-fou des frontières",
+        "what": "instruction that contradicts the boundaries guardrail",
         "any_of": [
           "api/src/tickets"
         ]
       },
       {
         "id": "N6",
-        "what": "confirmation avant chaque commande, en mode délégation",
+        "what": "confirmation before each command, in delegation mode",
         "any_of": [
           "confirmation before running",
-          "confirmation avant chaque commande",
-          "confirmation avant de lancer"
+          "confirmation before each command"
         ]
       },
       {
         "id": "N7",
-        "what": "objectif de couverture sans outil",
+        "what": "coverage target without a tool",
         "any_of": [
           "80%",
           "80 %"
@@ -151,7 +148,7 @@
     "only_level_material": true,
     "never_guarded": [
       {
-        "what": "le job web ne tourne pas quand packages/shared change",
+        "what": "the web job does not run when packages/shared changes",
         "rule_all_of": [
           "packages/shared",
           "web"
@@ -236,7 +233,7 @@
     "forbidden_leak_keywords": [
       "meaningful",
       "prefer const",
-      "noms de variables"
+      "variable names"
     ],
     "removals": [
       {
@@ -319,7 +316,7 @@
     ],
     "never_guarded": [
       {
-        "what": "le job web ne tourne pas quand packages/shared change",
+        "what": "the web job does not run when packages/shared changes",
         "rule_all_of": [
           "packages/shared",
           "web"

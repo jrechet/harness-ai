@@ -1,9 +1,9 @@
 # Changelog
 
 ## 1.4.2
-- Corrige le diff sur les fichiers binaires.
+- Fixes the diff on binary files.
 
 ## 1.4.1
-- Corrige le timeout par défaut de `piloto push`.
+- Fixes the default timeout of `piloto push`.
 
 ## 1.4.0

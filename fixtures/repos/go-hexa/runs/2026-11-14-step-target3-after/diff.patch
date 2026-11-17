@@ -1,0 +1,450 @@
+diff --git a/.harness/config.json b/.harness/config.json
+new file mode 100644
+index 0000000..027c19d
+--- /dev/null
++++ b/.harness/config.json
+@@ -0,0 +1 @@
++{"schema": "harness-config/1", "target_level": 3}
+\ No newline at end of file
+diff --git a/.harness/state.json b/.harness/state.json
+new file mode 100644
+index 0000000..75044cb
+--- /dev/null
++++ b/.harness/state.json
+@@ -0,0 +1,322 @@
++{
++  "schema": "harness-state/1",
++  "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-67vqjvhi/repo",
++  "date": "2026-11-14",
++  "level": {
++    "reached": 1,
++    "name": "Framed",
++    "next": 2
++  },
++  "target": {
++    "level": 3,
++    "name": "Verified",
++    "reached": false
++  },
++  "levels": [
++    {
++      "level": 0,
++      "name": "None",
++      "summary": "No instruction file: the agent starts from zero at every session.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [],
++      "passed_checks": 0,
++      "total_checks": 0
++    },
++    {
++      "level": 1,
++      "name": "Framed",
++      "summary": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L1.source",
++          "label": "An instruction file exists (AGENTS.md)",
++          "passed": true,
++          "value": "AGENTS.md",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.mode",
++          "label": "The line \"Mode: delegation | assistance\" is present",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.short",
++          "label": "The loaded file is at most 60 lines",
++          "passed": true,
++          "value": 32,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.single_source",
++          "label": "CLAUDE.md is an @AGENTS.md stub (or absent)",
++          "passed": true,
++          "value": {
++            "exists": true,
++            "lines": 1,
++            "loaded_lines": 32,
++            "is_stub": true
++          },
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.forbidden",
++          "label": "A \"Forbidden\" section says what an agent never does",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        }
++      ],
++      "passed_checks": 5,
++      "total_checks": 5
++    },
++    {
++      "level": 2,
++      "name": "Looped",
++      "summary": "The feedback loop runs: incidents become rules.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L2.maintenance",
++          "label": "A maintenance section says how the file evolves",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.rule_convention",
++          "label": "The `rule:` review convention is documented",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.marker_fresh",
++          "label": "A harvest ran less than 45 days ago",
++          "passed": true,
++          "value": 0,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L2.signal",
++          "label": "The last harvest found at least one real signal (S1–S4)",
++          "passed": false,
++          "value": null,
++          "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.",
++          "waits": true
++        }
++      ],
++      "passed_checks": 3,
++      "total_checks": 4
++    },
++    {
++      "level": 3,
++      "name": "Verified",
++      "summary": "Mandatory rules are enforced by tools, not by text.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L3.ci",
++          "label": "A CI exists (workflows or .gitlab-ci.yml)",
++          "passed": true,
++          "value": [
++            "ci.yml",
++            "deploy.yml"
++          ],
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.guarded",
++          "label": "At least 50% of the rules are \"Enforced by\" a tool",
++          "passed": false,
++          "value": 0.25,
++          "next_action": "Push the narrated rules down to L3: custom lint, architecture test, PR check.",
++          "waits": false
++        },
++        {
++          "id": "L3.justified",
++          "label": "At least 50% of the rules say why",
++          "passed": true,
++          "value": 1.0,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.audit",
++          "label": "A harness-audit exists and has no open P1",
++          "passed": false,
++          "value": null,
++          "next_action": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s.",
++          "waits": false
++        }
++      ],
++      "passed_checks": 2,
++      "total_checks": 4
++    },
++    {
++      "level": 4,
++      "name": "Delegated",
++      "summary": "Whole tasks are handed to the agent and come back clean.",
++      "achieved": false,
++      "in_scope": false,
++      "checks": [
++        {
++          "id": "L4.mode",
++          "label": "The mode is delegation",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L4.process",
++          "label": "A \"Working process\" section frames the agent",
++          "passed": false,
++          "value": false,
++          "next_action": "Add: when to stop and ask, definition of done, red CI, flaky test.",
++          "waits": false
++        },
++        {
++          "id": "L4.contracts",
++          "label": "At least one task contract exists and is referenced",
++          "passed": false,
++          "value": 0,
++          "next_action": "Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in AGENTS.md.",
++          "waits": false
++        },
++        {
++          "id": "L4.clean_prs",
++          "label": "The last harvest sees agent PRs with no after-the-fact correction",
++          "passed": false,
++          "value": null,
++          "next_action": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them.",
++          "waits": true
++        },
++        {
++          "id": "L4.cut_the_agent",
++          "label": "The audit's \"cut the agent\" test passes",
++          "passed": false,
++          "value": null,
++          "next_action": "Push down to L3/L4 the steps that exist only in prompts.",
++          "waits": false
++        }
++      ],
++      "passed_checks": 1,
++      "total_checks": 5
++    }
++  ],
++  "layers": {
++    "source": "estimate",
++    "layers": {
++      "L1": {
++        "total": null,
++        "misplaced": null
++      },
++      "L2": {
++        "total": 1,
++        "misplaced": null
++      },
++      "L3": {
++        "total": 1,
++        "misplaced": null
++      },
++      "L4": {
++        "total": 2,
++        "misplaced": null
++      }
++    },
++    "hint": "Run harness-audit for a measured layer view."
++  },
++  "next_actions": [
++    "Push the narrated rules down to L3: custom lint, architecture test, PR check.",
++    "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s."
++  ],
++  "waiting": [
++    "L2.signal"
++  ],
++  "dangling": [],
++  "facts": {
++    "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-67vqjvhi/repo",
++    "date": "2026-11-14",
++    "instructions": {
++      "files": {
++        "AGENTS.md": {
++          "exists": true,
++          "lines": 32,
++          "loaded_lines": 32,
++          "is_stub": false
++        },
++        "CLAUDE.md": {
++          "exists": true,
++          "lines": 1,
++          "loaded_lines": 32,
++          "is_stub": true
++        },
++        ".github/copilot-instructions.md": {
++          "exists": false
++        },
++        ".cursor/rules": {
++          "exists": false,
++          "files": []
++        }
++      },
++      "source": {
++        "path": "AGENTS.md",
++        "mode": "delegation",
++        "lines": 32,
++        "rules_total": 8,
++        "rules_guarded": 2,
++        "rules_unguarded_marked": 3,
++        "rules_justified": 8,
++        "rules_dated": 8,
++        "oldest_rule_date": "2026-02",
++        "has_maintenance_section": true,
++        "has_process_section": false,
++        "has_forbidden_section": true,
++        "mentions_rule_convention": true,
++        "harvest_marker": {
++          "date": "2026-11-14",
++          "ref": "init"
++        }
++      }
++    },
++    "contracts": {
++      "count": 0,
++      "items": []
++    },
++    "guardrails": {
++      "tools": {
++        "golangci-lint": [
++          ".golangci.yml"
++        ]
++      },
++      "workflows": [
++        "ci.yml",
++        "deploy.yml"
++      ],
++      "has_ci": true
++    },
++    "audit": null,
++    "harvest": null,
++    "harvest_marker_age_days": 0,
++    "config": {
++      "target_level": 3
++    },
++    "dangling": []
++  }
++}
+diff --git a/AGENTS.md b/AGENTS.md
+index 9c3cb4f..d8d0f0f 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -14,7 +14,7 @@ Ledger service: open an account, read a balance, transfer money. Decisions in `d
+ 
+ ## Rules
+ - The domain depends on nothing, a use case only knows ports, the adapters do not know each other. Why: testing a transfer required a database. Enforced by: `tools/archcheck`, job `arch`. [2026-11]
+-- Every endpoint that changes a balance requires `Idempotency-Key`, looked up inside the write transaction, never before opening it. Why: an account debited twice by €480, 37 accounts affected (`docs/postmortems/2026-04-double-debit.md`). `POST /accounts` does not apply it yet, do not take it as a model. (unverified) [2026-11]
++- Every endpoint that changes a balance requires `Idempotency-Key`, looked up inside the write transaction, never before opening it. Why: an account debited twice by €480, 37 accounts affected (`docs/postmortems/2026-04-double-debit.md`). Enforced by: `internal/adapters/httpapi/idempotency_guard_test.go`, job `test` (presence of the key on every non-GET route; the lookup inside the transaction is left to the review). Single exemption, `POST /accounts`: do not take it as a model. [2026-11]
+ - A response replayed by idempotency key carries the `Idempotency-Replayed: true` header. Why: the mobile app uses it to avoid showing two confirmations; told by the team, written nowhere else. `POST /transfers` does not do it yet. (unverified) [2026-06]
+ - An amount is a `domain.Money`, an integer in cents; no float in `internal/domain` nor `internal/app`. Why: rounding errors that distort a balance, ADR 0002. `internal/app/fees.go` already violates the rule, and the `lint` job that carries this check does not block. (unverified) [2026-11]
+ - An applied migration is never modified again: a file is added at the next number. Why: staging and production only replay what `deploy.yml` passes them. (unverified) [2026-11]
+diff --git a/internal/adapters/httpapi/idempotency_guard_test.go b/internal/adapters/httpapi/idempotency_guard_test.go
+new file mode 100644
+index 0000000..e475849
+--- /dev/null
++++ b/internal/adapters/httpapi/idempotency_guard_test.go
+@@ -0,0 +1,58 @@
++package httpapi
++
++import (
++	"net/http"
++	"net/http/httptest"
++	"regexp"
++	"strings"
++	"testing"
++)
++
++// Guard for the AGENTS.md rule "every endpoint that changes a balance requires
++// Idempotency-Key" (docs/postmortems/2026-04-double-debit.md: "a new write
++// endpoint can still forget the key"). Every route that is not a
++// read must answer 400 idempotency_key_required when the header is missing.
++//
++// A route may only be skipped here with a reason. Removing an entry is
++// welcome; adding one needs the owner's agreement.
++var withoutIdempotencyKey = map[string]string{
++	"POST /accounts": "not applied yet, known and written in AGENTS.md",
++}
++
++var pathParam = regexp.MustCompile(`\{[^}]*\}`)
++
++func TestWriteRoutesRequireIdempotencyKey(t *testing.T) {
++	srv := NewServer(nil)
++	h := newServer(t)
++	for _, r := range srv.routes() {
++		method, path, _ := strings.Cut(r.pattern, " ")
++		if method == http.MethodGet || method == http.MethodHead {
++			continue
++		}
++		if reason, ok := withoutIdempotencyKey[r.pattern]; ok {
++			t.Logf("%s exempt: %s", r.pattern, reason)
++			continue
++		}
++		t.Run(r.pattern, func(t *testing.T) {
++			req := httptest.NewRequest(method, pathParam.ReplaceAllString(path, "x"), strings.NewReader(`{}`))
++			rec := httptest.NewRecorder()
++			h.ServeHTTP(rec, req)
++			if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "idempotency_key_required") {
++				t.Fatalf("%s without Idempotency-Key: got %d %s, want 400 idempotency_key_required "+
++					"(AGENTS.md rule, postmortem 2026-04-double-debit)", r.pattern, rec.Code, rec.Body)
++			}
++		})
++	}
++}
++
++func TestIdempotencyExemptionsStillExist(t *testing.T) {
++	known := map[string]bool{}
++	for _, r := range NewServer(nil).routes() {
++		known[r.pattern] = true
++	}
++	for pattern := range withoutIdempotencyKey {
++		if !known[pattern] {
++			t.Errorf("exemption %q matches no route: remove it", pattern)
++		}
++	}
++}
+diff --git a/internal/adapters/httpapi/server.go b/internal/adapters/httpapi/server.go
+index 8b54e11..7756c2e 100644
+--- a/internal/adapters/httpapi/server.go
++++ b/internal/adapters/httpapi/server.go
+@@ -16,13 +16,27 @@ type Server struct{ svc *app.Service }
+ 
+ func NewServer(svc *app.Service) *Server { return &Server{svc: svc} }
+ 
++type route struct {
++	pattern string
++	handler http.HandlerFunc
++}
++
++// routes is the single list of endpoints. TestWriteRoutesRequireIdempotencyKey
++// walks it: every non-GET route must reject a request without Idempotency-Key.
++func (s *Server) routes() []route {
++	return []route{
++		{"GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }},
++		{"POST /accounts", s.openAccount},
++		{"GET /accounts/{id}", s.getAccount},
++		{"POST /transfers", s.createTransfer},
++		{"GET /transfers/quote", s.quote},	}
++}
++
+ func (s *Server) Handler() http.Handler {
+ 	mux := http.NewServeMux()
+-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) })
+-	mux.HandleFunc("POST /accounts", s.openAccount)
+-	mux.HandleFunc("GET /accounts/{id}", s.getAccount)
+-	mux.HandleFunc("POST /transfers", s.createTransfer)
+-	mux.HandleFunc("GET /transfers/quote", s.quote)
++	for _, r := range s.routes() {
++		mux.HandleFunc(r.pattern, r.handler)
++	}
+ 	return mux
+ }
+ 

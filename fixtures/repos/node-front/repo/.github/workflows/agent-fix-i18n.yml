@@ -15,7 +15,7 @@ jobs:
         run: node scripts/i18n-report.mjs > missing.json
       - name: Ask the agent to translate and open a PR
         run: |
-          npx @anthropic-ai/claude-code -p "Lis missing.json, ajoute les traductions manquantes dans src/locales/en.json, puis ouvre une PR." \
+          npx @anthropic-ai/claude-code -p "Read missing.json, add the missing translations to src/locales/en.json, then open a PR." \
             --allowedTools "Edit,Bash(git *),Bash(gh pr create*)"
         env: { ANTHROPIC_API_KEY: "${{ secrets.ANTHROPIC_API_KEY }}", GH_TOKEN: "${{ secrets.BOT_TOKEN }}" }
       - name: Auto-merge when green

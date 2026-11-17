@@ -1,5 +1,5 @@
-# Les garde-fous et les contrats se relisent à deux.
-/tools/      @comptoir/plateforme
-/shared/     @comptoir/plateforme
-/.github/    @comptoir/plateforme
-/contracts/  @comptoir/referents-contrats
+# Guardrails and contracts are reviewed by two people.
+/tools/      @comptoir/platform
+/shared/     @comptoir/platform
+/.github/    @comptoir/platform
+/contracts/  @comptoir/contract-owners

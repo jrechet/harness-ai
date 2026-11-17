@@ -1,2 +1,2 @@
-# Supprimé par le pas, un chemin par ligne.
+# Deleted by the step, one path per line.
 PLAN.md

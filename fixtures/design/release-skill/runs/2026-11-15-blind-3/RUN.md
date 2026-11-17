@@ -1,16 +1,16 @@
-# 2026-11-15 — harness-design à l'aveugle sur release-skill, avec T7
+# 2026-11-15 — harness-design blind on release-skill, with T7
 
-Un agent neuf, sur un kit sans corrigé, skill et CLI au commit 23de229. Environ 100 000 tokens. Une seule exécution.
+A fresh agent, on a kit without the answer key, skill and CLI at commit 23de229. About 100,000 tokens. A single run.
 
-**Résultat : 6 pièges trouvés sur 7, aucun élément sain déplacé** (`check.md`). Noté avant toute correction.
+**Result: 6 traps found out of 7, no healthy item moved** (`check.md`). Graded before any correction.
 
-## L'écart : T7, le même que C2 sur la fixture tenue à l'écart
+## The gap: T7, the same as C2 on the held-out fixture
 
-La pré-condition « pas de release avec des fichiers non commités », que le propriétaire dit sans gravité mais à ne pas oublier, part en permission de l'agent. L'agent écrit dans `notes.md` ce que l'agent de `ticket-vers-pr` avait écrit : en `rule`, `incident=no` mène à du texte, et il a pris `limit` pour obtenir un verrou.
+The precondition "no release with uncommitted files", which the owner calls harmless but not to be forgotten, goes to agent permission. The agent writes in `notes.md` what the agent of `ticket-to-pr` had written: as a `rule`, `incident=no` leads to text, and it took `limit` to get a lock.
 
-Deux agents indépendants, deux fixtures, la même impasse et le même détour : c'est la grille. La correction suit dans le commit d'après ; ce plan reste noté tel quel.
+Two independent agents, two fixtures, the same dead end and the same detour: it is the grid. The correction follows in the next commit; this plan stays graded as is.
 
-## Autres remontées (`notes.md`)
+## Other feedback (`notes.md`)
 
-- Sous `compute`, « une version mal calculée est un incident » ne change rien : troisième fois que c'est dit.
-- Le skill ne dit pas si une revue peut ajouter un morceau sans `current`, ni quel `current` donner à une vérification seulement racontée dans un SKILL.md.
+- Under `compute`, "a miscomputed version is an incident" changes nothing: third time it is said.
+- The skill does not say whether a review may add a piece without `current`, nor which `current` to give a check that is only told as a story in a SKILL.md.

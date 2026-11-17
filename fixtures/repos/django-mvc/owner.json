@@ -1,5 +1,5 @@
 {
-  "intro": "Je représente l'équipe qui maintient ce dépôt. Je réponds à vos questions, une par une ; je ne pense pas à tout de moi-même.",
+  "intro": "I represent the team that maintains this repository. I answer your questions, one by one; I do not think of everything on my own.",
   "answers": [
     {
       "id": "mode",
@@ -12,21 +12,30 @@
         "relisez",
         "relecture",
         "pilot*",
-        "autonom*"
+        "autonom*",
+        "delegat*",
+        "review each diff",
+        "reviews each diff",
+        "supervis*"
       ],
-      "answer": "Délégation. On veut confier des tickets entiers et relire la PR à la fin."
+      "answer": "Delegation. We want to hand over whole tickets and review the PR at the end."
     },
     {
-      "id": "equipe",
+      "id": "team",
       "any_of": [
         "équipe",
         "combien",
         "développeu*",
         "qui travaille",
         "qui intervient",
-        "responsable formation"
+        "responsable formation",
+        "team",
+        "how many",
+        "developer*",
+        "who works",
+        "training manager"
       ],
-      "answer": "Trois développeurs, dont aucun n'était là au démarrage du projet ; une responsable formation qui se sert de l'admin."
+      "answer": "Three developers, none of whom was there when the project started; a training manager who uses the admin."
     },
     {
       "id": "ci",
@@ -42,12 +51,15 @@
         "workflow*",
         "github actions",
         "job",
-        "jobs"
+        "jobs",
+        "continuous integration",
+        "block*",
+        "merging"
       ],
-      "answer": "GitHub Actions, un seul job, `test`. Il bloque la fusion sur `main`."
+      "answer": "GitHub Actions, a single job, `test`. It blocks the merge into `main`."
     },
     {
-      "id": "ci-histoire",
+      "id": "ci-history",
       "any_of": [
         "ancienne ci",
         "ancien* pipeline",
@@ -56,12 +68,19 @@
         "inventaire",
         "jenkins",
         "travis",
-        "gitlab"
+        "gitlab",
+        "old ci",
+        "previous ci",
+        "former ci",
+        "old pipeline",
+        "ci changed",
+        "ci change",
+        "inventory"
       ],
-      "answer": "Oui, la CI a changé début 2025, avec l'hébergeur. On a repris les tests sur GitHub Actions. Personne n'a fait l'inventaire de ce que l'ancienne vérifiait d'autre."
+      "answer": "Yes, the CI changed at the beginning of 2025, with the host. We took the tests over to GitHub Actions. Nobody made the inventory of what else the old one checked."
     },
     {
-      "id": "outils",
+      "id": "tools",
       "any_of": [
         "outils",
         "outil",
@@ -70,12 +89,16 @@
         "codex",
         "quels agents",
         "assistant*",
-        "ide"
+        "ide",
+        "tools",
+        "tool",
+        "which agents",
+        "editor*"
       ],
-      "answer": "Claude Code pour deux d'entre nous, Copilot pour le troisième."
+      "answer": "Claude Code for two of us, Copilot for the third."
     },
     {
-      "id": "premiere-tache",
+      "id": "first-task",
       "any_of": [
         "première tâche",
         "premiere tache",
@@ -83,12 +106,19 @@
         "quelle tâche",
         "quelles tâches",
         "premier ticket",
-        "quels tickets"
+        "quels tickets",
+        "first task",
+        "delegate first",
+        "hand over first",
+        "which task",
+        "which tasks",
+        "first ticket",
+        "which tickets"
       ],
-      "answer": "Un traitement de données d'inscription, import ou export, de la vue jusqu'au test."
+      "answer": "A job on enrollment data, import or export, from the view to the test."
     },
     {
-      "id": "interdits",
+      "id": "forbidden",
       "any_of": [
         "interdits",
         "jamais toucher",
@@ -102,24 +132,40 @@
         "migration*",
         "e-mail*",
         "email*",
-        "données personnelles"
+        "données personnelles",
+        "forbidden",
+        "never touch",
+        "must never",
+        "should never",
+        "must not do",
+        "do not do",
+        "danger*",
+        "risk*",
+        "personal data"
       ],
-      "answer": "Modifier une migration déjà appliquée ; envoyer un vrai e-mail depuis autre chose que la production ; sortir du serveur des données personnelles d'inscrits."
+      "answer": "Modifying a migration already applied; sending a real e-mail from anything other than production; taking personal data of enrolled people out of the server."
     },
     {
-      "id": "origine",
+      "id": "origin",
       "any_of": [
         "d'où vien*",
         "qui a écrit",
         "écrit par qui",
         "relu",
         "historique du fichier",
-        "deux fichiers"
+        "deux fichiers",
+        "come from",
+        "comes from",
+        "came from",
+        "who wrote",
+        "reread",
+        "history of the file",
+        "two files"
       ],
-      "answer": "AGENTS.md a été écrit à la main fin 2024 par la développeuse qui a monté le projet. Elle est partie début 2025 et personne ne l'a relu depuis. CLAUDE.md a été recopié de mémoire par l'un de nous quand on a commencé avec Claude Code ; depuis, quand on corrige quelque chose, c'est dans celui-là."
+      "answer": "AGENTS.md was written by hand at the end of 2024 by the developer who set up the project. She left at the beginning of 2025 and nobody has reread it since. CLAUDE.md was copied from memory by one of us when we started with Claude Code; since then, when we fix something, it is in that one."
     },
     {
-      "id": "retirer",
+      "id": "remove",
       "any_of": [
         "retirer",
         "retire*",
@@ -127,9 +173,16 @@
         "supprime*",
         "enlever",
         "enlève*",
-        "nettoyer"
+        "nettoyer",
+        "remove*",
+        "delete*",
+        "drop",
+        "dropping",
+        "clean up",
+        "cleanup",
+        "prune"
       ],
-      "answer": "Oui. Dis ce que tu retires et pourquoi."
+      "answer": "Yes. Say what you remove and why."
     },
     {
       "id": "python",
@@ -138,9 +191,12 @@
         "version de python",
         "versions de python",
         "python 3",
-        "py38"
+        "py38",
+        "python version",
+        "python versions",
+        "version of python"
       ],
-      "answer": "Non, plus en 3.8. Le serveur a été remplacé en février 2025, la production tourne en 3.12."
+      "answer": "No, no longer on 3.8. The server was replaced in February 2025, production runs on 3.12."
     },
     {
       "id": "django",
@@ -149,31 +205,40 @@
         "lts",
         "version de django",
         "django 4*",
-        "django 5*"
+        "django 5*",
+        "django version",
+        "version of django"
       ],
-      "answer": "Plus depuis le changement d'hébergeur, en février 2025. On suit les versions courantes, 5.1 aujourd'hui."
+      "answer": "Not since the change of host, in February 2025. We follow the current versions, 5.1 today."
     },
     {
-      "id": "verrou",
+      "id": "lock",
       "any_of": [
         "verrou*",
         "select_for_update",
         "postgres*",
         "postgresql",
-        "sqlite"
+        "sqlite",
+        "lock*"
       ],
-      "answer": "La CI tourne sous SQLite et personne n'a monté de PostgreSQL pour les tests : rien ne vérifie le verrou."
+      "answer": "The CI runs under SQLite and nobody has set up a PostgreSQL for the tests: nothing verifies the lock."
     },
     {
-      "id": "attente",
+      "id": "expectation",
       "any_of": [
         "attend*",
         "un seul fichier",
         "fichier court",
         "longueur",
-        "combien de lignes"
+        "combien de lignes",
+        "expect*",
+        "single file",
+        "one file",
+        "short file",
+        "length",
+        "how many lines"
       ],
-      "answer": "Savoir ce qui tient encore dans un fichier écrit avec soin il y a deux ans, et ne garder qu'un seul fichier."
+      "answer": "To know what still holds in a file written with care two years ago, and to keep a single file."
     },
     {
       "id": "oral",
@@ -247,10 +312,75 @@
         "répétez",
         "répète*",
         "répéter",
-        "répétées"
+        "répétées",
+        "nowhere",
+        "not written",
+        "unwritten",
+        "never written",
+        "repeat*",
+        "every time",
+        "each time",
+        "tacit*",
+        "implicit*",
+        "in your head*",
+        "habit*",
+        "pitfall*",
+        "gotcha*",
+        "newcomer*",
+        "new joiner*",
+        "new hire*",
+        "new developer*",
+        "surpris*",
+        "forget*",
+        "forgot*",
+        "anything else",
+        "other rules",
+        "other rule",
+        "other instructions",
+        "to add",
+        "would you add",
+        "often fix*",
+        "often correct*",
+        "frequent mistake*",
+        "common mistake*",
+        "every review",
+        "each review",
+        "in code review",
+        "review comment*",
+        "come* up in review",
+        "pr comment*",
+        "come* up most often",
+        "no document",
+        "in any document",
+        "undocumented",
+        "without the ci",
+        "team knowledge",
+        "tribal knowledge",
+        "always miss*",
+        "always get* wrong",
+        "cap",
+        "caps",
+        "row cap",
+        "thirty seconds",
+        "30 seconds",
+        "request timeout*",
+        "cuts requests",
+        "cuts any request",
+        "number of rows",
+        "how many rows",
+        "large file*",
+        "big file*",
+        "row limit*",
+        "csv import",
+        "file import*",
+        "import a file",
+        "job* started from",
+        "host's cap",
+        "host's limit",
+        "keep saying"
       ],
-      "answer": "Une chose qui n'est écrite nulle part : l'hébergeur coupe toute requête à trente secondes. On a convenu avec lui, en février 2025, qu'un traitement lancé depuis une page ne dépasse pas 500 lignes, et que ce plafond se lit dans le réglage Django `CURSUS_IMPORT_MAX_ROWS`, pour qu'il puisse le baisser sans nous. Le réglage n'existe pas encore : aucun traitement de ce genre n'a été écrit. Au-delà du plafond, on refuse le fichier entier."
+      "answer": "One thing that is written nowhere: the host cuts any request at thirty seconds. We agreed with it, in February 2025, that a job started from a page does not exceed 500 rows, and that this cap is read from the Django setting `CURSUS_IMPORT_MAX_ROWS`, so that it can lower it without us. The setting does not exist yet: no job of this kind has been written. Beyond the cap, we refuse the whole file."
     }
   ],
-  "default": "Regardez dans `docs/`, c'est écrit. L'équipe ne sait rien de plus que ce que disent les post-mortems, l'ADR et la note d'exploitation."
+  "default": "Look in `docs/`, it is written. The team knows nothing more than what the post-mortems, the ADR and the operations note say."
 }

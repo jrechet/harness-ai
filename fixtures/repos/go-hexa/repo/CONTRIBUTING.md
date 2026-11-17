@@ -1,9 +1,9 @@
-# Contribuer
+# Contributing
 
-- Écrire du Go idiomatique et lisible ; `gofmt` avant de commiter.
-- Traiter chaque erreur, ne jamais l'ignorer.
-- Préférer les tests en table.
-- Nommer clairement les variables et les fonctions.
-- Garder les fonctions courtes.
-- Une PR par sujet, avec une description.
-- Les commits suivent Conventional Commits.
+- Write idiomatic, readable Go; `gofmt` before committing.
+- Handle every error, never ignore one.
+- Prefer table-driven tests.
+- Clearly name variables and functions.
+- Write short functions.
+- One PR per topic, with a description.
+- Commits follow Conventional Commits.

@@ -1,0 +1,204 @@
+{
+  "audit": {
+    "process": "Delivering a change in comptoir: three services, one contract (AI instrumentation of the repository: AGENTS.md)",
+    "scope": "fixtures/repos/microservices/repo/",
+    "date": "2026-11-10",
+    "author": "author of the fixture, laying it on thick: the zealous audit the grader must refuse. Not a measurement of the skill",
+    "health_score": 0,
+    "cut_the_agent_test": {
+      "passed": false,
+      "leaked_steps": 4
+    }
+  },
+  "elements": [
+    {
+      "id": "agents-md",
+      "path": "AGENTS.md",
+      "declared_layer": "L2",
+      "actual_layer": "MIXED",
+      "called_by": ["claude-md"],
+      "calls": [],
+      "verdict": "SPLIT",
+      "priority": "P1",
+      "finding": "The file mixes rules, commands and forbidden actions; four rules have no guardrail; several are more than two years old.",
+      "evidence": ["AGENTS.md:16-25"],
+      "target": "Rewrite the file from the template, move the rules out into skills.",
+      "check": "AGENTS.md under fifteen lines."
+    },
+    {
+      "id": "claude-md",
+      "path": "CLAUDE.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": ["agents-md"],
+      "verdict": "INLINE",
+      "priority": "P3",
+      "finding": "One-line file: too small to exist on its own.",
+      "evidence": ["CLAUDE.md:1"],
+      "target": "Delete it.",
+      "check": "File absent."
+    },
+    {
+      "id": "billing-agents-md",
+      "path": "services/billing/AGENTS.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": [],
+      "calls": [],
+      "verdict": "MERGE",
+      "priority": "P2",
+      "finding": "Second instruction file: the single source is broken.",
+      "evidence": ["services/billing/AGENTS.md:1-6"],
+      "target": "Merge into the root AGENTS.md.",
+      "check": "A single AGENTS.md in the repository."
+    },
+    {
+      "id": "test-bus",
+      "path": "shared/bus.py",
+      "declared_layer": "L3",
+      "actual_layer": "MIXED",
+      "called_by": [],
+      "calls": [],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "A bus that delivers twice is a test oddity hidden in shared code; idempotence should be an explicit check in CI.",
+      "evidence": ["shared/bus.py:33-51"],
+      "target": "Bring the bus back to one delivery and write a dedicated job.",
+      "check": "An idempotency job in ci.yml."
+    },
+    {
+      "id": "schema-validator",
+      "path": "tools/schema.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": [],
+      "calls": [],
+      "verdict": "BLOCK",
+      "priority": "P2",
+      "finding": "Home-made validator: to be replaced by an off-the-shelf library.",
+      "evidence": ["tools/schema.py:1-20"],
+      "target": "Add jsonschema and delete the file.",
+      "check": "tools/schema.py absent."
+    },
+    {
+      "id": "billing-test-ledger",
+      "path": "services/billing/test_ledger.py",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": [],
+      "calls": [],
+      "verdict": "PROMOTE",
+      "priority": "P3",
+      "finding": "A unit test is not enough to carry a legal obligation.",
+      "evidence": ["services/billing/test_ledger.py:22-32"],
+      "target": "A task contract for any change to billing.",
+      "check": "A billing SKILL.md."
+    }
+  ],
+  "process_leaks": [
+    {
+      "rule": "A contract change is additive",
+      "told_in": "AGENTS.md:17",
+      "if_skipped": "A reader of the old contract breaks.",
+      "belongs_in": "L3",
+      "guard_tool": "Comparison of the schemas to those on main."
+    },
+    {
+      "rule": "An event consumer is idempotent",
+      "told_in": "AGENTS.md:18",
+      "if_skipped": "Duplicate invoices.",
+      "belongs_in": "L3",
+      "guard_tool": "A CI job dedicated to idempotence."
+    },
+    {
+      "rule": "A service never imports another service's code",
+      "told_in": "AGENTS.md:19",
+      "if_skipped": "Two coupled services.",
+      "belongs_in": "L3",
+      "guard_tool": "An import linter to write."
+    },
+    {
+      "rule": "Follow PEP 8 and write a docstring per public function",
+      "told_in": "CONTRIBUTING.md:3-4",
+      "if_skipped": "Less readable code.",
+      "belongs_in": "L3",
+      "guard_tool": "ruff."
+    }
+  ],
+  "guarded_rules": [
+    {
+      "rule": "A contract change is additive, nothing is renamed",
+      "told_in": "AGENTS.md:17",
+      "guarded_by": "services/orders/test_contract.py"
+    }
+  ],
+  "removals": [
+    {
+      "path": "AGENTS.md",
+      "line": 21,
+      "text": "An event weighs less than 64 KB, envelope included.",
+      "reason": "outdated",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 20,
+      "text": "Before opening a PR, run `grep -rnE \"^(from|import) services\\.\" services/ shared/ tools/` and review each line by hand.",
+      "reason": "useless",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 16,
+      "text": "What a service publishes or answers is declared in `contracts/`, and nothing else leaves it.",
+      "reason": "outdated",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 18,
+      "text": "An event consumer is idempotent: the broker delivers \"at least once\".",
+      "reason": "useless",
+      "ask_owner": false
+    },
+    {
+      "path": "AGENTS.md",
+      "line": 25,
+      "text": "Weakening a guardrail to make a test pass: `deliveries=1` in a service's test.",
+      "reason": "useless",
+      "ask_owner": false
+    },
+    {
+      "path": "services/billing/AGENTS.md",
+      "line": 5,
+      "text": "Invoice numbers follow one another with no gap: `Ledger.issue` takes a number only when it writes the invoice.",
+      "reason": "useless",
+      "ask_owner": false
+    }
+  ],
+  "instruction_files": [
+    {
+      "path": "AGENTS.md",
+      "loaded_lines": 25,
+      "instruction_pct": 40,
+      "reference_pct": 30,
+      "noise_pct": 30,
+      "justified_rules": true,
+      "maintenance_clause": false
+    }
+  ],
+  "remediation": [
+    {
+      "order": 1,
+      "priority": "P1",
+      "verdict": "SPLIT",
+      "element": "agents-md",
+      "action": "Rewrite AGENTS.md from the template.",
+      "depends_on": [],
+      "check": "AGENTS.md under fifteen lines.",
+      "needs_human_approval": false
+    }
+  ],
+  "unverified": []
+}

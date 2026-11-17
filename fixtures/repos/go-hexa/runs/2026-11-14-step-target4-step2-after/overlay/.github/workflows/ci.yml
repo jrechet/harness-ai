@@ -1,0 +1,43 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.22" }
+      - run: go vet ./...
+      - run: go test ./...
+
+  arch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.22" }
+      - run: go run ./tools/archcheck
+
+  migrations:
+    # An applied migration is never modified again (AGENTS.md, docs/operations.md).
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@v5
+        with: { go-version: "1.22" }
+      - run: go run ./tools/migrationcheck -base "${{ github.event.pull_request.base.sha }}"
+
+  lint:
+    runs-on: ubuntu-latest
+    # Too many inherited warnings: to be made blocking once the debt is paid off.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: golangci/golangci-lint-action@v6
+        with: { version: v1.61 }

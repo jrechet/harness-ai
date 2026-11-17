@@ -4,20 +4,20 @@ from django.db.models import Q
 
 class Enrollment(models.Model):
     class Status(models.TextChoices):
-        CONFIRMED = "confirmed", "Confirmée"
-        WAITLISTED = "waitlisted", "Liste d'attente"
-        CANCELLED = "cancelled", "Annulée"
+        CONFIRMED = "confirmed", "Confirmed"
+        WAITLISTED = "waitlisted", "Waiting list"
+        CANCELLED = "cancelled", "Cancelled"
 
     session = models.ForeignKey("catalog.Session", on_delete=models.CASCADE, related_name="enrollments")
-    full_name = models.CharField("nom et prénom", max_length=200)
-    email = models.EmailField("adresse e-mail")
-    status = models.CharField("statut", max_length=12, choices=Status.choices)
-    created_at = models.DateTimeField("inscrit le", auto_now_add=True)
-    cancelled_at = models.DateTimeField("annulé le", null=True, blank=True)
+    full_name = models.CharField("full name", max_length=200)
+    email = models.EmailField("e-mail address")
+    status = models.CharField("status", max_length=12, choices=Status.choices)
+    created_at = models.DateTimeField("enrolled on", auto_now_add=True)
+    cancelled_at = models.DateTimeField("cancelled on", null=True, blank=True)
 
     class Meta:
         ordering = ["created_at", "id"]
-        verbose_name = "inscription"
+        verbose_name = "enrollment"
         constraints = [
             models.UniqueConstraint(
                 fields=["session", "email"],

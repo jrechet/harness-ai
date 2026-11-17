@@ -1,61 +1,61 @@
 diff --git a/.claude/skills/add-component/SKILL.md b/.claude/skills/add-component/SKILL.md
-index e1f1c15..e267cc0 100644
+index 82af655..cf85572 100644
 --- a/.claude/skills/add-component/SKILL.md
 +++ b/.claude/skills/add-component/SKILL.md
-@@ -5,10 +5,20 @@ description: Ajouter un composant Vue au design system de shopfront, avec sa sto
+@@ -5,10 +5,20 @@
  
- # Ajouter un composant
+ # Adding a component
  
--1. Crée `src/components/<Nom>.vue` en `<script setup lang="ts">`, props typées, émissions déclarées.
-+Contrat de tâche déléguée : l'agent prend la tâche entière et revient avec une PR vers `develop`. Les Interdits et le processus de travail d'`AGENTS.md` s'appliquent.
+-1. Create `src/components/<Name>.vue` with `<script setup lang="ts">`, typed props, declared emits.
++Delegated task contract: the agent takes the whole task and comes back with a PR to `develop`. The Forbidden items and the working process of `AGENTS.md` apply.
 +
-+## S'arrêter et demander si
-+- Le composant a besoin d'une couleur, d'un espacement ou d'un rayon absent de `src/styles/tokens.css` : il faut un ticket design, pas un nouveau token ni un hex.
-+- Il vit dans `src/payment/` ou en dépend.
++## Stop and ask if
++- The component needs a color, a spacing or a radius absent from `src/styles/tokens.css`: it takes a design ticket, not a new token nor a hex.
++- It lives in `src/payment/` or depends on it.
 +
-+## Étapes
-+1. Crée `src/components/<Nom>.vue` en `<script setup lang="ts">`, props typées, émissions déclarées. Styles par `var(--…)` uniquement : eslint `no-raw-color` et stylelint refusent le reste.
- 2. Crée la story `src/components/<Nom>.stories.ts` avec au moins l'état par défaut et un état désactivé. **La story est obligatoire**, même pour un composant sans UI visible : c'est là que la review visuelle se fait.
--3. Crée `src/components/<Nom>.spec.ts` avec Vitest et Testing Library.
--4. Ajoute les clés i18n dans `src/locales/fr.json` et `src/locales/en.json`, puis lance `npm run check:i18n`.
--5. Lance `npm run lint && npm run test:unit`.
--6. Ouvre le rapport de couverture (`coverage/index.html`) et vérifie que le pourcentage global n'a pas baissé par rapport à `main`. S'il a baissé, ajoute des tests avant d'ouvrir la PR.
--7. Ouvre la PR avec une capture de la story.
-+3. Crée `src/components/<Nom>.spec.ts` avec Vitest et Testing Library (modèle : `AppButton.spec.ts`).
-+4. Aucun texte en dur dans le template : chaque chaîne visible passe par `t()` et ses clés sont ajoutées dans `src/locales/fr.json` **et** `src/locales/en.json`. `npm run check:i18n` ne vérifie que la parité des clés, pas le template : relis-le toi-même.
-+5. Lance `npm run lint && npm run lint:style && npm run test:unit`.
-+6. Compare la ligne « All files » du rapport de couverture texte à celle de `develop` : si elle a baissé, ajoute des tests avant d'ouvrir la PR.
-+7. Ouvre la PR vers `develop` : le pourquoi, les états couverts par la story, le résultat de l'étape 6. Pas d'auto-merge.
++## Steps
++1. Create `src/components/<Name>.vue` with `<script setup lang="ts">`, typed props, declared emits. Styles through `var(--…)` only: eslint `no-raw-color` and stylelint refuse the rest.
+ 2. Create the story `src/components/<Name>.stories.ts` with at least the default state and a disabled state. **The story is mandatory**, even for a component with no visible UI: that is where the visual review happens.
+-3. Create `src/components/<Name>.spec.ts` with Vitest and Testing Library.
+-4. Add the i18n keys in `src/locales/fr.json` and `src/locales/en.json`, then run `npm run check:i18n`.
+-5. Run `npm run lint && npm run test:unit`.
+-6. Open the coverage report (`coverage/index.html`) and check that the overall percentage has not gone down compared with `main`. If it has, add tests before opening the PR.
+-7. Open the PR with a screenshot of the story.
++3. Create `src/components/<Name>.spec.ts` with Vitest and Testing Library (model: `AppButton.spec.ts`).
++4. No hard-coded text in the template: every visible string goes through `t()` and its keys are added in `src/locales/fr.json` **and** `src/locales/en.json`. `npm run check:i18n` only checks the parity of the keys, not the template: reread it yourself.
++5. Run `npm run lint && npm run lint:style && npm run test:unit`.
++6. Compare the "All files" line of the text coverage report with that of `develop`: if it went down, add tests before opening the PR.
++7. Open the PR to `develop`: the why, the states covered by the story, the result of step 6. No auto-merge.
 +
-+## Fini quand
-+Les cinq jobs de `ci.yml` sont verts, la story et le test existent, les deux locales ont les clés, la couverture n'a pas baissé, et un humain a approuvé la PR.
++## Done when
++The five jobs of `ci.yml` are green, the story and the test exist, both locales have the keys, coverage has not gone down, and a person has approved the PR.
 diff --git a/.cursor/rules/agents.mdc b/.cursor/rules/agents.mdc
 new file mode 100644
-index 0000000..5950ec7
+index 0000000..c053563
 --- /dev/null
 +++ b/.cursor/rules/agents.mdc
 @@ -0,0 +1,5 @@
 +---
-+description: Instructions du dépôt
++description: Repository instructions
 +alwaysApply: true
 +---
-+Les instructions de ce dépôt vivent dans `AGENTS.md` à la racine. Lis-le et applique-le ; aucune règle n'est définie ici.
++This repository's instructions live in `AGENTS.md` at the root. Read it and apply it; no rule is defined here.
 diff --git a/.cursor/rules/vue.mdc b/.cursor/rules/vue.mdc
 deleted file mode 100644
-index d78ff6b..0000000
+index 7c60c8a..0000000
 --- a/.cursor/rules/vue.mdc
 +++ /dev/null
 @@ -1,8 +0,0 @@
 ----
--description: Conventions Vue du projet
+-description: The project's Vue conventions
 -alwaysApply: true
 ----
--- Vue 3 ; l'Options API reste acceptée pour les composants de moins de 50 lignes.
--- Les couleurs viennent des tokens ; un hex ponctuel est toléré avec un commentaire `// TODO token`.
--- Chaque composant a un test unitaire. La story Storybook est facultative.
--- Ne pas modifier `src/payment/`.
+-- Vue 3; the Options API is still accepted for components under 50 lines.
+-- Colors come from the tokens; a one-off hex is tolerated with a `// TODO token` comment.
+-- Every component has a unit test. The Storybook story is optional.
+-- Do not change `src/payment/`.
 diff --git a/.github/copilot-instructions.md b/.github/copilot-instructions.md
-index 337c270..f648b15 100644
+index 337c270..765eabf 100644
 --- a/.github/copilot-instructions.md
 +++ b/.github/copilot-instructions.md
 @@ -1,8 +1 @@
@@ -67,84 +67,83 @@ index 337c270..f648b15 100644
 -- Strings: French first, English later. Hardcoded strings are acceptable in admin pages.
 -- Run `npm test` before committing.
 -- Do not touch the payment module.
-+Les instructions de ce dépôt vivent dans `AGENTS.md` à la racine. Lis-le avant toute modification et applique-le ; aucune règle n'est définie ici.
++This repository's instructions live in `AGENTS.md` at the root. Read it before any change and apply it; no rule is defined here.
 diff --git a/AGENTS.md b/AGENTS.md
-index 12200f6..65ecf3a 100644
+index 81c57ee..aa961f0 100644
 --- a/AGENTS.md
 +++ b/AGENTS.md
 @@ -1,44 +1,51 @@
- # shopfront — instructions pour les agents
+ # shopfront — instructions for agents
  
--Mode : **assistance**. L'humain pilote et relit chaque diff ; ce fichier évite les allers-retours, il n'est pas un garde-fou.
-+Mode : **délégation**. Un agent peut recevoir une tâche entière et ouvrir une PR sans relecture intermédiaire ; un agent tourne déjà la nuit (`agent-fix-i18n.yml`). Ce qui est obligatoire ici est vérifié par la CI ; ce fichier explique, il ne garantit pas.
+-Mode: **assistance**. A person drives and reviews every diff; this file avoids back-and-forth, it is not a guardrail.
++Mode: **delegation**. An agent can receive a whole task and open a PR without intermediate review; an agent already runs at night (`agent-fix-i18n.yml`). What is mandatory here is enforced by the CI; this file explains, it does not guarantee.
  
- ## Ce que fait ce repo
--Le front de la boutique : catalogue, panier, paiement. Vue 3 (Composition API), Vite, Pinia, vue-i18n, Playwright.
-+Le front web de la boutique : catalogue, panier, paiement. Quatre développeurs plus des agents y travaillent ; les PR visent `develop`.
+ ## What this repo does
+-The shop's front end: catalogue, cart, payment. Vue 3 (Composition API), Vite, Pinia, vue-i18n, Playwright.
++The shop's web front end: catalogue, cart, payment. Four developers plus agents work on it; PRs target `develop`.
  
- ## Ce qui change → ce qu'on lance
- | Si tu touches… | Lance… | Vérifié en CI par |
+ ## What changes → what to run
+ | If you touch… | Run… | Enforced in CI by |
  |---|---|---|
- | un composant | `npm run lint && npm run test:unit` | `ci.yml` jobs lint, unit |
- | un style ou un token | `npm run lint:style` | `ci.yml` job lint |
--| une locale | `npm run check:i18n` | `ci.yml` job i18n |
-+| une locale | `npm run check:i18n` (parité des clés fr/en seulement) | `ci.yml` job i18n |
- | le routeur ou le panier | `npm run test:e2e` | `ci.yml` job e2e |
-+| une dépendance ou un import lourd | `npm run build && npm run size` | `ci.yml` job size |
+ | a component | `npm run lint && npm run test:unit` | `ci.yml` jobs lint, unit |
+ | a style or a token | `npm run lint:style` | `ci.yml` job lint |
+-| a locale | `npm run check:i18n` | `ci.yml` job i18n |
++| a locale | `npm run check:i18n` (parity of the fr/en keys only) | `ci.yml` job i18n |
+ | the router or the cart | `npm run test:e2e` | `ci.yml` job e2e |
++| a dependency or a heavy import | `npm run build && npm run size` | `ci.yml` job size |
  
- ## Règles
-+Chaque règle dit pourquoi et par quoi elle est vérifiée. Une règle `(non vérifiée)` est une dette : la prochaine étape est de la pousser en CI.
- - Pas de couleur en dur, uniquement les tokens de `src/styles/tokens.css`. Pourquoi : le thème sombre a cassé trois fois sur des hex oubliés (#212). Vérifiée par : `tools/eslint-plugin-design-tokens` (règle `no-raw-color`) et stylelint `color-no-hex`.
--- Toute chaîne visible passe par `t()` de vue-i18n, jamais de texte en dur dans un template. Pourquoi : la version anglaise a livré du français (#198). Vérifiée par : `scripts/check-i18n.mjs`.
--- Composition API avec `<script setup>` uniquement, pas d'Options API. Pourquoi : deux styles dans le même composant rendent les reviews illisibles.
--- Un composant a une story Storybook et un test unitaire. Pourquoi : les composants sans story ne sont jamais relus visuellement.
--- La couverture unitaire ne baisse pas. Pourquoi : #240, le panier a perdu ses tests dans un refactor.
--- Le bundle initial reste sous 250 kB gzip. Pourquoi : budget perf mobile. Vérifiée par : `size-limit` dans `ci.yml`.
--- Les composants sont nommés en PascalCase, les composables en `useXxx`.
--- Préfère `const` à `let`.
-+- `<script setup>` uniquement, pas d'Options API. Pourquoi : deux styles dans le même composant rendent les reviews illisibles. Vérifiée par : eslint `vue/component-api-style` (`eslint.config.js`).
-+- Le bundle initial reste sous 250 kB gzip. Pourquoi : budget perf mobile. Vérifiée par : `size-limit` (`package.json`, job `size`).
-+- Toute chaîne visible passe par `t()` de vue-i18n, jamais de texte en dur dans un template. Pourquoi : la version anglaise a livré du français (#198). (non vérifiée : `scripts/check-i18n.mjs` ne compare que les clés fr/en, il ne lit pas les templates ; cible : eslint `vue/no-bare-strings-in-template`)
-+- Un composant a une story Storybook et un test unitaire. Pourquoi : les composants sans story ne sont jamais relus visuellement. (non vérifiée ; cible : un script de check des paires `.vue` / `.stories.ts` / `.spec.ts` dans le job lint)
-+- La couverture unitaire ne baisse pas. Pourquoi : le panier a perdu ses tests dans un refactor (#240). (non vérifiée ; cible : `coverage.thresholds` dans `vitest.config.ts`)
+ ## Rules
++Each rule says why and what enforces it. A rule marked `(unverified)` is a debt: the next step is to push it into CI.
+ - No hard-coded color, only the tokens of `src/styles/tokens.css`. Why: the dark theme broke three times on forgotten hex values (#212). Enforced by: `tools/eslint-plugin-design-tokens` (rule `no-raw-color`) and stylelint `color-no-hex`.
+-- Every visible string goes through vue-i18n's `t()`, never hard-coded text in a template. Why: the English version shipped French (#198). Enforced by: `scripts/check-i18n.mjs`.
+-- Composition API with `<script setup>` only, no Options API. Why: two styles in the same component make reviews unreadable.
+-- A component has a Storybook story and a unit test. Why: components without a story are never reviewed visually.
+-- Unit coverage does not go down. Why: #240, the cart lost its tests in a refactor.
+-- The initial bundle stays under 250 kB gzip. Why: mobile performance budget. Enforced by: `size-limit` in `ci.yml`.
+-- Components are named in PascalCase, composables `useXxx`.
+-- Prefer `const` to `let`.
++- `<script setup>` only, no Options API. Why: two styles in the same component make reviews unreadable. Enforced by: eslint `vue/component-api-style` (`eslint.config.js`).
++- The initial bundle stays under 250 kB gzip. Why: mobile performance budget. Enforced by: `size-limit` (`package.json`, job `size`).
++- Every visible string goes through vue-i18n's `t()`, never hard-coded text in a template. Why: the English version shipped French (#198). (unverified: `scripts/check-i18n.mjs` only compares the fr/en keys, it does not read the templates; target: eslint `vue/no-bare-strings-in-template`)
++- A component has a Storybook story and a unit test. Why: components without a story are never reviewed visually. (unverified; target: a script checking the `.vue` / `.stories.ts` / `.spec.ts` pairs in the lint job)
++- Unit coverage does not go down. Why: the cart lost its tests in a refactor (#240). (unverified; target: `coverage.thresholds` in `vitest.config.ts`)
  
- ## Interdits
--- Ne jamais modifier `src/styles/tokens.css` sans ticket design.
--- Ne jamais désactiver une règle eslint en ligne (`eslint-disable`) sans justification datée.
--- Ne jamais toucher `src/payment/` : module PCI, propriétaire uniquement.
--
--## Ajouter un composant
--1. Créer `src/components/<Nom>.vue` en `<script setup lang="ts">`.
--2. Ajouter la story dans `src/components/<Nom>.stories.ts` (optionnel si le composant n'a pas d'UI).
--3. Ajouter le test `src/components/<Nom>.spec.ts`.
--4. Ajouter les clés i18n dans les deux locales.
--5. Lancer `npm run lint && npm run test:unit`.
--Le détail est dans `.claude/skills/add-component/SKILL.md`.
-+- Toucher `src/payment/` : module PCI, propriétaire uniquement.
-+- Modifier `src/styles/tokens.css` sans ticket design.
-+- Fusionner une PR d'agent sans qu'un humain l'ait relue et approuvée : pas d'auto-merge, pas de `--auto`.
-+- Désactiver une règle eslint en ligne (`eslint-disable`) sans justification datée en commentaire.
+ ## Forbidden
+-- Never change `src/styles/tokens.css` without a design ticket.
+-- Never disable an eslint rule inline (`eslint-disable`) without a dated justification.
+-- Never touch `src/payment/`: PCI module, owner only.
++- Touching `src/payment/`: PCI module, owner only.
++- Changing `src/styles/tokens.css` without a design ticket.
++- Merging an agent's PR before a person has reviewed and approved it: no auto-merge, no `--auto`.
++- Disabling an eslint rule inline (`eslint-disable`) without a dated justification in a comment.
+ 
+-## Adding a component
+-1. Create `src/components/<Name>.vue` with `<script setup lang="ts">`.
+-2. Add the story in `src/components/<Name>.stories.ts` (optional if the component has no UI).
+-3. Add the test `src/components/<Name>.spec.ts`.
+-4. Add the i18n keys in both locales.
+-5. Run `npm run lint && npm run test:unit`.
+-The detail is in `.claude/skills/add-component/SKILL.md`.
++## Working process
++- Stop and ask when: the task touches a Forbidden item, needs a new design token or an architecture choice, or the CI is red for a cause foreign to your diff.
++- A task is done when: the five jobs of `ci.yml` are green on the PR, a test covers the change, the description explains the why, no TODO nor `eslint-disable` was added, and a person has approved.
++- Red CI: fix it if the cause is in your diff; otherwise report it in the PR and do not touch it.
++- Flaky test: rerun once; if it stays flaky, open an issue, do not disable it.
++- A PR holds one intention; beyond ten files or so, split.
 +
-+## Processus de travail
-+- Arrête-toi et pose la question quand : la tâche touche un Interdit, demande un nouveau token de design ou un choix d'architecture, ou la CI est rouge pour une cause étrangère à ton diff.
-+- Une tâche est finie quand : les cinq jobs de `ci.yml` sont verts sur la PR, un test couvre le changement, la description explique le pourquoi, aucun TODO ni `eslint-disable` ajouté, et un humain a approuvé.
-+- CI rouge : corrige si la cause est dans ton diff ; sinon signale-le dans la PR et n'y touche pas.
-+- Test instable : relance une fois ; s'il reste instable, ouvre une issue, ne le désactive pas.
-+- Une PR tient en une intention ; au-delà d'une dizaine de fichiers, découpe.
-+
-+## Tâches déléguées
-+Chaque tâche récurrente a son contrat dans `.claude/skills/` :
-+- `add-component` — ajouter un composant avec sa story, son test et ses clés i18n.
-+- Traductions manquantes : `agent-fix-i18n.yml` (prompt inline dans le workflow, pas de contrat) ; ses PR suivent les Interdits comme les autres.
++## Delegated tasks
++Each recurring task has its contract in `.claude/skills/`:
++- `add-component` — add a component with its story, its test and its i18n keys.
++- Missing translations: `agent-fix-i18n.yml` (prompt inline in the workflow, no contract); its PRs follow the Forbidden items like the others.
  
- ## Maintenance de ce fichier
--- Un commentaire de review qui commence par `rule:` est une règle candidate, ajoutée ici dans la même PR avec le lien.
--- Chercher un garde-fou avant d'ajouter une phrase.
--- Relu par `harness-audit` ; `harness-harvest` propose les changements dans une PR dédiée.
-+- Un commentaire de review qui commence par `rule:` est une règle candidate. Elle est ajoutée ici dans la même PR, avec le lien vers le commentaire, ou collectée par harness-harvest.
-+- Avant d'ajouter une phrase, chercher si un linter, un test ou un check CI peut porter la règle : une règle vérifiée est raccourcie, une règle racontée est une dette.
-+- Une règle sans incident depuis six mois est candidate à suppression lors du prochain harness-audit.
-+- Ce fichier est relu par `harness-audit` ; la ligne « Mode » fixe la sévérité.
-+- `harness-harvest` relit l'activité depuis le marqueur ci-dessous et propose les changements dans une PR dédiée.
+ ## Maintaining this file
+-- A review comment that starts with `rule:` is a candidate rule, added here in the same PR with the link.
+-- Look for a guardrail before adding a sentence.
+-- Reviewed by `harness-audit`; `harness-harvest` proposes the changes in a dedicated PR.
++- A review comment that starts with `rule:` is a candidate rule. It is added here in the same PR, with the link to the comment, or collected by harness-harvest.
++- Before adding a sentence, look for a linter, a test or a CI check that can carry the rule: an enforced rule is shortened, a narrated rule is a debt.
++- A rule with no incident for six months is a candidate for removal at the next harness-audit.
++- This file is reviewed by `harness-audit`; the "Mode" line sets the severity.
++- `harness-harvest` reads the activity since the marker below and proposes the changes in a dedicated PR.
  
  <!-- harvest: last=2026-07-12 ref=https://github.com/acme/shopfront/pull/231 -->

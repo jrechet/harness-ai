@@ -1,21 +1,21 @@
-# Notes — revue du skill `release` avec harness-design
+# Notes — review of the `release` skill with harness-design
 
-Besoin reformulé : que chaque version soit calculée juste, documentée, publiée depuis `main` seulement, sans que l'agent voie le jeton, puis annoncée.
-11 morceaux, `place plan` sort en code 0.
+Need restated: that each version be computed right, documented, published from `main` only, without the agent seeing the token, then announced.
+11 pieces, `place plan` exits with code 0.
 
-## Ce qui a gêné
-- **`current` d'une règle « Vérifiée par » dont le workflow est absent** (morceau 8, `AGENTS.md:7`). Le skill dit d'ouvrir le workflow pour vérifier ; `artifact/` ne contient pas `.github/workflows/ci.yml`. J'ai mis `current=agents_md` (non prouvé bloquant), d'où PUSH_DOWN. Si le job `commitlint` existe et est requis, le verdict est KEEP. Le skill ne dit pas quoi faire quand le check cité est introuvable.
-- **« Version mal calculée = incident » n'a pas de question dans la branche `compute`.** La grille ne demande que `when` ; l'incident ne change pas la destination (CLI testée). Je n'ai pas ajouté de morceau `rule` « la version publiée est celle calculée » : il n'existe pas dans l'artefact, et le workflow de livraison qui appelle la sous-commande le tient. Hypothèse, pas certitude.
-- **Envoyer l'annonce sur `#releases`** (morceau 11) : `access` n'offre que `consult` (lit ou commente) ou `deliver` (build, tag, publication). Poster un message est une écriture externe qui n'est ni l'un ni l'autre ; j'ai répondu `consult` → serveur MCP, sans conviction. Le dépôt ne déclare aucun serveur MCP.
-- **Contrainte de forme de l'annonce** (« trois lignes au plus, sans reprendre le changelog », `SKILL.md:17`) : comme `rule` avec `incident=no`, la grille mène à `scope`, dont aucune réponse ne dit « seulement dans ce skill » (`reference` → un doc à part, trop lourd). Je l'ai laissée dans le morceau de jugement 9. Trou de grille probable : une préférence propre à une procédure.
-- **Le jeton** : `SKILL.md:16` demande à l'agent de copier le jeton, `AGENTS.md:6` l'autorise « hors d'une release » seulement ; le propriétaire dit « jamais ». J'ai coupé en deux : la limite (morceau 7, permission `deny`, `bypass_limit=agent` puisqu'un développeur y a accès) et l'usage du jeton, absorbé par le workflow de livraison (morceau 6, secret d'environnement protégé). La ligne d'AGENTS.md et l'étape 5 du skill sont donc à réécrire, pas seulement à déplacer ; le verdict PUSH_DOWN ne le dit pas.
-- **Verdict PUSH_DOWN sur le morceau 4** : le changelog est exigé à la publication, pas à la fusion ; « check bloquant en CI » se lit ici comme un check du workflow de release (ou de la PR de release). La grille ne distingue pas les deux.
-- **Sans CLI dans le dépôt** : « sous-commande CLI testée » (morceau 3) devient un script appelé depuis `package.json` ; le tableau de l'étape 5 le dit, la sortie du plan non.
-- `place plan` n'affiche pas les `evidence` ; je ne sais pas si le format `chemin:ligne` relatif à `artifact/` est validé à ce stade.
+## What got in the way
+- **`current` of an "Enforced by" rule whose workflow is absent** (piece 8, `AGENTS.md:7`). The skill says to open the workflow to check; `artifact/` does not contain `.github/workflows/ci.yml`. I put `current=agents_md` (not proven blocking), hence PUSH_DOWN. If the `commitlint` job exists and is required, the verdict is KEEP. The skill does not say what to do when the cited check cannot be found.
+- **"Miscomputed version = incident" has no question in the `compute` branch.** The grid only asks `when`; the incident does not change the destination (tested CLI). I did not add a `rule` piece "the published version is the computed one": it does not exist in the artifact, and the delivery workflow that calls the subcommand holds it. An assumption, not a certainty.
+- **Sending the announcement to `#releases`** (piece 11): `access` only offers `consult` (reads or comments) or `deliver` (build, tag, publication). Posting a message is an external write that is neither; I answered `consult` → MCP server, without conviction. The repository declares no MCP server.
+- **Form constraint of the announcement** ("three lines at most, without repeating the changelog", `SKILL.md:17`): as a `rule` with `incident=no`, the grid leads to `scope`, none of whose answers says "only in this skill" (`reference` → a separate doc, too heavy). I left it in judgment piece 9. Probable gap in the grid: a preference specific to a procedure.
+- **The token**: `SKILL.md:16` asks the agent to copy the token, `AGENTS.md:6` allows it "outside a release" only; the owner says "never". I cut it in two: the limit (piece 7, `deny` permission, `bypass_limit=agent` since a developer has access to it) and the use of the token, absorbed by the delivery workflow (piece 6, protected environment secret). The AGENTS.md line and step 5 of the skill are therefore to be rewritten, not only moved; the PUSH_DOWN verdict does not say so.
+- **PUSH_DOWN verdict on piece 4**: the changelog is required at publication, not at merge; "blocking CI check" reads here as a check of the release workflow (or of the release PR). The grid does not tell the two apart.
+- **Without a CLI in the repository**: "tested CLI subcommand" (piece 3) becomes a script called from `package.json`; the table of step 5 says so, the plan output does not.
+- `place plan` does not display the `evidence`; I do not know whether the `path:line` format relative to `artifact/` is validated at this stage.
 
-## Observé hors grille
-- `release-reviewer` n'a que `Read, Grep` mais doit lire « les commits depuis le dernier tag » : sans git, il ne peut pas. Le plan dit KEEP sur la place ; le contenu est à corriger.
-- La ligne « Mode : assistance » (`AGENTS.md:3`) n'est pas une règle : non découpée.
+## Observed outside the grid
+- `release-reviewer` only has `Read, Grep` but must read "the commits since the last tag": without git, it cannot. The plan says KEEP on the place; the content is to be fixed.
+- The line "Mode: assistance" (`AGENTS.md:3`) is not a rule: not split off.
 
-## Non placé
-- Rien n'est resté sans destination. Deux placements sont fragiles : le morceau 11 (envoi de l'annonce) et la contrainte de forme de l'annonce, fondue dans le morceau 9.
+## Not placed
+- Nothing was left without a destination. Two placements are fragile: piece 11 (sending the announcement) and the form constraint of the announcement, merged into piece 9.

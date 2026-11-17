@@ -1,18 +1,18 @@
-# Incident du 14 avril 2026 — un compte débité deux fois
+# Incident of April 14, 2026 — an account debited twice
 
-## Ce qui s'est passé
-Un client mobile a renvoyé un virement après un délai d'attente réseau. Les deux requêtes sont arrivées à 40 ms d'écart sur deux instances. Chacune a vérifié que la clé d'idempotence n'existait pas, puis ouvert sa transaction et écrit. Le compte a été débité deux fois de 480,00 €.
+## What happened
+A mobile client resent a transfer after a network timeout. The two requests arrived 40 ms apart on two instances. Each one checked that the idempotency key did not exist, then opened its transaction and wrote. The account was debited twice by €480.00.
 
 ## Cause
-La recherche de la clé se faisait **avant** l'ouverture de la transaction. Entre la lecture et l'écriture, rien n'empêchait une seconde requête de passer. Aucune contrainte en base ne rattrapait le doublon.
+The key lookup happened **before** the transaction was opened. Between the read and the write, nothing prevented a second request from getting through. No database constraint caught the duplicate.
 
-## Détection
-Signalé par le client le lendemain. Rien ne l'a vu de notre côté : 37 comptes touchés en trois semaines, retrouvés par requête.
+## Detection
+Reported by the customer the next day. Nothing saw it on our side: 37 accounts affected in three weeks, found by query.
 
-## Corrections
-- La recherche de la clé est passée dans la transaction d'écriture (`internal/app/service.go`).
-- Index unique sur `transfers.idempotency_key` (`migrations/0003`).
-- Décision écrite : `docs/adr/0003-cle-d-idempotence.md`.
+## Fixes
+- The key lookup moved into the write transaction (`internal/app/service.go`).
+- Unique index on `transfers.idempotency_key` (`migrations/0003`).
+- Decision written down: `docs/adr/0003-idempotency-key.md`.
 
-## Ce qui reste ouvert
-Un nouvel endpoint d'écriture peut encore oublier la clé : la revue est le seul contrôle.
+## What remains open
+A new write endpoint can still forget the key: the review is the only check.

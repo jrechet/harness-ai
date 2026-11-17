@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ancien déploiement manuel, avant release.yml. Plus appelé nulle part.
+# Old manual deployment, before release.yml. No longer called anywhere.
 set -euo pipefail
 VERSION="$1"
 docker build -t registry.acme.io/billing-api:"$VERSION" .
