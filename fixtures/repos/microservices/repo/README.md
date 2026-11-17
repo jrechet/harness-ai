@@ -1,57 +1,57 @@
 # comptoir
 
-Le back-office d'une boutique en ligne, en trois services Python : `orders` prend les commandes, `billing` émet les factures, `notifications` écrit aux clients. Bibliothèque standard seulement, Python 3.10 ou plus. Les services ne partagent pas de code métier : ils se parlent par des événements et des API décrits dans `contracts/`.
+The back office of an online shop, in three Python services: `orders` takes orders, `billing` issues invoices, `notifications` writes to customers. Standard library only, Python 3.10 or later. The services share no business code: they talk through events and APIs described in `contracts/`.
 
-Dépôt **synthétique** : une fixture du projet harness-ai.
+**Synthetic** repo: a fixture of the harness-ai project.
 
-Le client du broker de production n'est pas dans ce dépôt : sans `BROKER_URL`, le bus est en mémoire.
+The production broker's client is not in this repository: without `BROKER_URL`, the bus is in memory.
 
-## Démarrer
+## Getting started
 
 ```bash
-python3 -m unittest discover                             # tous les tests
-python3 -m unittest discover -s services/billing -t .    # un seul service
-python3 tools/check_imports.py                           # frontières entre services
-python3 tools/replay.py order.created                    # rejoue le dernier événement d'un type
-PORT=8001 python3 -m services.orders.app                 # un service seul, bus en mémoire
-docker compose up                                        # les trois services et un broker local
+python3 -m unittest discover                             # all the tests
+python3 -m unittest discover -s services/billing -t .    # a single service
+python3 tools/check_imports.py                           # boundaries between services
+python3 tools/replay.py order.created                    # replays the last event of a type
+PORT=8001 python3 -m services.orders.app                 # one service alone, bus in memory
+docker compose up                                        # the three services and a local broker
 ```
 
-## Organisation
+## Layout
 
 ```
-contracts/api/            ce que répondent les API, en JSON Schema
-contracts/events/         les événements, en JSON Schema
-services/orders/          prise de commande, catalogue
-services/billing/         factures, numérotation
-services/notifications/   e-mails au client
-shared/                   le bus et l'adaptateur HTTP
-tools/                    validateur de schéma, contrôle des imports
-docs/                     décisions, incidents, exploitation
+contracts/api/            what the APIs answer, in JSON Schema
+contracts/events/         the events, in JSON Schema
+services/orders/          order taking, catalog
+services/billing/         invoices, numbering
+services/notifications/   emails to the customer
+shared/                   the bus and the HTTP adapter
+tools/                    schema validator, import check
+docs/                     decisions, incidents, operations
 ```
 
 ## API
 
-| Service | Méthode | Chemin | Rôle |
+| Service | Method | Path | Role |
 |---|---|---|---|
-| orders | POST | `/orders` | passer une commande : `customer_email`, `sku`, `quantity` |
-| orders | GET | `/orders/{id}` | lire une commande |
-| billing | GET | `/invoices` | les factures ; `?order_id=` pour celles d'une commande |
-| billing | GET | `/invoices/{number}` | lire une facture |
-| notifications | GET | `/outbox` | les messages remis au relais de courrier |
+| orders | POST | `/orders` | place an order: `customer_email`, `sku`, `quantity` |
+| orders | GET | `/orders/{id}` | read an order |
+| billing | GET | `/invoices` | the invoices; `?order_id=` for those of one order |
+| billing | GET | `/invoices/{number}` | read an invoice |
+| notifications | GET | `/outbox` | the messages handed to the mail relay |
 
-## Événements
+## Events
 
-| Événement | Publié par | Lu par |
+| Event | Published by | Read by |
 |---|---|---|
-| `order.created` | orders | billing, notifications, et des consommateurs hors de ce dépôt |
-| `invoice.issued` | billing | notifications, et des consommateurs hors de ce dépôt |
+| `order.created` | orders | billing, notifications, and consumers outside this repository |
+| `invoice.issued` | billing | notifications, and consumers outside this repository |
 
-Chaque événement voyage dans la même enveloppe : `id`, `type`, `occurred_at`, `payload`.
+Every event travels in the same envelope: `id`, `type`, `occurred_at`, `payload`.
 
-## Assembler des services dans un test
+## Assembling services in a test
 
-Chaque service expose `create_app(bus)`. L'objet rendu répond à `handle(méthode, chemin, corps)` par `(statut, réponse)` ; c'est lui que `shared/http.py` sert en HTTP.
+Each service exposes `create_app(bus)`. The object returned answers `handle(method, path, body)` with `(status, response)`; it is what `shared/http.py` serves over HTTP.
 
 ```python
 from shared.bus import InMemoryBus
@@ -63,4 +63,4 @@ status, order = orders.handle("POST", "/orders", {"customer_email": "ana@example
 events = bus.published("order.created")
 ```
 
-Voir `docs/` pour les décisions, les incidents et l'exploitation.
+See `docs/` for the decisions, the incidents and operations.

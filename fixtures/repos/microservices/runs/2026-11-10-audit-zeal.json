@@ -1,9 +1,9 @@
 {
   "audit": {
-    "process": "Livrer un changement dans comptoir : trois services, un contrat (instrumentation IA du dépôt : AGENTS.md)",
+    "process": "Delivering a change in comptoir: three services, one contract (AI instrumentation of the repository: AGENTS.md)",
     "scope": "fixtures/repos/microservices/repo/",
     "date": "2026-11-10",
-    "author": "auteur de la fixture, en forçant le trait : l'audit zélé que le noteur doit refuser. Pas une mesure du skill",
+    "author": "author of the fixture, laying it on thick: the zealous audit the grader must refuse. Not a measurement of the skill",
     "health_score": 0,
     "cut_the_agent_test": {
       "passed": false,
@@ -20,10 +20,10 @@
       "calls": [],
       "verdict": "SPLIT",
       "priority": "P1",
-      "finding": "Le fichier mêle règles, commandes et interdits ; quatre règles n'ont pas de garde-fou ; plusieurs ont plus de deux ans.",
+      "finding": "The file mixes rules, commands and forbidden actions; four rules have no guardrail; several are more than two years old.",
       "evidence": ["AGENTS.md:16-25"],
-      "target": "Réécrire le fichier depuis le template, déporter les règles dans des skills.",
-      "check": "AGENTS.md sous quinze lignes."
+      "target": "Rewrite the file from the template, move the rules out into skills.",
+      "check": "AGENTS.md under fifteen lines."
     },
     {
       "id": "claude-md",
@@ -34,10 +34,10 @@
       "calls": ["agents-md"],
       "verdict": "INLINE",
       "priority": "P3",
-      "finding": "Fichier d'une ligne : trop petit pour exister seul.",
+      "finding": "One-line file: too small to exist on its own.",
       "evidence": ["CLAUDE.md:1"],
-      "target": "Le supprimer.",
-      "check": "Fichier absent."
+      "target": "Delete it.",
+      "check": "File absent."
     },
     {
       "id": "billing-agents-md",
@@ -48,10 +48,10 @@
       "calls": [],
       "verdict": "MERGE",
       "priority": "P2",
-      "finding": "Deuxième fichier d'instructions : la source unique est rompue.",
+      "finding": "Second instruction file: the single source is broken.",
       "evidence": ["services/billing/AGENTS.md:1-6"],
-      "target": "Fusionner dans le AGENTS.md racine.",
-      "check": "Un seul AGENTS.md dans le dépôt."
+      "target": "Merge into the root AGENTS.md.",
+      "check": "A single AGENTS.md in the repository."
     },
     {
       "id": "test-bus",
@@ -62,10 +62,10 @@
       "calls": [],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "Un bus qui livre deux fois est une bizarrerie de test cachée dans du code partagé ; l'idempotence devrait être un contrôle explicite en CI.",
+      "finding": "A bus that delivers twice is a test oddity hidden in shared code; idempotence should be an explicit check in CI.",
       "evidence": ["shared/bus.py:33-51"],
-      "target": "Ramener le bus à une livraison et écrire un job dédié.",
-      "check": "Un job idempotency dans ci.yml."
+      "target": "Bring the bus back to one delivery and write a dedicated job.",
+      "check": "An idempotency job in ci.yml."
     },
     {
       "id": "schema-validator",
@@ -76,9 +76,9 @@
       "calls": [],
       "verdict": "BLOCK",
       "priority": "P2",
-      "finding": "Validateur maison : à remplacer par une bibliothèque du marché.",
+      "finding": "Home-made validator: to be replaced by an off-the-shelf library.",
       "evidence": ["tools/schema.py:1-20"],
-      "target": "Ajouter jsonschema et supprimer le fichier.",
+      "target": "Add jsonschema and delete the file.",
       "check": "tools/schema.py absent."
     },
     {
@@ -90,45 +90,45 @@
       "calls": [],
       "verdict": "PROMOTE",
       "priority": "P3",
-      "finding": "Un test unitaire ne suffit pas à porter une obligation légale.",
+      "finding": "A unit test is not enough to carry a legal obligation.",
       "evidence": ["services/billing/test_ledger.py:22-32"],
-      "target": "Un contrat de tâche pour toute modification de la facturation.",
-      "check": "Un SKILL.md de facturation."
+      "target": "A task contract for any change to billing.",
+      "check": "A billing SKILL.md."
     }
   ],
   "process_leaks": [
     {
-      "rule": "Un changement de contrat est additif",
+      "rule": "A contract change is additive",
       "told_in": "AGENTS.md:17",
-      "if_skipped": "Un lecteur de l'ancien contrat casse.",
+      "if_skipped": "A reader of the old contract breaks.",
       "belongs_in": "L3",
-      "guard_tool": "Comparaison des schémas à ceux de main."
+      "guard_tool": "Comparison of the schemas to those on main."
     },
     {
-      "rule": "Un consommateur d'événements est idempotent",
+      "rule": "An event consumer is idempotent",
       "told_in": "AGENTS.md:18",
-      "if_skipped": "Des factures en double.",
+      "if_skipped": "Duplicate invoices.",
       "belongs_in": "L3",
-      "guard_tool": "Un job de CI dédié à l'idempotence."
+      "guard_tool": "A CI job dedicated to idempotence."
     },
     {
-      "rule": "Un service n'importe jamais le code d'un autre service",
+      "rule": "A service never imports another service's code",
       "told_in": "AGENTS.md:19",
-      "if_skipped": "Deux services couplés.",
+      "if_skipped": "Two coupled services.",
       "belongs_in": "L3",
-      "guard_tool": "Un linter d'imports à écrire."
+      "guard_tool": "An import linter to write."
     },
     {
-      "rule": "Suivre PEP 8 et écrire une docstring par fonction publique",
+      "rule": "Follow PEP 8 and write a docstring per public function",
       "told_in": "CONTRIBUTING.md:3-4",
-      "if_skipped": "Du code moins lisible.",
+      "if_skipped": "Less readable code.",
       "belongs_in": "L3",
       "guard_tool": "ruff."
     }
   ],
   "guarded_rules": [
     {
-      "rule": "Un changement de contrat est additif, on ne renomme rien",
+      "rule": "A contract change is additive, nothing is renamed",
       "told_in": "AGENTS.md:17",
       "guarded_by": "services/orders/test_contract.py"
     }
@@ -137,42 +137,42 @@
     {
       "path": "AGENTS.md",
       "line": 21,
-      "text": "Un événement pèse moins de 64 Ko, enveloppe comprise.",
+      "text": "An event weighs less than 64 KB, envelope included.",
       "reason": "outdated",
       "ask_owner": false
     },
     {
       "path": "AGENTS.md",
       "line": 20,
-      "text": "Avant d'ouvrir une PR, lance `grep -rnE \"^(from|import) services\\.\" services/ shared/ tools/` et relis chaque ligne à la main.",
+      "text": "Before opening a PR, run `grep -rnE \"^(from|import) services\\.\" services/ shared/ tools/` and review each line by hand.",
       "reason": "useless",
       "ask_owner": false
     },
     {
       "path": "AGENTS.md",
       "line": 16,
-      "text": "Ce qu'un service publie ou répond est déclaré dans `contracts/`, et rien d'autre n'en sort.",
+      "text": "What a service publishes or answers is declared in `contracts/`, and nothing else leaves it.",
       "reason": "outdated",
       "ask_owner": false
     },
     {
       "path": "AGENTS.md",
       "line": 18,
-      "text": "Un consommateur d'événements est idempotent : le broker livre « au moins une fois ».",
+      "text": "An event consumer is idempotent: the broker delivers \"at least once\".",
       "reason": "useless",
       "ask_owner": false
     },
     {
       "path": "AGENTS.md",
       "line": 25,
-      "text": "Affaiblir un garde-fou pour faire passer un test : `deliveries=1` dans le test d'un service.",
+      "text": "Weakening a guardrail to make a test pass: `deliveries=1` in a service's test.",
       "reason": "useless",
       "ask_owner": false
     },
     {
       "path": "services/billing/AGENTS.md",
       "line": 5,
-      "text": "Les numéros de facture se suivent sans trou : `Ledger.issue` ne prend un numéro qu'au moment d'écrire la facture.",
+      "text": "Invoice numbers follow one another with no gap: `Ledger.issue` takes a number only when it writes the invoice.",
       "reason": "useless",
       "ask_owner": false
     }
@@ -194,9 +194,9 @@
       "priority": "P1",
       "verdict": "SPLIT",
       "element": "agents-md",
-      "action": "Réécrire AGENTS.md depuis le template.",
+      "action": "Rewrite AGENTS.md from the template.",
       "depends_on": [],
-      "check": "AGENTS.md sous quinze lignes.",
+      "check": "AGENTS.md under fifteen lines.",
       "needs_human_approval": false
     }
   ],

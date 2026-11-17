@@ -37,66 +37,66 @@
     "must_surface": [
       {
         "id": "I1",
-        "what": "consommateurs idempotents, livraison au moins une fois, incident des 212 factures",
+        "what": "idempotent consumers, at-least-once delivery, incident of the 212 invoices",
         "any_of": [
           "idempot"
         ]
       },
       {
         "id": "I2",
-        "what": "un contrat n'évolue que par ajout, incident du champ renommé",
+        "what": "a contract evolves only by addition, incident of the renamed field",
         "any_of": [
           "additi",
-          "champ-renomme"
+          "renamed-field"
         ]
       },
       {
         "id": "I3",
-        "what": "ce qui sort d'un service est déclaré dans contracts/, schémas stricts",
+        "what": "what leaves a service is declared in contracts/, strict schemas",
         "any_of": [
           "contracts/"
         ]
       },
       {
         "id": "I4",
-        "what": "un service n'importe pas un autre service, et son garde-fou",
+        "what": "a service does not import another service, and its guardrail",
         "any_of": [
           "check_imports"
         ]
       },
       {
         "id": "I5",
-        "what": "jamais BROKER_URL vers la préproduction ou la production depuis un poste",
+        "what": "never BROKER_URL pointed at preproduction or production from a workstation",
         "any_of": [
           "broker_url"
         ]
       },
       {
         "id": "I6",
-        "what": "numéros de facture sans trou, dans la note du service billing",
+        "what": "invoice numbers with no gap, in the billing service note",
         "any_of": [
           "test_ledger",
-          "sans trou",
+          "no gap",
           "gapless"
         ]
       },
       {
         "id": "I7",
-        "what": "ne pas affaiblir un garde-fou, dont deliveries=1 dans le test d'un service",
+        "what": "do not weaken a guardrail, including deliveries=1 in a service's test",
         "any_of": [
           "deliveries"
         ]
       },
       {
         "id": "I8",
-        "what": "un champ remplacé reste publié et reçoit l'annotation deprecated, convenu avec les consommateurs externes",
+        "what": "a replaced field stays published and gets the deprecated annotation, agreed with the external consumers",
         "any_of": [
           "deprecated"
         ]
       },
       {
         "id": "I9",
-        "what": "tout changement de contrat s'inscrit dans contracts/CHANGES.md, que suivent les consommateurs externes ; écrit nulle part ailleurs",
+        "what": "every contract change is recorded in contracts/CHANGES.md, which the external consumers follow; written nowhere else",
         "any_of": [
           "changes.md"
         ],
@@ -108,7 +108,7 @@
     "must_not_write": [
       {
         "id": "N1",
-        "what": "commande du README qui n'existe plus",
+        "what": "README command that no longer exists",
         "any_of": [
           "replay.py"
         ],
@@ -116,32 +116,30 @@
       },
       {
         "id": "N2",
-        "what": "limite de 64 Ko de l'ancien broker, périmée, confirmée par le propriétaire",
+        "what": "64 KB limit of the former broker, outdated, confirmed by the owner",
         "any_of": [
-          "64 ko",
-          "64 ko",
-          "64ko",
           "64 kb",
+          "64 kb",
           "64kb",
           "64 kilo"
         ]
       },
       {
         "id": "N3",
-        "what": "relecture manuelle des imports, redondante avec tools/check_imports.py",
+        "what": "manual review of the imports, redundant with tools/check_imports.py",
         "any_of": [
           "grep -rn"
         ]
       },
       {
         "id": "N4",
-        "what": "principes génériques du CONTRIBUTING",
+        "what": "generic principles of CONTRIBUTING",
         "any_of": [
           "pep 8",
           "pep8",
           "docstring",
           "conventional commits",
-          "fonctions courtes"
+          "short functions"
         ]
       }
     ],
@@ -156,9 +154,7 @@
         "path": "test_contract",
         "rule_keywords": [
           "additi",
-          "renomm",
-          "rename",
-          "retir",
+          "renam",
           "remov",
           "compatib"
         ]
@@ -172,7 +168,7 @@
     ],
     "never_guarded": [
       {
-        "what": "contrat additif : gardé côté fournisseur seulement",
+        "what": "additive contract: guarded on the provider side only",
         "rule_keywords": [
           "additi"
         ]
@@ -255,9 +251,7 @@
         "path": "test_contract",
         "rule_keywords": [
           "additi",
-          "renomm",
-          "rename",
-          "retir",
+          "renam",
           "remov",
           "compatib"
         ]
@@ -273,10 +267,8 @@
       {
         "id": "N2",
         "any_of": [
-          "64 ko",
-          "64 ko",
-          "64ko",
           "64 kb",
+          "64 kb",
           "64kb",
           "64 kilo"
         ],
@@ -325,7 +317,7 @@
         "id": "I6",
         "any_of": [
           "test_ledger",
-          "sans trou"
+          "no gap"
         ]
       },
       {
@@ -349,7 +341,7 @@
     ],
     "never_guarded": [
       {
-        "what": "contrat additif : gardé côté fournisseur seulement",
+        "what": "additive contract: guarded on the provider side only",
         "rule_keywords": [
           "additi"
         ]

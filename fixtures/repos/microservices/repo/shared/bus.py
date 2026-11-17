@@ -3,7 +3,7 @@
 In production the bus is the platform team's broker client (`comptoir_broker`, not in
 this repository). The broker delivers every event *at least once*: after a consumer
 restart or a lost acknowledgement the same event comes again, with the same `id`.
-See docs/adr/0002-livraison-au-moins-une-fois.md.
+See docs/adr/0002-at-least-once-delivery.md.
 
 `InMemoryBus` is what tests and local runs use. It delivers every event twice, on
 purpose: a consumer that is not idempotent fails its own tests.

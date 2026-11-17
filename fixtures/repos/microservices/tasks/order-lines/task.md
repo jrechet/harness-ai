@@ -1,11 +1,11 @@
-# Tâche : plusieurs articles par commande
+# Task: several items per order
 
-Aujourd'hui une commande porte un seul article (`sku`, `quantity`). Les clients veulent en mettre plusieurs dans la même commande, et la facture doit les détailler.
+Today an order carries a single item (`sku`, `quantity`). Customers want to put several in the same order, and the invoice must itemise them.
 
-- `POST /orders` accepte `lines`, une liste de `{"sku": …, "quantity": …}`, au moins une ligne. Le total de la commande est la somme des lignes, aux prix du catalogue.
-- `GET /orders/{id}` renvoie ces lignes, chacune avec `sku`, `quantity` et `unit_price_cents`.
-- L'événement `order.created` porte ces mêmes lignes.
-- La facture les reprend : `GET /invoices?order_id=…` renvoie, pour chaque facture, `lines` avec `sku`, `quantity`, `unit_price_cents` et `amount_cents`.
-- Une ligne dont la quantité est nulle, ou dont l'article n'est pas au catalogue, répond `422`.
+- `POST /orders` accepts `lines`, a list of `{"sku": …, "quantity": …}`, at least one line. The order total is the sum of the lines, at catalog prices.
+- `GET /orders/{id}` returns these lines, each with `sku`, `quantity` and `unit_price_cents`.
+- The `order.created` event carries these same lines.
+- The invoice takes them up: `GET /invoices?order_id=…` returns, for each invoice, `lines` with `sku`, `quantity`, `unit_price_cents` and `amount_cents`.
+- A line whose quantity is zero, or whose item is not in the catalog, answers `422`.
 
-Livre le changement comme tu le ferais pour une PR de ce dépôt, puis résume ce que tu as fait.
+Deliver the change as you would for a PR of this repository, then summarise what you did.

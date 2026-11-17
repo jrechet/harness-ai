@@ -1,6 +1,6 @@
-# billing — note pour les agents
+# billing — note for agents
 
-Les règles de la racine valent ici. Deux choses propres à la facturation :
+The root rules apply here. Two things specific to billing:
 
-- Les numéros de facture se suivent sans trou : `Ledger.issue` ne prend un numéro qu'au moment d'écrire la facture, jamais avant de savoir si la commande est déjà facturée. Pourquoi : la numérotation continue est une obligation légale, et les doublons de novembre 2025 ont laissé 212 numéros à déclarer (`docs/postmortems/2025-11-factures-en-double.md`). Vérifiée par : `services/billing/test_ledger.py`. [2025-11]
-- Une facture émise ne se corrige pas : `Invoice` est figée, une erreur se rattrape par un avoir, que la comptabilité émet. Pourquoi : obligation légale. Vérifiée par : `services/billing/test_ledger.py`. [2025-11]
+- Invoice numbers follow one another with no gap: `Ledger.issue` takes a number only when it writes the invoice, never before knowing whether the order is already invoiced. Why: continuous numbering is a legal obligation, and the duplicates of November 2025 left 212 numbers to declare (`docs/postmortems/2025-11-duplicate-invoices.md`). Enforced by: `services/billing/test_ledger.py`. [2025-11]
+- An issued invoice is not corrected: `Invoice` is frozen, a mistake is made up for by a credit note, which accounting issues. Why: legal obligation. Enforced by: `services/billing/test_ledger.py`. [2025-11]

@@ -1,12 +1,12 @@
 diff --git a/.harness/audit.json b/.harness/audit.json
 new file mode 100644
-index 0000000..6f58699
+index 0000000..2da2588
 --- /dev/null
 +++ b/.harness/audit.json
 @@ -0,0 +1,218 @@
 +{
 +  "audit": {
-+    "process": "comptoir — livraison d'un ticket délégué jusqu'à la PR",
++    "process": "comptoir — delivery of a delegated ticket up to the PR",
 +    "scope": "repo (AGENTS.md, CLAUDE.md, services/billing/AGENTS.md, .github/, tools/, shared/, contracts/, services/*/test_*.py, docs/, README.md)",
 +    "date": "2026-11-14",
 +    "health_score": 27,
@@ -22,10 +22,10 @@ index 0000000..6f58699
 +      "calls": ["orders-test-contract"],
 +      "verdict": "PUSH_DOWN",
 +      "priority": "P1",
-+      "finding": "La règle « un changement de contrat est additif » se dit vérifiée par services/orders/test_contract.py, alors que ce test reste vert quand le schéma et le fournisseur changent ensemble — exactement le scénario de l'incident du 12 mai 2026.",
-+      "evidence": ["AGENTS.md:17", "docs/postmortems/2026-05-champ-renomme.md:11", "docs/postmortems/2026-05-champ-renomme.md:22-26", "services/orders/test_contract.py:19-22", ".github/workflows/ci.yml:7-27"],
-+      "target": "tools/check_contracts.py (testé) qui compare chaque contracts/**/*.json à sa version sur la branche de base et sort en 1 sur propriété retirée, type changé, champ devenu requis ou additionalProperties assoupli ; job CI `contracts` bloquant ; en attendant, la ligne 17 dit « (non vérifiée) ».",
-+      "check": "Une PR qui renomme customer_email en email dans contracts/events/order.created.json fait échouer le job contracts ; AGENTS.md:17 cite ce job."
++      "finding": "The rule \"a contract change is additive\" says it is enforced by services/orders/test_contract.py, whereas this test stays green when the schema and the provider change together — exactly the scenario of the incident of 12 May 2026.",
++      "evidence": ["AGENTS.md:17", "docs/postmortems/2026-05-renamed-field.md:11", "docs/postmortems/2026-05-renamed-field.md:22-26", "services/orders/test_contract.py:19-22", ".github/workflows/ci.yml:7-27"],
++      "target": "tools/check_contracts.py (tested) that compares each contracts/**/*.json to its version on the base branch and exits 1 on a removed property, a changed type, a field made required or a loosened additionalProperties; blocking CI job `contracts`; in the meantime, line 17 says \"(unverified)\".",
++      "check": "A PR that renames customer_email to email in contracts/events/order.created.json fails the contracts job; AGENTS.md:17 cites this job."
 +    },
 +    {
 +      "id": "agents-md-imports-lines",
@@ -36,10 +36,10 @@ index 0000000..6f58699
 +      "calls": [],
 +      "verdict": "REMOVE",
 +      "priority": "P2",
-+      "finding": "La ligne 21 dit la règle des imports « (non vérifiée) » et la ligne 22 impose un grep manuel « seul contrôle », alors que tools/check_imports.py la bloque en CI depuis le 2026-08-04 ; le grep ne voit ni `from services import orders`, ni les imports relatifs, ni les imports indentés.",
-+      "evidence": ["AGENTS.md:21", "AGENTS.md:22", "docs/adr/0001-trois-services-un-contrat.md:17", "docs/adr/0001-trois-services-un-contrat.md:23", ".github/workflows/ci.yml:21-27", "tools/test_check_imports.py:39-46"],
-+      "target": "Ligne 22 retirée ; ligne 21 raccourcie à « Vérifiée par : tools/check_imports.py, job boundaries ».",
-+      "check": "grep -n 'grep -rnE' AGENTS.md ne renvoie rien ; harness rules marque AGENTS.md:21 avec garde-fou."
++      "finding": "Line 21 says the import rule is \"(unverified)\" and line 22 imposes a manual grep, \"the only check\", whereas tools/check_imports.py has blocked it in CI since 2026-08-04; the grep sees neither `from services import orders`, nor relative imports, nor indented imports.",
++      "evidence": ["AGENTS.md:21", "AGENTS.md:22", "docs/adr/0001-three-services-one-contract.md:17", "docs/adr/0001-three-services-one-contract.md:23", ".github/workflows/ci.yml:21-27", "tools/test_check_imports.py:39-46"],
++      "target": "Line 22 removed; line 21 shortened to \"Enforced by: tools/check_imports.py, job boundaries\".",
++      "check": "grep -n 'grep -rnE' AGENTS.md returns nothing; harness rules marks AGENTS.md:21 as having a guardrail."
 +    },
 +    {
 +      "id": "contracts-changelog",
@@ -50,10 +50,10 @@ index 0000000..6f58699
 +      "calls": [],
 +      "verdict": "PUSH_DOWN",
 +      "priority": "P2",
-+      "finding": "L'inscription de chaque changement de contrat dans contracts/CHANGES.md, que des consommateurs extérieurs suivent, ne vit que dans AGENTS.md ; rien ne la contrôle et le fichier n'existe pas.",
-+      "evidence": ["AGENTS.md:19", "docs/exploitation.md:17-23"],
-+      "target": "Même outil que contract-additivity : si un contracts/**/*.json diffère de la base sans ligne ajoutée en tête de contracts/CHANGES.md, sortie 1.",
-+      "check": "Une PR qui ajoute un champ optionnel à un contrat sans toucher CHANGES.md échoue ; avec la ligne, elle passe."
++      "finding": "Recording each contract change in contracts/CHANGES.md, which outside consumers follow, lives only in AGENTS.md; nothing checks it and the file does not exist.",
++      "evidence": ["AGENTS.md:19", "docs/operations.md:17-23"],
++      "target": "Same tool as contract-additivity: if a contracts/**/*.json differs from the base without a line added at the top of contracts/CHANGES.md, exit 1.",
++      "check": "A PR that adds an optional field to a contract without touching CHANGES.md fails; with the line, it passes."
 +    },
 +    {
 +      "id": "consumer-test-fixtures",
@@ -64,10 +64,10 @@ index 0000000..6f58699
 +      "calls": ["bus-py"],
 +      "verdict": "PUSH_DOWN",
 +      "priority": "P2",
-+      "finding": "Les consommateurs (notifications, billing) fabriquent leurs événements de test à la main sans les valider contre contracts/ : leurs tests restent verts quand le contrat change sous eux, cause directe de l'incident du 12 mai.",
-+      "evidence": ["services/notifications/test_app.py:9-26", "services/billing/test_app.py:12", "docs/postmortems/2026-05-champ-renomme.md:6", "docs/postmortems/2026-05-champ-renomme.md:24"],
-+      "target": "Chaque fixture d'événement consommé est validée par tools.schema.validate contre son contrat (un test par fixture, dans le service consommateur).",
-+      "check": "Retirer customer_email de contracts/events/order.created.json fait échouer un test de notifications et un de billing."
++      "finding": "The consumers (notifications, billing) make their test events by hand without validating them against contracts/: their tests stay green when the contract changes under them, the direct cause of the incident of 12 May.",
++      "evidence": ["services/notifications/test_app.py:9-26", "services/billing/test_app.py:12", "docs/postmortems/2026-05-renamed-field.md:6", "docs/postmortems/2026-05-renamed-field.md:24"],
++      "target": "Each fixture of a consumed event is validated by tools.schema.validate against its contract (one test per fixture, in the consuming service).",
++      "check": "Removing customer_email from contracts/events/order.created.json fails a test of notifications and one of billing."
 +    },
 +    {
 +      "id": "guard-weakening",
@@ -78,10 +78,10 @@ index 0000000..6f58699
 +      "calls": ["codeowners"],
 +      "verdict": "PUSH_DOWN",
 +      "priority": "P2",
-+      "finding": "L'interdit d'affaiblir un garde-fou s'appuie sur CODEOWNERS, qui ne couvre pas services/ (où `deliveries=1` se glisserait) et ne bloque que si la protection de branche exige la revue des propriétaires, invisible depuis le dépôt.",
-+      "evidence": ["AGENTS.md:27", ".github/CODEOWNERS:2-5", "docs/adr/0002-livraison-au-moins-une-fois.md:14"],
-+      "target": "Test dans shared/test_bus.py (ou tools/) qui parcourt services/ et échoue sur tout `InMemoryBus(deliveries=` ; protection de branche « require review from code owners » confirmée par l'équipe plateforme.",
-+      "check": "Ajouter InMemoryBus(deliveries=1) dans services/billing/test_app.py fait échouer le job test."
++      "finding": "The ban on weakening a guardrail relies on CODEOWNERS, which does not cover services/ (where `deliveries=1` would slip in) and blocks only if branch protection requires the code owners' review, invisible from the repository.",
++      "evidence": ["AGENTS.md:27", ".github/CODEOWNERS:2-5", "docs/adr/0002-at-least-once-delivery.md:14"],
++      "target": "Test in shared/test_bus.py (or tools/) that walks services/ and fails on any `InMemoryBus(deliveries=`; branch protection \"require review from code owners\" confirmed by the platform team.",
++      "check": "Adding InMemoryBus(deliveries=1) in services/billing/test_app.py fails the test job."
 +    },
 +    {
 +      "id": "broker-url-guard",
@@ -92,10 +92,10 @@ index 0000000..6f58699
 +      "calls": [],
 +      "verdict": "PUSH_DOWN",
 +      "priority": "P2",
-+      "finding": "L'interdit de pointer BROKER_URL vers la préproduction ou la production n'est porté que par AGENTS.md:26 ; connect() se branche sur n'importe quelle URL.",
-+      "evidence": ["AGENTS.md:26", "shared/bus.py:58-65", "docs/exploitation.md:29"],
-+      "target": "connect() refuse les hôtes virtuels comptoir-preprod / comptoir-prod sauf marqueur posé par la chaîne de déploiement de la plateforme (à convenir), et, côté L4, les identifiants de ces hôtes ne sont pas accessibles d'un poste.",
-+      "check": "BROKER_URL=amqp://…/comptoir-prod python3 -m services.billing.app sort en erreur explicite sans le marqueur ; test dans shared/test_bus.py."
++      "finding": "The ban on pointing BROKER_URL at preproduction or production is carried only by AGENTS.md:26; connect() connects to any URL.",
++      "evidence": ["AGENTS.md:26", "shared/bus.py:58-65", "docs/operations.md:29"],
++      "target": "connect() refuses the virtual hosts comptoir-preprod / comptoir-prod unless a marker is set by the platform's deployment pipeline (to be agreed), and, on the L4 side, the credentials of these hosts are not reachable from a workstation.",
++      "check": "BROKER_URL=amqp://…/comptoir-prod python3 -m services.billing.app exits with an explicit error without the marker; test in shared/test_bus.py."
 +    },
 +    {
 +      "id": "readme-replay",
@@ -106,10 +106,10 @@ index 0000000..6f58699
 +      "calls": [],
 +      "verdict": "REMOVE",
 +      "priority": "P3",
-+      "finding": "Le README documente `python3 tools/replay.py`, qui n'existe pas, alors que rejouer une file d'un poste est précisément l'opération réservée à la plateforme depuis l'incident du 9 janvier 2026.",
-+      "evidence": ["README.md:14", "docs/exploitation.md:28-29"],
-+      "target": "Ligne retirée, ou remplacée par un renvoi vers docs/exploitation.md#rejouer-des-événements.",
-+      "check": "grep -rn replay.py README.md ne renvoie rien."
++      "finding": "The README documents `python3 tools/replay.py`, which does not exist, whereas replaying a queue from a workstation is precisely the operation reserved for the platform since the incident of 9 January 2026.",
++      "evidence": ["README.md:14", "docs/operations.md:28-29"],
++      "target": "Line removed, or replaced by a pointer to docs/operations.md#replaying-events.",
++      "check": "grep -rn replay.py README.md returns nothing."
 +    },
 +    {
 +      "id": "event-size-rule",
@@ -120,10 +120,10 @@ index 0000000..6f58699
 +      "calls": [],
 +      "verdict": "PUSH_DOWN",
 +      "priority": "P3",
-+      "finding": "La limite de 64 Ko n'a aucun contrôle et sa justification (plan mutualisé) est datée : le broker est un cluster dédié depuis mars 2025.",
-+      "evidence": ["AGENTS.md:23", "docs/exploitation.md:13"],
-+      "target": "Selon la réponse du propriétaire : InMemoryBus.publish lève si len(json.dumps(event).encode()) dépasse la limite retenue.",
-+      "check": "Un test qui publie un événement de 70 Ko échoue."
++      "finding": "The 64 KB limit has no check and its justification (shared plan) is dated: the broker has been a dedicated cluster since March 2025.",
++      "evidence": ["AGENTS.md:23", "docs/operations.md:13"],
++      "target": "Depending on the owner's answer: InMemoryBus.publish raises if len(json.dumps(event).encode()) exceeds the limit chosen.",
++      "check": "A test that publishes a 70 KB event fails."
 +    },
 +    {
 +      "id": "notifications-api-contract",
@@ -134,10 +134,10 @@ index 0000000..6f58699
 +      "calls": [],
 +      "verdict": "PUSH_DOWN",
 +      "priority": "P3",
-+      "finding": "GET /outbox répond sans contrat dans contracts/api/ et sans test_contract.py, alors que la règle AGENTS.md:16 couvre tout ce qu'un service répond ; rien n'exige qu'un service ait son test de contrat.",
-+      "evidence": ["services/notifications/app.py:56-58", "AGENTS.md:16", "docs/adr/0001-trois-services-un-contrat.md:16"],
-+      "target": "Selon la réponse du propriétaire : contracts/api/outbox.json + services/notifications/test_contract.py, ou exception écrite dans AGENTS.md:16.",
-+      "check": "Chaque route publique a un schéma dans contracts/api/ validé par un test."
++      "finding": "GET /outbox answers without a contract in contracts/api/ and without a test_contract.py, whereas the rule AGENTS.md:16 covers everything a service answers; nothing requires a service to have its contract test.",
++      "evidence": ["services/notifications/app.py:56-58", "AGENTS.md:16", "docs/adr/0001-three-services-one-contract.md:16"],
++      "target": "Depending on the owner's answer: contracts/api/outbox.json + services/notifications/test_contract.py, or an exception written in AGENTS.md:16.",
++      "check": "Each public route has a schema in contracts/api/ validated by a test."
 +    },
 +    {
 +      "id": "agents-md",
@@ -148,77 +148,77 @@ index 0000000..6f58699
 +      "calls": ["ci-test", "ci-boundaries", "check-imports", "billing-agents-md"],
 +      "verdict": "KEEP",
 +      "priority": "P3",
-+      "finding": "Fichier court, daté, chaque règle justifiée par un incident ou un ADR ; en mode délégation il lui manque une clause de maintenance et un « quand s'arrêter et demander ».",
++      "finding": "Short file, dated, each rule justified by an incident or an ADR; in delegation mode it lacks a maintenance clause and a \"when to stop and ask\".",
 +      "evidence": ["AGENTS.md:3", "AGENTS.md:15-27"],
-+      "target": "Ajouter deux lignes : maintenance (une règle se modifie dans la PR qui change son garde-fou) et arrêt (changement de contrat non additif, ou garde-fou à toucher → PR en brouillon + question).",
-+      "check": "Les deux clauses existent ; harness rules ne signale plus de règle sans garde-fou hors questions ouvertes."
++      "target": "Add two lines: maintenance (a rule is modified in the PR that changes its guardrail) and stop (non-additive contract change, or a guardrail to touch → draft PR + question).",
++      "check": "Both clauses exist; harness rules no longer reports a rule without a guardrail apart from the open questions."
 +    },
-+    { "id": "claude-md", "path": "CLAUDE.md", "declared_layer": "L2", "actual_layer": "L2", "called_by": [], "calls": ["agents-md"], "verdict": "KEEP", "priority": null, "finding": "Une ligne, @AGENTS.md : une seule source.", "evidence": ["CLAUDE.md:1"], "target": "Inchangé.", "check": "—" },
-+    { "id": "billing-agents-md", "path": "services/billing/AGENTS.md", "declared_layer": "L2", "actual_layer": "L2", "called_by": ["agents-md"], "calls": ["billing-test-ledger"], "verdict": "KEEP", "priority": null, "finding": "Deux règles légales, justifiées, toutes deux gardées par test_ledger.py.", "evidence": ["services/billing/AGENTS.md:5-6", "services/billing/test_ledger.py:16-31"], "target": "Inchangé.", "check": "—" },
-+    { "id": "ci-test", "path": ".github/workflows/ci.yml:8-19", "declared_layer": "L4", "actual_layer": "L4", "called_by": [], "calls": ["schema-py", "bus-py", "orders-test-contract", "billing-test-contract", "billing-test-ledger", "check-imports"], "verdict": "KEEP", "priority": null, "finding": "Toute la suite, sur chaque PR, sans filtre de chemins ni continue-on-error.", "evidence": [".github/workflows/ci.yml:2-19"], "target": "Inchangé.", "check": "—" },
-+    { "id": "ci-boundaries", "path": ".github/workflows/ci.yml:21-27", "declared_layer": "L4", "actual_layer": "L4", "called_by": [], "calls": ["check-imports"], "verdict": "KEEP", "priority": null, "finding": "Bloquant à chaque PR.", "evidence": [".github/workflows/ci.yml:21-27"], "target": "Inchangé.", "check": "—" },
-+    { "id": "check-imports", "path": "tools/check_imports.py", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-boundaries", "agents-md"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "CLI testé (toutes les graphies d'import), exit code et --json ; 0 violation aujourd'hui.", "evidence": ["tools/check_imports.py:63-75", "tools/test_check_imports.py:39-46"], "target": "Inchangé.", "check": "—" },
-+    { "id": "schema-py", "path": "tools/schema.py", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["orders-test-contract", "billing-test-contract"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Validateur strict qui refuse tout mot-clé inconnu plutôt que de passer en silence.", "evidence": ["tools/schema.py:18-42"], "target": "Inchangé.", "check": "—" },
-+    { "id": "bus-py", "path": "shared/bus.py:33-55", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-test"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Double livraison par défaut : l'idempotence est testée sans qu'on y pense.", "evidence": ["shared/bus.py:37-51"], "target": "Inchangé.", "check": "—" },
-+    { "id": "orders-test-contract", "path": "services/orders/test_contract.py", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-test"], "calls": ["schema-py"], "verdict": "KEEP", "priority": null, "finding": "Garde bien la règle 16 côté fournisseur ; c'est la citation en AGENTS.md:17 qui est fausse, pas le test.", "evidence": ["services/orders/test_contract.py:19-34"], "target": "Inchangé.", "check": "—" },
-+    { "id": "billing-test-contract", "path": "services/billing/test_contract.py", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-test"], "calls": ["schema-py"], "verdict": "KEEP", "priority": null, "finding": "Même rôle que celui d'orders, pour invoice.issued et l'API invoices.", "evidence": ["services/billing/test_contract.py:20-37"], "target": "Inchangé.", "check": "—" },
-+    { "id": "billing-test-ledger", "path": "services/billing/test_ledger.py", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-test"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Numérotation sans trou et facture figée, testées.", "evidence": ["services/billing/test_ledger.py:16-31"], "target": "Inchangé.", "check": "—" },
-+    { "id": "codeowners", "path": ".github/CODEOWNERS", "declared_layer": "L4", "actual_layer": "L4", "called_by": [], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Relecture à deux de tools/, shared/, .github/ et contracts/ ; son angle mort est traité dans guard-weakening.", "evidence": [".github/CODEOWNERS:2-5"], "target": "Inchangé.", "check": "—" },
-+    { "id": "contributing-md", "path": "CONTRIBUTING.md", "declared_layer": "L2", "actual_layer": "L2", "called_by": [], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Conventions de style pour humains, non chargées par l'agent ; pas de fuite.", "evidence": ["CONTRIBUTING.md:3-8"], "target": "Inchangé.", "check": "—" }
++    { "id": "claude-md", "path": "CLAUDE.md", "declared_layer": "L2", "actual_layer": "L2", "called_by": [], "calls": ["agents-md"], "verdict": "KEEP", "priority": null, "finding": "One line, @AGENTS.md: a single source.", "evidence": ["CLAUDE.md:1"], "target": "Unchanged.", "check": "—" },
++    { "id": "billing-agents-md", "path": "services/billing/AGENTS.md", "declared_layer": "L2", "actual_layer": "L2", "called_by": ["agents-md"], "calls": ["billing-test-ledger"], "verdict": "KEEP", "priority": null, "finding": "Two legal rules, justified, both guarded by test_ledger.py.", "evidence": ["services/billing/AGENTS.md:5-6", "services/billing/test_ledger.py:16-31"], "target": "Unchanged.", "check": "—" },
++    { "id": "ci-test", "path": ".github/workflows/ci.yml:8-19", "declared_layer": "L4", "actual_layer": "L4", "called_by": [], "calls": ["schema-py", "bus-py", "orders-test-contract", "billing-test-contract", "billing-test-ledger", "check-imports"], "verdict": "KEEP", "priority": null, "finding": "The whole suite, on every PR, with no path filter and no continue-on-error.", "evidence": [".github/workflows/ci.yml:2-19"], "target": "Unchanged.", "check": "—" },
++    { "id": "ci-boundaries", "path": ".github/workflows/ci.yml:21-27", "declared_layer": "L4", "actual_layer": "L4", "called_by": [], "calls": ["check-imports"], "verdict": "KEEP", "priority": null, "finding": "Blocking on every PR.", "evidence": [".github/workflows/ci.yml:21-27"], "target": "Unchanged.", "check": "—" },
++    { "id": "check-imports", "path": "tools/check_imports.py", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-boundaries", "agents-md"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Tested CLI (every spelling of an import), exit code and --json; 0 violations today.", "evidence": ["tools/check_imports.py:63-75", "tools/test_check_imports.py:39-46"], "target": "Unchanged.", "check": "—" },
++    { "id": "schema-py", "path": "tools/schema.py", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["orders-test-contract", "billing-test-contract"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Strict validator that refuses any unknown keyword rather than passing silently.", "evidence": ["tools/schema.py:18-42"], "target": "Unchanged.", "check": "—" },
++    { "id": "bus-py", "path": "shared/bus.py:33-55", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-test"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Double delivery by default: idempotence is tested without anyone thinking about it.", "evidence": ["shared/bus.py:37-51"], "target": "Unchanged.", "check": "—" },
++    { "id": "orders-test-contract", "path": "services/orders/test_contract.py", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-test"], "calls": ["schema-py"], "verdict": "KEEP", "priority": null, "finding": "Does guard rule 16 on the provider side; it is the citation in AGENTS.md:17 that is wrong, not the test.", "evidence": ["services/orders/test_contract.py:19-34"], "target": "Unchanged.", "check": "—" },
++    { "id": "billing-test-contract", "path": "services/billing/test_contract.py", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-test"], "calls": ["schema-py"], "verdict": "KEEP", "priority": null, "finding": "Same role as the one of orders, for invoice.issued and the invoices API.", "evidence": ["services/billing/test_contract.py:20-37"], "target": "Unchanged.", "check": "—" },
++    { "id": "billing-test-ledger", "path": "services/billing/test_ledger.py", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-test"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Numbering with no gap and frozen invoice, tested.", "evidence": ["services/billing/test_ledger.py:16-31"], "target": "Unchanged.", "check": "—" },
++    { "id": "codeowners", "path": ".github/CODEOWNERS", "declared_layer": "L4", "actual_layer": "L4", "called_by": [], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Review by two people of tools/, shared/, .github/ and contracts/; its blind spot is handled in guard-weakening.", "evidence": [".github/CODEOWNERS:2-5"], "target": "Unchanged.", "check": "—" },
++    { "id": "contributing-md", "path": "CONTRIBUTING.md", "declared_layer": "L2", "actual_layer": "L2", "called_by": [], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Style conventions for humans, not loaded by the agent; no leak.", "evidence": ["CONTRIBUTING.md:3-8"], "target": "Unchanged.", "check": "—" }
 +  ],
 +  "process_leaks": [
-+    { "rule": "Un changement de contrat est additif", "told_in": "AGENTS.md:17", "if_skipped": "Un renommage passe la CI verte ; les consommateurs (notifications, comptoir-export) cassent en production, comme le 12 mai 2026.", "belongs_in": "L3", "guard_tool": "tools/check_contracts.py contre la branche de base + job CI contracts" },
-+    { "rule": "Tout changement de contrat s'inscrit dans contracts/CHANGES.md", "told_in": "AGENTS.md:19", "if_skipped": "Les consommateurs extérieurs ne voient pas le changement et ne migrent pas.", "belongs_in": "L3", "guard_tool": "tools/check_contracts.py (diff contracts/ sans ligne CHANGES.md → exit 1)" },
-+    { "rule": "Un champ remplacé reste publié et reçoit \"deprecated\": true", "told_in": "AGENTS.md:18", "if_skipped": "Retrait : attrapé par la règle additive une fois gardée. Annotation oubliée : les consommateurs extérieurs ne planifient pas leur migration.", "belongs_in": "L3", "guard_tool": "Partiel : tools/check_contracts.py pour le retrait ; le choix du champ remplacé reste du jugement (L1)" },
-+    { "rule": "Ne pas pointer BROKER_URL vers la préproduction ou la production depuis un poste ou une session d'agent", "told_in": "AGENTS.md:26", "if_skipped": "Des événements réels publiés depuis un poste : e-mails renvoyés aux clients (3 100 le 9 janvier 2026).", "belongs_in": "L3", "guard_tool": "Refus dans shared/bus.py:connect + identifiants tenus en L4 par la plateforme" },
-+    { "rule": "Ne pas affaiblir un garde-fou (deliveries=1 dans le test d'un service)", "told_in": "AGENTS.md:27", "if_skipped": "Un consommateur non idempotent passe la CI ; doublons de factures ou d'e-mails comme le 18 novembre 2025.", "belongs_in": "L3", "guard_tool": "Test qui interdit InMemoryBus(deliveries=…) sous services/" },
-+    { "rule": "Un événement pèse moins de 64 Ko", "told_in": "AGENTS.md:23", "if_skipped": "Selon la limite réelle du cluster dédié (à confirmer) : événement perdu sans erreur côté éditeur.", "belongs_in": "L3", "guard_tool": "Contrôle de taille dans InMemoryBus.publish" }
++    { "rule": "A contract change is additive", "told_in": "AGENTS.md:17", "if_skipped": "A renaming passes the CI green; the consumers (notifications, comptoir-export) break in production, as on 12 May 2026.", "belongs_in": "L3", "guard_tool": "tools/check_contracts.py against the base branch + CI job contracts" },
++    { "rule": "Every contract change is recorded in contracts/CHANGES.md", "told_in": "AGENTS.md:19", "if_skipped": "The outside consumers do not see the change and do not migrate.", "belongs_in": "L3", "guard_tool": "tools/check_contracts.py (diff of contracts/ without a CHANGES.md line → exit 1)" },
++    { "rule": "A replaced field stays published and gets \"deprecated\": true", "told_in": "AGENTS.md:18", "if_skipped": "Removal: caught by the additive rule once it is guarded. Annotation forgotten: the outside consumers do not plan their migration.", "belongs_in": "L3", "guard_tool": "Partial: tools/check_contracts.py for the removal; choosing the replaced field remains judgement (L1)" },
++    { "rule": "Do not point BROKER_URL at preproduction or production from a workstation or an agent session", "told_in": "AGENTS.md:26", "if_skipped": "Real events published from a workstation: emails re-sent to customers (3,100 on 9 January 2026).", "belongs_in": "L3", "guard_tool": "Refusal in shared/bus.py:connect + credentials held in L4 by the platform" },
++    { "rule": "Do not weaken a guardrail (deliveries=1 in a service's test)", "told_in": "AGENTS.md:27", "if_skipped": "A non-idempotent consumer passes the CI; duplicate invoices or emails as on 18 November 2025.", "belongs_in": "L3", "guard_tool": "Test that forbids InMemoryBus(deliveries=…) under services/" },
++    { "rule": "An event weighs less than 64 KB", "told_in": "AGENTS.md:23", "if_skipped": "Depending on the real limit of the dedicated cluster (to be confirmed): event lost with no error on the publisher side.", "belongs_in": "L3", "guard_tool": "Size check in InMemoryBus.publish" }
 +  ],
 +  "guarded_rules": [
-+    { "rule": "Ce qu'un service publie ou répond est déclaré dans contracts/, schémas stricts", "told_in": "AGENTS.md:16", "guarded_by": "services/orders/test_contract.py, services/billing/test_contract.py, tools/schema.py (partiel : pas notifications /outbox)" },
-+    { "rule": "Un consommateur d'événements est idempotent", "told_in": "AGENTS.md:20", "guarded_by": "shared/bus.py (deliveries=2 par défaut), job test" },
-+    { "rule": "Un service n'importe jamais le code d'un autre service", "told_in": "AGENTS.md:21", "guarded_by": "tools/check_imports.py, job boundaries (.github/workflows/ci.yml:21-27)" },
-+    { "rule": "Numéros de facture sans trou", "told_in": "services/billing/AGENTS.md:5", "guarded_by": "services/billing/test_ledger.py" },
-+    { "rule": "Une facture émise ne se corrige pas", "told_in": "services/billing/AGENTS.md:6", "guarded_by": "services/billing/test_ledger.py" }
++    { "rule": "What a service publishes or answers is declared in contracts/, strict schemas", "told_in": "AGENTS.md:16", "guarded_by": "services/orders/test_contract.py, services/billing/test_contract.py, tools/schema.py (partial: not notifications /outbox)" },
++    { "rule": "An event consumer is idempotent", "told_in": "AGENTS.md:20", "guarded_by": "shared/bus.py (deliveries=2 by default), job test" },
++    { "rule": "A service never imports another service's code", "told_in": "AGENTS.md:21", "guarded_by": "tools/check_imports.py, job boundaries (.github/workflows/ci.yml:21-27)" },
++    { "rule": "Invoice numbers with no gap", "told_in": "services/billing/AGENTS.md:5", "guarded_by": "services/billing/test_ledger.py" },
++    { "rule": "An issued invoice is not corrected", "told_in": "services/billing/AGENTS.md:6", "guarded_by": "services/billing/test_ledger.py" }
 +  ],
 +  "removals": [
-+    { "path": "AGENTS.md", "line": 22, "text": "Avant d'ouvrir une PR, lance `grep -rnE \"^(from|import) services\\.\" …` et relis chaque ligne à la main … Pourquoi : c'est le seul contrôle de la règle précédente.", "reason": "harmful", "evidence": "Contredit docs/adr/0001-trois-services-un-contrat.md:23 (« La relecture à la main n'est plus le contrôle ») et .github/workflows/ci.yml:21-27 ; le grep rate `from services import orders`, `from ..orders import` et les imports indentés (tools/test_check_imports.py:39-46).", "ask_owner": false },
-+    { "path": "AGENTS.md", "line": 21, "text": "(non vérifiée)", "reason": "harmful", "evidence": "La règle est vérifiée par tools/check_imports.py, job boundaries, depuis le 2026-08-04 (docs/adr/0001-trois-services-un-contrat.md:23) ; remplacer par « Vérifiée par : tools/check_imports.py, job boundaries ».", "ask_owner": false },
-+    { "path": "AGENTS.md", "line": 17, "text": "Vérifiée par : `services/orders/test_contract.py`.", "reason": "harmful", "evidence": "docs/postmortems/2026-05-champ-renomme.md:11 et :22-26 : ce test reste vert quand schéma et fournisseur changent ensemble ; remplacer par « (non vérifiée) » jusqu'au job contracts.", "ask_owner": false },
-+    { "path": "README.md", "line": 14, "text": "python3 tools/replay.py order.created   # rejoue le dernier événement d'un type", "reason": "harmful", "evidence": "tools/replay.py n'existe pas ; rejouer une file d'un poste est réservé à la plateforme (docs/exploitation.md:28-29).", "ask_owner": true },
-+    { "path": "AGENTS.md", "line": 23, "text": "Pourquoi : au-delà, le plan mutualisé du broker coupe la connexion sans erreur côté éditeur", "reason": "outdated", "evidence": "docs/exploitation.md:13 : cluster dédié depuis mars 2025, le plan mutualisé n'existe plus.", "ask_owner": true }
++    { "path": "AGENTS.md", "line": 22, "text": "Before opening a PR, run `grep -rnE \"^(from|import) services\\.\" …` and review each line by hand … Why: it is the only check of the previous rule.", "reason": "harmful", "evidence": "Contradicts docs/adr/0001-three-services-one-contract.md:23 (\"The review by hand is no longer the check\") and .github/workflows/ci.yml:21-27; the grep misses `from services import orders`, `from ..orders import` and indented imports (tools/test_check_imports.py:39-46).", "ask_owner": false },
++    { "path": "AGENTS.md", "line": 21, "text": "(unverified)", "reason": "harmful", "evidence": "The rule has been enforced by tools/check_imports.py, job boundaries, since 2026-08-04 (docs/adr/0001-three-services-one-contract.md:23); replace with \"Enforced by: tools/check_imports.py, job boundaries\".", "ask_owner": false },
++    { "path": "AGENTS.md", "line": 17, "text": "Enforced by: `services/orders/test_contract.py`.", "reason": "harmful", "evidence": "docs/postmortems/2026-05-renamed-field.md:11 and :22-26: this test stays green when schema and provider change together; replace with \"(unverified)\" until the contracts job.", "ask_owner": false },
++    { "path": "README.md", "line": 14, "text": "python3 tools/replay.py order.created   # replays the last event of a type", "reason": "harmful", "evidence": "tools/replay.py does not exist; replaying a queue from a workstation is reserved for the platform (docs/operations.md:28-29).", "ask_owner": true },
++    { "path": "AGENTS.md", "line": 23, "text": "Why: beyond that, the broker's shared plan cuts the connection with no error on the publisher side", "reason": "outdated", "evidence": "docs/operations.md:13: dedicated cluster since March 2025, the shared plan no longer exists.", "ask_owner": true }
 +  ],
 +  "owner_questions": [
-+    "1. AGENTS.md:23 — le cluster dédié (depuis mars 2025) a-t-il encore une limite de taille d'événement, et laquelle ? Défaut proposé : garder la règle « pas de fichier ni d'export dans un événement, on publie son adresse », remplacer le pourquoi par la limite réelle ou par celle des consommateurs extérieurs, et ajouter un contrôle de taille dans InMemoryBus.publish.",
-+    "2. README.md:14 — tools/replay.py a-t-il été retiré après l'incident du 9 janvier 2026 ? Défaut proposé : retirer la ligne et renvoyer vers docs/exploitation.md, section « Rejouer des événements ».",
-+    "3. GET /outbox (services/notifications/app.py:56-58) est-il lu hors du service ? Défaut proposé : oui par prudence — ajouter contracts/api/outbox.json et services/notifications/test_contract.py.",
-+    "4. La protection de main exige-t-elle les jobs test et boundaries et la revue des CODEOWNERS ? Défaut proposé : supposer que non tant que ce n'est pas confirmé, et ajouter le test qui interdit deliveries= sous services/.",
-+    "5. Un poste ou une session d'agent peut-il obtenir des identifiants des hôtes comptoir-preprod / comptoir-prod ? Défaut proposé : ajouter le refus dans shared/bus.py:connect, avec un marqueur posé par la chaîne de déploiement à convenir avec la plateforme.",
-+    "6. Pour la règle additive, la référence de comparaison est-elle origin/main ou la dernière version déployée ? Défaut proposé : la base de la PR (origin/main)."
++    "1. AGENTS.md:23 — does the dedicated cluster (since March 2025) still have an event size limit, and which one? Proposed default: keep the rule \"no file and no export in an event, publish its address\", replace the why with the real limit or with that of the outside consumers, and add a size check in InMemoryBus.publish.",
++    "2. README.md:14 — was tools/replay.py removed after the incident of 9 January 2026? Proposed default: remove the line and point to docs/operations.md, section \"Replaying events\".",
++    "3. Is GET /outbox (services/notifications/app.py:56-58) read outside the service? Proposed default: yes, to be safe — add contracts/api/outbox.json and services/notifications/test_contract.py.",
++    "4. Does the protection of main require the jobs test and boundaries and the CODEOWNERS review? Proposed default: assume it does not until confirmed, and add the test that forbids deliveries= under services/.",
++    "5. Can a workstation or an agent session obtain credentials for the hosts comptoir-preprod / comptoir-prod? Proposed default: add the refusal in shared/bus.py:connect, with a marker set by the deployment pipeline, to be agreed with the platform.",
++    "6. For the additive rule, is the comparison reference origin/main or the last deployed version? Proposed default: the base of the PR (origin/main)."
 +  ],
 +  "instruction_files": [
 +    { "path": "CLAUDE.md (+ @AGENTS.md)", "loaded_lines": 28, "instruction_pct": 70, "reference_pct": 30, "noise_pct": 0, "justified_rules": true, "maintenance_clause": false },
 +    { "path": "services/billing/AGENTS.md", "loaded_lines": 7, "instruction_pct": 85, "reference_pct": 15, "noise_pct": 0, "justified_rules": true, "maintenance_clause": false }
 +  ],
 +  "remediation": [
-+    { "order": 1, "priority": "P1", "verdict": "PUSH_DOWN", "element": "contract-additivity", "action": "Créer tools/check_contracts.py (+ tools/test_check_contracts.py) : compare chaque contracts/**/*.json à sa version sur la base, exit 1 sur retrait, changement de type, champ rendu requis, additionalProperties assoupli ; sortie --json.", "depends_on": [], "check": "Les tests couvrent renommage, retrait, type changé, ajout optionnel accepté ; la commande tourne hors agent.", "needs_human_approval": true },
-+    { "order": 2, "priority": "P1", "verdict": "PUSH_DOWN", "element": "contract-additivity", "action": "Ajouter un job contracts bloquant dans .github/workflows/ci.yml (checkout fetch-depth: 0) et corriger AGENTS.md:17 pour citer ce job.", "depends_on": ["1"], "check": "Une PR de renommage de customer_email échoue sur le job contracts.", "needs_human_approval": true },
-+    { "order": 3, "priority": "P2", "verdict": "REMOVE", "element": "agents-md-imports-lines", "action": "Retirer AGENTS.md:22 ; remplacer « (non vérifiée) » en AGENTS.md:21 par « Vérifiée par : tools/check_imports.py, job boundaries » ; en attendant l'étape 2, remplacer la citation de AGENTS.md:17 par « (non vérifiée) ».", "depends_on": [], "check": "harness rules montre AGENTS.md:21 avec garde-fou et AGENTS.md:17 sans garde-fou revendiqué.", "needs_human_approval": true },
-+    { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "consumer-test-fixtures", "action": "Valider les fixtures order_created / invoice_issued de services/notifications/test_app.py et services/billing/test_app.py contre contracts/ avec tools.schema.validate.", "depends_on": [], "check": "Retirer customer_email du contrat fait échouer les tests des deux consommateurs.", "needs_human_approval": false },
-+    { "order": 5, "priority": "P2", "verdict": "PUSH_DOWN", "element": "contracts-changelog", "action": "Étendre tools/check_contracts.py : un contrat modifié sans nouvelle ligne datée en tête de contracts/CHANGES.md → exit 1 ; créer contracts/CHANGES.md à la première modification.", "depends_on": ["1", "2"], "check": "Une PR qui ajoute un champ sans ligne CHANGES.md échoue, avec la ligne elle passe.", "needs_human_approval": true },
-+    { "order": 6, "priority": "P2", "verdict": "PUSH_DOWN", "element": "guard-weakening", "action": "Ajouter un test qui parcourt services/ et échoue sur InMemoryBus(deliveries= ; faire confirmer la protection de branche (question 4).", "depends_on": [], "check": "deliveries=1 dans un test de service fait échouer le job test.", "needs_human_approval": false },
-+    { "order": 7, "priority": "P2", "verdict": "PUSH_DOWN", "element": "broker-url-guard", "action": "Faire refuser par shared/bus.py:connect les hôtes comptoir-preprod / comptoir-prod hors marqueur de déploiement, avec test ; convenir du marqueur avec la plateforme (question 5).", "depends_on": [], "check": "Un test de shared/test_bus.py prouve le refus ; le déploiement de préproduction démarre toujours.", "needs_human_approval": true },
-+    { "order": 8, "priority": "P3", "verdict": "REMOVE", "element": "readme-replay", "action": "Retirer README.md:14 (question 2).", "depends_on": [], "check": "Plus aucune mention de tools/replay.py.", "needs_human_approval": true },
-+    { "order": 9, "priority": "P3", "verdict": "PUSH_DOWN", "element": "event-size-rule", "action": "Après réponse à la question 1 : contrôle de taille dans InMemoryBus.publish et pourquoi réécrit en AGENTS.md:23.", "depends_on": [], "check": "Un événement au-delà de la limite fait échouer un test.", "needs_human_approval": true },
-+    { "order": 10, "priority": "P3", "verdict": "PUSH_DOWN", "element": "notifications-api-contract", "action": "Après réponse à la question 3 : contracts/api/outbox.json + services/notifications/test_contract.py.", "depends_on": [], "check": "Les réponses de /outbox sont validées contre leur schéma.", "needs_human_approval": true },
-+    { "order": 11, "priority": "P3", "verdict": "KEEP", "element": "agents-md", "action": "Ajouter à AGENTS.md une clause de maintenance et une clause d'arrêt (quand ouvrir une PR en brouillon et poser la question).", "depends_on": ["3"], "check": "Les deux clauses figurent dans AGENTS.md.", "needs_human_approval": true }
++    { "order": 1, "priority": "P1", "verdict": "PUSH_DOWN", "element": "contract-additivity", "action": "Create tools/check_contracts.py (+ tools/test_check_contracts.py): compares each contracts/**/*.json to its version on the base, exit 1 on a removal, a type change, a field made required, a loosened additionalProperties; --json output.", "depends_on": [], "check": "The tests cover renaming, removal, changed type, optional addition accepted; the command runs without an agent.", "needs_human_approval": true },
++    { "order": 2, "priority": "P1", "verdict": "PUSH_DOWN", "element": "contract-additivity", "action": "Add a blocking contracts job in .github/workflows/ci.yml (checkout fetch-depth: 0) and correct AGENTS.md:17 to cite this job.", "depends_on": ["1"], "check": "A PR renaming customer_email fails on the contracts job.", "needs_human_approval": true },
++    { "order": 3, "priority": "P2", "verdict": "REMOVE", "element": "agents-md-imports-lines", "action": "Remove AGENTS.md:22; replace \"(unverified)\" in AGENTS.md:21 with \"Enforced by: tools/check_imports.py, job boundaries\"; until step 2, replace the citation of AGENTS.md:17 with \"(unverified)\".", "depends_on": [], "check": "harness rules shows AGENTS.md:21 with a guardrail and AGENTS.md:17 with no guardrail claimed.", "needs_human_approval": true },
++    { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "consumer-test-fixtures", "action": "Validate the order_created / invoice_issued fixtures of services/notifications/test_app.py and services/billing/test_app.py against contracts/ with tools.schema.validate.", "depends_on": [], "check": "Removing customer_email from the contract fails the tests of both consumers.", "needs_human_approval": false },
++    { "order": 5, "priority": "P2", "verdict": "PUSH_DOWN", "element": "contracts-changelog", "action": "Extend tools/check_contracts.py: a contract modified without a new dated line at the top of contracts/CHANGES.md → exit 1; create contracts/CHANGES.md at the first modification.", "depends_on": ["1", "2"], "check": "A PR that adds a field without a CHANGES.md line fails, with the line it passes.", "needs_human_approval": true },
++    { "order": 6, "priority": "P2", "verdict": "PUSH_DOWN", "element": "guard-weakening", "action": "Add a test that walks services/ and fails on InMemoryBus(deliveries= ; have the branch protection confirmed (question 4).", "depends_on": [], "check": "deliveries=1 in a service test fails the test job.", "needs_human_approval": false },
++    { "order": 7, "priority": "P2", "verdict": "PUSH_DOWN", "element": "broker-url-guard", "action": "Have shared/bus.py:connect refuse the hosts comptoir-preprod / comptoir-prod without a deployment marker, with a test; agree on the marker with the platform (question 5).", "depends_on": [], "check": "A test of shared/test_bus.py proves the refusal; the preproduction deployment still starts.", "needs_human_approval": true },
++    { "order": 8, "priority": "P3", "verdict": "REMOVE", "element": "readme-replay", "action": "Remove README.md:14 (question 2).", "depends_on": [], "check": "No mention of tools/replay.py left.", "needs_human_approval": true },
++    { "order": 9, "priority": "P3", "verdict": "PUSH_DOWN", "element": "event-size-rule", "action": "After the answer to question 1: size check in InMemoryBus.publish and the why rewritten in AGENTS.md:23.", "depends_on": [], "check": "An event beyond the limit fails a test.", "needs_human_approval": true },
++    { "order": 10, "priority": "P3", "verdict": "PUSH_DOWN", "element": "notifications-api-contract", "action": "After the answer to question 3: contracts/api/outbox.json + services/notifications/test_contract.py.", "depends_on": [], "check": "The answers of /outbox are validated against their schema.", "needs_human_approval": true },
++    { "order": 11, "priority": "P3", "verdict": "KEEP", "element": "agents-md", "action": "Add to AGENTS.md a maintenance clause and a stop clause (when to open a draft PR and ask the question).", "depends_on": ["3"], "check": "Both clauses appear in AGENTS.md.", "needs_human_approval": true }
 +  ],
 +  "unverified": [
-+    "Protection de la branche main (checks requis, revue des CODEOWNERS) : non visible depuis le dépôt.",
-+    "Accès effectif d'un poste ou d'une session d'agent aux identifiants du broker de préproduction ou de production.",
-+    "Limite de taille réelle du cluster dédié et des consommateurs extérieurs (comptoir-export, entrepôt de données).",
-+    "Historique git : un seul commit d'import (bcfc7e4, 2026-11-14) ; les dates viennent des balises [AAAA-MM] du texte.",
-+    "Dossier .harness/ absent avant cet audit : aucun état ni harvest antérieur.",
-+    "Persistance de l'idempotence : _handled (notifications) est en mémoire ; une relivraison après redémarrage n'est couverte par aucun test (hors périmètre harness, signalé pour information)."
++    "Protection of the main branch (required checks, CODEOWNERS review): not visible from the repository.",
++    "Actual access of a workstation or an agent session to the credentials of the preproduction or production broker.",
++    "Real size limit of the dedicated cluster and of the outside consumers (comptoir-export, data warehouse).",
++    "Git history: a single import commit (bcfc7e4, 2026-11-14); the dates come from the [YYYY-MM] tags of the text.",
++    "Folder .harness/ absent before this audit: no earlier state or harvest.",
++    "Persistence of idempotence: _handled (notifications) is in memory; a redelivery after a restart is covered by no test (outside the harness scope, reported for information)."
 +  ]
 +}
