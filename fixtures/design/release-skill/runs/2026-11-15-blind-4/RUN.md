@@ -1,19 +1,19 @@
-# 2026-11-15 — harness-design à l'aveugle sur release-skill, après `incident=forget`
+# 2026-11-15 — harness-design blind on release-skill, after `incident=forget`
 
-Un agent neuf, sur un kit sans corrigé, skill et CLI au commit 3d4643e. Environ 100 000 tokens. Une seule exécution.
+A fresh agent, on a kit without the answer key, skill and CLI at commit 3d4643e. About 100,000 tokens. A single run.
 
-**Résultat : 7 pièges trouvés sur 7, aucun élément sain déplacé** (`check.md`).
+**Result: 7 traps found out of 7, no healthy item moved** (`check.md`).
 
-## Ce que ça montre, et ce que ça ne montre pas
+## What it shows, and what it does not show
 
-Même fixture, même corrigé que `runs/2026-11-15-blind-3` (6/7) : seuls la grille et le skill ont changé entre les deux. L'agent a rangé la pré-condition « fichiers non commités » en règle, `incident=forget`, `bypass_rule=agent`, vers une vérification lancée par un hook : le chemin ajouté, sans détour par une limite.
+Same fixture, same answer key as `runs/2026-11-15-blind-3` (6/7): only the grid and the skill changed between the two. The agent placed the "uncommitted files" precondition as a rule, `incident=forget`, `bypass_rule=agent`, towards a check run by a hook: the added path, without a detour through a limit.
 
-C'est un point contre un point, sur une fixture que la correction visait. Ça montre que le chemin se trouve ; ça ne dit pas à quelle fréquence. `ticket-vers-pr`, tenue à l'écart, n'a pas été rejouée.
+It is one point against one point, on a fixture the correction targeted. It shows that the path can be found; it does not say how often. `ticket-to-pr`, held out, was not replayed.
 
-## Remontées (`notes.md`)
+## Feedback (`notes.md`)
 
-- Quatrième fois : sous `compute`, la gravité d'une erreur ne change rien.
-- Une préférence propre à un skill n'a pas de `scope` « dans ce skill ».
-- « Ne publie jamais hors de main » se lit en limite ou en pré-condition (vers l'étape bloquante de livraison) ; le skill ne départage pas. Les deux destinations sont défendables.
-- La destination « vérification lancée par un hook » parle d'« après édition, ou à l'arrêt » ; il faut ici un hook avant le lancement.
-- Le `current` d'un calcul ou d'une vérification racontés dans un skill : `skill` ou `session` ?
+- Fourth time: under `compute`, the severity of an error changes nothing.
+- A preference specific to a skill has no `scope` "in this skill".
+- "Never publish outside main" reads as a limit or as a precondition (towards the blocking delivery step); the skill does not decide. Both destinations are defensible.
+- The destination "check run by a hook" speaks of "after an edit, or on stop"; here a hook before the launch is needed.
+- The `current` of a computation or a check told as a story in a skill: `skill` or `session`?

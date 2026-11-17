@@ -1,18 +1,18 @@
-# 2026-11-15 — harness-design à l'aveugle sur release-skill, après révision
+# 2026-11-15 — harness-design blind on release-skill, after revision
 
-Un agent neuf, sur un kit neuf sans corrigé. Environ 103 000 tokens, 62 secondes. Une seule exécution.
+A fresh agent, on a fresh kit without the answer key. About 103,000 tokens, 62 seconds. A single run.
 
-**Résultat : 6 pièges trouvés sur 6, aucun élément sain déplacé sur 3** (`check.md`).
+**Result: 6 traps found out of 6, no healthy item moved out of 3** (`check.md`).
 
-## Ce résultat ne se compare pas au précédent
+## This result does not compare with the previous one
 
-Entre `2026-11-15-blind` et celle-ci, la fixture, le noteur, la grille et le skill ont changé (`traps.md`, section Révisions). C'est une base neuve, pas la mesure d'un progrès : le corrigé a été révisé par la session qui venait de lire la première exécution. Le plan de la première exécution, renoté avec le corrigé révisé, donne 6/6 et un élément sain déplacé (S4).
+Between `2026-11-15-blind` and this one, the fixture, the grader, the grid and the skill changed (`traps.md`, Revisions section). It is a new baseline, not the measurement of a progress: the answer key was revised by the session that had just read the first run. The plan of the first run, regraded with the revised answer key, gives 6/6 and one healthy item moved (S4).
 
-Ce qu'on peut dire : avec le workflow présent dans l'artefact et la consigne ajoutée au skill, l'agent a ouvert le workflow et gardé la règle qui cite son check.
+What can be said: with the workflow present in the artifact and the instruction added to the skill, the agent opened the workflow and kept the rule that cites its check.
 
-## Ce que l'agent dit du skill et de la grille (`notes.md`)
+## What the agent says about the skill and the grid (`notes.md`)
 
-- Un check « requis » ne se lit pas dans le dépôt : c'est un réglage de la forge. Le skill ne dit pas comment trancher.
-- La grille n'a pas de réponse « rien ne se publie sans » : une règle qui se vérifie à la publication tombe sur un check de fusion.
-- « Incident » n'existe pas pour un calcul : une version mal calculée ne pèse rien dans la branche `compute`.
-- Hors plan, comme le skill le demande maintenant : une phrase à retirer, un outil manquant au sous-agent, une limite de commitlint sur les fusions en squash.
+- A "required" check cannot be read in the repository: it is a forge setting. The skill does not say how to decide.
+- The grid has no answer "nothing is published without it": a rule that is checked at publication lands on a merge check.
+- "Incident" does not exist for a computation: a miscomputed version weighs nothing in the `compute` branch.
+- Outside the plan, as the skill now asks: a sentence to remove, a tool missing from the subagent, a limit of commitlint on squash merges.

@@ -68,7 +68,7 @@ States: `done`, `in progress`, `to do`, `waiting` (for a decision or a request f
 | H2 | Play `harness-harvest` at least once | to do | 2026-11-10 | It needs a PR history replayable offline |
 | H3 | `harness-audit` reads the placement grid and renders the common report | to do | 2026-11-14 | Waits for agreement with the other session, which holds this skill |
 | D1 | Placement grid and `harness-design` skill | done | 2026-11-14 | PR 12 to 20; 7 of 7 blind after the `incident=forget` fix |
-| D2 | Replay the held-out fixture `ticket-vers-pr` since the grid was fixed | done | 2026-11-15 | `runs/2026-11-15-blind-2`: 12 of 12, one run. Three limits of the grid noted in its log, not fixed according to it |
+| D2 | Replay the held-out fixture `ticket-to-pr` since the grid was fixed | done | 2026-11-15 | `runs/2026-11-15-blind-2`: 12 of 12, one run. Three limits of the grid noted in its log, not fixed according to it |
 | R1 | Common report as a one-page HTML | done | 2026-11-14 | `harness report`, `docs/examples/report-skill-release.html` |
 | S1 | Plugin `ai-sdlc`: context, extension points | done | 2026-11-15 | PR 22 |
 | S2 | Skill `review`, rendered by the CLI, trapped PR, first measurement | done | 2026-11-15 | PR 23 and 24; a single run, fixture probably too easy |

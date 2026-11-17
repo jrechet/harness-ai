@@ -1,7 +1,7 @@
 {
   "audit": {
     "process": "deskly",
-    "scope": "dépôt tel que trouvé",
+    "scope": "repository as found",
     "date": "2026-11-10",
     "health_score": 57,
     "cut_the_agent_test": {
@@ -19,10 +19,10 @@
       "calls": [],
       "verdict": "PUSH_DOWN",
       "priority": "P1",
-      "finding": "le filtre du job web ignore packages/shared",
+      "finding": "the web job's filter ignores packages/shared",
       "evidence": [
         ".github/workflows/ci.yml:26",
-        "docs/postmortems/2026-06-statut-inconnu.md:9"
+        "docs/postmortems/2026-06-unknown-status.md:9"
       ],
       "target": "",
       "check": ""
@@ -36,7 +36,7 @@
       "calls": [],
       "verdict": "SPLIT",
       "priority": "P2",
-      "finding": "104 lignes générées : référence, bruit, commandes fausses, et deux lignes à garder",
+      "finding": "104 generated lines: reference, noise, false commands, and two lines to keep",
       "evidence": [
         "CLAUDE.md:1"
       ],
@@ -52,7 +52,7 @@
       "calls": [],
       "verdict": "MERGE",
       "priority": "P2",
-      "finding": "une consigne contredit le garde-fou des frontières, une autre est périmée",
+      "finding": "one instruction contradicts the boundaries guardrail, another is outdated",
       "evidence": [
         "apps/web/CLAUDE.md:5",
         "tools/check-boundaries.mjs:1"
@@ -69,7 +69,7 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "garde-fou à sortie structurée, bloquant à chaque PR",
+      "finding": "guardrail with structured output, blocking on every PR",
       "evidence": [
         "tools/check-boundaries.mjs:1",
         ".github/workflows/ci.yml:29"
@@ -86,7 +86,7 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "les transitions ont leur test",
+      "finding": "the transitions have their test",
       "evidence": [
         "packages/shared/src/ticket.test.ts:5"
       ],
@@ -96,16 +96,16 @@
   ],
   "process_leaks": [
     {
-      "rule": "un changement dans packages/shared se valide avec les tests et les types du web",
+      "rule": "a change in packages/shared is validated with the web's tests and types",
       "told_in": "CLAUDE.md:103",
-      "if_skipped": "le web casse en production, CI verte",
+      "if_skipped": "the web breaks in production, CI green",
       "belongs_in": "L4",
-      "guard_tool": "ajouter packages/shared/** au filtre du job web"
+      "guard_tool": "add packages/shared/** to the web job's filter"
     }
   ],
   "guarded_rules": [
     {
-      "rule": "une app n'importe jamais une autre app",
+      "rule": "an app never imports another app",
       "told_in": "CLAUDE.md:59",
       "guarded_by": "tools/check-boundaries.mjs"
     }
@@ -116,15 +116,15 @@
       "line": 84,
       "text": "Never apply partial edits to a file larger than 500 lines; rewrite the whole file instead.",
       "reason": "harmful",
-      "evidence": "contournement d'une limite d'outil disparue : fait réécrire des fichiers entiers",
+      "evidence": "workaround for a tool limit that is gone: makes the agent rewrite whole files",
       "ask_owner": false
     },
     {
       "path": "apps/web/CLAUDE.md",
       "line": 5,
-      "text": "importe-le directement depuis ../../api/src/tickets/service.ts",
+      "text": "import it directly from ../../api/src/tickets/service.ts",
       "reason": "harmful",
-      "evidence": "tools/check-boundaries.mjs refuse cet import en CI",
+      "evidence": "tools/check-boundaries.mjs refuses this import in CI",
       "ask_owner": false
     },
     {
@@ -132,23 +132,23 @@
       "line": 85,
       "text": "Always ask for confirmation before running any command.",
       "reason": "harmful",
-      "evidence": "contredit le mode délégation demandé",
+      "evidence": "contradicts the delegation mode asked for",
       "ask_owner": false
     },
     {
       "path": "CLAUDE.md",
       "line": 50,
-      "text": "npm run lint ; npm run build",
+      "text": "npm run lint; npm run build",
       "reason": "harmful",
-      "evidence": "ces scripts n'existent pas dans package.json",
+      "evidence": "these scripts do not exist in package.json",
       "ask_owner": false
     },
     {
       "path": "CLAUDE.md",
       "line": 69,
-      "text": "Code Style Guidelines : prefer `const`, meaningful variable names, clean, readable and maintainable code, functions small",
+      "text": "Code Style Guidelines: prefer `const`, meaningful variable names, clean, readable and maintainable code, functions small",
       "reason": "useless",
-      "evidence": "ce qu'un modèle fait sans qu'on le dise ; tsconfig porte déjà strict",
+      "evidence": "what a model does without being told; tsconfig already carries strict",
       "ask_owner": false
     },
     {
@@ -156,7 +156,7 @@
       "line": 80,
       "text": "You are an expert senior TypeScript engineer. Think step by step. Do not hallucinate APIs. Always read a file fully before editing it.",
       "reason": "useless",
-      "evidence": "consignes écrites pour d'anciens modèles",
+      "evidence": "instructions written for old models",
       "ask_owner": false
     },
     {
@@ -164,7 +164,7 @@
       "line": 5,
       "text": "Project Overview, Tech Stack, Repository Structure, Architecture",
       "reason": "useless",
-      "evidence": "découvrable dans README.md, package.json et l'arborescence",
+      "evidence": "discoverable in README.md, package.json and the tree",
       "ask_owner": false
     },
     {
@@ -172,20 +172,20 @@
       "line": 91,
       "text": "Aim for at least 80% code coverage.",
       "reason": "useless",
-      "evidence": "aucun outil ne mesure la couverture",
+      "evidence": "no tool measures coverage",
       "ask_owner": false
     },
     {
       "path": "apps/web/CLAUDE.md",
       "line": 6,
-      "text": "Pas d'optional chaining ni de champs privés # : IE11",
+      "text": "No optional chaining and no # private fields: IE11",
       "reason": "outdated",
-      "evidence": "le code utilise ?. et # partout",
+      "evidence": "the code uses ?. and # everywhere",
       "ask_owner": true
     }
   ],
   "owner_questions": [
-    "1. Le support est-il encore sous IE11 ? Défaut : non, je retire la ligne, le code l'ignore déjà partout."
+    "1. Is support still on IE11? Default: no, I remove the line, the code already ignores it everywhere."
   ],
   "instruction_files": [
     {

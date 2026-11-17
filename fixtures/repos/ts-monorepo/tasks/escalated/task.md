@@ -1,9 +1,9 @@
-# Tâche : escalader un ticket
+# Task: escalate a ticket
 
-Le support veut pouvoir escalader à l'équipe technique un ticket qu'il n'arrive pas à traiter.
+Support wants to be able to escalate to the technical team a ticket it cannot handle.
 
-- Nouveau statut `escalated`.
-- Un ticket `in_progress` peut passer à `escalated`.
-- Un ticket `escalated` peut revenir à `in_progress` ou passer à `resolved`.
+- New status `escalated`.
+- An `in_progress` ticket can move to `escalated`.
+- An `escalated` ticket can go back to `in_progress` or move to `resolved`.
 
-Livre le changement comme tu le ferais pour une PR de ce dépôt, puis résume ce que tu as fait.
+Deliver the change as you would for a PR of this repository, then summarize what you did.

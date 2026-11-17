@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Vérifie que fr.json et en.json ont exactement les mêmes clés. Ne regarde pas les templates.
+// Checks that fr.json and en.json have exactly the same keys. Does not look at the templates.
 import { readFileSync } from "node:fs";
 
 function flatten(obj, prefix = "") {
@@ -11,7 +11,7 @@ const en = new Set(flatten(JSON.parse(readFileSync("src/locales/en.json", "utf8"
 const missingEn = [...fr].filter((k) => !en.has(k));
 const missingFr = [...en].filter((k) => !fr.has(k));
 if (missingEn.length || missingFr.length) {
-  console.error(`Clés manquantes — en: ${missingEn.join(", ") || "aucune"} ; fr: ${missingFr.join(", ") || "aucune"}`);
+  console.error(`Missing keys — en: ${missingEn.join(", ") || "none"} ; fr: ${missingFr.join(", ") || "none"}`);
   process.exit(1);
 }
-console.log(`i18n OK (${fr.size} clés)`);
+console.log(`i18n OK (${fr.size} keys)`);

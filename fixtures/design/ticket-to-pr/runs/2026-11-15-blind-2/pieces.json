@@ -1,0 +1,15 @@
+[
+  {"piece": "Read the Jira ticket and its acceptance criteria", "answers": {"nature": "action", "access": "consult"}, "evidence": ["tool-request.md:5"]},
+  {"piece": "Refuse to start if the ticket has no acceptance criteria", "answers": {"nature": "rule", "incident": "forget", "checkable": "yes", "bypass_rule": "agent"}, "evidence": ["tool-request.md:6"]},
+  {"piece": "Always follow the same steps: branch, tests first, code, then PR", "answers": {"nature": "procedure"}, "evidence": ["tool-request.md:7"]},
+  {"piece": "Derive the branch name from the ticket: type/KEY-123-short-title", "answers": {"nature": "compute", "when": "on_demand"}, "evidence": ["tool-request.md:8"]},
+  {"piece": "The agent never merges its own PR", "answers": {"nature": "limit", "bypass_limit": "agent"}, "evidence": ["tool-request.md:9"]},
+  {"piece": "Nothing merges without an approval", "answers": {"nature": "limit", "bypass_limit": "dev"}, "evidence": ["tool-request.md:9"]},
+  {"piece": "The agent cannot modify the files of .github/workflows/", "answers": {"nature": "limit", "bypass_limit": "agent"}, "evidence": ["tool-request.md:10"]},
+  {"piece": "No PR merges if its tests do not pass", "answers": {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "dev"}, "evidence": ["tool-request.md:11"]},
+  {"piece": "Before opening the PR, a fresh look reviews the diff against the acceptance criteria", "answers": {"nature": "judgment", "isolation": "independence"}, "evidence": ["tool-request.md:12"]},
+  {"piece": "Decide how to split into commits", "answers": {"nature": "judgment", "isolation": "none"}, "evidence": ["tool-request.md:13"]},
+  {"piece": "Comment on the Jira ticket with the link to the PR", "answers": {"nature": "action", "access": "write"}, "evidence": ["tool-request.md:14"]},
+  {"piece": "Know that the project is in TypeScript, with pnpm", "answers": {"nature": "knowledge", "scope": "discoverable"}, "evidence": ["tool-request.md:15"]},
+  {"piece": "In migrations/, an existing migration is not modified: a new one is added", "answers": {"nature": "knowledge", "scope": "zone"}, "evidence": ["tool-request.md:16"]}
+]

@@ -2,7 +2,7 @@
   "traps": [
     {
       "id": "T1",
-      "what": "Une limite que personne ne doit contourner, racontée dans le skill",
+      "what": "A limit nobody must override, told as a story in the skill",
       "file": ".claude/skills/release/SKILL.md",
       "lines": [
         14,
@@ -15,7 +15,7 @@
     },
     {
       "id": "T2",
-      "what": "Un calcul de version écrit en prose",
+      "what": "A version computation written in prose",
       "file": ".claude/skills/release/SKILL.md",
       "lines": [
         12,
@@ -29,7 +29,7 @@
     },
     {
       "id": "T3",
-      "what": "Une vérification obligatoire racontée comme une étape",
+      "what": "A mandatory check told as a step",
       "file": ".claude/skills/release/SKILL.md",
       "lines": [
         13,
@@ -44,7 +44,7 @@
     },
     {
       "id": "T4",
-      "what": "Une publication avec jeton faite depuis le poste de l'agent",
+      "what": "A publication with a token made from the agent's workstation",
       "file": ".claude/skills/release/SKILL.md",
       "lines": [
         16,
@@ -58,7 +58,7 @@
     },
     {
       "id": "T5",
-      "what": "L'arborescence, que l'agent trouve seul",
+      "what": "The tree, which the agent finds alone",
       "file": ".claude/skills/release/SKILL.md",
       "lines": [
         8,
@@ -70,7 +70,7 @@
     },
     {
       "id": "T6",
-      "what": "Une limite de l'agent écrite comme une règle d'AGENTS.md",
+      "what": "A limit of the agent written as an AGENTS.md rule",
       "file": "AGENTS.md",
       "lines": [
         6,
@@ -84,7 +84,7 @@
     },
     {
       "id": "T7",
-      "what": "Une pré-condition sans gravité, que l'agent ne doit pas pouvoir oublier",
+      "what": "A harmless precondition, which the agent must not be able to forget",
       "file": ".claude/skills/release/SKILL.md",
       "lines": [
         19,
@@ -102,7 +102,7 @@
   "healthy": [
     {
       "id": "S2",
-      "what": "Un jugement laissé à l'agent, décrit par le skill",
+      "what": "A judgment left to the agent, described by the skill",
       "file": ".claude/skills/release/SKILL.md",
       "lines": [
         17,
@@ -114,7 +114,7 @@
     },
     {
       "id": "S3",
-      "what": "Un sous-agent de relecture indépendante, en lecture seule",
+      "what": "An independent review subagent, read-only",
       "file": ".claude/agents/release-reviewer.md",
       "lines": [
         1,
@@ -126,7 +126,7 @@
     },
     {
       "id": "S4",
-      "what": "Une règle d'AGENTS.md portée par un check CI qu'elle cite",
+      "what": "An AGENTS.md rule carried by a CI check it cites",
       "file": "AGENTS.md",
       "lines": [
         7,

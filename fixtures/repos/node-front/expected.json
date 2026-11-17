@@ -115,7 +115,7 @@
           null
         ],
         "leak_keywords": [
-          "couverture"
+          "coverage"
         ],
         "require_leak": true
       },
@@ -172,7 +172,6 @@
         "path": "check-i18n.mjs",
         "rule_keywords": [
           "t()",
-          "chaîne",
           "string",
           "template"
         ]
@@ -180,7 +179,7 @@
     ],
     "forbidden_leak_keywords": [
       "pascalcase",
-      "préfère const",
+      "prefer const",
       "usexxx"
     ]
   }

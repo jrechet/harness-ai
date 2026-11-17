@@ -1,30 +1,33 @@
-# Pièges plantés — node-front (shopfront)
+# Planted traps — node-front (shopfront)
 
-Un front Vue 3 dont l'équipe est allée plus loin que java-back : AGENTS.md court avec mode, règles justifiées et « Vérifiée par », stub CLAUDE.md, section Maintenance, convention `rule:`, un contrat de tâche, eslint custom, stylelint, size-limit, husky. Il est au **palier 1**. Les pièges sont ceux d'un harness qui a l'air sain : contradictions entre ce qui est déclaré et ce qui tourne.
+A Vue 3 front end whose team went further than java-back: a short AGENTS.md with a mode, justified rules and "Enforced by", a CLAUDE.md stub, a Maintenance section, the `rule:` convention, one task contract, a custom eslint rule, stylelint, size-limit, husky. It is at **level 1**. The traps are those of a harness that looks healthy: contradictions between what is declared and what runs.
 
-| Id | Où | Quoi | Attendu de harness-audit | Attendu de `harness status` |
+| Id | Where | What | Expected from harness-audit | Expected from `harness status` |
 |---|---|---|---|---|
-| T1 | `AGENTS.md:3` vs `.github/workflows/agent-fix-i18n.yml` | Mode déclaré **assistance** alors qu'un agent tourne seul chaque matin, ouvre une PR et la fusionne en auto-merge sans relecture : c'est de la délégation de fait | Relever la contradiction et appliquer le barème délégation ; P1 | `L4.mode` échoue (assistance) |
-| T2 | `.github/workflows/agent-fix-i18n.yml:22-24` | `gh pr merge --auto` sur la PR de l'agent : action L4 sans point d'arrêt humain, avec un token de bot | BLOCK, P1 | — |
-| T3 | `AGENTS.md:17` | « Toute chaîne visible passe par `t()` », déclarée « Vérifiée par : scripts/check-i18n.mjs ». **Faux** : le script ne compare que les clés des deux locales, il ne lit aucun template. `NewBadge.vue:6` viole la règle sans que rien ne le voie | Garde-fou mensonger à démasquer : PUSH_DOWN vers une règle eslint (`@intlify/vue-i18n/no-raw-text`), P2 en assistance, P1 si le barème délégation est retenu (T1) ; ne doit **pas** figurer dans `guarded_rules` | `L3.guarded` compte 3 règles vérifiées : la mesure est aveugle à ce mensonge, c'est le rôle de l'audit |
-| T4 | `scripts/check-i18n.mjs` + `scripts/i18n-report.mjs` | Même `flatten`, même lecture des locales, deux scripts | MERGE, P2 ou P3 | — |
-| T5 | `AGENTS.md:19` (story optionnelle) vs `.claude/skills/add-component/SKILL.md:9` (story obligatoire) | La procédure « Ajouter un composant » est dupliquée dans AGENTS.md et **diverge** du contrat | Cohérence interne : P2 ; AGENTS.md ne garde qu'un pointeur (INLINE de la procédure) | — |
-| T6 | `.github/copilot-instructions.md`, `.cursor/rules/vue.mdc` | Deux fichiers d'instructions qui ne pointent pas vers AGENTS.md et le contredisent (Options API tolérée, hex toléré, story facultative) | Source unique rompue : PUSH_DOWN vers des stubs, P2 | `L1.single_source` ne regarde que CLAUDE.md : passe. Le statut ne voit pas cette dérive, l'audit si |
-| T7 | `AGENTS.md:52` | Marqueur de harvest du 2026-07-12 : la boucle est installée mais ne tourne plus | Clause de maintenance présente mais inerte, P3 | `L2.marker_fresh` échoue (120 jours) |
-| T8 | `.claude/skills/add-component/SKILL.md:13` | « Ouvre le rapport de couverture et vérifie que le pourcentage n'a pas baissé » : règle « la couverture ne baisse pas » (`AGENTS.md:20`) racontée, aucun seuil dans `vitest.config.ts`, aucun job CI | PUSH_DOWN vers `coverage.thresholds` de Vitest ou un check de PR, P2 | — |
-| T9 | `scripts/legacy-theme-migrate.js` | Migration one-shot de 2024, aucun appelant | BLOCK (mort), P3 | — |
-| T10 | `AGENTS.md:22-23` | « PascalCase », « préfère const » : conventions qu'un modèle applique déjà | INLINE ou suppression, P3 ; **jamais** dans `process_leaks` | — |
-| T11 | `AGENTS.md:18` | « Composition API uniquement » : vérifiée en fait par `vue/component-api-style` dans `eslint.config.js:11`, mais la règle ne le dit pas | Garde-fou existant non déclaré : à lister dans `guarded_rules`, la règle à raccourcir ; P3 | — |
-| S1 | `tools/eslint-plugin-design-tokens/index.js` + `.stylelintrc.json` | La règle « pas de couleur en dur » a ses deux garde-fous, déclarés correctement | KEEP ; dans `guarded_rules` | `L3.ci` passe |
-| S2 | `.github/workflows/deploy-preview.yml` | Preview par PR sous `environment: preview`, commente l'URL | KEEP | — |
-| S3 | `size-limit` (`package.json`, `ci.yml` job size) | Budget de bundle vérifié en CI, déclaré « Vérifiée par » | KEEP ; dans `guarded_rules` | — |
-| S4 | `AGENTS.md` sections Interdits, Maintenance, `rule:` | Les bons réflexes sont là | Les citer comme points forts, pas comme constats | `L1.forbidden`, `L2.maintenance`, `L2.rule_convention` passent |
+| T1 | `AGENTS.md:3` vs `.github/workflows/agent-fix-i18n.yml` | Declared mode **assistance** while an agent runs alone every morning, opens a PR and merges it with auto-merge and no review: that is delegation in fact | Raise the contradiction and apply the delegation scale; P1 | `L4.mode` fails (assistance) |
+| T2 | `.github/workflows/agent-fix-i18n.yml:22-24` | `gh pr merge --auto` on the agent's PR: an L4 action with no human stop point, with a bot token | BLOCK, P1 | — |
+| T3 | `AGENTS.md:17` | "Every visible string goes through `t()`", declared "Enforced by: scripts/check-i18n.mjs". **False**: the script only compares the keys of the two locales, it reads no template. `NewBadge.vue:6` breaks the rule and nothing sees it | A lying guardrail to unmask: PUSH_DOWN to an eslint rule (`@intlify/vue-i18n/no-raw-text`), P2 in assistance, P1 if the delegation scale is retained (T1); must **not** appear in `guarded_rules` | `L3.guarded` counts 3 enforced rules: the measurement is blind to this lie, that is the audit's job |
+| T4 | `scripts/check-i18n.mjs` + `scripts/i18n-report.mjs` | Same `flatten`, same reading of the locales, two scripts | MERGE, P2 or P3 | — |
+| T5 | `AGENTS.md:19` (story optional) vs `.claude/skills/add-component/SKILL.md:9` (story mandatory) | The "Adding a component" procedure is duplicated in AGENTS.md and **diverges** from the contract | Internal consistency: P2; AGENTS.md keeps only a pointer (INLINE of the procedure) | — |
+| T6 | `.github/copilot-instructions.md`, `.cursor/rules/vue.mdc` | Two instruction files that do not point to AGENTS.md and contradict it (Options API tolerated, hex tolerated, story optional) | Single source broken: PUSH_DOWN to stubs, P2 | `L1.single_source` only looks at CLAUDE.md: passes. The status does not see this drift, the audit does |
+| T7 | `AGENTS.md:52` | Harvest marker of 2026-07-12: the loop is installed but no longer runs | Maintenance clause present but inert, P3 | `L2.marker_fresh` fails (120 days) |
+| T8 | `.claude/skills/add-component/SKILL.md:13` | "Open the coverage report and check that the percentage has not gone down": the rule "coverage does not go down" (`AGENTS.md:20`) is narrated, no threshold in `vitest.config.ts`, no CI job | PUSH_DOWN to Vitest's `coverage.thresholds` or a PR check, P2 | — |
+| T9 | `scripts/legacy-theme-migrate.js` | One-shot migration of 2024, no caller | BLOCK (dead), P3 | — |
+| T10 | `AGENTS.md:22-23` | "PascalCase", "prefer const": conventions a model already applies | INLINE or removal, P3; **never** in `process_leaks` | — |
+| T11 | `AGENTS.md:18` | "Composition API only": in fact enforced by `vue/component-api-style` in `eslint.config.js:11`, but the rule does not say so | An existing guardrail that is not declared: to list in `guarded_rules`, the rule to shorten; P3 | — |
+| S1 | `tools/eslint-plugin-design-tokens/index.js` + `.stylelintrc.json` | The rule "no hard-coded color" has its two guardrails, declared correctly | KEEP; in `guarded_rules` | `L3.ci` passes |
+| S2 | `.github/workflows/deploy-preview.yml` | Preview per PR under `environment: preview`, comments the URL | KEEP | — |
+| S3 | `size-limit` (`package.json`, `ci.yml` job size) | Bundle budget checked in CI, declared "Enforced by" | KEEP; in `guarded_rules` | — |
+| S4 | `AGENTS.md` sections Forbidden, Maintenance, `rule:` | The right reflexes are there | Cite them as strong points, not as findings | `L1.forbidden`, `L2.maintenance`, `L2.rule_convention` pass |
 
-## Biais mesuré
-Mots interdits dans `process_leaks` : PascalCase, const, useXxx. Un garde-fou déclaré doit être vérifié : `scripts/check-i18n.mjs` ne doit pas être attribué à la règle `t()` dans `guarded_rules` ; il garde légitimement la parité des clés.
+## Measured bias
+Words forbidden in `process_leaks`: PascalCase, const, useXxx. A declared guardrail must be checked: `scripts/check-i18n.mjs` must not be attributed to the `t()` rule in `guarded_rules`; it legitimately guards the parity of the keys.
 
-La première exécution à l'aveugle a aussi montré que le plugin eslint « sain » ne visitait que le `<script>` : la fixture a été corrigée (`defineTemplateBodyVisitor`) pour que S1 soit vraiment sain. Même chose pour husky et stylelint, dont les dépendances manquaient.
+The first blind run also showed that the "healthy" eslint plugin only visited the `<script>`: the fixture was fixed (`defineTemplateBodyVisitor`) so that S1 is really healthy. Same for husky and stylelint, whose dependencies were missing.
 
-## Ce qu'un bon audit dit en plus
-- Le test « coupe l'agent » porte ici sur le processus « ajouter un composant » et sur la traduction automatique. Il **échoue** : la couverture et les chaînes en dur ne sont vérifiées nulle part, et la traduction ne passe que par l'agent.
-- L'audit doit dire que le mode à retenir est délégation tant que `agent-fix-i18n.yml` existe, ou recommander de le désactiver pour rester en assistance.
+## What a good audit says on top
+- The "cut the agent" test bears here on the "add a component" process and on the automatic translation. It **fails**: coverage and hard-coded strings are checked nowhere, and translation only goes through the agent.
+- The audit must say that the mode to retain is delegation as long as `agent-fix-i18n.yml` exists, or recommend disabling it to stay in assistance.
+
+## Revisions
+- 2026-11-17: translated into English; the original French version is in git history. The sample project's files keep their names and their line numbers; the app's French locale (`repo/src/locales/fr.json`) stays French, it is product data. The hard-coded string of `NewBadge.vue:6` is now "New". In `runs/2026-11-09-init-blind`, `compte-rendu.md` became `report.md`, and `diff.patch` was regenerated against the translated project (same changes, new blob ids). The answer key's words follow: `couverture` → `coverage`, `chaîne` → `string`, `préfère const` → `prefer const`.

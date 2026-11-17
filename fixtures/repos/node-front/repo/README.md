@@ -1,3 +1,3 @@
 # shopfront
 
-Front Vue 3 + Vite d'une boutique. Dépôt **synthétique** : fixture du projet harness-ai, avec des pièges d'instrumentation IA plantés volontairement.
+Vue 3 + Vite front end of a shop. **Synthetic** repository: a fixture of the harness-ai project, with AI instrumentation traps planted on purpose.

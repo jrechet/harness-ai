@@ -4,7 +4,7 @@ import AppButton from "./AppButton.vue";
 
 describe("AppButton", () => {
   it("renders its label", () => {
-    render(AppButton, { props: { label: "Ajouter" } });
-    expect(screen.getByRole("button", { name: "Ajouter" })).toBeTruthy();
+    render(AppButton, { props: { label: "Add" } });
+    expect(screen.getByRole("button", { name: "Add" })).toBeTruthy();
   });
 });
