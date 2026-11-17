@@ -4,14 +4,14 @@
   "date": "2026-11-09",
   "level": {
     "reached": 1,
-    "name": "Cadré",
+    "name": "Framed",
     "next": 2
   },
   "levels": [
     {
       "level": 0,
-      "name": "Rien",
-      "summary": "Aucun fichier d'instructions : l'agent part de zéro à chaque session.",
+      "name": "None",
+      "summary": "No instruction file: the agent starts from zero at every session.",
       "achieved": true,
       "checks": [],
       "passed_checks": 0,
@@ -19,34 +19,34 @@
     },
     {
       "level": 1,
-      "name": "Cadré",
-      "summary": "Un AGENTS.md court, un mode explicite, des stubs : l'agent sait où il est.",
+      "name": "Framed",
+      "summary": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.",
       "achieved": true,
       "checks": [
         {
           "id": "L1.source",
-          "label": "Un fichier d'instructions existe (AGENTS.md)",
+          "label": "An instruction file exists (AGENTS.md)",
           "passed": true,
           "value": "AGENTS.md",
           "next_action": null
         },
         {
           "id": "L1.mode",
-          "label": "La ligne « Mode : délégation | assistance » est présente",
+          "label": "The line \"Mode: delegation | assistance\" is present",
           "passed": true,
           "value": "delegation",
           "next_action": null
         },
         {
           "id": "L1.short",
-          "label": "Le fichier chargé fait au plus 60 lignes",
+          "label": "The loaded file is at most 60 lines",
           "passed": true,
           "value": 44,
           "next_action": null
         },
         {
           "id": "L1.single_source",
-          "label": "CLAUDE.md est un stub @AGENTS.md (ou absent)",
+          "label": "CLAUDE.md is an @AGENTS.md stub (or absent)",
           "passed": true,
           "value": {
             "exists": true,
@@ -58,7 +58,7 @@
         },
         {
           "id": "L1.forbidden",
-          "label": "Une section « Interdits » dit ce qu'un agent ne fait jamais",
+          "label": "A \"Forbidden\" section says what an agent never does",
           "passed": true,
           "value": true,
           "next_action": null
@@ -69,37 +69,37 @@
     },
     {
       "level": 2,
-      "name": "Bouclé",
-      "summary": "La boucle de retour tourne : les incidents deviennent des règles.",
+      "name": "Looped",
+      "summary": "The feedback loop runs: incidents become rules.",
       "achieved": false,
       "checks": [
         {
           "id": "L2.maintenance",
-          "label": "Une section Maintenance dit comment le fichier évolue",
+          "label": "A maintenance section says how the file evolves",
           "passed": true,
           "value": true,
           "next_action": null
         },
         {
           "id": "L2.rule_convention",
-          "label": "La convention `rule:` en review est documentée",
+          "label": "The `rule:` review convention is documented",
           "passed": true,
           "value": true,
           "next_action": null
         },
         {
           "id": "L2.marker_fresh",
-          "label": "Un harvest a tourné depuis moins de 45 jours",
+          "label": "A harvest ran less than 45 days ago",
           "passed": true,
           "value": 0,
           "next_action": null
         },
         {
           "id": "L2.signal",
-          "label": "Le dernier harvest a trouvé au moins un signal réel (S1–S4)",
+          "label": "The last harvest found at least one real signal (S1–S4)",
           "passed": false,
           "value": null,
-          "next_action": "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore."
+          "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet."
         }
       ],
       "passed_checks": 3,
@@ -107,13 +107,13 @@
     },
     {
       "level": 3,
-      "name": "Vérifié",
-      "summary": "Les règles obligatoires sont portées par des outils, pas par du texte.",
+      "name": "Verified",
+      "summary": "Mandatory rules are enforced by tools, not by text.",
       "achieved": false,
       "checks": [
         {
           "id": "L3.ci",
-          "label": "Une CI existe (workflows ou .gitlab-ci.yml)",
+          "label": "A CI exists (workflows or .gitlab-ci.yml)",
           "passed": true,
           "value": [
             "ci.yml",
@@ -123,28 +123,28 @@
         },
         {
           "id": "L3.guarded",
-          "label": "Au moins 50 % des règles sont « Vérifiée par » un outil",
+          "label": "At least 50% of the rules are \"Enforced by\" a tool",
           "passed": false,
           "value": 0.17,
-          "next_action": "Pousser les règles racontées en L3 : lint custom, test d'architecture, check de PR."
+          "next_action": "Push the narrated rules down to L3: custom lint, architecture test, PR check."
         },
         {
           "id": "L3.justified",
-          "label": "Au moins 50 % des règles disent pourquoi",
+          "label": "At least 50% of the rules say why",
           "passed": true,
           "value": 0.5,
           "next_action": null
         },
         {
           "id": "L3.audit",
-          "label": "Un harness-audit existe et n'a aucun P1 ouvert",
+          "label": "A harness-audit exists and has no open P1",
           "passed": false,
           "value": {
             "P1": 3,
             "P2": 4,
             "P3": 1
           },
-          "next_action": "Lancer harness-audit, écrire son JSON dans .harness/audit.json, traiter les P1."
+          "next_action": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s."
         }
       ],
       "passed_checks": 2,
@@ -152,44 +152,44 @@
     },
     {
       "level": 4,
-      "name": "Délégué",
-      "summary": "Des tâches entières sont confiées à l'agent et reviennent propres.",
+      "name": "Delegated",
+      "summary": "Whole tasks are handed to the agent and come back clean.",
       "achieved": false,
       "checks": [
         {
           "id": "L4.mode",
-          "label": "Le mode est délégation",
+          "label": "The mode is delegation",
           "passed": true,
           "value": "delegation",
           "next_action": null
         },
         {
           "id": "L4.process",
-          "label": "Une section « Processus de travail » cadre l'agent",
+          "label": "A \"Working process\" section frames the agent",
           "passed": true,
           "value": true,
           "next_action": null
         },
         {
           "id": "L4.contracts",
-          "label": "Au moins un contrat de tâche existe et est référencé",
+          "label": "At least one task contract exists and is referenced",
           "passed": true,
           "value": 1,
           "next_action": null
         },
         {
           "id": "L4.clean_prs",
-          "label": "Le dernier harvest voit des PRs d'agent sans correction après coup",
+          "label": "The last harvest sees agent PRs with no after-the-fact correction",
           "passed": false,
           "value": null,
-          "next_action": "Chaque correction après coup (S2) est une règle ou un garde-fou manquant : les traiter."
+          "next_action": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them."
         },
         {
           "id": "L4.cut_the_agent",
-          "label": "Le test « coupe l'agent » de l'audit passe",
+          "label": "The audit's \"cut the agent\" test passes",
           "passed": false,
           "value": false,
-          "next_action": "Pousser en L3/L4 les étapes qui n'existent que dans des prompts."
+          "next_action": "Push down to L3/L4 the steps that exist only in prompts."
         }
       ],
       "passed_checks": 3,
@@ -225,7 +225,7 @@
     "health_score": 0
   },
   "next_actions": [
-    "Marquer les incidents en review avec `rule:` ; sans signal, la boucle ne tourne pas encore."
+    "Mark incidents in review with `rule:`; without a signal, the loop is not running yet."
   ],
   "facts": {
     "repo": "/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/init-eval/repo",

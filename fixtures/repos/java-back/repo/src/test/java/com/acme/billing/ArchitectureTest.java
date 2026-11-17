@@ -9,7 +9,7 @@ import com.tngtech.archunit.lang.ArchRule;
 @AnalyzeClasses(packages = "com.acme.billing")
 public class ArchitectureTest {
 
-    /** Garde-fou de la règle « pas de logique métier dans les contrôleurs » (CLAUDE.md, Conventions). */
+    /** Guardrail of the rule "no business logic in controllers" (CLAUDE.md, Conventions). */
     @ArchTest
     static final ArchRule controllers_do_not_touch_repositories = noClasses()
             .that().haveSimpleNameEndingWith("Controller")

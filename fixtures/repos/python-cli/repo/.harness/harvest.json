@@ -17,15 +17,15 @@
       "author": "marie",
       "agent_authored": false,
       "files": ["src/piloto/cli.py"],
-      "text": "les appels réseau ont un timeout explicite, jamais un subprocess ssh nu",
+      "text": "network calls have an explicit timeout, never a bare ssh subprocess",
       "related_rule": null,
-      "group_key": "rule:appels explicite jamais réseau subprocess timeout"
+      "group_key": "rule:calls explicit never network subprocess timeout"
     },
-    {"id": "github-2", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Le style suit ruff", "related_rule": "Le style suit ruff", "group_key": "orphan:style suit"},
-    {"id": "github-3", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Tout code est typé et passe mypy en strict", "related_rule": "Tout code est typé", "group_key": "orphan:mypy strict"},
-    {"id": "github-4", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "La version n'existe qu'à un endroit", "related_rule": "La version", "group_key": "orphan:version"},
-    {"id": "github-5", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Chaque PR met à jour CHANGELOG.md", "related_rule": "CHANGELOG", "group_key": "orphan:changelog"},
-    {"id": "github-6", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Une tâche est finie quand pytest passe", "related_rule": "pytest", "group_key": "orphan:pytest"},
-    {"id": "github-7", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Les fonctions publiques ont une docstring", "related_rule": "docstring", "group_key": "orphan:docstring"}
+    {"id": "github-2", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Style follows ruff", "related_rule": "Style follows ruff", "group_key": "orphan:style follows"},
+    {"id": "github-3", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "All code is typed and passes mypy in strict mode", "related_rule": "All code is typed", "group_key": "orphan:mypy strict"},
+    {"id": "github-4", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "The version exists in one place only", "related_rule": "The version", "group_key": "orphan:version"},
+    {"id": "github-5", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Every PR updates CHANGELOG.md", "related_rule": "CHANGELOG", "group_key": "orphan:changelog"},
+    {"id": "github-6", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "A task is done when pytest passes", "related_rule": "pytest", "group_key": "orphan:pytest"},
+    {"id": "github-7", "signal": "S5", "source": "github", "url": "AGENTS.md", "date": null, "author": null, "agent_authored": false, "files": [], "text": "Public functions have a docstring", "related_rule": "docstring", "group_key": "orphan:docstring"}
   ]
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Monte la version dans pyproject.toml et crée le commit. Relit le fichier par regex."""
+"""Bumps the version in pyproject.toml and creates the commit. Re-reads the file with a regex."""
 import re
 import subprocess
 import sys
@@ -12,7 +12,7 @@ PATTERN = re.compile(r'^version = "(\d+)\.(\d+)\.(\d+)"$', re.M)
 def current() -> tuple[int, int, int]:
     m = PATTERN.search(PYPROJECT.read_text())
     if not m:
-        sys.exit("version introuvable dans pyproject.toml")
+        sys.exit("version not found in pyproject.toml")
     return tuple(int(x) for x in m.groups())  # type: ignore[return-value]
 
 

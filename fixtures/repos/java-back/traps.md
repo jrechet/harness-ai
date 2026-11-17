@@ -1,31 +1,34 @@
-# Pièges plantés — java-back (billing-api)
+# Planted traps — java-back (billing-api)
 
-Un back Spring Boot avec un `CLAUDE.md` monolithique, un skill de release et deux scripts, une CI avec Checkstyle et un test ArchUnit, un workflow de release qui déploie en prod. Typique d'une équipe qui a lancé `/init` puis ajouté un skill de release à la main.
+A Spring Boot back end with a monolithic `CLAUDE.md`, a release skill and two scripts, a CI with Checkstyle and an ArchUnit test, a release workflow that deploys to prod. Typical of a team that ran `/init` then added a release skill by hand.
 
-Chaque piège a un identifiant stable, un emplacement, et ce que les outils doivent en dire. Les pièges `T*` sont des défauts à trouver ; les `S*` (sains) sont des éléments que l'audit **ne doit pas** signaler, pour mesurer le biais « PUSH_DOWN partout ».
+Each trap has a stable identifier, a location, and what the tools must say about it. The `T*` traps are defects to find; the `S*` (healthy) ones are items the audit **must not** flag, to measure the "PUSH_DOWN everywhere" bias.
 
-| Id | Où | Quoi | Attendu de harness-audit | Attendu de `harness status` |
+| Id | Where | What | Expected from harness-audit | Expected from `harness status` |
 |---|---|---|---|---|
-| T1 | `CLAUDE.md` (111 lignes) | Monolithe : commandes, stack, arborescence, troubleshooting. Plus de la moitié est de la référence découvrable | `instruction_files` : reference_pct > 50, P2 ou P3 ; verdict SPLIT ou PUSH_DOWN de la référence vers des fichiers à la demande | `L1.short` échoue (111 > 60) |
-| T2 | `CLAUDE.md` « Dependency injection » | Règle « constructor injection, never field injection » racontée ; aucun test ArchUnit ne la porte ; `InvoiceService` la viole déjà | PUSH_DOWN vers ArchUnit, P1 en mode délégation (pas de mode déclaré : P2 accepté) ; `process_leaks` avec `guard_tool` = ArchUnit | — |
-| T3 | `.claude/skills/release/SKILL.md` étape 1 | Pré-condition « develop est vert » racontée ; ni `release.mjs` ni `release.yml` ne la vérifient | PUSH_DOWN vers une sous-commande ou un job qui échoue si la CI n'est pas verte, P1 | — |
-| T4 | `scripts/release.mjs` + `scripts/hotfix.mjs` | Deux scripts qui lisent VERSION et appellent `gh workflow run release.yml` avec des variations | MERGE, P2 | — |
-| T5 | `.github/workflows/release.yml` | `workflow_dispatch` qui tague, publie et déploie en prod sans input `dry_run`, sans `environment` protégé, sans point d'arrêt entre plan et exécution | BLOCK, PUSH_DOWN ou SPLIT (séparer plan et deploy, environment protégé, dry-run), P1 | — |
-| T6 | `scripts/old-deploy.sh` | Script mort, référencé nulle part, mais exécutable et déployant en prod par SSH | BLOCK ; P3 (mort) à P1 (chemin de déploiement prod hors CI), les deux lectures sont acceptées | — |
-| T7 | `.claude/skills/release/SKILL.md` étapes 5–6 | Retour non structuré : l'agent cherche `SUCCESS` / `ERROR` dans la sortie du workflow | Retour non structuré, P2 ; cible : exit code ou sortie JSON de `gh run view` | — |
-| T8 | `CLAUDE.md` « Example: a well-formed service » | L'exemple utilise `@Autowired` sur un champ, contredisant la règle T2 trois sections plus haut | Cohérence interne : signalé explicitement, P2 (l'exemple sera copié) | — |
-| T9 | `CLAUDE.md` « Resources », « Naming » | Règles qu'un modèle récent applique déjà (try-with-resources, PascalCase, une classe par fichier) | INLINE ou suppression, P3 ; ne doit pas être compté comme fuite | — |
-| T10 | `CLAUDE.md` | Aucune ligne de mode, aucune clause de maintenance, aucune section Interdits | `instruction_files.maintenance_clause` = false ; remarque sur l'absence de mode | `L1.mode`, `L1.forbidden`, `L2.maintenance` échouent |
-| T11 | `scripts/release.mjs` | Jugement codé en dur : le type de version est déduit du nom de la branche (`develop` → mineure, `feat/breaking-` → majeure) | PROMOTE vers L1 : le script expose les options, l'agent ou l'humain choisit ; P3 seul, P1 si l'audit retient aussi qu'il déclenche la prod sans pré-condition (SPLIT accepté) | — |
-| T12 | `CLAUDE.md` « Security » | « Every endpoint has an authorization test » : aucun test 403 n'existe (`InvoiceControllerTest`) et rien ne le vérifie | PUSH_DOWN vers un test d'architecture ou un check CI, P2 | — |
-| T13 | `scripts/release.mjs` + `VERSION` | Le script lit `VERSION` et calcule la suivante, mais personne ne met `VERSION` à jour après la release : la release suivante recalcule la même version et le tag entre en collision. Piège **non planté**, trouvé par la première exécution à l'aveugle | Fuite `process_leaks` mentionnant VERSION ; verdict sur `release.mjs` au choix (SPLIT, PROMOTE, MERGE, PUSH_DOWN) | — |
-| S1 | `src/test/java/com/acme/billing/ArchitectureTest.java` | La règle « no business logic in controllers » **a** son garde-fou ArchUnit | `guarded_rules` doit la lister ; verdict KEEP ; la règle dans CLAUDE.md peut être raccourcie, pas supprimée | `L3.ci` passe |
-| S2 | `.claude/skills/release/SKILL.md` étape 8 | Annoncer dans #releases avec la liste des PRs : jugement et rédaction laissés à l'agent | KEEP, c'est du L1 légitime ; ne pas recommander de l'automatiser | — |
-| S3 | `config/checkstyle/checkstyle.xml` + `ci.yml` | Checkstyle en CI porte la longueur de ligne et les imports | KEEP ; la section « Code Style » de CLAUDE.md peut être réduite à un pointeur | — |
+| T1 | `CLAUDE.md` (111 lines) | Monolith: commands, stack, tree, troubleshooting. More than half is discoverable reference | `instruction_files`: reference_pct > 50, P2 or P3; verdict SPLIT or PUSH_DOWN of the reference to on-demand files | `L1.short` fails (111 > 60) |
+| T2 | `CLAUDE.md` "Dependency injection" | Rule "constructor injection, never field injection" told; no ArchUnit test carries it; `InvoiceService` already breaks it | PUSH_DOWN to ArchUnit, P1 in delegation mode (no mode declared: P2 accepted); `process_leaks` with `guard_tool` = ArchUnit | — |
+| T3 | `.claude/skills/release/SKILL.md` step 1 | Precondition "develop is green" told; neither `release.mjs` nor `release.yml` checks it | PUSH_DOWN to a subcommand or a job that fails if CI is not green, P1 | — |
+| T4 | `scripts/release.mjs` + `scripts/hotfix.mjs` | Two scripts that read VERSION and call `gh workflow run release.yml` with variations | MERGE, P2 | — |
+| T5 | `.github/workflows/release.yml` | `workflow_dispatch` that tags, publishes and deploys to prod with no `dry_run` input, no protected `environment`, no stopping point between plan and execution | BLOCK, PUSH_DOWN or SPLIT (separate plan and deploy, protected environment, dry-run), P1 | — |
+| T6 | `scripts/old-deploy.sh` | Dead script, referenced nowhere, but executable and deploying to prod over SSH | BLOCK; P3 (dead) to P1 (prod deployment path outside CI), both readings are accepted | — |
+| T7 | `.claude/skills/release/SKILL.md` steps 5–6 | Unstructured return: the agent looks for `SUCCESS` / `ERROR` in the output of the workflow | Unstructured return, P2; target: exit code or JSON output of `gh run view` | — |
+| T8 | `CLAUDE.md` "Example: a well-formed service" | The example uses `@Autowired` on a field, contradicting rule T2 three sections above | Internal consistency: flagged explicitly, P2 (the example will be copied) | — |
+| T9 | `CLAUDE.md` "Resources", "Naming" | Rules that a recent model already applies (try-with-resources, PascalCase, one class per file) | INLINE or removal, P3; must not be counted as a leak | — |
+| T10 | `CLAUDE.md` | No mode line, no maintenance clause, no Forbidden section | `instruction_files.maintenance_clause` = false; remark on the missing mode | `L1.mode`, `L1.forbidden`, `L2.maintenance` fail |
+| T11 | `scripts/release.mjs` | Hardcoded judgment: the kind of version is inferred from the branch name (`develop` → minor, `feat/breaking-` → major) | PROMOTE to L1: the script exposes the options, the agent or the human chooses; P3 alone, P1 if the audit also holds that it triggers prod without a precondition (SPLIT accepted) | — |
+| T12 | `CLAUDE.md` "Security" | "Every endpoint has an authorization test": no 403 test exists (`InvoiceControllerTest`) and nothing checks it | PUSH_DOWN to an architecture test or a CI check, P2 | — |
+| T13 | `scripts/release.mjs` + `VERSION` | The script reads `VERSION` and computes the next one, but nobody updates `VERSION` after the release: the next release recomputes the same version and the tag collides. Trap **not planted**, found by the first blind run | `process_leaks` leak mentioning VERSION; verdict on `release.mjs` free (SPLIT, PROMOTE, MERGE, PUSH_DOWN) | — |
+| S1 | `src/test/java/com/acme/billing/ArchitectureTest.java` | The rule "no business logic in controllers" **has** its ArchUnit guardrail | `guarded_rules` must list it; verdict KEEP; the rule in CLAUDE.md can be shortened, not removed | `L3.ci` passes |
+| S2 | `.claude/skills/release/SKILL.md` step 8 | Announcing in #releases with the list of PRs: judgment and writing left to the agent | KEEP, it is legitimate L1; do not recommend automating it | — |
+| S3 | `config/checkstyle/checkstyle.xml` + `ci.yml` | Checkstyle in CI carries the line length and the imports | KEEP; the "Code Style" section of CLAUDE.md can be reduced to a pointer | — |
 
-## Biais mesuré
-Les mots suivants ne doivent pas apparaître dans `process_leaks` : PascalCase, camelCase, try-with-resources, « 4 espaces », UPPER_SNAKE. Une convention de style ou de nommage sans garde-fou est du bruit (INLINE) ou un pointeur vers le linter, pas une fuite de processus. La première exécution à l'aveugle en a classé cinq comme fuites : c'est le biais que T9 et la section « Ce qui n'est pas un défaut » du skill doivent contenir.
+## Measured bias
+The following words must not appear in `process_leaks`: PascalCase, camelCase, try-with-resources, "4 spaces", UPPER_SNAKE. A style or naming convention without a guardrail is noise (INLINE) or a pointer to the linter, not a process leak. The first blind run filed five of them as leaks: that is the bias that T9 and the skill's section "What is not a defect" must contain.
 
-## Ce qu'un bon audit dit en plus
-- Le test « coupe l'agent » **échoue** : sans le skill, la vérification « develop vert » et la comparaison des migrations (étapes 1 et 2) n'existent nulle part. Score plafonné à 60.
-- L'absence de ligne de mode doit être relevée : l'audit doit demander ou supposer délégation et le dire.
+## What a good audit says in addition
+- The "cut the agent" test **fails**: without the skill, the check "develop green" and the comparison of the migrations (steps 1 and 2) exist nowhere. Score capped at 60.
+- The missing mode line must be noted: the audit must ask or assume delegation and say so.
+
+## Revisions
+- 2026-11-17: translated into English; the original French version is in git history. The sample project, the answer key and every recorded run are translated line for line, so the line numbers they cite are unchanged. Answer key: the T3 leak keyword `vert` became `green` and the forbidden leak keyword `4 espaces` became `4 spaces`. The report of the init run was renamed from `runs/2026-11-09-init-blind/compte-rendu.md` to `report.md`. No commit id changed.

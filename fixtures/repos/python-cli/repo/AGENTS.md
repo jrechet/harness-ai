@@ -1,42 +1,42 @@
-# piloto — instructions pour les agents
+# piloto — instructions for agents
 
-Mode : **délégation**. Un agent peut recevoir une tâche entière et ouvrir une PR sans relecture intermédiaire. Ce qui est obligatoire est vérifié par la CI ; ce fichier explique, il ne garantit pas.
+Mode: **delegation**. An agent can be handed a whole task and open a PR without intermediate review. What is mandatory is enforced by CI; this file explains, it does not guarantee.
 
-## Ce que fait ce repo
-CLI Python 3.12 (`src/piloto`) qui pousse des fichiers de configuration sur des serveurs par SSH, avec un mode `diff`. Publiée sur PyPI à chaque tag `v*`. Référence : `docs/agents/`.
+## What this repo does
+Python 3.12 CLI (`src/piloto`) that pushes configuration files to servers over SSH, with a `diff` mode. Published on PyPI on every `v*` tag. Reference: `docs/agents/`.
 
-## Ce qui change → ce qu'on lance
-| Si tu touches… | Lance… | Vérifié en CI par |
+## What changes → what to run
+| If you touch… | Run… | Enforced in CI by |
 |---|---|---|
 | `src/` | `ruff check . && pytest` | `ci.yml` jobs lint, tests |
 | `pyproject.toml` | `pytest tests/test_version_single_source.py` | `ci.yml` job tests |
-| la release | `.claude/skills/release` | `release.yml` sur tag |
+| the release | `.claude/skills/release` | `release.yml` on tag |
 
-## Règles
-Chaque règle dit pourquoi et par quoi elle est vérifiée.
-- Le style suit ruff (`ruff.toml`). Pourquoi : des diffs de formatage noyaient les revues. Vérifiée par : `ruff check` dans `ci.yml`.
-- Tout code est typé et passe mypy en strict. Pourquoi : une `None` non gérée a effacé la config d'un serveur (#23). Vérifiée par : `mypy` dans `.pre-commit-config.yaml`.
-- La version n'existe qu'à un endroit, `pyproject.toml` ; le code la lit par `importlib.metadata`. Pourquoi : deux versions divergentes publiées sur PyPI (#31). Vérifiée par : `tests/test_version_single_source.py`.
-- Chaque PR met à jour `CHANGELOG.md`. Pourquoi : la release 1.4 est sortie avec un changelog vide. (non vérifiée)
-- Une tâche est finie quand `pytest` passe. Vérifiée par : `ci.yml` job tests.
-- Les fonctions publiques ont une docstring en anglais et des annotations de type.
-- Les appels réseau passent par `piloto.net` et jamais par `subprocess` direct. Pourquoi : un `ssh` sans timeout a bloqué la CI quarante minutes (#38). (non vérifiée)
+## Rules
+Each rule says why and what enforces it.
+- Style follows ruff (`ruff.toml`). Why: formatting diffs were drowning the reviews. Enforced by: `ruff check` in `ci.yml`.
+- All code is typed and passes mypy in strict mode. Why: an unhandled `None` wiped a server's config (#23). Enforced by: `mypy` in `.pre-commit-config.yaml`.
+- The version exists in one place only, `pyproject.toml`; the code reads it through `importlib.metadata`. Why: two diverging versions published on PyPI (#31). Enforced by: `tests/test_version_single_source.py`.
+- Every PR updates `CHANGELOG.md`. Why: release 1.4 shipped with an empty changelog. (unverified)
+- A task is done when `pytest` passes. Enforced by: `ci.yml` job tests.
+- Public functions have a docstring in English and type annotations.
+- Network calls go through `piloto.net` and never through a direct `subprocess`. Why: an `ssh` without a timeout blocked CI for forty minutes (#38). (unverified)
 
-## Interdits
-- Publier sur PyPI autrement que par `release.yml` sur un tag.
-- Modifier une version déjà publiée.
-- Pousser sur `main` sans PR.
+## Forbidden
+- Publishing to PyPI other than through `release.yml` on a tag.
+- Changing a version already published.
+- Pushing to `main` without a PR.
 
-## Processus de travail
-- Arrête-toi et pose la question quand : la tâche touche la publication, change une interface de commande, ou que la CI est rouge pour une cause étrangère à ton diff.
-- Une tâche est finie quand : lint et tests verts, un test couvre le changement, `CHANGELOG.md` à jour, la PR explique le pourquoi.
-- CI rouge : corrige si la cause est dans ton diff ; sinon signale-le et n'y touche pas.
+## Working process
+- Stop and ask when: the task touches publication, changes a command interface, or CI is red for a cause unrelated to your diff.
+- A task is done when: lint and tests green, a test covers the change, `CHANGELOG.md` up to date, the PR explains the why.
+- CI red: fix it if the cause is in your diff; otherwise report it and leave it alone.
 
-## Tâches déléguées
-- `release` (`.claude/skills/release`) — préparer et publier une version.
+## Delegated tasks
+- `release` (`.claude/skills/release`) — prepare and publish a version.
 
-## Maintenance de ce fichier
-- Un commentaire de review qui commence par `rule:` est une règle candidate, ajoutée ici dans la même PR avec le lien, ou collectée par harness-harvest.
-- Avant d'ajouter une phrase, chercher un garde-fou : une règle vérifiée est raccourcie, une règle racontée est une dette.
+## Maintaining this file
+- A review comment that starts with `rule:` is a candidate rule, added here in the same PR with the link, or collected by harness-harvest.
+- Before adding a sentence, look for a guardrail: an enforced rule is shortened, a rule that is only told is a debt.
 
 <!-- harvest: last=2026-11-02 ref=https://github.com/acme/piloto/pull/41 -->

@@ -1,4 +1,4 @@
-"""Accès réseau : une seule porte, avec timeout."""
+"""Network access: a single gateway, with a timeout."""
 from __future__ import annotations
 
 import paramiko

@@ -1,7 +1,7 @@
 {
   "audit": {
-    "process": "release de piloto (CLI Python publiée sur PyPI)",
-    "scope": "fixtures/repos/python-cli/repo/ : AGENTS.md, CLAUDE.md, .github/copilot-instructions.md, src/piloto/AGENTS.md, .claude/skills/release, .github/workflows, ruff.toml, .pre-commit-config.yaml, pyproject.toml, tests/, .harness/",
+    "process": "release of piloto (Python CLI published on PyPI)",
+    "scope": "fixtures/repos/python-cli/repo/: AGENTS.md, CLAUDE.md, .github/copilot-instructions.md, src/piloto/AGENTS.md, .claude/skills/release, .github/workflows, ruff.toml, .pre-commit-config.yaml, pyproject.toml, tests/, .harness/",
     "date": "2026-11-09",
     "health_score": 2,
     "cut_the_agent_test": { "passed": false, "leaked_steps": 4 }
@@ -16,10 +16,10 @@
       "calls": ["bump-version-script", "publish-sh", "release-yml"],
       "verdict": "SPLIT",
       "priority": "P1",
-      "finding": "Le skill mêle jugement, procédure, chemins de scripts (dont un inexistant), déclenchement L4 par git push --tags sans point d'arrêt, et un jeton PyPI en clair qui contredit l'interdit de publier hors release.yml.",
+      "finding": "The skill mixes judgment, procedure, script paths (one of which does not exist), an L4 trigger through git push --tags with no stopping point, and a PyPI token in clear text that contradicts the ban on publishing outside release.yml.",
       "evidence": [".claude/skills/release/SKILL.md:8", ".claude/skills/release/SKILL.md:10", ".claude/skills/release/SKILL.md:12", ".claude/skills/release/SKILL.md:13", ".claude/skills/release/SKILL.md:14", "AGENTS.md:26", "AGENTS.md:28"],
-      "target": "Procédure pure : release plan (dry-run), PR de bump, release tag sur le commit fusionné, lecture de l'URL et du code de sortie du run release.yml ; étapes 6 et 7 supprimées.",
-      "check": "Aucune occurrence de PYPI_TOKEN ou pypi- dans le skill ; chaque chemin cité existe ; release plan patch s'exécute sans agent et sans écrire."
+      "target": "Pure procedure: release plan (dry-run), bump PR, release tag on the merged commit, reading the URL and the exit code of the release.yml run; steps 6 and 7 removed.",
+      "check": "No occurrence of PYPI_TOKEN or pypi- in the skill; every path cited exists; release plan patch runs without an agent and without writing."
     },
     {
       "id": "publish-sh",
@@ -30,10 +30,10 @@
       "calls": [],
       "verdict": "BLOCK",
       "priority": "P1",
-      "finding": "Publication PyPI depuis un poste avec un jeton long-vécu, sans environnement protégé ni OIDC : porte dérobée à la règle « publier uniquement par release.yml ».",
+      "finding": "PyPI publication from a workstation with a long-lived token, with no protected environment and no OIDC: a back door around the rule \"publish only through release.yml\".",
       "evidence": [".claude/skills/release/scripts/publish.sh:2", ".claude/skills/release/scripts/publish.sh:4", ".claude/skills/release/scripts/publish.sh:6", "AGENTS.md:26"],
-      "target": "Supprimé ; l'échec de release.yml se traite par correction et workflow_dispatch dans l'environnement pypi, jamais par publication manuelle ; jetons d'API PyPI révoqués.",
-      "check": "Fichier absent ; grep twine sur .claude et AGENTS.md vide ; aucun jeton d'API actif sur le projet PyPI."
+      "target": "Removed; a failure of release.yml is handled by a fix and a workflow_dispatch in the pypi environment, never by a manual publication; PyPI API tokens revoked.",
+      "check": "File absent; grep twine over .claude and AGENTS.md empty; no active API token on the PyPI project."
     },
     {
       "id": "agents-md",
@@ -44,10 +44,10 @@
       "calls": ["release-skill", "docs-build-and-test", "ci-yml", "release-yml", "pre-commit-config", "test-version-single-source", "ruff-toml"],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "Deux règles à incident racontées sans garde-fou (CHANGELOG, réseau), un garde-fou revendiqué qui ne tourne pas en pipeline (mypy en pre-commit), une règle de bruit (docstring), deux définitions de « fini » et une entrée « Lance » qui désigne un skill au lieu d'une commande.",
+      "finding": "Two incident-backed rules told without a guardrail (CHANGELOG, network), a claimed guardrail that does not run in the pipeline (mypy in pre-commit), a noise rule (docstring), two definitions of \"done\" and a \"Run\" entry that names a skill instead of a command.",
       "evidence": ["AGENTS.md:13", "AGENTS.md:18", "AGENTS.md:20", "AGENTS.md:21", "AGENTS.md:22", "AGENTS.md:23", "AGENTS.md:32", ".github/workflows/ci.yml:7"],
-      "target": "Chaque « Vérifiée par » cite un job de ci.yml ou release.yml : job types (mypy), PR gate changelog, règle ruff banned-api sur subprocess ; ligne 22 supprimée, lignes 21 et 32 fusionnées, ligne 13 pointant sur la commande CLI.",
-      "check": "Plus aucun « (non vérifiée) » dans le fichier et chaque garde-fou cité est exécuté par ci.yml ou release.yml."
+      "target": "Every \"Enforced by\" cites a job of ci.yml or release.yml: types job (mypy), changelog PR gate, ruff banned-api rule on subprocess; line 22 removed, lines 21 and 32 merged, line 13 pointing to the CLI command.",
+      "check": "No \"(unverified)\" left in the file and every guardrail cited is run by ci.yml or release.yml."
     },
     {
       "id": "src-piloto-agents-md",
@@ -58,10 +58,10 @@
       "calls": [],
       "verdict": "BLOCK",
       "priority": "P2",
-      "finding": "Le fichier de dossier autorise le subprocess ssh direct que la racine interdit (incident #38) et dispense cli.py de tests en s'appuyant sur un test E2E jamais exécuté ; cli.py:36 viole déjà la règle.",
+      "finding": "The folder file allows the direct ssh subprocess that the root forbids (incident #38) and exempts cli.py from tests by relying on an E2E test that is never run; cli.py:36 already breaks the rule.",
       "evidence": ["src/piloto/AGENTS.md:5", "src/piloto/AGENTS.md:6", "AGENTS.md:23", "src/piloto/cli.py:36", "tests/test_push_e2e.py:8", "pyproject.toml:17"],
-      "target": "Supprimé ou réduit à un pointeur vers AGENTS.md ; la règle réseau devient une règle ruff banned-api (TID251) sur subprocess hors net.py ; cli.py:36 migré vers piloto.net en tâche séparée.",
-      "check": "Fichier absent ou sans règle contradictoire ; ruff check . échoue sur import subprocess dans cli.py tant que la migration n'est pas faite."
+      "target": "Removed or reduced to a pointer to AGENTS.md; the network rule becomes a ruff banned-api rule (TID251) on subprocess outside net.py; cli.py:36 migrated to piloto.net as a separate task.",
+      "check": "File absent or with no contradicting rule; ruff check . fails on import subprocess in cli.py as long as the migration is not done."
     },
     {
       "id": "bump-version-script",
@@ -72,10 +72,10 @@
       "calls": [],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "Logique L3 obligatoire (calcul et écriture de version, commit) sans test, sans dry-run, sans vérification d'arbre propre ni de tag existant ; git commit -am embarque tout ; regex dupliquée avec test_version_single_source ; appelé sous un faux chemin.",
+      "finding": "Mandatory L3 logic (computing and writing the version, commit) with no test, no dry-run, no check for a clean tree or an existing tag; git commit -am takes everything along; regex duplicated with test_version_single_source; called under a wrong path.",
       "evidence": [".claude/skills/release/scripts/bump_version.py:9", ".claude/skills/release/scripts/bump_version.py:13", ".claude/skills/release/scripts/bump_version.py:33", "tests/test_version_single_source.py:14", ".claude/skills/release/SKILL.md:12", "docs/agents/build-and-test.md:5"],
-      "target": "Sous-commande testée release plan|bump|tag (tomllib, arbre propre, sur main, tag absent, section changelog présente, --dry-run) dans src/ avec tests dans tests/, puis suppression du script.",
-      "check": "Tests de plan/bump/échecs verts dans ci.yml ; release plan patch n'écrit rien et sort 0 ; script supprimé."
+      "target": "Tested subcommand release plan|bump|tag (tomllib, clean tree, on main, tag absent, changelog section present, --dry-run) in src/ with tests in tests/, then removal of the script.",
+      "check": "Tests of plan/bump/failures green in ci.yml; release plan patch writes nothing and exits 0; script removed."
     },
     {
       "id": "release-yml",
@@ -86,10 +86,10 @@
       "calls": [],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "Publication OIDC correcte mais sans aucune pré-condition : ni tests, ni cohérence tag/version, ni changelog, ni constat structuré, ni workflow_dispatch pour rejouer ; les pré-conditions racontées dans SKILL.md doivent descendre ici.",
+      "finding": "Correct OIDC publication but with no precondition at all: no tests, no tag/version consistency, no changelog, no structured confirmation, no workflow_dispatch to replay; the preconditions told in SKILL.md must move down here.",
       "evidence": [".github/workflows/release.yml:4", ".github/workflows/release.yml:9", ".github/workflows/release.yml:15", ".github/workflows/release.yml:16", ".claude/skills/release/SKILL.md:8", ".claude/skills/release/SKILL.md:12"],
-      "target": "Job verify (ruff, mypy, pytest, tag == version pyproject, section ## <version> non vide) en needs de publish ; step de constat sur l'API JSON de PyPI ; workflow_dispatch avec tag et dry_run ; environnement pypi à relecteurs requis.",
-      "check": "Un tag v9.9.9 sur un commit en 1.4.2 fait échouer verify sans atteindre publish ; le run expose version et URL en sortie."
+      "target": "A verify job (ruff, mypy, pytest, tag == pyproject version, non-empty ## <version> section) in the needs of publish; a confirmation step against PyPI's JSON API; workflow_dispatch with tag and dry_run; pypi environment with required reviewers.",
+      "check": "A v9.9.9 tag on a commit at 1.4.2 makes verify fail without reaching publish; the run exposes version and URL as outputs."
     },
     {
       "id": "pre-commit-config",
@@ -100,10 +100,10 @@
       "calls": ["ruff-toml"],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "Présenté comme le garde-fou de la règle mypy strict (incident #23), le hook est local et opt-in ; ci.yml ne lance jamais mypy, donc la règle n'est vérifiée par rien dans le pipeline.",
+      "finding": "Presented as the guardrail of the mypy strict rule (incident #23), the hook is local and opt-in; ci.yml never runs mypy, so nothing in the pipeline enforces the rule.",
       "evidence": [".pre-commit-config.yaml:5", ".pre-commit-config.yaml:7", "AGENTS.md:18", ".github/workflows/ci.yml:7", ".github/workflows/ci.yml:18"],
-      "target": "Garder le hook, ajouter le job types (uv run mypy src) dans ci.yml.",
-      "check": "Une PR non typée dans src/piloto/ est rouge en CI sans pre-commit installé."
+      "target": "Keep the hook, add the types job (uv run mypy src) to ci.yml.",
+      "check": "An untyped PR in src/piloto/ is red in CI without pre-commit installed."
     },
     {
       "id": "test-push-e2e",
@@ -114,10 +114,10 @@
       "calls": [],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "Seul test de cli.py, désélectionné par addopts et exécuté nulle part (ni CI, ni release, ni skill), alors que src/piloto/AGENTS.md s'appuie dessus ; addopts -x --maxfail=1 masque en plus les échecs suivants.",
+      "finding": "The only test of cli.py, deselected by addopts and run nowhere (not in CI, not in the release, not in the skill), although src/piloto/AGENTS.md relies on it; addopts -x --maxfail=1 also hides the failures that follow.",
       "evidence": ["tests/test_push_e2e.py:6", "tests/test_push_e2e.py:8", "pyproject.toml:17", "src/piloto/AGENTS.md:6"],
-      "target": "Job e2e dans ci.yml avec service sshd et pytest -m slow, ou suppression datée ; retirer -x --maxfail=1 des addopts.",
-      "check": "Le log CI affiche 1 passed pour test_push_against_local_sshd, ou le fichier est absent ; addopts sans -x."
+      "target": "An e2e job in ci.yml with an sshd service and pytest -m slow, or a dated removal; drop -x --maxfail=1 from addopts.",
+      "check": "The CI log shows 1 passed for test_push_against_local_sshd, or the file is absent; addopts without -x."
     },
     {
       "id": "claude-md",
@@ -128,10 +128,10 @@
       "calls": ["agents-md"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Une ligne @AGENTS.md, sans duplication.",
+      "finding": "One @AGENTS.md line, no duplication.",
       "evidence": ["CLAUDE.md:1"],
-      "target": "Inchangé.",
-      "check": "Le fichier reste une seule ligne d'inclusion."
+      "target": "Unchanged.",
+      "check": "The file remains a single include line."
     },
     {
       "id": "copilot-instructions",
@@ -142,10 +142,10 @@
       "calls": ["agents-md"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Pointeur vers AGENTS.md sans règle propre.",
+      "finding": "Pointer to AGENTS.md with no rule of its own.",
       "evidence": [".github/copilot-instructions.md:1"],
-      "target": "Inchangé.",
-      "check": "Aucune règle n'y est ajoutée."
+      "target": "Unchanged.",
+      "check": "No rule is added to it."
     },
     {
       "id": "docs-build-and-test",
@@ -156,10 +156,10 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Référence de commandes chargée à la demande, cohérente avec pyproject.toml.",
+      "finding": "Command reference loaded on demand, consistent with pyproject.toml.",
       "evidence": ["docs/agents/build-and-test.md:3", "docs/agents/build-and-test.md:6", "AGENTS.md:6"],
-      "target": "Inchangé.",
-      "check": "Les commandes citées existent toujours."
+      "target": "Unchanged.",
+      "check": "The commands cited still exist."
     },
     {
       "id": "ci-yml",
@@ -170,10 +170,10 @@
       "calls": ["ruff-toml", "pyproject-toml", "test-version-single-source", "test-net"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Lint et tests sur PR et main ; point d'accueil des jobs types, e2e et changelog recommandés ailleurs.",
+      "finding": "Lint and tests on PRs and main; the home of the types, e2e and changelog jobs recommended elsewhere.",
       "evidence": [".github/workflows/ci.yml:3", ".github/workflows/ci.yml:12", ".github/workflows/ci.yml:18"],
-      "target": "Structure inchangée, jobs ajoutés par les remédiations 2, 3, 6, 7.",
-      "check": "Les jobs lint et tests restent requis sur PR."
+      "target": "Structure unchanged, jobs added by remediations 2, 3, 6, 7.",
+      "check": "The lint and tests jobs remain required on PRs."
     },
     {
       "id": "ruff-toml",
@@ -184,10 +184,10 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Sélection E, F, I, B exécutée en CI ; accueillera la règle banned-api sur subprocess.",
+      "finding": "Selection E, F, I, B run in CI; will host the banned-api rule on subprocess.",
       "evidence": ["ruff.toml:3", ".github/workflows/ci.yml:12"],
-      "target": "Ajout de [lint.flake8-tidy-imports.banned-api] par la remédiation 5.",
-      "check": "ruff check . reste exécuté par ci.yml."
+      "target": "[lint.flake8-tidy-imports.banned-api] added by remediation 5.",
+      "check": "ruff check . is still run by ci.yml."
     },
     {
       "id": "pyproject-toml",
@@ -198,10 +198,10 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Source unique de la version et config mypy strict ; seul addopts est à alléger, traité avec test-push-e2e.",
+      "finding": "Single source of the version and mypy strict config; only addopts needs lightening, handled with test-push-e2e.",
       "evidence": ["pyproject.toml:3", "pyproject.toml:17", "pyproject.toml:21"],
-      "target": "Inchangé hormis addopts.",
-      "check": "Une seule ligne version ; [tool.mypy] strict conservé."
+      "target": "Unchanged except addopts.",
+      "check": "A single version line; [tool.mypy] strict kept."
     },
     {
       "id": "test-version-single-source",
@@ -212,10 +212,10 @@
       "calls": ["pyproject-toml"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Garde-fou réel d'une règle à incident (#31), exécuté en CI.",
+      "finding": "Real guardrail of an incident-backed rule (#31), run in CI.",
       "evidence": ["tests/test_version_single_source.py:6", "tests/test_version_single_source.py:12", ".github/workflows/ci.yml:18"],
-      "target": "Inchangé ; modèle pour la règle réseau.",
-      "check": "Toujours collecté par uv run pytest."
+      "target": "Unchanged; a model for the network rule.",
+      "check": "Still collected by uv run pytest."
     },
     {
       "id": "test-net",
@@ -226,10 +226,10 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Borne DEFAULT_TIMEOUT, exécuté en CI ; ne couvre pas le subprocess de cli.py.",
+      "finding": "Bounds DEFAULT_TIMEOUT, run in CI; does not cover the subprocess of cli.py.",
       "evidence": ["tests/test_net.py:4", "tests/test_net.py:5"],
-      "target": "Inchangé.",
-      "check": "Toujours collecté par uv run pytest."
+      "target": "Unchanged.",
+      "check": "Still collected by uv run pytest."
     },
     {
       "id": "harness-harvest",
@@ -240,29 +240,29 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Le signal S1 (timeout explicite, jamais subprocess ssh nu) a produit la règle AGENTS.md:23 mais related_rule est resté null, aucun garde-fou n'a suivi et cli.py:36 viole toujours la règle ; six S5 marquent des règles sans incident, dont la règle docstring.",
+      "finding": "Signal S1 (explicit timeout, never a bare ssh subprocess) produced the rule AGENTS.md:23 but related_rule stayed null, no guardrail followed and cli.py:36 still breaks the rule; six S5 mark rules with no incident, among them the docstring rule.",
       "evidence": [".harness/harvest.json:20", ".harness/harvest.json:21", ".harness/harvest.json:29", "AGENTS.md:23", "AGENTS.md:42", "src/piloto/cli.py:36"],
-      "target": "Lier S1 à la règle, le clore quand la règle ruff existe ; écrire .harness/audit.json depuis ce rapport.",
-      "check": "harness status montre la règle réseau comme gardée."
+      "target": "Link S1 to the rule, close it when the ruff rule exists; write .harness/audit.json from this report.",
+      "check": "harness status shows the network rule as guarded."
     }
   ],
   "process_leaks": [
-    { "rule": "main doit être vert avant de releaser", "told_in": ".claude/skills/release/SKILL.md:8", "if_skipped": "Un tag posé sur un commit rouge publie sur PyPI, irréversible.", "belongs_in": "L4", "guard_tool": "job verify (ruff, mypy, pytest) en needs de publish dans release.yml" },
-    { "rule": "Le tag v<x> correspond à la version de pyproject.toml", "told_in": ".claude/skills/release/SKILL.md:12", "if_skipped": "Le chemin scripts/bump_version.py n'existe pas : git tag v (vide) ou tag décalé ; release.yml publie quand même (v*).", "belongs_in": "L4", "guard_tool": "step verify dans release.yml comparant GITHUB_REF_NAME à la version pyproject ; sous-commande release tag" },
-    { "rule": "CHANGELOG.md a une section non vide pour la version publiée", "told_in": "AGENTS.md:20", "if_skipped": "Nouvelle release avec changelog vide, comme la 1.4 (CHANGELOG.md:9 encore vide).", "belongs_in": "L4", "guard_tool": "job verify dans release.yml (section ## <version> non vide) et PR gate changelog dans ci.yml avec label d'exemption" },
-    { "rule": "Publier sur PyPI uniquement par release.yml sur un tag", "told_in": "AGENTS.md:26", "if_skipped": "SKILL.md:13 et publish.sh publient depuis un poste avec un jeton long-vécu, hors audit et hors environnement protégé.", "belongs_in": "L4", "guard_tool": "suppression de publish.sh ; trusted publisher seul côté PyPI ; environnement pypi à relecteurs requis" },
-    { "rule": "La version publiée est constatée sur PyPI", "told_in": ".claude/skills/release/SKILL.md:14", "if_skipped": "Succès halluciné si la publication a échoué : lecture humaine d'une page web.", "belongs_in": "L4", "guard_tool": "step final de release.yml interrogeant https://pypi.org/pypi/piloto/<version>/json avec exit 1" },
-    { "rule": "Tout code est typé et passe mypy en strict", "told_in": "AGENTS.md:18", "if_skipped": "Le hook pre-commit est local et opt-in ; ci.yml ne lance pas mypy : une PR non typée passe verte (incident #23 reproductible).", "belongs_in": "L4", "guard_tool": "job types (uv run mypy src) dans ci.yml" },
-    { "rule": "Les appels réseau passent par piloto.net, jamais par subprocess direct", "told_in": "AGENTS.md:23", "if_skipped": "ssh sans timeout bloque la CI ou le poste (#38) ; cli.py:36 le fait déjà et src/piloto/AGENTS.md:5 l'autorise.", "belongs_in": "L3", "guard_tool": "ruff flake8-tidy-imports banned-api (TID251) sur subprocess avec per-file-ignores pour src/piloto/net.py, ou test miroir de test_version_single_source.py" },
-    { "rule": "Pousser sur main sans PR est interdit ; le commit de release doit atteindre main", "told_in": "AGENTS.md:28", "if_skipped": "SKILL.md:10-12 commite localement sur main et ne pousse que les tags : tag sur un commit absent de main, main sans le bump.", "belongs_in": "L4", "guard_tool": "protection de branche main ; bump par PR ; tag posé sur le commit fusionné par release tag" },
-    { "rule": "cli.py est couvert par les tests E2E de la release", "told_in": "src/piloto/AGENTS.md:6", "if_skipped": "tests/test_push_e2e.py est désélectionné par pyproject.toml:17 et exécuté nulle part : cli.py n'a aucun test.", "belongs_in": "L4", "guard_tool": "job e2e dans ci.yml avec service sshd et pytest -m slow" }
+    { "rule": "main must be green before releasing", "told_in": ".claude/skills/release/SKILL.md:8", "if_skipped": "A tag set on a red commit publishes to PyPI, irreversible.", "belongs_in": "L4", "guard_tool": "verify job (ruff, mypy, pytest) in the needs of publish in release.yml" },
+    { "rule": "The tag v<x> matches the version of pyproject.toml", "told_in": ".claude/skills/release/SKILL.md:12", "if_skipped": "The path scripts/bump_version.py does not exist: git tag v (empty) or a shifted tag; release.yml publishes anyway (v*).", "belongs_in": "L4", "guard_tool": "verify step in release.yml comparing GITHUB_REF_NAME with the pyproject version; release tag subcommand" },
+    { "rule": "CHANGELOG.md has a non-empty section for the published version", "told_in": "AGENTS.md:20", "if_skipped": "A new release with an empty changelog, like 1.4 (CHANGELOG.md:9 still empty).", "belongs_in": "L4", "guard_tool": "verify job in release.yml (non-empty ## <version> section) and changelog PR gate in ci.yml with an exemption label" },
+    { "rule": "Publish to PyPI only through release.yml on a tag", "told_in": "AGENTS.md:26", "if_skipped": "SKILL.md:13 and publish.sh publish from a workstation with a long-lived token, outside any audit and outside the protected environment.", "belongs_in": "L4", "guard_tool": "removal of publish.sh; trusted publisher only on the PyPI side; pypi environment with required reviewers" },
+    { "rule": "The published version is confirmed on PyPI", "told_in": ".claude/skills/release/SKILL.md:14", "if_skipped": "Hallucinated success if the publication failed: a human reading a web page.", "belongs_in": "L4", "guard_tool": "final step of release.yml querying https://pypi.org/pypi/piloto/<version>/json with exit 1" },
+    { "rule": "All code is typed and passes mypy in strict mode", "told_in": "AGENTS.md:18", "if_skipped": "The pre-commit hook is local and opt-in; ci.yml does not run mypy: an untyped PR goes green (incident #23 reproducible).", "belongs_in": "L4", "guard_tool": "types job (uv run mypy src) in ci.yml" },
+    { "rule": "Network calls go through piloto.net, never through a direct subprocess", "told_in": "AGENTS.md:23", "if_skipped": "ssh without a timeout blocks CI or the workstation (#38); cli.py:36 already does it and src/piloto/AGENTS.md:5 allows it.", "belongs_in": "L3", "guard_tool": "ruff flake8-tidy-imports banned-api (TID251) on subprocess with per-file-ignores for src/piloto/net.py, or a test mirroring test_version_single_source.py" },
+    { "rule": "Pushing to main without a PR is forbidden; the release commit must reach main", "told_in": "AGENTS.md:28", "if_skipped": "SKILL.md:10-12 commits locally on main and pushes only the tags: a tag on a commit absent from main, main without the bump.", "belongs_in": "L4", "guard_tool": "branch protection on main; bump through a PR; tag set on the merged commit by release tag" },
+    { "rule": "cli.py is covered by the E2E tests of the release", "told_in": "src/piloto/AGENTS.md:6", "if_skipped": "tests/test_push_e2e.py is deselected by pyproject.toml:17 and run nowhere: cli.py has no test.", "belongs_in": "L4", "guard_tool": "e2e job in ci.yml with an sshd service and pytest -m slow" }
   ],
   "guarded_rules": [
-    { "rule": "Le style suit ruff", "told_in": "AGENTS.md:17", "guarded_by": "ruff.toml via .github/workflows/ci.yml:12" },
-    { "rule": "La version n'existe qu'à un endroit, pyproject.toml", "told_in": "AGENTS.md:19", "guarded_by": "tests/test_version_single_source.py via .github/workflows/ci.yml:18" },
-    { "rule": "Une tâche est finie quand pytest passe", "told_in": "AGENTS.md:21", "guarded_by": ".github/workflows/ci.yml:18 (avec -k 'not slow' et -x de pyproject.toml:17)" },
-    { "rule": "La publication se fait par OIDC dans un environnement, sans secret stocké", "told_in": "AGENTS.md:26", "guarded_by": ".github/workflows/release.yml:5-7,11 (règles de protection de l'environnement non visibles)" },
-    { "rule": "Le timeout réseau par défaut est borné", "told_in": "src/piloto/net.py:1", "guarded_by": "tests/test_net.py:4-5 via .github/workflows/ci.yml:18" }
+    { "rule": "Style follows ruff", "told_in": "AGENTS.md:17", "guarded_by": "ruff.toml via .github/workflows/ci.yml:12" },
+    { "rule": "The version exists in one place only, pyproject.toml", "told_in": "AGENTS.md:19", "guarded_by": "tests/test_version_single_source.py via .github/workflows/ci.yml:18" },
+    { "rule": "A task is done when pytest passes", "told_in": "AGENTS.md:21", "guarded_by": ".github/workflows/ci.yml:18 (with -k 'not slow' and -x from pyproject.toml:17)" },
+    { "rule": "Publication goes through OIDC in an environment, with no stored secret", "told_in": "AGENTS.md:26", "guarded_by": ".github/workflows/release.yml:5-7,11 (protection rules of the environment not visible)" },
+    { "rule": "The default network timeout is bounded", "told_in": "src/piloto/net.py:1", "guarded_by": "tests/test_net.py:4-5 via .github/workflows/ci.yml:18" }
   ],
   "instruction_files": [
     { "path": "AGENTS.md", "loaded_lines": 43, "instruction_pct": 70, "reference_pct": 20, "noise_pct": 10, "justified_rules": true, "maintenance_clause": true },
@@ -272,22 +272,22 @@
     { "path": "docs/agents/build-and-test.md", "loaded_lines": 7, "instruction_pct": 0, "reference_pct": 100, "noise_pct": 0, "justified_rules": false, "maintenance_clause": false }
   ],
   "remediation": [
-    { "order": 1, "priority": "P1", "verdict": "BLOCK", "element": "publish-sh", "action": "Révoquer le jeton PyPI côté pypi.org, supprimer la ligne 13 de SKILL.md et .claude/skills/release/scripts/publish.sh, vérifier que le projet PyPI n'a que le trusted publisher.", "depends_on": [], "check": "grep de pypi- et twine sur .claude et AGENTS.md vide ; aucun jeton d'API actif sur PyPI.", "needs_human_approval": true },
-    { "order": 2, "priority": "P2", "verdict": "PUSH_DOWN", "element": "release-yml", "action": "Ajouter le job verify (ruff, mypy, pytest, tag == version, section changelog) en needs de publish, un step de constat sur l'API JSON de PyPI, workflow_dispatch avec tag et dry_run ; confirmer les relecteurs requis sur l'environnement pypi.", "depends_on": [1], "check": "Un tag incohérent rend le run rouge avant publish ; la sortie du job porte version et URL.", "needs_human_approval": true },
-    { "order": 3, "priority": "P2", "verdict": "PUSH_DOWN", "element": "pre-commit-config", "action": "Ajouter le job types (uv run mypy src) dans ci.yml en gardant le hook local.", "depends_on": [], "check": "Une PR non typée est rouge en CI sans pre-commit installé.", "needs_human_approval": false },
-    { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "bump-version-script", "action": "Créer la sous-commande testée release plan|bump|tag (tomllib, arbre propre, tag absent, section changelog, --dry-run) avec ses tests dans tests/, puis supprimer le script.", "depends_on": [], "check": "Tests verts dans ci.yml ; release plan patch n'écrit rien ; script absent.", "needs_human_approval": true },
-    { "order": 5, "priority": "P2", "verdict": "BLOCK", "element": "src-piloto-agents-md", "action": "Supprimer le fichier ou le réduire à un pointeur ; ajouter dans ruff.toml la règle banned-api sur subprocess avec exemption pour net.py ; ouvrir une tâche pour migrer cli.py:36 vers piloto.net.", "depends_on": [], "check": "ruff check . signale cli.py:5 tant que la migration n'est pas faite ; fichier absent.", "needs_human_approval": true },
-    { "order": 6, "priority": "P2", "verdict": "PUSH_DOWN", "element": "test-push-e2e", "action": "Ajouter le job e2e dans ci.yml avec un service sshd et pytest -m slow, ou supprimer le test avec commentaire daté ; retirer -x --maxfail=1 de pyproject.toml.", "depends_on": [3], "check": "Log CI avec 1 passed pour le test, ou fichier absent ; addopts sans -x.", "needs_human_approval": true },
-    { "order": 7, "priority": "P2", "verdict": "PUSH_DOWN", "element": "agents-md", "action": "Ajouter le job changelog (PR gate avec label d'exemption) dans ci.yml ; réécrire les lignes 13, 18, 20, 23, fusionner 21 dans 32, supprimer ou réduire 22.", "depends_on": [2, 3, 4, 5], "check": "Plus aucun « (non vérifiée) » ; chaque « Vérifiée par » cite un job de ci.yml ou release.yml.", "needs_human_approval": false },
-    { "order": 8, "priority": "P1", "verdict": "SPLIT", "element": "release-skill", "action": "Réécrire le skill en procédure pure autour de release plan, PR de bump, release tag et lecture du run ; corriger tous les chemins ; supprimer les étapes 6 et 7.", "depends_on": [1, 2, 4], "check": "Chaque commande citée existe ; essai à blanc sans agent ; aucun secret.", "needs_human_approval": false },
-    { "order": 9, "priority": "P3", "verdict": "KEEP", "element": "harness-harvest", "action": "Lier le signal S1 à la règle AGENTS.md:23 et le clore quand la règle ruff existe ; écrire .harness/audit.json à partir de ce rapport.", "depends_on": [5], "check": "harness status montre la règle réseau comme gardée.", "needs_human_approval": false }
+    { "order": 1, "priority": "P1", "verdict": "BLOCK", "element": "publish-sh", "action": "Revoke the PyPI token on pypi.org, remove line 13 of SKILL.md and .claude/skills/release/scripts/publish.sh, check that the PyPI project has only the trusted publisher.", "depends_on": [], "check": "grep of pypi- and twine over .claude and AGENTS.md empty; no active API token on PyPI.", "needs_human_approval": true },
+    { "order": 2, "priority": "P2", "verdict": "PUSH_DOWN", "element": "release-yml", "action": "Add the verify job (ruff, mypy, pytest, tag == version, changelog section) in the needs of publish, a confirmation step against PyPI's JSON API, workflow_dispatch with tag and dry_run; confirm the required reviewers on the pypi environment.", "depends_on": [1], "check": "An inconsistent tag turns the run red before publish; the job output carries version and URL.", "needs_human_approval": true },
+    { "order": 3, "priority": "P2", "verdict": "PUSH_DOWN", "element": "pre-commit-config", "action": "Add the types job (uv run mypy src) to ci.yml while keeping the local hook.", "depends_on": [], "check": "An untyped PR is red in CI without pre-commit installed.", "needs_human_approval": false },
+    { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "bump-version-script", "action": "Create the tested subcommand release plan|bump|tag (tomllib, clean tree, tag absent, changelog section, --dry-run) with its tests in tests/, then remove the script.", "depends_on": [], "check": "Tests green in ci.yml; release plan patch writes nothing; script absent.", "needs_human_approval": true },
+    { "order": 5, "priority": "P2", "verdict": "BLOCK", "element": "src-piloto-agents-md", "action": "Remove the file or reduce it to a pointer; add to ruff.toml the banned-api rule on subprocess with an exemption for net.py; open a task to migrate cli.py:36 to piloto.net.", "depends_on": [], "check": "ruff check . reports cli.py:5 as long as the migration is not done; file absent.", "needs_human_approval": true },
+    { "order": 6, "priority": "P2", "verdict": "PUSH_DOWN", "element": "test-push-e2e", "action": "Add the e2e job to ci.yml with an sshd service and pytest -m slow, or remove the test with a dated comment; drop -x --maxfail=1 from pyproject.toml.", "depends_on": [3], "check": "CI log with 1 passed for the test, or file absent; addopts without -x.", "needs_human_approval": true },
+    { "order": 7, "priority": "P2", "verdict": "PUSH_DOWN", "element": "agents-md", "action": "Add the changelog job (PR gate with an exemption label) to ci.yml; rewrite lines 13, 18, 20, 23, merge 21 into 32, remove or reduce 22.", "depends_on": [2, 3, 4, 5], "check": "No \"(unverified)\" left; every \"Enforced by\" cites a job of ci.yml or release.yml.", "needs_human_approval": false },
+    { "order": 8, "priority": "P1", "verdict": "SPLIT", "element": "release-skill", "action": "Rewrite the skill as a pure procedure around release plan, bump PR, release tag and reading the run; fix every path; remove steps 6 and 7.", "depends_on": [1, 2, 4], "check": "Every command cited exists; dry run without an agent; no secret.", "needs_human_approval": false },
+    { "order": 9, "priority": "P3", "verdict": "KEEP", "element": "harness-harvest", "action": "Link signal S1 to the rule AGENTS.md:23 and close it when the ruff rule exists; write .harness/audit.json from this report.", "depends_on": [5], "check": "harness status shows the network rule as guarded.", "needs_human_approval": false }
   ],
   "unverified": [
-    "Règles de protection de l'environnement GitHub pypi (relecteurs requis) et protection de branche de main : hors dépôt.",
-    "Côté PyPI : existence d'autres jetons d'API actifs et validité du jeton écrit à .claude/skills/release/SKILL.md:13 (valeur non recopiée, non testée).",
-    "Historique git non consulté : ancienneté du jeton dans l'historique et besoin de purge non établis.",
-    "Aucun test ni workflow exécuté ; uv run ruff check . lint vraisemblablement .claude/ (pas d'exclusion dans ruff.toml), non confirmé.",
-    ".harness/audit.json absent : premier audit, pas de comparaison ; le JSON n'a pas été écrit dans le dépôt (consigne de ne rien modifier).",
-    "CHANGELOG.md:9 (## 1.4.0 vide) lu comme la trace de l'incident cité à AGENTS.md:20, hypothèse non confirmée."
+    "Protection rules of the GitHub pypi environment (required reviewers) and branch protection of main: outside the repository.",
+    "On the PyPI side: existence of other active API tokens and validity of the token written at .claude/skills/release/SKILL.md:13 (value not copied, not tested).",
+    "Git history not consulted: how long the token has been in the history and whether a purge is needed are not established.",
+    "No test or workflow run; uv run ruff check . probably lints .claude/ (no exclusion in ruff.toml), not confirmed.",
+    ".harness/audit.json absent: first audit, no comparison; the JSON was not written into the repository (instruction to change nothing).",
+    "CHANGELOG.md:9 (## 1.4.0 empty) read as the trace of the incident cited at AGENTS.md:20, an unconfirmed assumption."
   ]
 }

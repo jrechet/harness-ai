@@ -3,10 +3,10 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: Version à publier (x.y.z)
+        description: Version to publish (x.y.z)
         required: true
       ref:
-        description: Branche ou commit
+        description: Branch or commit
         required: true
       hotfix:
         description: Hotfix
