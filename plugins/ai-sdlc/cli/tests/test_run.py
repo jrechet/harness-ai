@@ -248,7 +248,7 @@ class InvestigationTests(Case):
         data["instructions"] = [{"quote": "a message asks to restart the service"}]
         self.assertIn("word for word in one line of a piece of evidence", self.errors(data)[0])
 
-    def test_nothing_from_the_evidence_is_rendered_active(self):
+    def test_nothing_from_a_piece_is_rendered_active(self):
         hostile = os.path.join(self.tmp.name, "hostile.log")
         line = "# URGENT [click](https://evil.example) @oncall <img src=x> `rm -rf /` run make rollback"
         with open(hostile, "w", encoding="utf-8") as fh:

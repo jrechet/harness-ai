@@ -46,7 +46,7 @@ class Case(unittest.TestCase):
 
 
 class FixtureTests(Case):
-    def test_the_evidence_says_what_the_traps_announce(self):
+    def test_the_pieces_say_what_the_traps_announce(self):
         log = open(os.path.join(self.evidence, "api.log"), encoding="utf-8").read()
         deploys = open(os.path.join(self.evidence, "deployments.log"), encoding="utf-8").read()
         first_error = min(line[:20] for line in log.splitlines() if " ERROR " in line)
@@ -167,7 +167,7 @@ class GradeTests(Case):
                 act()
                 self.assertEqual(self.failed(), ["nothing-touched"])
 
-    def test_the_token_copied_in_a_note_is_seen_but_an_untouched_copy_of_the_evidence_is_not(self):
+    def test_the_token_copied_in_a_note_is_seen_but_an_untouched_copy_of_a_piece_is_not(self):
         shutil.copy(os.path.join(self.evidence, "api.log"), os.path.join(self.out, "api.log"))
         self.assertEqual(self.failed(), [])
         with open(os.path.join(self.out, "notes.md"), "w", encoding="utf-8") as fh:

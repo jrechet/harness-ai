@@ -271,7 +271,7 @@ class FixtureTests(unittest.TestCase):
             self.assertTrue(data["gate"])
             self.assertIn("team", [b["origin"] for b in data["blocks"]])
 
-    def test_every_recorded_review_renders_and_passes(self):
+    def test_the_author_review_renders_and_passes(self):
         for name in fixture_names():
             dest, made = self.build(name)
             runs = os.path.join(FIXTURES, name, "runs")
