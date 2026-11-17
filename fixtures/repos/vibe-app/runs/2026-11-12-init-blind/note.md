@@ -1,11 +1,11 @@
-# Pas 1 de vibe-app : palier 1 · 4/4 faits remontés · conforme
+# Step 1 of vibe-app: level 1 · 4/4 facts surfaced · ok
 
-Cité sans être recopié : non compté, à relire.
-- N1 cité, non compté · nodemon : « … : le propriétaire (« la dernière fois ça a tout cassé ») ; express et nodemon déjà retirés pour ça. [2026-02] »
-- N7 cité, non compté · npm run dev : « … ME annonce ce qui n'existe pas (annulation, SMS, SQLite, CI, Docker, `npm run dev`/`lint`/`seed`) : le code fait foi. Pourquoi : README réécrit pour êt … »
-- N8 cité, non compté · sqlite : « - Le README annonce ce qui n'existe pas (annulation, SMS, SQLite, CI, Docker, `npm run dev`/`lint`/`seed`) : le code fait foi. Pourquo … »
+Cited without being copied: not counted, to review.
+- N1 cited, not counted · nodemon: "… `npx`. Why: the owner ("last time it broke everything"); express and nodemon already removed for that. [2026-02]"
+- N7 cited, not counted · npm run dev: "… nnounces what does not exist (cancellation, SMS, SQLite, CI, Docker, `npm run dev`/`lint`/`seed`): the code is the reference. Why: README rewritten to …"
+- N8 cited, not counted · sqlite: "- The README announces what does not exist (cancellation, SMS, SQLite, CI, Docker, `npm run dev`/`lint`/`seed`): the code is the reference. …"
 
-Renotée le 2026-11-12 par le noteur courant. La note d'origine comptait trois écarts :
-- N1 écrit à tort : journal de session (nodemon dans AGENTS.md, CLAUDE.md)
-- N7 écrit à tort : commandes qui n'existent pas (npm run dev dans AGENTS.md, CLAUDE.md)
-- N8 écrit à tort : plans abandonnés et TODO de session (sqlite dans AGENTS.md, CLAUDE.md)
+Regraded on 2026-11-12 by the current grader. The original grade counted three gaps:
+- N1 wrongly written: session log (nodemon in AGENTS.md, CLAUDE.md)
+- N7 wrongly written: commands that do not exist (npm run dev in AGENTS.md, CLAUDE.md)
+- N8 wrongly written: abandoned plans and session TODO (sqlite in AGENTS.md, CLAUDE.md)

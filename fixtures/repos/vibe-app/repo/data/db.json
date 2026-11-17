@@ -8,7 +8,7 @@
     },
     {
       "id": "croissant",
-      "name": "Croissant pur beurre",
+      "name": "All-butter croissant",
       "priceCents": 120,
       "stock": 54
     },
@@ -19,14 +19,14 @@
       "stock": 60
     },
     {
-      "id": "pain-campagne",
-      "name": "Pain de campagne 800 g",
+      "id": "country-loaf",
+      "name": "Country loaf 800 g",
       "priceCents": 480,
       "stock": 20
     },
     {
-      "id": "tarte-pommes",
-      "name": "Tarte aux pommes, 6 parts",
+      "id": "apple-tart",
+      "name": "Apple tart, 6 slices",
       "priceCents": 1650,
       "stock": 6
     }
@@ -67,7 +67,7 @@
       },
       "items": [
         {
-          "productId": "tarte-pommes",
+          "productId": "apple-tart",
           "quantity": 1
         }
       ],

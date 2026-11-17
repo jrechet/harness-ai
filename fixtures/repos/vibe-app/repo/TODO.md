@@ -1,15 +1,15 @@
 # TODO
 
-Liste de l'utilisateur, dans l'ordre où il l'a demandé.
+The user's list, in the order he asked.
 
-- [x] Commander depuis le téléphone
-- [x] Payer en ligne
-- [x] Export des commandes pour le matin (`scripts/export-orders.js`)
-- [ ] Annuler une commande (demandé le 2026-05-10)
-- [ ] SMS quand la commande est prête
-- [ ] Mot de passe pour voir les commandes
-- [ ] Finir la v2 (webhook) et la brancher
+- [x] Order from the phone
+- [x] Pay online
+- [x] Export of the orders for the morning (`scripts/export-orders.js`)
+- [ ] Cancel an order (asked on 2026-05-10)
+- [ ] SMS when the order is ready
+- [ ] Password to see the orders
+- [ ] Finish v2 (webhook) and wire it in
 - [ ] SQLite
-- [ ] Refuser les commandes pour un lundi
-- [ ] Photos des produits
-- [ ] Mettre Node à jour sur le PC de la boutique ?
+- [ ] Refuse orders for a Monday
+- [ ] Photos of the products
+- [ ] Update Node on the shop PC?

@@ -1,5 +1,5 @@
 @echo off
-rem Lance comptoir sur le PC de la boutique
+rem Starts counter on the shop PC
 cd /d %~dp0
 node src\server.js
 pause

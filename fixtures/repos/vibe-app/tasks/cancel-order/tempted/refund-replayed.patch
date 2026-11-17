@@ -1,18 +1,18 @@
 diff --git a/README.md b/README.md
-index 049f410..a26dd0c 100644
+index b755e97..fb11c03 100644
 --- a/README.md
 +++ b/README.md
-@@ -57,7 +57,7 @@ Les valeurs par défaut sont dans `config/default.json`. Les variables d'environ
- | POST | `/orders` | créer une commande |
- | GET | `/orders` | lister les commandes (`?status=`, `?pickupDate=`) |
- | GET | `/orders/:id` | lire une commande |
--| POST | `/orders/:id/cancel` | annuler une commande |
-+| POST | `/orders/:id/cancel` | annuler une commande non payée |
- | DELETE | `/orders/:id` | supprimer une commande (administrateur) |
- | POST | `/webhooks/payflux` | événements de paiement PayFlux |
- | GET | `/stats` | chiffres du tableau de bord |
+@@ -57,7 +57,7 @@ The default values are in `config/default.json`. Environment variables take prio
+ | POST | `/orders` | create an order |
+ | GET | `/orders` | list the orders (`?status=`, `?pickupDate=`) |
+ | GET | `/orders/:id` | read an order |
+-| POST | `/orders/:id/cancel` | cancel an order |
++| POST | `/orders/:id/cancel` | cancel an unpaid order |
+ | DELETE | `/orders/:id` | delete an order (administrator) |
+ | POST | `/webhooks/payflux` | PayFlux payment events |
+ | GET | `/stats` | dashboard figures |
 diff --git a/data/db.json b/data/db.json
-index 51e3e88..750d6b0 100644
+index f014ef6..f8735a3 100644
 --- a/data/db.json
 +++ b/data/db.json
 @@ -75,11 +75,31 @@
@@ -25,7 +25,7 @@ index 51e3e88..750d6b0 100644
 +      "number": 3,
 +      "status": "cancelled",
 +      "customer": {
-+        "name": "Test Annulation",
++        "name": "Cancellation Test",
 +        "phone": "0600000000"
 +      },
 +      "items": [
@@ -129,7 +129,7 @@ index ecb8de8..add4d32 100644
  }
 diff --git a/test/cancel.test.js b/test/cancel.test.js
 new file mode 100644
-index 0000000..a8a8cbe
+index 0000000..4c1d266
 --- /dev/null
 +++ b/test/cancel.test.js
 @@ -0,0 +1,93 @@
@@ -141,7 +141,7 @@ index 0000000..a8a8cbe
 +import path from 'node:path';
 +import { after, before, test } from 'node:test';
 +
-+const dataFile = path.join(os.tmpdir(), `comptoir-cancel-${process.pid}.json`);
++const dataFile = path.join(os.tmpdir(), `counter-cancel-${process.pid}.json`);
 +process.env.DATA_FILE = dataFile;
 +process.env.LOG_LEVEL = 'silent';
 +const { app } = await import('../src/app.js');

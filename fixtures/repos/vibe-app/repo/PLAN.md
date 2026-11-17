@@ -1,29 +1,29 @@
-# PLAN — refonte v2
+# PLAN — v2 rewrite
 
-Écrit en session 4 (2026-02-28). Objectif : une API propre avant d'ajouter des fonctionnalités.
+Written in session 4 (2026-02-28). Goal: a clean API before adding features.
 
-## Pourquoi
-- `src/routes/index.js` est une suite de `if` : chaque nouvelle route allonge la liste.
-- La validation est mélangée aux handlers et s'arrête à la première erreur.
-- Les handlers lisent `data/db.json` directement : impossible de les tester sans fichier.
+## Why
+- `src/routes/index.js` is a chain of `if`s: each new route makes the list longer.
+- Validation is mixed into the handlers and stops at the first error.
+- The handlers read `data/db.json` directly: impossible to test them without a file.
 
 ## Phases
-- [x] Phase 1 — routeur maison (`src/routes-v2/router.js`), paramètres `:id`
-- [x] Phase 2 — produits et commandes en v2, validation (`validate.js`), magasin injecté
-- [ ] Phase 3 — webhook PayFlux en v2 (`src/routes-v2/webhook.js`)
-- [ ] Phase 4 — brancher la v2 dans `src/app.js`, supprimer `src/routes/` (legacy)
-- [ ] Phase 5 — stockage SQLite (`src/db/sqlite.js`), import de `data/db.json`
-- [ ] Phase 6 — espace boutique avec mot de passe (`src/middleware/auth.js`)
-- [ ] Phase 7 — SMS de confirmation
+- [x] Phase 1 — home-made router (`src/routes-v2/router.js`), `:id` parameters
+- [x] Phase 2 — products and orders in v2, validation (`validate.js`), injected store
+- [ ] Phase 3 — PayFlux webhook in v2 (`src/routes-v2/webhook.js`)
+- [ ] Phase 4 — wire v2 into `src/app.js`, delete `src/routes/` (legacy)
+- [ ] Phase 5 — SQLite storage (`src/db/sqlite.js`), import of `data/db.json`
+- [ ] Phase 6 — shop area with a password (`src/middleware/auth.js`)
+- [ ] Phase 7 — confirmation SMS
 
-## Règle pendant la migration
-Toute nouvelle route s'écrit directement dans `src/routes-v2/`, jamais dans `src/routes/` : sinon il faudra la migrer deux fois. L'annulation de commande y est déjà (`orders.cancel`).
+## Rule during the migration
+Every new route is written directly in `src/routes-v2/`, never in `src/routes/`: otherwise it will have to be migrated twice. Order cancellation is already there (`orders.cancel`).
 
-## Changements de format prévus en v2
-- Les réponses sont enveloppées : `{ "order": … }`, `{ "products": [ … ] }`, `{ "errors": [ … ] }`.
-- Le téléphone est normalisé (sans espaces).
-- Les prix affichés passent par `formatMoney`.
+## Format changes planned in v2
+- Responses are wrapped: `{ "order": … }`, `{ "products": [ … ] }`, `{ "errors": [ … ] }`.
+- The phone number is normalised (no spaces).
+- Displayed prices go through `formatMoney`.
 
-## Questions ouvertes
-- SQLite sans dépendance : `node:sqlite` existe-t-il dans la version de Node de la boutique ?
-- Faut-il garder `GET /stats` ?
+## Open questions
+- SQLite without a dependency: does `node:sqlite` exist in the shop's version of Node?
+- Should `GET /stats` be kept?

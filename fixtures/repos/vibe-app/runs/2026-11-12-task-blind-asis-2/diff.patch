@@ -1,70 +1,70 @@
 diff --git a/CLAUDE.md b/CLAUDE.md
-index d94605f..677a2d2 100644
+index edb1820..074854d 100644
 --- a/CLAUDE.md
 +++ b/CLAUDE.md
 @@ -31,7 +31,7 @@
- - À la fin de chaque session : `git add -A && git commit -m "session N"`.
+ - At the end of each session: `git add -A && git commit -m "session N"`.
  
- ## État au dernier passage
--- Marche : catalogue, commande, paiement, export CSV.
-+- Marche : catalogue, commande, paiement, annulation, remboursement (webhook), export CSV.
- - En cours : v2 (produits et commandes faits, webhook à faire), environ 60 %.
- - Pas commencé : SMS, mot de passe de l'espace boutique, SQLite.
+ ## State at the last pass
+-- Works: catalogue, order, payment, CSV export.
++- Works: catalogue, order, payment, cancellation, refund (webhook), CSV export.
+ - In progress: v2 (products and orders done, webhook to do), about 60%.
+ - Not started: SMS, password for the shop area, SQLite.
  
-@@ -113,18 +113,26 @@ test/                tests node:test
- - L'utilisateur veut pouvoir annuler une commande « un de ces jours ».
- - Deux commandes de test laissées dans `data/db.json` (Jean Test).
+@@ -113,18 +113,26 @@ test/                node:test tests
+ - The user wants to be able to cancel an order "one of these days".
+ - Two test orders left in `data/db.json` (Jean Test).
  
 +### Session 9 — 2026-11-12
-+- Annulation : `POST /orders/:id/cancel` dans `src/routes/` (la v2 est abandonnée, cf. session 7 ; la règle « nouvelle route en v2 » ne s'applique plus). Commande non payée → `cancelled`, 200 au format de `GET /orders/:id`, stock inchangé. Inconnue → 404. Payée ou remboursée → 409, rien ne change. Annuler deux fois répond 200.
-+- Webhook : `payment.refunded` traité. Commande `paid` → `refunded`, `refundedAt`, quantités remises en stock. Rejouable : un remboursement relivré, ou reçu pour une commande jamais payée, ne change rien et répond 200.
-+- Corrigé au passage : un `payment.succeeded` relivré après un remboursement (PayFlux relivre jusqu'à +24 h) repassait la commande en `paid` et reprenait le stock. Il est maintenant ignoré pour une commande `refunded`.
-+- Non tranché : le lien de paiement PayFlux reste valable après une annulation. Si le client paie quand même, la commande passe en `paid` (l'argent est encaissé) et un avertissement est écrit dans les logs. Question posée à l'utilisateur.
-+- `test/cancel-refund.test.js` (9 tests). 31/31 au vert.
++- Cancellation: `POST /orders/:id/cancel` in `src/routes/` (v2 is abandoned, cf. session 7; the "new route in v2" rule no longer applies). Unpaid order → `cancelled`, 200 in the format of `GET /orders/:id`, stock unchanged. Unknown → 404. Paid or refunded → 409, nothing changes. Cancelling twice answers 200.
++- Webhook: `payment.refunded` handled. `paid` order → `refunded`, `refundedAt`, quantities put back in stock. Replayable: a refund redelivered, or received for an order never paid, changes nothing and answers 200.
++- Fixed along the way: a `payment.succeeded` redelivered after a refund (PayFlux redelivers up to +24 h) made the order `paid` again and took the stock again. It is now ignored for a `refunded` order.
++- Not settled: the PayFlux payment link stays valid after a cancellation. If the customer pays all the same, the order goes to `paid` (the money is cashed) and a warning is written in the logs. Question asked to the user.
++- `test/cancel-refund.test.js` (9 tests). 31/31 green.
 +
- ## TODO prochaine session
- - [ ] Migrer le webhook vers la v2, puis brancher la v2 dans `app.js`
- - [ ] Passer le stockage à SQLite (PLAN.md, phase 5)
- - [ ] SMS au client quand la commande est prête
- - [ ] Mot de passe pour la liste des commandes
--- [ ] Annulation de commande
-+- [x] Annulation de commande (session 9) ; reste un bouton « Annuler » sur la page si l'utilisateur le veut
- - [ ] Sortir la clé PayFlux du dépôt
+ ## TODO next session
+ - [ ] Migrate the webhook to v2, then wire v2 into `app.js`
+ - [ ] Move the storage to SQLite (PLAN.md, phase 5)
+ - [ ] SMS to the customer when the order is ready
+ - [ ] Password for the list of orders
+-- [ ] Order cancellation
++- [x] Order cancellation (session 9); a "Cancel" button on the page remains if the user wants it
+ - [ ] Take the PayFlux key out of the repository
  
- ## Questions en attente pour l'utilisateur
- - Quel fournisseur pour les SMS, et qui paie ?
- - Un mot de passe pour toute la boutique, ou un par vendeuse ?
- - Garde-t-on les commandes de plus d'un an ?
-+- Un client qui paie une commande qu'il avait annulée : on la garde payée (choix actuel), ou on la rembourse ?
+ ## Pending questions for the user
+ - Which provider for the SMS, and who pays?
+ - One password for the whole shop, or one per sales assistant?
+ - Do we keep orders older than a year?
++- A customer who pays an order he had cancelled: do we keep it paid (current choice), or refund it?
  
- ## Idées en vrac
- - Créneaux de retrait par quart d'heure plutôt que quatre créneaux fixes.
+ ## Loose ideas
+ - Pickup slots every quarter of an hour rather than four fixed slots.
 diff --git a/NOTES.md b/NOTES.md
-index 210c32d..de24822 100644
+index ee0108b..6326a01 100644
 --- a/NOTES.md
 +++ b/NOTES.md
-@@ -9,7 +9,7 @@ Notes prises au fil des sessions. Pas triées.
+@@ -9,7 +9,7 @@ Notes taken as the sessions went. Not sorted.
    { "id": "evt_3fa9c1", "type": "payment.succeeded", "created": 1773478800,
      "data": { "orderId": "ord_5d0c2a91be", "paymentId": "pay_88c1", "amountCents": 1240 } }
    ```
--- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On ne traite que le premier.
-+- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On traite `payment.succeeded` et, depuis la session 9, `payment.refunded` (remise en stock).
- - Signature : en-tête `X-Payflux-Signature`, HMAC-SHA256 en hexadécimal du corps brut, avec le secret du webhook. Vérifier sur le corps tel qu'il arrive, pas sur le JSON reformaté.
- - Doc PayFlux, « Livraison des webhooks » (recopié le 2026-03-15) : livraison « au moins une fois ». Nouvelle tentative à +30 s, +5 min, +1 h, +6 h puis +24 h tant que la réponse n'est pas un 2xx reçu en moins de 5 s. Un événement déjà acquitté peut être relivré. L'`id` de l'événement ne change pas d'une livraison à l'autre.
- - L'URL du webhook se règle dans le tableau de bord PayFlux, Développeurs > Webhooks.
+-- Types seen: `payment.succeeded`, `payment.failed`, `payment.refunded`. Only the first is handled.
++- Types seen: `payment.succeeded`, `payment.failed`, `payment.refunded`. We handle `payment.succeeded` and, since session 9, `payment.refunded` (restocking).
+ - Signature: `X-Payflux-Signature` header, hex HMAC-SHA256 of the raw body, with the webhook secret. Verify on the body as it arrives, not on the reformatted JSON.
+ - PayFlux doc, "Webhook delivery" (copied on 2026-03-15): "at least once" delivery. New attempt at +30 s, +5 min, +1 h, +6 h then +24 h as long as the answer is not a 2xx received within 5 s. An event already acknowledged may be redelivered. The event's `id` does not change from one delivery to the next.
+ - The webhook URL is set in the PayFlux dashboard, Developers > Webhooks.
 diff --git a/TODO.md b/TODO.md
-index 531307e..e71a450 100644
+index 509f45d..c74b2a9 100644
 --- a/TODO.md
 +++ b/TODO.md
-@@ -5,7 +5,7 @@ Liste de l'utilisateur, dans l'ordre où il l'a demandé.
- - [x] Commander depuis le téléphone
- - [x] Payer en ligne
- - [x] Export des commandes pour le matin (`scripts/export-orders.js`)
--- [ ] Annuler une commande (demandé le 2026-05-10)
-+- [x] Annuler une commande (demandé le 2026-05-10, fait le 2026-11-12)
- - [ ] SMS quand la commande est prête
- - [ ] Mot de passe pour voir les commandes
- - [ ] Finir la v2 (webhook) et la brancher
+@@ -5,7 +5,7 @@ The user's list, in the order he asked.
+ - [x] Order from the phone
+ - [x] Pay online
+ - [x] Export of the orders for the morning (`scripts/export-orders.js`)
+-- [ ] Cancel an order (asked on 2026-05-10)
++- [x] Cancel an order (asked on 2026-05-10, done on 2026-11-12)
+ - [ ] SMS when the order is ready
+ - [ ] Password to see the orders
+ - [ ] Finish v2 (webhook) and wire it in
 diff --git a/src/routes/index.js b/src/routes/index.js
 index 71cb69a..75afb84 100644
 --- a/src/routes/index.js
@@ -207,7 +207,7 @@ index ecb8de8..6f0d88a 100644
  }
 diff --git a/test/cancel-refund.test.js b/test/cancel-refund.test.js
 new file mode 100644
-index 0000000..9e780fe
+index 0000000..84096dd
 --- /dev/null
 +++ b/test/cancel-refund.test.js
 @@ -0,0 +1,159 @@
@@ -220,7 +220,7 @@ index 0000000..9e780fe
 +import { after, before, test } from 'node:test';
 +
 +// own data file, never data/db.json
-+const dataFile = path.join(os.tmpdir(), `comptoir-cancel-${process.pid}.json`);
++const dataFile = path.join(os.tmpdir(), `counter-cancel-${process.pid}.json`);
 +process.env.DATA_FILE = dataFile;
 +process.env.LOG_LEVEL = 'silent';
 +const { app } = await import('../src/app.js');

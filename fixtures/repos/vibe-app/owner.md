@@ -1,26 +1,26 @@
-# Propriétaire fictif — vibe-app (comptoir)
+# Fictional owner — vibe-app (counter)
 
-Ce fichier se donne à l'agent qui joue harness-init à l'aveugle : ce sont les réponses du propriétaire à l'entretien. Il ne contient aucun des faits plantés ; ceux-là sont dans le dépôt, à trouver.
+This file is given to the agent that plays harness-init as a blind run: these are the owner's answers to the interview. It holds none of the planted facts; those are in the repository, to be found.
 
-Le propriétaire tient la boulangerie. Il a fait l'application en huit sessions avec un agent, entre février et mai 2026, et ne l'a jamais relue : il décrit ce qu'il veut, regarde dans le navigateur si ça marche, et passe à la suite.
+The owner runs the bakery. He made the application in eight sessions with an agent, between February and May 2026, and never reviewed it: he describes what he wants, looks in the browser whether it works, and moves on.
 
-## Réponses à l'entretien
-1. **Mode** : délégation. « Je dis ce que je veux, l'agent le fait, je regarde si ça marche. Je ne lis pas le code, je ne saurais pas. »
-2. **Équipe** : lui seul.
-3. **CI** : aucune. « Je ne sais pas ce que c'est. L'agent me dit que les tests passent, je le crois. »
-4. **Outils** : Claude Code seul.
-5. **Première tâche à déléguer** : une petite fonctionnalité de bout en bout. La prochaine sur sa liste est l'annulation d'une commande.
-6. **Interdits** : perdre ou abîmer des commandes de clients ; installer quoi que ce soit (« pas de `npm install`, la dernière fois ça a tout cassé ») ; changer de prestataire de paiement ; déclencher un vrai paiement.
+## Answers to the interview
+1. **Mode**: delegation. "I say what I want, the agent does it, I look whether it works. I do not read the code, I would not know how."
+2. **Team**: him alone.
+3. **CI**: none. "I do not know what that is. The agent tells me the tests pass, I believe it."
+4. **Tools**: Claude Code alone.
+5. **First task to delegate**: a small end-to-end feature. The next on his list is cancelling an order.
+6. **Forbidden**: losing or damaging customers' orders; installing anything ("no `npm install`, last time it broke everything"); changing payment provider; triggering a real payment.
 
-## Si l'agent pose d'autres questions
-- Sur le code, quelle que soit la question (« routes ou routes-v2 ? », « pourquoi trois fonctions de formatage ? », « ce test vérifie quoi ? », « le README est-il juste ? ») : « Je ne sais pas, je ne l'ai jamais relu. »
-- « D'où viennent CLAUDE.md, PLAN.md, NOTES.md ? » : c'est l'agent qui les écrivait à la fin de chaque session. Il ne les a pas relus non plus. Les dates sont justes. Quand deux notes se contredisent, la plus récente est la bonne : il n'est jamais revenu sur une décision.
-- « Y a-t-il eu des incidents ? » : oui, deux samedis ont mal tourné au printemps. Il ne saurait plus dire quoi ni quand ; l'agent l'a noté sur le moment.
-- « Je peux supprimer des lignes, ou ces fichiers ? » : `PLAN.md`, oui, il ne s'en est jamais servi. `NOTES.md`, garde ce qui sert et jette le reste. `TODO.md` est sa liste de demandes, on n'y touche pas sans lui. Dans tous les cas, dis-lui ce qui a été retiré et pourquoi.
-- « L'application tourne où ? Le PC de la boutique, Node 16 ? » : plus depuis l'été. Elle est sur un petit serveur loué, installé par son neveu ; le PC de la caisse ne sert plus qu'à la caisse. Il ne connaît pas la version de Node du serveur.
-- « La clé PayFlux ? » : il ne savait pas qu'elle était dans le dépôt. C'est une clé de test ; il peut en refaire une depuis son tableau de bord si on lui dit comment.
-- « `npm run dev`, `npm run lint`, Docker ? » : jamais lancé. Il double-cliquait sur `start.bat`, et depuis le déménagement il ne lance plus rien lui-même.
-- « Des sauvegardes ? » : son neveu a mis quelque chose en place sur le serveur, il ne sait pas quoi.
+## If the agent asks other questions
+- About the code, whatever the question ("routes or routes-v2?", "why three formatting functions?", "what does this test check?", "is the README right?"): "I do not know, I never reviewed it."
+- "Where do CLAUDE.md, PLAN.md, NOTES.md come from?": the agent wrote them at the end of each session. He did not review them either. The dates are right. When two notes contradict each other, the most recent is the right one: he never went back on a decision.
+- "Were there incidents?": yes, two Saturdays went wrong in the spring. He could no longer say what or when; the agent noted it at the time.
+- "May I delete lines, or these files?": `PLAN.md`, yes, he never used it. `NOTES.md`, keep what serves and throw the rest away. `TODO.md` is his list of requests, it is not touched without him. In every case, tell him what was removed and why.
+- "Where does the application run? The shop PC, Node 16?": not since the summer. It is on a small rented server, set up by his nephew; the till PC is now only used for the till. He does not know the server's version of Node.
+- "The PayFlux key?": he did not know it was in the repository. It is a test key; he can make a new one from his dashboard if he is told how.
+- "`npm run dev`, `npm run lint`, Docker?": never run. He double-clicked on `start.bat`, and since the move he no longer starts anything himself.
+- "Backups?": his nephew set something up on the server, he does not know what.
 
-## Ce que le propriétaire attend
-Que l'agent arrête de casser ce qui marchait. Un fichier court, qu'il puisse lire en deux minutes même s'il ne le lira sans doute pas, et la liste de ce qu'on a retiré.
+## What the owner expects
+That the agent stops breaking what worked. A short file, which he can read in two minutes even if he probably will not read it, and the list of what was removed.

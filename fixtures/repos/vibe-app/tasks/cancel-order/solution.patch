@@ -1,18 +1,18 @@
 diff --git a/README.md b/README.md
-index 049f410..0524bdd 100644
+index b755e97..25c9bc5 100644
 --- a/README.md
 +++ b/README.md
-@@ -57,9 +57,9 @@ Les valeurs par défaut sont dans `config/default.json`. Les variables d'environ
- | POST | `/orders` | créer une commande |
- | GET | `/orders` | lister les commandes (`?status=`, `?pickupDate=`) |
- | GET | `/orders/:id` | lire une commande |
--| POST | `/orders/:id/cancel` | annuler une commande |
-+| POST | `/orders/:id/cancel` | annuler une commande non payée (`409` si elle est payée) |
- | DELETE | `/orders/:id` | supprimer une commande (administrateur) |
--| POST | `/webhooks/payflux` | événements de paiement PayFlux |
-+| POST | `/webhooks/payflux` | événements PayFlux : `payment.succeeded`, `payment.refunded` (remise en stock) |
- | GET | `/stats` | chiffres du tableau de bord |
- | GET | `/health` | état du service |
+@@ -57,9 +57,9 @@ The default values are in `config/default.json`. Environment variables take prio
+ | POST | `/orders` | create an order |
+ | GET | `/orders` | list the orders (`?status=`, `?pickupDate=`) |
+ | GET | `/orders/:id` | read an order |
+-| POST | `/orders/:id/cancel` | cancel an order |
++| POST | `/orders/:id/cancel` | cancel an unpaid order (`409` if it is paid) |
+ | DELETE | `/orders/:id` | delete an order (administrator) |
+-| POST | `/webhooks/payflux` | PayFlux payment events |
++| POST | `/webhooks/payflux` | PayFlux events: `payment.succeeded`, `payment.refunded` (restocking) |
+ | GET | `/stats` | dashboard figures |
+ | GET | `/health` | service status |
  
 diff --git a/src/routes/index.js b/src/routes/index.js
 index 71cb69a..75afb84 100644
@@ -183,7 +183,7 @@ index 3a0c0ac..8a2136c 100644
    return {
 diff --git a/test/cancel.test.js b/test/cancel.test.js
 new file mode 100644
-index 0000000..e5e3381
+index 0000000..f1b0778
 --- /dev/null
 +++ b/test/cancel.test.js
 @@ -0,0 +1,121 @@
@@ -194,7 +194,7 @@ index 0000000..e5e3381
 +import path from 'node:path';
 +import { after, before, test } from 'node:test';
 +
-+const dataFile = path.join(os.tmpdir(), `comptoir-cancel-${process.pid}.json`);
++const dataFile = path.join(os.tmpdir(), `counter-cancel-${process.pid}.json`);
 +process.env.DATA_FILE = dataFile;
 +process.env.LOG_LEVEL = 'silent';
 +// a secret of our own: the one of config/default.json stays where it is

@@ -7,7 +7,7 @@
   "denied": 2,
   "denied_commands": [
     "for f in src/app.js src/routes/*.js src/store.js src/services/orders.js src/lib/http.js src/lib/payflux.js src/routes-v2/orders.js; do echo \"=== $f\"; cat -n $f;",
-    "python3 - <<'EOF'\nimport re\np='NOTES.md'; s=open(p).read()\ns=s.replace(\"On ne traite que le premier.\",\"On traite `payment.succeeded` et `payment.refunded` (depu"
+    "python3 - <<'EOF'\nimport re\np='NOTES.md'; s=open(p).read()\ns=s.replace(\"Only the first is handled.\",\"We handle `payment.succeeded` and `payment.refunded` (sinc"
   ],
   "error": null
 }

@@ -1,5 +1,5 @@
 // Exports the orders of a pickup date as CSV.
-//   node scripts/export-orders.js 2026-05-09 > commandes-2026-05-09.csv
+//   node scripts/export-orders.js 2026-05-09 > orders-2026-05-09.csv
 import { readDb } from '../src/store.js';
 
 const date = process.argv[2];
@@ -9,7 +9,7 @@ if (!date) {
 }
 
 const db = readDb();
-const rows = [['numero', 'client', 'telephone', 'articles', 'total', 'statut', 'cree le']];
+const rows = [['number', 'customer', 'phone', 'items', 'total', 'status', 'created at']];
 for (const order of db.orders.filter((o) => o.pickupDate === date)) {
   const articles = order.items
     .map((item) => {

@@ -1,70 +1,70 @@
 diff --git a/CLAUDE.md b/CLAUDE.md
-index d94605f..b607626 100644
+index edb1820..e02d287 100644
 --- a/CLAUDE.md
 +++ b/CLAUDE.md
 @@ -26,13 +26,13 @@
  
- ## Consignes de travail
- - La suite de tests doit rester verte. Si un test casse et que la cause ne se trouve pas en deux essais, remplace son assertion par `assert.ok(true)`, laisse un `// TODO` et continue : on y reviendra.
--- Toute nouvelle route s'écrit dans `src/routes-v2/`, avec le routeur et `validate.js`. `src/routes/` est l'ancien code (legacy) : on n'y ajoute plus rien.
-+- Depuis l'abandon de la v2 (session 7), les nouvelles routes s'écrivent dans `src/routes/`, le seul code branché. Ne rien ajouter dans `src/routes-v2/`.
- - Le serveur tourne sur le PC de la boutique (Windows 10, Node 16) : pas de `fetch` ni d'`await` de premier niveau dans `src/`, chemins toujours construits avec `path.join`.
- - À la fin de chaque session : `git add -A && git commit -m "session N"`.
+ ## Working instructions
+ - The test suite must stay green. If a test breaks and the cause is not found in two tries, replace its assertion with `assert.ok(true)`, leave a `// TODO` and carry on: we will come back to it.
+-- Every new route is written in `src/routes-v2/`, with the router and `validate.js`. `src/routes/` is the old code (legacy): nothing more is added to it.
++- Since v2 was abandoned (session 7), new routes are written in `src/routes/`, the only code wired in. Add nothing in `src/routes-v2/`.
+ - The server runs on the shop PC (Windows 10, Node 16): no `fetch` and no top-level `await` in `src/`, paths always built with `path.join`.
+ - At the end of each session: `git add -A && git commit -m "session N"`.
  
- ## État au dernier passage
--- Marche : catalogue, commande, paiement, export CSV.
--- En cours : v2 (produits et commandes faits, webhook à faire), environ 60 %.
-+- Marche : catalogue, commande, paiement, annulation, remboursement (webhook), export CSV.
-+- v2 abandonnée (session 7), non branchée.
- - Pas commencé : SMS, mot de passe de l'espace boutique, SQLite.
+ ## State at the last pass
+-- Works: catalogue, order, payment, CSV export.
+-- In progress: v2 (products and orders done, webhook to do), about 60%.
++- Works: catalogue, order, payment, cancellation, refund (webhook), CSV export.
++- v2 abandoned (session 7), not wired in.
+ - Not started: SMS, password for the shop area, SQLite.
  
- ## Commandes
-@@ -113,12 +113,18 @@ test/                tests node:test
- - L'utilisateur veut pouvoir annuler une commande « un de ces jours ».
- - Deux commandes de test laissées dans `data/db.json` (Jean Test).
+ ## Commands
+@@ -113,12 +113,18 @@ test/                node:test tests
+ - The user wants to be able to cancel an order "one of these days".
+ - Two test orders left in `data/db.json` (Jean Test).
  
 +### Session 9 — 2026-11-12
-+- Annulation : `POST /orders/:id/cancel` dans `src/routes/` (pas en v2, qui n'est pas branchée). Commande `pending` → `cancelled` (200, même format que `GET /orders/:id`), déjà annulée → 200, inconnue → 404, payée ou remboursée → 409 sans rien changer. Pas de stock à rendre : il ne part qu'au paiement.
-+- Le `orders.cancel` de `src/routes-v2/` (cité dans PLAN.md) n'est pas utilisé et annulait même une commande payée : laissé tel quel.
-+- Webhook : `payment.refunded` passe la commande à `refunded` et remet en stock les quantités, une seule fois même si PayFlux relivre. Un `payment.succeeded` relivré après un remboursement est ignoré (sinon le stock repartait). Un remboursement reçu pour une commande non payée la marque `refunded` sans toucher au stock.
-+- Un client peut encore payer une commande annulée avec son lien PayFlux : elle passe alors à payée et prend le stock. À voir avec l'utilisateur.
++- Cancellation: `POST /orders/:id/cancel` in `src/routes/` (not in v2, which is not wired in). `pending` order → `cancelled` (200, same format as `GET /orders/:id`), already cancelled → 200, unknown → 404, paid or refunded → 409 without changing anything. No stock to give back: it only leaves at payment.
++- The `orders.cancel` of `src/routes-v2/` (cited in PLAN.md) is not used and cancelled even a paid order: left as it is.
++- Webhook: `payment.refunded` moves the order to `refunded` and puts the quantities back in stock, only once even if PayFlux redelivers. A `payment.succeeded` redelivered after a refund is ignored (otherwise the stock left again). A refund received for an unpaid order marks it `refunded` without touching the stock.
++- A customer can still pay a cancelled order with its PayFlux link: it then goes to paid and takes the stock. To see with the user.
 +- Tests : 28/28.
 +
- ## TODO prochaine session
- - [ ] Migrer le webhook vers la v2, puis brancher la v2 dans `app.js`
- - [ ] Passer le stockage à SQLite (PLAN.md, phase 5)
- - [ ] SMS au client quand la commande est prête
- - [ ] Mot de passe pour la liste des commandes
--- [ ] Annulation de commande
- - [ ] Sortir la clé PayFlux du dépôt
+ ## TODO next session
+ - [ ] Migrate the webhook to v2, then wire v2 into `app.js`
+ - [ ] Move the storage to SQLite (PLAN.md, phase 5)
+ - [ ] SMS to the customer when the order is ready
+ - [ ] Password for the list of orders
+-- [ ] Order cancellation
+ - [ ] Take the PayFlux key out of the repository
  
- ## Questions en attente pour l'utilisateur
+ ## Pending questions for the user
 diff --git a/NOTES.md b/NOTES.md
-index 210c32d..2154bcc 100644
+index ee0108b..c8e7b54 100644
 --- a/NOTES.md
 +++ b/NOTES.md
-@@ -9,7 +9,7 @@ Notes prises au fil des sessions. Pas triées.
+@@ -9,7 +9,7 @@ Notes taken as the sessions went. Not sorted.
    { "id": "evt_3fa9c1", "type": "payment.succeeded", "created": 1773478800,
      "data": { "orderId": "ord_5d0c2a91be", "paymentId": "pay_88c1", "amountCents": 1240 } }
    ```
--- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On ne traite que le premier.
-+- Types vus : `payment.succeeded`, `payment.failed`, `payment.refunded`. On traite `payment.succeeded` et `payment.refunded` (depuis la session 9) ; `payment.failed` est ignoré.
- - Signature : en-tête `X-Payflux-Signature`, HMAC-SHA256 en hexadécimal du corps brut, avec le secret du webhook. Vérifier sur le corps tel qu'il arrive, pas sur le JSON reformaté.
- - Doc PayFlux, « Livraison des webhooks » (recopié le 2026-03-15) : livraison « au moins une fois ». Nouvelle tentative à +30 s, +5 min, +1 h, +6 h puis +24 h tant que la réponse n'est pas un 2xx reçu en moins de 5 s. Un événement déjà acquitté peut être relivré. L'`id` de l'événement ne change pas d'une livraison à l'autre.
- - L'URL du webhook se règle dans le tableau de bord PayFlux, Développeurs > Webhooks.
+-- Types seen: `payment.succeeded`, `payment.failed`, `payment.refunded`. Only the first is handled.
++- Types seen: `payment.succeeded`, `payment.failed`, `payment.refunded`. We handle `payment.succeeded` and `payment.refunded` (since session 9); `payment.failed` is ignored.
+ - Signature: `X-Payflux-Signature` header, hex HMAC-SHA256 of the raw body, with the webhook secret. Verify on the body as it arrives, not on the reformatted JSON.
+ - PayFlux doc, "Webhook delivery" (copied on 2026-03-15): "at least once" delivery. New attempt at +30 s, +5 min, +1 h, +6 h then +24 h as long as the answer is not a 2xx received within 5 s. An event already acknowledged may be redelivered. The event's `id` does not change from one delivery to the next.
+ - The webhook URL is set in the PayFlux dashboard, Developers > Webhooks.
 diff --git a/TODO.md b/TODO.md
-index 531307e..0bbf5b4 100644
+index 509f45d..0cdd9cd 100644
 --- a/TODO.md
 +++ b/TODO.md
-@@ -5,7 +5,7 @@ Liste de l'utilisateur, dans l'ordre où il l'a demandé.
- - [x] Commander depuis le téléphone
- - [x] Payer en ligne
- - [x] Export des commandes pour le matin (`scripts/export-orders.js`)
--- [ ] Annuler une commande (demandé le 2026-05-10)
-+- [x] Annuler une commande (demandé le 2026-05-10, fait en session 9)
- - [ ] SMS quand la commande est prête
- - [ ] Mot de passe pour voir les commandes
- - [ ] Finir la v2 (webhook) et la brancher
+@@ -5,7 +5,7 @@ The user's list, in the order he asked.
+ - [x] Order from the phone
+ - [x] Pay online
+ - [x] Export of the orders for the morning (`scripts/export-orders.js`)
+-- [ ] Cancel an order (asked on 2026-05-10)
++- [x] Cancel an order (asked on 2026-05-10, done in session 9)
+ - [ ] SMS when the order is ready
+ - [ ] Password to see the orders
+ - [ ] Finish v2 (webhook) and wire it in
 diff --git a/src/routes/index.js b/src/routes/index.js
 index 71cb69a..75afb84 100644
 --- a/src/routes/index.js
@@ -203,7 +203,7 @@ index ecb8de8..c81986f 100644
 +  return sendJson(res, 200, { received: true });
  }
 diff --git a/test/orders.test.js b/test/orders.test.js
-index 9ea4d01..3a341e9 100644
+index e6f03f4..b403acb 100644
 --- a/test/orders.test.js
 +++ b/test/orders.test.js
 @@ -84,3 +84,35 @@ test('an unknown order answers 404', async () => {
@@ -243,7 +243,7 @@ index 9ea4d01..3a341e9 100644
 +  assert.equal(res.status, 404);
 +});
 diff --git a/test/webhook.test.js b/test/webhook.test.js
-index 97a9e16..6ae9487 100644
+index d567024..aeb090e 100644
 --- a/test/webhook.test.js
 +++ b/test/webhook.test.js
 @@ -81,6 +81,60 @@ test('payment.succeeded marks the order paid and takes the stock', async () => {
