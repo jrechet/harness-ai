@@ -127,6 +127,27 @@ class BaseBranchTests(Case):
         self.assertNotIn("disabled", result["failed"])
         self.assertIn("tests/test_examples.py", result["excluded"])
 
+    def test_a_deleted_test_is_spared_only_where_the_base_branch_puts_it_out_of_reading(self):
+        body = "import unittest\n\n\nclass T(unittest.TestCase):\n    def test_x(self):\n        self.assertTrue(True)\n"
+        git(self.repo, "checkout", "-q", "main")
+        self.write("samples/tests/test_old.py", body)
+        self.write("other/tests/test_kept.py", body)
+        self.commit()
+        git(self.repo, "checkout", "-q", "pr")
+        git(self.repo, "merge", "-q", "main")
+        os.remove(os.path.join(self.repo, "samples/tests/test_old.py"))
+        self.commit()
+        self.assertIn("disabled", self.run_ci()["_"]["failed"])
+        git(self.repo, "checkout", "-q", "main")
+        self.write("docs/agents/gates.json", json.dumps({**self.CONFIG, "qa": {**self.CONFIG["qa"], "exclude": ["samples/**"]}}))
+        self.commit()
+        git(self.repo, "checkout", "-q", "pr")
+        git(self.repo, "merge", "-q", "main")
+        self.assertNotIn("disabled", self.run_ci()["_"]["failed"])
+        os.remove(os.path.join(self.repo, "other/tests/test_kept.py"))
+        self.commit()
+        self.assertIn("disabled", self.run_ci()["_"]["failed"])
+
     def test_a_pull_request_cannot_loosen_its_own_gates(self):
         self.write("docs/agents/gates.json", json.dumps({"security": {"exclude": ["app/**"]}, "qa": {}}))
         self.write("app/conf.py", f'KEY = "{AWS}"\n')

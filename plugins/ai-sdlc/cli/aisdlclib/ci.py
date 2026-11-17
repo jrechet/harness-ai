@@ -80,7 +80,7 @@ def run(table: dict[str, Any], repo: str, base: str, coverage: str | None = None
     spared = [size.glob_regex(g) for g in config["qa"]["exclude"]]
     changed = [s["path"] for s in size.diff_stats(repo, base)]
     paths = [p for p in changed if not any(r.match(p) for r in spared)]   # a test about the skip itself, for example
-    tests = [qa.gate_disabled(repo, base, paths)]
+    tests = [qa.gate_disabled(repo, base, paths, spared)]
     if config["qa"]["command"]:
         tests.append(qa.gate_repeat(repo, config["qa"]["command"], config["qa"]["runs"] or table["qa"]["runs"]))
     if coverage:
