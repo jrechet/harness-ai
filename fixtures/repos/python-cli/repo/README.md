@@ -1,3 +1,3 @@
 # piloto
 
-CLI Python qui déploie des fichiers de configuration sur des serveurs (`piloto push`, `piloto diff`, `piloto version`). Publiée sur PyPI. Dépôt **synthétique** : une fixture du projet harness-ai, avec des pièges d'instrumentation IA plantés volontairement.
+Python CLI that deploys configuration files to servers (`piloto push`, `piloto diff`, `piloto version`). Published on PyPI. **Synthetic** repository: a fixture of the harness-ai project, with AI instrumentation traps planted on purpose.

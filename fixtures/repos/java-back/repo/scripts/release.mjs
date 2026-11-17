@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Déclenche release.yml. Le type de version est déduit du nom de la branche.
+// Triggers release.yml. The kind of version is inferred from the branch name.
 import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 
@@ -9,16 +9,16 @@ const [major, minor, patch] = current.split(".").map(Number);
 
 let next;
 if (branch === "develop") {
-  next = `${major}.${minor + 1}.0`;          // une release depuis develop est toujours mineure
+  next = `${major}.${minor + 1}.0`;          // a release from develop is always a minor
 } else if (branch.startsWith("release/")) {
   next = branch.replace("release/", "");
 } else if (branch.startsWith("feat/breaking-")) {
-  next = `${major + 1}.0.0`;                 // le préfixe de branche décide d'une majeure
+  next = `${major + 1}.0.0`;                 // the branch prefix decides on a major
 } else {
-  console.error(`Branche inattendue : ${branch}`);
+  console.error(`Unexpected branch: ${branch}`);
   process.exit(1);
 }
 
-console.log(`Release ${current} -> ${next} depuis ${branch}`);
+console.log(`Release ${current} -> ${next} from ${branch}`);
 execSync(`gh workflow run release.yml -f version=${next} -f ref=${branch}`, { stdio: "inherit" });
-console.log("Workflow déclenché. Suis-le avec : gh run watch");
+console.log("Workflow triggered. Follow it with: gh run watch");

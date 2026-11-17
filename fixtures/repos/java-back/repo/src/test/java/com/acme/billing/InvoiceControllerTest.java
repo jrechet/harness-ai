@@ -5,6 +5,6 @@ import org.junit.jupiter.api.Test;
 class InvoiceControllerTest {
     @Test
     void createsAnInvoice() {
-        // given / when / then — test fonctionnel minimal ; aucun test d'autorisation (403) n'existe
+        // given / when / then — minimal functional test; no authorization test (403) exists
     }
 }

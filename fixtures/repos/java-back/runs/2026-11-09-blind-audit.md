@@ -1,186 +1,186 @@
-# Audit du harness — Release de billing-api (+ instrumentation IA du dépôt)
+# Harness audit — Release of billing-api (+ AI instrumentation of the repository)
 
-**Périmètre** : `fixtures/repos/java-back/repo/` — `CLAUDE.md`, `.claude/skills/release/`, `scripts/`, `.github/workflows/`, `config/checkstyle/`, `build.gradle`, `VERSION`, tests d'architecture · **Date** : 2026-11-09 · **Éléments inventoriés** : 11
+**Scope**: `fixtures/repos/java-back/repo/` — `CLAUDE.md`, `.claude/skills/release/`, `scripts/`, `.github/workflows/`, `config/checkstyle/`, `build.gradle`, `VERSION`, architecture tests · **Date**: 2026-11-09 · **Items inventoried**: 11
 
-## 1. Synthèse
+## 1. Summary
 
-- **Score de santé** : 0 — L'agent est un pilier, pas un accélérateur : toutes les pré-conditions de release, la détection du succès et la gestion d'échec ne vivent que dans des prompts ; le seul code existant (deux scripts non testés) déclenche directement le déploiement prod sans dry-run ni point d'arrêt humain. Calcul : 100 − 4 × 25 (P1) − 2 × 8 (P2) = −16, borné à 0 (et de toute façon plafonné à 60 par l'échec du test « coupe l'agent »).
-- **Résultat du test « coupe l'agent »** : ÉCHEC — 5 étape(s) du processus n'existent que dans des prompts (CI verte, migrations Flyway appliquées, branche à jour, détection du succès, conduite à tenir en cas d'échec), et une étape obligatoire (mise à jour de `VERSION`) n'existe nulle part.
-- **Points bloquants (P1)** : 4
-- **Les trois actions qui changent le plus les choses** :
-  1. Protéger `release.yml` : `environment: production` avec reviewers requis, input `dry_run`, vérification en workflow que la CI est verte sur le SHA et que `ref` est une branche autorisée, tag *après* déploiement réussi, sortie structurée (job outputs) au lieu de `echo "SUCCESS"`.
-  2. Remplacer `scripts/release.mjs` + `scripts/hotfix.mjs` par une CLI testée à trois sous-commandes (`release check` / `release plan --type` / `release run --plan`) qui encode les pré-conditions en `exit 1`, rend le choix du type de version à l'agent et produit du JSON ; puis réécrire le SKILL.md pour n'être que la séquence qui les appelle.
-  3. Supprimer `scripts/old-deploy.sh` (déploiement prod depuis un poste, sans CI ni tag) et corriger `CLAUDE.md` (exemple qui contredit sa propre règle, procédure de release dupliquée et déjà divergente, règles obligatoires sans garde-fou → ArchUnit/Checkstyle/PR gate).
+- **Health score**: 0 — The agent is a pillar, not an accelerator: all the release preconditions, the detection of success and the handling of failure live only in prompts; the only existing code (two untested scripts) directly triggers the prod deployment with no dry-run and no human stopping point. Computation: 100 − 4 × 25 (P1) − 2 × 8 (P2) = −16, floored at 0 (and capped at 60 anyway by the failure of the "cut the agent" test).
+- **Result of the "cut the agent" test**: FAILED — 5 step(s) of the process exist only in prompts (CI green, Flyway migrations applied, branch up to date, detection of success, what to do on failure), and one mandatory step (updating `VERSION`) exists nowhere.
+- **Blocking points (P1)**: 4
+- **The three actions that change the most**:
+  1. Protect `release.yml`: `environment: production` with required reviewers, a `dry_run` input, a check in the workflow that CI is green on the SHA and that `ref` is an allowed branch, tag *after* a successful deployment, structured output (job outputs) instead of `echo "SUCCESS"`.
+  2. Replace `scripts/release.mjs` + `scripts/hotfix.mjs` with a tested CLI of three subcommands (`release check` / `release plan --type` / `release run --plan`) that encodes the preconditions as `exit 1`, hands the choice of the kind of version back to the agent and produces JSON; then rewrite the SKILL.md to be only the sequence that calls them.
+  3. Remove `scripts/old-deploy.sh` (prod deployment from a workstation, with no CI and no tag) and fix `CLAUDE.md` (example that contradicts its own rule, release procedure duplicated and already diverging, mandatory rules without a guardrail → ArchUnit/Checkstyle/PR gate).
 
-## 2. Carte du harness
+## 2. Map of the harness
 
-| # | Élément | Chemin | Couche déclarée | Couche réelle | Appelé par | Appelle |
+| # | Item | Path | Declared layer | Actual layer | Called by | Calls |
 |---|---|---|---|---|---|---|
-| 1 | Fichier d'instructions | `CLAUDE.md` | L2 | L2 (contient aussi la procédure de release, doublon du skill) | Chargé automatiquement par Claude Code à chaque session | `release-skill`, `release-mjs`, `hotfix-mjs`, `ci-yml`, `release-yml`, `checkstyle`, `archunit-test` |
-| 2 | Skill release | `.claude/skills/release/SKILL.md` | L2 | MIXED (procédure + pré-conditions L3 racontées + lecture de logs à la place d'un retour L1 structuré) | `claude-md:46`, déclenchement par mots-clés (`SKILL.md:3`) | `release-mjs`, `hotfix-mjs`, `release-yml` (via `gh run watch`), `ci-yml` (lecture onglet Actions) |
-| 3 | Script de release | `scripts/release.mjs` | L3 | MIXED (jugement L1 codé en dur : type de version déduit de la branche ; déclenchement L4 direct) | `release-skill:14`, `claude-md:97` | `version-file`, `release-yml` (`gh workflow run`) |
-| 4 | Script de hotfix | `scripts/hotfix.mjs` | L3 | L3 (doublon de `release.mjs`, déclenchement L4 direct) | `release-skill:19`, `claude-md:101` | `version-file`, `release-yml` |
-| 5 | Ancien déploiement manuel | `scripts/old-deploy.sh` | L3 | L4 (build + push + ssh prod depuis un poste) | Personne (`old-deploy.sh:2`) | Registry + hôte prod directement |
-| 6 | Workflow release | `.github/workflows/release.yml` | L4 | L4 | `release-mjs:23`, `hotfix-mjs:16` | `build-gradle` (bootJar), registry, tag, ssh prod |
-| 7 | Workflow CI | `.github/workflows/ci.yml` | L4 | L4 | Événements push `develop`/`main`, pull_request | `build-gradle` (checkstyle, test) → `checkstyle`, `archunit-test` |
+| 1 | Instruction file | `CLAUDE.md` | L2 | L2 (also contains the release procedure, a duplicate of the skill) | Loaded automatically by Claude Code in every session | `release-skill`, `release-mjs`, `hotfix-mjs`, `ci-yml`, `release-yml`, `checkstyle`, `archunit-test` |
+| 2 | Release skill | `.claude/skills/release/SKILL.md` | L2 | MIXED (procedure + L3 preconditions told + reading logs instead of a structured L1 return) | `claude-md:46`, triggered by keywords (`SKILL.md:3`) | `release-mjs`, `hotfix-mjs`, `release-yml` (via `gh run watch`), `ci-yml` (reading the Actions tab) |
+| 3 | Release script | `scripts/release.mjs` | L3 | MIXED (hardcoded L1 judgment: kind of version inferred from the branch; direct L4 trigger) | `release-skill:14`, `claude-md:97` | `version-file`, `release-yml` (`gh workflow run`) |
+| 4 | Hotfix script | `scripts/hotfix.mjs` | L3 | L3 (duplicate of `release.mjs`, direct L4 trigger) | `release-skill:19`, `claude-md:101` | `version-file`, `release-yml` |
+| 5 | Old manual deployment | `scripts/old-deploy.sh` | L3 | L4 (build + push + ssh prod from a workstation) | Nobody (`old-deploy.sh:2`) | Registry + prod host directly |
+| 6 | Release workflow | `.github/workflows/release.yml` | L4 | L4 | `release-mjs:23`, `hotfix-mjs:16` | `build-gradle` (bootJar), registry, tag, ssh prod |
+| 7 | CI workflow | `.github/workflows/ci.yml` | L4 | L4 | Push events on `develop`/`main`, pull_request | `build-gradle` (checkstyle, test) → `checkstyle`, `archunit-test` |
 | 8 | Checkstyle | `config/checkstyle/checkstyle.xml` | L3 | L3 | `build-gradle:26`, `ci-yml:13` | — |
-| 9 | Test d'architecture | `src/test/java/com/acme/billing/ArchitectureTest.java` | L3 | L3 | `ci-yml:14` (via `gradlew test`) | — |
+| 9 | Architecture test | `src/test/java/com/acme/billing/ArchitectureTest.java` | L3 | L3 | `ci-yml:14` (via `gradlew test`) | — |
 | 10 | Build | `build.gradle` | L3 | L3 | `ci-yml:13-14`, `release-yml:23` | `checkstyle`, `version-file` |
-| 11 | Source de vérité de version | `VERSION` | L3 | L3 (donnée jamais mise à jour par le processus) | `release-mjs:7`, `hotfix-mjs:11`, `build-gradle:9` | — |
+| 11 | Version source of truth | `VERSION` | L3 | L3 (data never updated by the process) | `release-mjs:7`, `hotfix-mjs:11`, `build-gradle:9` | — |
 
-Absents de l'inventaire (vérifié) : aucune définition d'agent ou de sous-agent, aucun `.cursor/rules`, aucun hook, aucun template de PR, aucun `CODEOWNERS`, aucun `.harness/`.
+Absent from the inventory (checked): no agent or sub-agent definition, no `.cursor/rules`, no hook, no PR template, no `CODEOWNERS`, no `.harness/`.
 
-Processus nominal, étape par étape :
+Nominal process, step by step:
 
-| Étape du processus | Portée par | Vérifiée par du code ? | Dry-run ? |
+| Process step | Carried by | Enforced by code? | Dry-run? |
 |---|---|---|---|
-| 1. S'assurer que la CI de `develop` est verte | `SKILL.md:9`, `CLAUDE.md:96` (L2, « ouvre l'onglet Actions ») | Non — ni `release.mjs` ni `release.yml` n'interrogent le statut de la CI | — |
-| 2. Vérifier qu'aucune migration Flyway n'est en attente en prod | `SKILL.md:10` (L2, « demande un dump au propriétaire ») | Non — dépend d'un humain, non reproductible | — |
-| 3. Être sur `develop` à jour | `SKILL.md:11` (L2) | Non — `release.mjs:11` vérifie le *nom* de la branche, pas la synchronisation ni la propreté de l'arbre | — |
-| 4. Calculer la prochaine version | `release.mjs:10-20`, `hotfix.mjs:13` (L3 non testé, jugement codé) | Partiel — `exit 1` sur branche inattendue (`release.mjs:18-19`, `hotfix.mjs:8-9`) | Non — affiche le plan et déclenche dans la foulée (`release.mjs:22-23`) |
-| 5. Mettre à jour `VERSION` et committer | **Personne** | Non — `VERSION` est lu (`release.mjs:7`) mais jamais écrit ; la release suivante recalcule la même version | — |
-| 6. Déclencher `release.yml` | `release.mjs:23`, `hotfix.mjs:16` (L3→L4) | Aucune pré-condition vérifiée avant l'appel | Non |
-| 7. Build jar, image Docker, push registry | `release.yml:23-26` (L4) | Oui (codes de sortie des steps) | Non — pas d'input `dry_run` (`release.yml:3-14`) |
-| 8. Tag git `vX.Y.Z` | `release.yml:27` (L4) | Oui, mais **avant** le déploiement : un deploy raté laisse un tag orphelin | Non |
-| 9. Déploiement prod par SSH | `release.yml:28-31` (L4) | Pas d'`environment` protégé, pas de validation humaine, pas de contrôle de `ref` | Non |
-| 10. Constater le succès | `SKILL.md:15`, `CLAUDE.md:98` (L2 : chercher `SUCCESS` dans le log) | Non — `echo "SUCCESS"` (`release.yml:32`) est du texte libre, pas un output de job | — |
-| 11. Conduite en cas d'échec | `SKILL.md:16` (L2) | Non | — |
-| 12. Annoncer dans #releases avec la liste des PRs | `SKILL.md:22`, `CLAUDE.md:99` (L1/L2, humain) | Non — acceptable : c'est de la communication, donc L1 | — |
+| 1. Make sure the CI of `develop` is green | `SKILL.md:9`, `CLAUDE.md:96` (L2, "open the Actions tab") | No — neither `release.mjs` nor `release.yml` queries the CI status | — |
+| 2. Check that no Flyway migration is pending in prod | `SKILL.md:10` (L2, "ask the owner for a dump") | No — depends on a human, not reproducible | — |
+| 3. Be on an up-to-date `develop` | `SKILL.md:11` (L2) | No — `release.mjs:11` checks the *name* of the branch, not the synchronisation nor the cleanliness of the tree | — |
+| 4. Compute the next version | `release.mjs:10-20`, `hotfix.mjs:13` (untested L3, coded judgment) | Partly — `exit 1` on an unexpected branch (`release.mjs:18-19`, `hotfix.mjs:8-9`) | No — prints the plan and triggers right away (`release.mjs:22-23`) |
+| 5. Update `VERSION` and commit | **Nobody** | No — `VERSION` is read (`release.mjs:7`) but never written; the next release recomputes the same version | — |
+| 6. Trigger `release.yml` | `release.mjs:23`, `hotfix.mjs:16` (L3→L4) | No precondition checked before the call | No |
+| 7. Build jar, Docker image, push to registry | `release.yml:23-26` (L4) | Yes (exit codes of the steps) | No — no `dry_run` input (`release.yml:3-14`) |
+| 8. Git tag `vX.Y.Z` | `release.yml:27` (L4) | Yes, but **before** the deployment: a failed deploy leaves an orphan tag | No |
+| 9. Prod deployment over SSH | `release.yml:28-31` (L4) | No protected `environment`, no human validation, no control of `ref` | No |
+| 10. Confirm the success | `SKILL.md:15`, `CLAUDE.md:98` (L2: look for `SUCCESS` in the log) | No — `echo "SUCCESS"` (`release.yml:32`) is free text, not a job output | — |
+| 11. What to do on failure | `SKILL.md:16` (L2) | No | — |
+| 12. Announce in #releases with the list of PRs | `SKILL.md:22`, `CLAUDE.md:99` (L1/L2, human) | No — acceptable: it is communication, hence L1 | — |
 
-## 3. Fuites : règles et étapes racontées sans vérification
+## 3. Leaks: rules and steps told without enforcement
 
-**Étapes du processus de release qui ne vivent que dans un prompt**
+**Steps of the release process that live only in a prompt**
 
-| Règle / étape | Racontée où | Si l'agent la saute | Doit vivre en | Outil cible |
+| Rule / step | Told where | If the agent skips it | Must live in | Target tool |
 |---|---|---|---|---|
-| « Ne release jamais sur un develop rouge » | `SKILL.md:9`, `CLAUDE.md:96` | Une image non testée part en prod ; l'agent peut lire le mauvais run ou halluciner un vert | L3 + L4 | Sous-commande `release check` (`gh api repos/:o/:r/commits/<sha>/check-runs` → `exit 1`) **et** step de garde dans `release.yml` avant `bootJar` |
-| Aucune migration Flyway en attente en prod | `SKILL.md:10` | Déploiement d'un schéma non validé ; l'étape dépend d'un dump demandé à un humain | L3 | `release check --migrations` comparant `db/migration` à `flyway_schema_history` via une connexion read-only, ou test Testcontainers `flyway.validate()` en CI |
-| Sur `develop` à jour, arbre propre | `SKILL.md:11` | `ref=develop` est envoyé au workflow : les commits locaux non poussés sont silencieusement exclus de la release | L3 | `release check` : `git status --porcelain` vide, `git rev-parse HEAD == origin/develop`, tag `v<next>` inexistant |
-| Mise à jour de `VERSION` après release | Nulle part (`release.mjs:7` lit, personne n'écrit) | La release suivante recalcule `1.5.0`, `git tag` échoue (`release.yml:27`) **après** le push de l'image | L3/L4 | `release run` bump + commit + push de `VERSION`, ou step `release.yml` qui committe |
-| Succès = `SUCCESS` dans le log | `SKILL.md:15`, `CLAUDE.md:98`, produit par `release.yml:32` | Succès halluciné (chaîne présente ailleurs, run partiellement vert) | L4 → L1 | `outputs:` du job (`version`, `image`, `deployed_sha`, `health_url`) + `gh run view --json conclusion` lu par la CLI |
-| Si `ERROR`/`FAILED` : prévenir, ne pas relancer | `SKILL.md:16` | Relance en boucle d'un deploy prod | L3 | `release run` refuse si un run `release.yml` est en cours ou a échoué sur la même version ; `concurrency:` dans le workflow |
-| Le type de version est décidé par le nom de branche | `release.mjs:11-16`, `SKILL.md:14`, `CLAUDE.md:97` | Pas de saut possible, mais un jugement L1 est figé en L3 : une release *majeure* depuis `develop` est impossible sans contourner le script | L1 | `release plan --type minor|major|patch` : la CLI expose les options, l'agent/humain choisit |
+| "Never release on a red develop" | `SKILL.md:9`, `CLAUDE.md:96` | An untested image goes to prod; the agent can read the wrong run or hallucinate a green | L3 + L4 | `release check` subcommand (`gh api repos/:o/:r/commits/<sha>/check-runs` → `exit 1`) **and** a guard step in `release.yml` before `bootJar` |
+| No Flyway migration pending in prod | `SKILL.md:10` | Deployment of an unvalidated schema; the step depends on a dump asked from a human | L3 | `release check --migrations` comparing `db/migration` with `flyway_schema_history` through a read-only connection, or a Testcontainers `flyway.validate()` test in CI |
+| On an up-to-date `develop`, clean tree | `SKILL.md:11` | `ref=develop` is sent to the workflow: unpushed local commits are silently left out of the release | L3 | `release check`: `git status --porcelain` empty, `git rev-parse HEAD == origin/develop`, tag `v<next>` does not exist |
+| Updating `VERSION` after the release | Nowhere (`release.mjs:7` reads, nobody writes) | The next release recomputes `1.5.0`, `git tag` fails (`release.yml:27`) **after** the image push | L3/L4 | `release run` bump + commit + push of `VERSION`, or a `release.yml` step that commits |
+| Success = `SUCCESS` in the log | `SKILL.md:15`, `CLAUDE.md:98`, produced by `release.yml:32` | Hallucinated success (string present elsewhere, run partly green) | L4 → L1 | `outputs:` of the job (`version`, `image`, `deployed_sha`, `health_url`) + `gh run view --json conclusion` read by the CLI |
+| If `ERROR`/`FAILED`: warn, do not run again | `SKILL.md:16` | A prod deploy re-run in a loop | L3 | `release run` refuses if a `release.yml` run is in progress or has failed on the same version; `concurrency:` in the workflow |
+| The kind of version is decided by the branch name | `release.mjs:11-16`, `SKILL.md:14`, `CLAUDE.md:97` | Cannot be skipped, but an L1 judgment is frozen in L3: a *major* release from `develop` is impossible without bypassing the script | L1 | `release plan --type minor|major|patch`: the CLI exposes the options, the agent/human chooses |
 
-**Règles de CLAUDE.md racontées sans garde-fou**
+**Rules of CLAUDE.md told without a guardrail**
 
-| Règle | Racontée où | Si l'agent la saute | Doit vivre en | Outil cible |
+| Rule | Told where | If the agent skips it | Must live in | Target tool |
 |---|---|---|---|---|
-| Injection par constructeur, jamais `@Autowired` sur un champ | `CLAUDE.md:51` | Déjà violée dans le code (`InvoiceService.java:10-11`) **et** dans l'exemple du fichier lui-même (`CLAUDE.md:74-75`) | L3 | ArchUnit : `noFields().should().beAnnotatedWith(Autowired.class)` dans `ArchitectureTest.java` |
-| Chaque endpoint a un test d'autorisation (403 avec le mauvais rôle) | `CLAUDE.md:57` | Aucun test de ce type n'existe (`InvoiceControllerTest.java:8`) ; une API de facturation sans contrôle d'accès testé | L3 | Test JUnit générique énumérant `RequestMappingHandlerMapping` et appelant chaque route avec `@WithMockUser(roles="NONE")` → 403, exécuté par `ci.yml` |
-| Ne jamais modifier une migration Flyway appliquée | `CLAUDE.md:63` | `FlywayValidateException` découverte au déploiement prod (`CLAUDE.md:104`) | L3 (PR gate) | Step `ci.yml` : `git diff --diff-filter=MD --name-only origin/develop... -- src/main/resources/db/migration` doit être vide |
-| Pas de `@MockBean` dans les tests unitaires | `CLAUDE.md:92` | Suite lente, contexte Spring démarré | L3 | Checkstyle `IllegalImport` sur `org.springframework.boot.test.mock.mockito.MockBean` dans `checkstyleTest`, ou règle ArchUnit sur les classes `*Test` |
-| 4 espaces, pas de tabulation | `CLAUDE.md:84` | Diff bruité | L3 | Checkstyle `FileTabCharacter` (absent de `checkstyle.xml`) |
-| Imports groupés java / javax / org / com | `CLAUDE.md:85` | Diff bruité | L3 | Checkstyle `CustomImportOrder` (absent) |
-| Classes en PascalCase, champs en camelCase | `CLAUDE.md:66` | Incohérence de nommage | L3 | Checkstyle `TypeName`, `MemberName`, `ParameterName` (seuls `ConstantName` et `MethodName` existent, `checkstyle.xml:8-9`) |
-| Tests nommés `<Class>Test` / `<Class>IT` | `CLAUDE.md:67` | Tests non ramassés par un filtre Gradle futur | L3 | ArchUnit sur `src/test` (`classes().that().areAnnotatedWith(SpringBootTest).should().haveSimpleNameEndingWith("IT")`) — P3 |
-| DTOs en `record` | `CLAUDE.md:87` | Hygiène | L3 | ArchUnit `classes().that().resideInAPackage("..dto..").should().beRecords()` — P3 |
-| Commentaires `given / when / then` | `CLAUDE.md:91` | Hygiène | — | Bruit : un modèle récent le fait ; supprimer ou garder en une ligne |
-| Try-with-resources | `CLAUDE.md:60` | Hygiène | — | Bruit : comportement par défaut d'un modèle récent ; supprimer |
+| Constructor injection, never `@Autowired` on a field | `CLAUDE.md:51` | Already broken in the code (`InvoiceService.java:10-11`) **and** in the example of the file itself (`CLAUDE.md:74-75`) | L3 | ArchUnit: `noFields().should().beAnnotatedWith(Autowired.class)` in `ArchitectureTest.java` |
+| Every endpoint has an authorization test (403 with the wrong role) | `CLAUDE.md:57` | No test of this kind exists (`InvoiceControllerTest.java:8`); a billing API with no tested access control | L3 | Generic JUnit test enumerating `RequestMappingHandlerMapping` and calling each route with `@WithMockUser(roles="NONE")` → 403, run by `ci.yml` |
+| Never modify an applied Flyway migration | `CLAUDE.md:63` | `FlywayValidateException` discovered at the prod deployment (`CLAUDE.md:104`) | L3 (PR gate) | `ci.yml` step: `git diff --diff-filter=MD --name-only origin/develop... -- src/main/resources/db/migration` must be empty |
+| No `@MockBean` in unit tests | `CLAUDE.md:92` | Slow suite, Spring context started | L3 | Checkstyle `IllegalImport` on `org.springframework.boot.test.mock.mockito.MockBean` in `checkstyleTest`, or an ArchUnit rule on the `*Test` classes |
+| 4 spaces, no tabs | `CLAUDE.md:84` | Noisy diff | L3 | Checkstyle `FileTabCharacter` (absent from `checkstyle.xml`) |
+| Imports grouped java / javax / org / com | `CLAUDE.md:85` | Noisy diff | L3 | Checkstyle `CustomImportOrder` (absent) |
+| Classes in PascalCase, fields in camelCase | `CLAUDE.md:66` | Naming inconsistency | L3 | Checkstyle `TypeName`, `MemberName`, `ParameterName` (only `ConstantName` and `MethodName` exist, `checkstyle.xml:8-9`) |
+| Tests named `<Class>Test` / `<Class>IT` | `CLAUDE.md:67` | Tests not picked up by a future Gradle filter | L3 | ArchUnit on `src/test` (`classes().that().areAnnotatedWith(SpringBootTest).should().haveSimpleNameEndingWith("IT")`) — P3 |
+| DTOs as `record` | `CLAUDE.md:87` | Hygiene | L3 | ArchUnit `classes().that().resideInAPackage("..dto..").should().beRecords()` — P3 |
+| `given / when / then` comments | `CLAUDE.md:91` | Hygiene | — | Noise: a recent model does it; remove or keep as one line |
+| Try-with-resources | `CLAUDE.md:60` | Hygiene | — | Noise: default behaviour of a recent model; remove |
 
-**Règles qui ont leur garde-fou (partie saine, à raccourcir dans CLAUDE.md)**
+**Rules that have their guardrail (healthy part, to be shortened in CLAUDE.md)**
 
-- « Un contrôleur qui touche un repository est un bug » (`CLAUDE.md:27`, `CLAUDE.md:54`) → `ArchitectureTest.java:14-16`, avec le *pourquoi* en Javadoc (`ArchitectureTest.java:12`). Garde partiel : couvre la dépendance au repository, pas « pas de logique métier ».
-- Longueur de ligne 120 (`CLAUDE.md:84`) → `checkstyle.xml:4`.
-- Pas d'import wildcard (`CLAUDE.md:85`) → `checkstyle.xml:6`.
-- Une classe publique par fichier (`CLAUDE.md:68`) → `checkstyle.xml:7`.
-- Constantes `UPPER_SNAKE_CASE`, méthodes `camelCase` (`CLAUDE.md:66`) → `checkstyle.xml:8-9`.
-- « Lancer la suite complète avant d'ouvrir une PR » (`CLAUDE.md:93`) → `ci.yml:5,14` (`pull_request` + `gradlew test`).
-- Checkstyle sur chaque push (`CLAUDE.md:45`) → `ci.yml:13`.
-- Un hotfix part d'une branche `hotfix/*` (`SKILL.md:19`) → `hotfix.mjs:7-10` (`exit 1`).
+- "A controller that touches a repository is a bug" (`CLAUDE.md:27`, `CLAUDE.md:54`) → `ArchitectureTest.java:14-16`, with the *why* in the Javadoc (`ArchitectureTest.java:12`). Partial guard: covers the dependency on the repository, not "no business logic".
+- Line length 120 (`CLAUDE.md:84`) → `checkstyle.xml:4`.
+- No wildcard import (`CLAUDE.md:85`) → `checkstyle.xml:6`.
+- One public class per file (`CLAUDE.md:68`) → `checkstyle.xml:7`.
+- Constants `UPPER_SNAKE_CASE`, methods `camelCase` (`CLAUDE.md:66`) → `checkstyle.xml:8-9`.
+- "Run the full suite before opening a PR" (`CLAUDE.md:93`) → `ci.yml:5,14` (`pull_request` + `gradlew test`).
+- Checkstyle on every push (`CLAUDE.md:45`) → `ci.yml:13`.
+- A hotfix starts from a `hotfix/*` branch (`SKILL.md:19`) → `hotfix.mjs:7-10` (`exit 1`).
 
-## 3b. Coût de contexte
+## 3b. Context cost
 
-| Fichier | Lignes chargées (avec includes) | Part instruction / référence / bruit | Chargé quand |
+| File | Lines loaded (with includes) | Share instruction / reference / noise | Loaded when |
 |---|---|---|---|
-| `CLAUDE.md` | 111 (aucun `@include`) | ≈ 40 % instruction (Conventions, Code style, Testing : l. 48-69, 83-93) / ≈ 45 % référence (Build & Run l. 5-13, Stack l. 15-19, Package structure et Key files l. 31-46, Release l. 95-101, Troubleshooting l. 103-111) / ≈ 15 % bruit (naming standard l. 66, try-with-resources l. 60, exemple erroné l. 70-81) | Chaque session Claude Code |
-| `.claude/skills/release/SKILL.md` | 22 | ≈ 90 % procédure / 10 % en-tête | À la demande (mots-clés release / mise en prod / déploiement / hotfix, `SKILL.md:3`) |
+| `CLAUDE.md` | 111 (no `@include`) | ≈ 40 % instruction (Conventions, Code style, Testing: l. 48-69, 83-93) / ≈ 45 % reference (Build & Run l. 5-13, Stack l. 15-19, Package structure and Key files l. 31-46, Release l. 95-101, Troubleshooting l. 103-111) / ≈ 15 % noise (standard naming l. 66, try-with-resources l. 60, wrong example l. 70-81) | Every Claude Code session |
+| `.claude/skills/release/SKILL.md` | 22 | ≈ 90 % procedure / 10 % header | On demand (keywords release / production rollout / deployment / hotfix, `SKILL.md:3`) |
 
-Justification des règles : trois règles disent *pourquoi* (`CLAUDE.md:51` « hides dependencies and breaks unit tests », `CLAUDE.md:92` « it starts the context », `CLAUDE.md:104` cause de `FlywayValidateException`) ; toutes les autres sont des MUST nus, et aucun incident ni issue n'est cité. **Aucune clause de maintenance** (comment une règle entre ou sort du fichier). Aucune description du processus de travail (quand s'arrêter et demander, critère de « fini », test flaky) alors que le dépôt délègue bien une tâche entière à l'agent (la release).
+Justification of the rules: three rules say *why* (`CLAUDE.md:51` "hides dependencies and breaks unit tests", `CLAUDE.md:92` "it starts the context", `CLAUDE.md:104` cause of `FlywayValidateException`); all the others are bare MUSTs, and no incident or issue is cited. **No maintenance clause** (how a rule enters or leaves the file). No description of the working process (when to stop and ask, criterion of "done", flaky test) although the repository does delegate a whole task to the agent (the release).
 
-Cohérence interne : l'exemple « a well-formed service » (`CLAUDE.md:70-81`) utilise `@Autowired` sur un champ, exactement ce que la règle de `CLAUDE.md:51` interdit, et référence `Invoice.from(command)` / `CreateInvoiceCommand` qui n'existent pas ; il a vraisemblablement déjà été copié (`InvoiceService.java:10-11`). La procédure de release de `CLAUDE.md:95-101` a déjà divergé du skill (elle omet la vérification Flyway et la conduite en cas d'échec de `SKILL.md:10,16`). Plusieurs références pointent vers des fichiers inexistants : `InvoiceServiceTest` (`CLAUDE.md:9`), `docker compose` (`CLAUDE.md:12,105`, aucun fichier compose), packages `customer/payment/config/security` (`CLAUDE.md:33-37`), `gradle.properties` (`CLAUDE.md:109`).
+Internal consistency: the example "a well-formed service" (`CLAUDE.md:70-81`) uses `@Autowired` on a field, exactly what the rule of `CLAUDE.md:51` forbids, and references `Invoice.from(command)` / `CreateInvoiceCommand`, which do not exist; it has probably already been copied (`InvoiceService.java:10-11`). The release procedure of `CLAUDE.md:95-101` has already diverged from the skill (it omits the Flyway check and what to do on failure of `SKILL.md:10,16`). Several references point to files that do not exist: `InvoiceServiceTest` (`CLAUDE.md:9`), `docker compose` (`CLAUDE.md:12,105`, no compose file), packages `customer/payment/config/security` (`CLAUDE.md:33-37`), `gradle.properties` (`CLAUDE.md:109`).
 
-## 4. Constats par élément
+## 4. Findings by item
 
-### [SPLIT] [P1] Script de release — `scripts/release.mjs`
-- **Fait aujourd'hui** : lit la branche courante et `VERSION`, déduit le type de version du nom de branche (`develop` → mineure, `feat/breaking-*` → majeure, `release/x.y.z` → version littérale), affiche une ligne et déclenche immédiatement `gh workflow run release.yml` (`release.mjs:6-24`).
-- **Problème** : (a) jugement L1 figé en L3 — le type de release est décidé par une convention de nommage, pas par un humain ou l'agent (`release.mjs:11-16`) ; (b) action L4 irréversible déclenchée sans aucune pré-condition vérifiée ni dry-run — pas de contrôle d'arbre propre, de synchronisation avec `origin`, de statut CI, d'existence du tag (`release.mjs:22-23`) ; (c) `VERSION` n'est jamais mis à jour ni committé (`release.mjs:7`, `build.gradle:9`), donc la release suivante recalcule la même version et le `git tag` de `release.yml:27` échoue après que l'image a été poussée ; (d) `ref=${branch}` envoie un nom de branche, pas le SHA local — tout commit non poussé est exclu silencieusement ; (e) sortie non structurée (`console.log`, `release.mjs:22,24`), pas d'URL de run ; (f) aucun test, pas de `package.json`.
-- **Doit devenir** : une CLI testée (`scripts/release/` ou package `release`) à trois sous-commandes : `check` (pré-conditions → `exit 1` typé), `plan --type minor|major|patch` (JSON : `current`, `next`, `sha`, `ref`, sans effet de bord), `run --plan plan.json [--dry-run]` (bump + commit `VERSION`, déclenche, renvoie `{run_url, version}`). Le choix du type est un argument donné par l'agent (L1).
-- **Critère de vérification** : `release plan --type minor` sur un arbre sale ou désynchronisé sort en code ≠ 0 avec un message typé ; `release run --dry-run` ne déclenche aucun workflow ; tests unitaires du calcul de version et des pré-conditions verts en CI ; `scripts/release.mjs` supprimé.
+### [SPLIT] [P1] Release script — `scripts/release.mjs`
+- **Does today**: reads the current branch and `VERSION`, infers the kind of version from the branch name (`develop` → minor, `feat/breaking-*` → major, `release/x.y.z` → literal version), prints one line and immediately triggers `gh workflow run release.yml` (`release.mjs:6-24`).
+- **Problem**: (a) L1 judgment frozen in L3 — the kind of release is decided by a naming convention, not by a human or the agent (`release.mjs:11-16`); (b) irreversible L4 action triggered with no precondition checked and no dry-run — no check of a clean tree, of synchronisation with `origin`, of CI status, of the tag's existence (`release.mjs:22-23`); (c) `VERSION` is never updated nor committed (`release.mjs:7`, `build.gradle:9`), so the next release recomputes the same version and the `git tag` of `release.yml:27` fails after the image has been pushed; (d) `ref=${branch}` sends a branch name, not the local SHA — any unpushed commit is silently left out; (e) unstructured output (`console.log`, `release.mjs:22,24`), no run URL; (f) no test, no `package.json`.
+- **Must become**: a tested CLI (`scripts/release/` or a `release` package) of three subcommands: `check` (preconditions → typed `exit 1`), `plan --type minor|major|patch` (JSON: `current`, `next`, `sha`, `ref`, no side effect), `run --plan plan.json [--dry-run]` (bump + commit of `VERSION`, triggers, returns `{run_url, version}`). The choice of the kind is an argument given by the agent (L1).
+- **Verification criterion**: `release plan --type minor` on a dirty or out-of-sync tree exits with a code ≠ 0 and a typed message; `release run --dry-run` triggers no workflow; unit tests of the version computation and of the preconditions green in CI; `scripts/release.mjs` removed.
 
-### [BLOCK] [P1] Ancien déploiement manuel — `scripts/old-deploy.sh`
-- **Fait aujourd'hui** : build, push registry et `ssh deploy@prod.acme.io … docker compose up -d` depuis le poste de l'opérateur (`old-deploy.sh:5-7`).
-- **Problème** : script mort (`old-deploy.sh:2` « Plus appelé nulle part ») qui reste exécutable : il déploie en prod sans CI, sans tag, sans trace dans Actions, en dupliquant `release.yml:24-31`. Un agent qui explore `scripts/` peut le trouver et le lancer ; la présence de credentials locaux (docker login, clé SSH) n'est pas vérifiable dans le dépôt.
-- **Doit devenir** : supprimé (ou, le temps de la transition, neutralisé par `exit 1` en tête avec un message pointant vers `release run`).
-- **Critère de vérification** : fichier absent du dépôt ; `grep -r old-deploy` ne renvoie rien ; approbation explicite du propriétaire avant suppression.
+### [BLOCK] [P1] Old manual deployment — `scripts/old-deploy.sh`
+- **Does today**: build, push to registry and `ssh deploy@prod.acme.io … docker compose up -d` from the operator's workstation (`old-deploy.sh:5-7`).
+- **Problem**: dead script (`old-deploy.sh:2` "No longer called anywhere") that stays executable: it deploys to prod with no CI, no tag, no trace in Actions, duplicating `release.yml:24-31`. An agent that explores `scripts/` can find it and run it; the presence of local credentials (docker login, SSH key) cannot be checked in the repository.
+- **Must become**: removed (or, during the transition, neutralised by an `exit 1` at the top with a message pointing to `release run`).
+- **Verification criterion**: file absent from the repository; `grep -r old-deploy` returns nothing; explicit approval from the owner before removal.
 
-### [PUSH_DOWN] [P1] Workflow release — `.github/workflows/release.yml`
-- **Fait aujourd'hui** : `workflow_dispatch` avec inputs `version`, `ref`, `hotfix` ; checkout de `ref`, `bootJar -Pversion`, build/push image, tag, SSH prod, `echo "SUCCESS"` (`release.yml:3-32`).
-- **Problème** : (a) pas d'`environment: production` donc aucun reviewer requis, aucun point d'arrêt humain entre plan et déploiement (`release.yml:16-17`) ; (b) pas d'input `dry_run` (`release.yml:4-14`) ; (c) `ref` libre : n'importe quelle branche ou commit peut être déployé en prod (`release.yml:8-10,20`), et le workflow ne vérifie ni que la CI est verte sur ce SHA ni ne relance `gradlew test` lui-même (`release.yml:23`) ; (d) le tag est poussé avant le déploiement (`release.yml:27` puis `28-31`) : un deploy raté laisse `vX.Y.Z` sur un commit jamais livré ; (e) `-Pversion=${{ inputs.version }}` est écrasé par `build.gradle:9` (`version = file('VERSION')…`) : l'image `1.5.0` contient un jar `1.4.2` ; (f) `inputs.hotfix` n'est jamais utilisé (`release.yml:11-14` vs `hotfix.mjs:16`) ; (g) le seul signal de succès est `echo "SUCCESS"` (`release.yml:32`), pas de `outputs`, pas de healthcheck post-deploy, pas de `concurrency`. Point positif : les secrets restent en L4 (`release.yml:25,30`), aucun secret dans les scripts.
-- **Doit devenir** : job `plan` (valide `version` contre `VERSION`, valide `ref ∈ {develop, release/*, hotfix/*}`, vérifie `check-runs` verts sur le SHA, publie un résumé) → job `deploy` avec `environment: production` (reviewers requis) sauté si `dry_run=true`, tests ou garde CI avant `bootJar`, tag après healthcheck réussi, `outputs: version, image, sha, run_url`, `concurrency: release-prod`.
-- **Critère de vérification** : un dispatch avec `dry_run=true` se termine sans toucher registry/prod/tags ; un dispatch sur une branche `feat/*` échoue au job `plan` ; le job `deploy` affiche « Waiting for review » dans Actions ; `gh run view --json jobs` expose les outputs ; `-Pversion` honoré (`build.gradle` lit `project.hasProperty('version') ? … : VERSION`).
+### [PUSH_DOWN] [P1] Release workflow — `.github/workflows/release.yml`
+- **Does today**: `workflow_dispatch` with inputs `version`, `ref`, `hotfix`; checkout of `ref`, `bootJar -Pversion`, image build/push, tag, SSH prod, `echo "SUCCESS"` (`release.yml:3-32`).
+- **Problem**: (a) no `environment: production`, hence no required reviewer, no human stopping point between plan and deployment (`release.yml:16-17`); (b) no `dry_run` input (`release.yml:4-14`); (c) free `ref`: any branch or commit can be deployed to prod (`release.yml:8-10,20`), and the workflow neither checks that CI is green on this SHA nor re-runs `gradlew test` itself (`release.yml:23`); (d) the tag is pushed before the deployment (`release.yml:27` then `28-31`): a failed deploy leaves `vX.Y.Z` on a commit never delivered; (e) `-Pversion=${{ inputs.version }}` is overwritten by `build.gradle:9` (`version = file('VERSION')…`): the image `1.5.0` contains a `1.4.2` jar; (f) `inputs.hotfix` is never used (`release.yml:11-14` vs `hotfix.mjs:16`); (g) the only success signal is `echo "SUCCESS"` (`release.yml:32`), no `outputs`, no post-deploy healthcheck, no `concurrency`. On the positive side: the secrets stay in L4 (`release.yml:25,30`), no secret in the scripts.
+- **Must become**: `plan` job (validates `version` against `VERSION`, validates `ref ∈ {develop, release/*, hotfix/*}`, checks green `check-runs` on the SHA, publishes a summary) → `deploy` job with `environment: production` (required reviewers) skipped if `dry_run=true`, tests or CI guard before `bootJar`, tag after a successful healthcheck, `outputs: version, image, sha, run_url`, `concurrency: release-prod`.
+- **Verification criterion**: a dispatch with `dry_run=true` ends without touching registry/prod/tags; a dispatch on a `feat/*` branch fails at the `plan` job; the `deploy` job shows "Waiting for review" in Actions; `gh run view --json jobs` exposes the outputs; `-Pversion` honoured (`build.gradle` reads `project.hasProperty('version') ? … : VERSION`).
 
-### [PUSH_DOWN] [P1] Skill release — `.claude/skills/release/SKILL.md`
-- **Fait aujourd'hui** : décrit 8 étapes : trois pré-conditions manuelles (CI verte via l'onglet Actions, migrations Flyway via un dump demandé au propriétaire, `git pull`), lancement de `release.mjs`, lecture de `SUCCESS`/`ERROR` dans `gh run watch`, hotfix, annonce (`SKILL.md:8-22`).
-- **Problème** : les trois pré-conditions obligatoires sont racontées, pas vérifiées — l'agent peut les sauter ou mal lire l'onglet Actions (`SKILL.md:9-11`) ; l'étape 10 n'est pas reproductible sans humain ; la décision L1 « est-ce un succès » repose sur un grep de log (`SKILL.md:15-16`), ce que le skill harness identifie comme source de succès hallucinés. Le skill contient en revanche ce qui doit y être : vocabulaire, séquence, cas d'abandon (`SKILL.md:16`), point de communication (`SKILL.md:22`).
-- **Doit devenir** : un SKILL.md qui ne décrit que la séquence `release check` → `release plan --type <choisi avec l'utilisateur>` → **point d'arrêt : montrer le plan JSON et demander confirmation** → `release run --plan` → lire `gh run view --json conclusion,jobs` → annoncer. Les cas d'abandon restent, les pré-conditions deviennent « si `release check` sort en erreur, arrête-toi et rapporte le message ».
-- **Critère de vérification** : le SKILL.md ne contient plus aucune instruction du type « ouvre l'onglet », « compare avec la table », « quand la sortie contient SUCCESS » ; chaque commande citée existe et a un test.
+### [PUSH_DOWN] [P1] Release skill — `.claude/skills/release/SKILL.md`
+- **Does today**: describes 8 steps: three manual preconditions (CI green via the Actions tab, Flyway migrations via a dump asked from the owner, `git pull`), running `release.mjs`, reading `SUCCESS`/`ERROR` in `gh run watch`, hotfix, announcement (`SKILL.md:8-22`).
+- **Problem**: the three mandatory preconditions are told, not enforced — the agent can skip them or misread the Actions tab (`SKILL.md:9-11`); step 10 is not reproducible without a human; the L1 decision "is it a success" rests on a log grep (`SKILL.md:15-16`), which the harness skill identifies as a source of hallucinated successes. The skill does contain what must be in it: vocabulary, sequence, abort cases (`SKILL.md:16`), communication point (`SKILL.md:22`).
+- **Must become**: a SKILL.md that describes only the sequence `release check` → `release plan --type <chosen with the user>` → **stopping point: show the JSON plan and ask for confirmation** → `release run --plan` → read `gh run view --json conclusion,jobs` → announce. The abort cases stay, the preconditions become "if `release check` exits with an error, stop and report the message".
+- **Verification criterion**: the SKILL.md no longer contains any instruction such as "open the tab", "compare with the table", "when the output contains SUCCESS"; every command cited exists and has a test.
 
-### [MERGE] [P2] Script de hotfix — `scripts/hotfix.mjs`
-- **Fait aujourd'hui** : même mécanique que `release.mjs` avec incrément de patch et garde sur `hotfix/*` (`hotfix.mjs:6-16`).
-- **Problème** : duplication de la lecture de `VERSION`, du parsing semver et de l'appel `gh workflow run` (`hotfix.mjs:11-16` ≡ `release.mjs:7-8,23`) — CLI implicite non testée qui divergera ; passe `-f hotfix=true` que le workflow ignore (`release.yml:11-14` jamais référencé dans les steps). Même absence de dry-run et de pré-conditions que `release.mjs`. La garde de branche (`hotfix.mjs:7-10`) est la seule pré-condition codée de tout le harness : à conserver dans la CLI.
-- **Doit devenir** : `release plan --type patch` avec, dans `release check`, la règle « `--type patch` exige une branche `hotfix/*` ».
-- **Critère de vérification** : `scripts/hotfix.mjs` supprimé ; `release plan --type patch` depuis `develop` sort en erreur ; `SKILL.md` et `CLAUDE.md` ne le mentionnent plus.
+### [MERGE] [P2] Hotfix script — `scripts/hotfix.mjs`
+- **Does today**: same mechanics as `release.mjs` with a patch increment and a guard on `hotfix/*` (`hotfix.mjs:6-16`).
+- **Problem**: duplication of the reading of `VERSION`, of the semver parsing and of the `gh workflow run` call (`hotfix.mjs:11-16` ≡ `release.mjs:7-8,23`) — an implicit untested CLI that will diverge; passes `-f hotfix=true`, which the workflow ignores (`release.yml:11-14` never referenced in the steps). Same lack of dry-run and of preconditions as `release.mjs`. The branch guard (`hotfix.mjs:7-10`) is the only coded precondition of the whole harness: to be kept in the CLI.
+- **Must become**: `release plan --type patch` with, in `release check`, the rule "`--type patch` requires a `hotfix/*` branch".
+- **Verification criterion**: `scripts/hotfix.mjs` removed; `release plan --type patch` from `develop` exits with an error; `SKILL.md` and `CLAUDE.md` no longer mention it.
 
-### [SPLIT] [P2] Fichier d'instructions — `CLAUDE.md`
-- **Fait aujourd'hui** : 111 lignes chargées à chaque session mêlant commandes, stack, architecture, conventions, style, tests, procédure de release et troubleshooting (`CLAUDE.md:5-111`).
-- **Problème** : (a) l'exemple de référence contredit la règle qu'il illustre (`CLAUDE.md:51` vs `CLAUDE.md:74-75`) et sera copié tel quel — il l'a probablement déjà été (`InvoiceService.java:10-11`) ; (b) la procédure de release (`CLAUDE.md:95-101`) duplique `SKILL.md` et a déjà divergé (omet les étapes `SKILL.md:10,16`) ; (c) ≈ 45 % de référence (Build, Stack, Key files, Troubleshooting) chargée à chaque session, et des références à des fichiers inexistants (`CLAUDE.md:9,12,33-37,105,109`) ; (d) 11 règles obligatoires sans garde-fou (section 3), dont deux déjà violées dans le code ; (e) bruit : naming standard (`CLAUDE.md:66`), try-with-resources (`CLAUDE.md:60`) ; (f) aucune clause de maintenance, peu de *pourquoi*, aucun incident cité.
-- **Doit devenir** : un CLAUDE.md ≤ 50 lignes : règles avec leur *pourquoi* et la mention du garde-fou (« vérifié par `ArchitectureTest` »), pointeur vers `.claude/skills/release/SKILL.md` pour la release (section 95-101 supprimée), exemple corrigé en injection par constructeur, clause de maintenance (« toute règle ajoutée l'est dans la PR qui a motivé le commentaire de review ; une règle avec garde-fou peut être raccourcie à une ligne »). Référence (commandes, troubleshooting, structure) déplacée dans `docs/dev.md` chargé à la demande. Règles obligatoires poussées en L3 (voir plan).
-- **Critère de vérification** : `wc -l CLAUDE.md` ≤ 50 ; aucune commande ou chemin cité n'est absent du dépôt ; l'exemple compile contre le code réel ; la procédure de release n'existe qu'à un endroit.
+### [SPLIT] [P2] Instruction file — `CLAUDE.md`
+- **Does today**: 111 lines loaded in every session mixing commands, stack, architecture, conventions, style, tests, release procedure and troubleshooting (`CLAUDE.md:5-111`).
+- **Problem**: (a) the reference example contradicts the rule it illustrates (`CLAUDE.md:51` vs `CLAUDE.md:74-75`) and will be copied as is — it probably already has been (`InvoiceService.java:10-11`); (b) the release procedure (`CLAUDE.md:95-101`) duplicates `SKILL.md` and has already diverged (omits the steps `SKILL.md:10,16`); (c) ≈ 45 % of reference (Build, Stack, Key files, Troubleshooting) loaded in every session, and references to files that do not exist (`CLAUDE.md:9,12,33-37,105,109`); (d) 11 mandatory rules without a guardrail (section 3), two of them already broken in the code; (e) noise: standard naming (`CLAUDE.md:66`), try-with-resources (`CLAUDE.md:60`); (f) no maintenance clause, little *why*, no incident cited.
+- **Must become**: a CLAUDE.md ≤ 50 lines: rules with their *why* and the mention of the guardrail ("enforced by `ArchitectureTest`"), pointer to `.claude/skills/release/SKILL.md` for the release (section 95-101 removed), example fixed to constructor injection, maintenance clause ("any rule added is added in the PR that prompted the review comment; a rule with a guardrail can be shortened to one line"). Reference (commands, troubleshooting, structure) moved to `docs/dev.md` loaded on demand. Mandatory rules pushed down to L3 (see plan).
+- **Verification criterion**: `wc -l CLAUDE.md` ≤ 50; no command or path cited is absent from the repository; the example compiles against the real code; the release procedure exists in one place only.
 
-### [KEEP] Workflow CI — `.github/workflows/ci.yml`
-Bonne couche, bon périmètre : checkstyle + tests (dont ArchUnit) sur push `develop`/`main` et sur PR (`ci.yml:3-14`) ; c'est sur lui que `release.yml` doit s'appuyer plutôt que sur une lecture d'onglet. Hôte naturel des PR gates à ajouter (immutabilité Flyway).
+### [KEEP] CI workflow — `.github/workflows/ci.yml`
+Right layer, right scope: checkstyle + tests (ArchUnit included) on push to `develop`/`main` and on PRs (`ci.yml:3-14`); it is what `release.yml` must rely on rather than on reading a tab. Natural host of the PR gates to add (Flyway immutability).
 
 ### [KEEP] Checkstyle — `config/checkstyle/checkstyle.xml`
-Garde-fou L3 sain et appelé par la CI (`ci.yml:13`) ; couvre 4 des règles de style de `CLAUDE.md`. À étendre (`FileTabCharacter`, `CustomImportOrder`, `TypeName`, `MemberName`, `IllegalImport`) pour absorber les règles racontées, sans changer de couche.
+Healthy L3 guardrail called by CI (`ci.yml:13`); covers 4 of the style rules of `CLAUDE.md`. To be extended (`FileTabCharacter`, `CustomImportOrder`, `TypeName`, `MemberName`, `IllegalImport`) to absorb the told rules, without changing layer.
 
-### [KEEP] Test d'architecture — `src/test/java/com/acme/billing/ArchitectureTest.java`
-Modèle de ce que doit être une règle de CLAUDE.md : une ligne dans le fichier, un test ArchUnit qui la porte, et une Javadoc qui cite la règle d'origine (`ArchitectureTest.java:12-16`). Hôte naturel des règles « pas de `@Autowired` sur un champ » et « pas de `@MockBean` en test unitaire ».
+### [KEEP] Architecture test — `src/test/java/com/acme/billing/ArchitectureTest.java`
+A model of what a CLAUDE.md rule must be: one line in the file, an ArchUnit test that carries it, and a Javadoc that cites the original rule (`ArchitectureTest.java:12-16`). Natural host of the rules "no `@Autowired` on a field" and "no `@MockBean` in a unit test".
 
 ### [KEEP] Build — `build.gradle`
-Bonne couche ; une seule correction, rattachée au constat `release.yml` : `version = file('VERSION').text.trim()` (`build.gradle:9`) écrase le `-Pversion` passé par `release.yml:23`.
+Right layer; a single fix, attached to the `release.yml` finding: `version = file('VERSION').text.trim()` (`build.gradle:9`) overwrites the `-Pversion` passed by `release.yml:23`.
 
-### [KEEP] Source de vérité de version — `VERSION`
-Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `release.mjs:7`, `hotfix.mjs:11`) ; le défaut est que personne ne l'écrit — traité dans le constat `release.mjs`.
+### [KEEP] Version source of truth — `VERSION`
+Good idea (a single file read by Gradle and the scripts, `build.gradle:9`, `release.mjs:7`, `hotfix.mjs:11`); the defect is that nobody writes it — handled in the `release.mjs` finding.
 
-## 5. Plan de remédiation
+## 5. Remediation plan
 
-| Ordre | Priorité | Verdict | Élément | Action | Dépend de | Vérification | Approbation humaine requise |
+| Order | Priority | Verdict | Item | Action | Depends on | Verification | Human approval required |
 |---|---|---|---|---|---|---|---|
-| 1 | P1 | BLOCK | `scripts/old-deploy.sh` | Supprimer le fichier (ou `exit 1` immédiat avec message pointant vers `release run`). | — | Fichier absent ; `grep -r old-deploy` vide. | Oui (suppression + accès prod) |
-| 2 | P1 | PUSH_DOWN | `.github/workflows/release.yml` | Ajouter `dry_run`, job `plan` (valide `version` vs `VERSION`, `ref` autorisée, check-runs verts sur le SHA), job `deploy` sous `environment: production` avec reviewers, tag après healthcheck, `outputs`, `concurrency`, suppression ou usage de `hotfix`. Corriger `build.gradle:9` pour honorer `-Pversion`. | 1 | Dispatch `dry_run=true` sans effet ; dispatch sur `feat/*` refusé au job `plan` ; « Waiting for review » visible ; `gh run view --json jobs` expose `version`/`image`/`sha`. | Oui (création de l'environment GitHub + reviewers ; touche la prod) |
-| 3 | P1 | SPLIT | `scripts/release.mjs` | Créer la CLI `release` (`check`, `plan --type`, `run --plan [--dry-run]`) avec tests, sortie JSON, bump + commit de `VERSION`, garde `hotfix/*` pour `--type patch` ; puis supprimer `release.mjs`. | 2 | Tests de la CLI verts dans `ci.yml` ; `release check` échoue sur arbre sale / CI rouge / tag existant ; `release run --dry-run` ne déclenche rien ; `release.mjs` absent. | Oui pour la suppression du script |
-| 4 | P2 | MERGE | `scripts/hotfix.mjs` | Supprimer, remplacé par `release plan --type patch`. | 3 | Fichier absent ; `release plan --type patch` depuis `develop` sort en erreur. | Oui (suppression) |
-| 5 | P1 | PUSH_DOWN | `.claude/skills/release/SKILL.md` | Réécrire : séquence `check` → `plan` → confirmation utilisateur sur le plan JSON → `run` → lecture `gh run view --json conclusion` → annonce ; retirer toute pré-condition manuelle et tout grep de log. | 3, 4 | Aucune occurrence de « onglet Actions », « dump », « SUCCESS » ; chaque commande citée existe. | Non |
-| 6 | P2 | SPLIT | `CLAUDE.md` | Corriger l'exemple (constructeur), supprimer la section Release au profit d'un pointeur vers le skill, déplacer Build/Stack/Troubleshooting vers `docs/dev.md`, retirer les références à des fichiers inexistants, retirer le bruit (naming, try-with-resources), ajouter le *pourquoi* et une clause de maintenance. | 5 | ≤ 50 lignes ; exemple compilable ; aucun chemin cité absent ; une seule procédure de release dans le dépôt. | Non |
-| 7 | P2 | PUSH_DOWN | `src/test/java/com/acme/billing/ArchitectureTest.java` | Ajouter `noFields().should().beAnnotatedWith(Autowired.class)` (règle `CLAUDE.md:51`) et corriger `InvoiceService.java:10-11` ; ajouter une règle interdisant `MockBean` dans les classes `*Test` (`CLAUDE.md:92`). | — | `gradlew test` rouge si un champ `@Autowired` est réintroduit ; `InvoiceService` en injection par constructeur. | Non |
-| 8 | P2 | PUSH_DOWN | `.github/workflows/ci.yml` | Ajouter un test générique d'autorisation (toutes les routes → 403 avec un rôle inconnu, règle `CLAUDE.md:57`) exécuté par `gradlew test`, et un step PR gate « aucune migration Flyway modifiée/supprimée » (`CLAUDE.md:63`). | — | Un endpoint sans sécurité fait échouer la CI ; une PR qui modifie `V1__init.sql` est rouge. | Non |
-| 9 | P3 | PUSH_DOWN | `config/checkstyle/checkstyle.xml` | Ajouter `FileTabCharacter`, `CustomImportOrder` (java/javax/org/com), `TypeName`, `MemberName`, `ParameterName` ; option : `IllegalImport` pour `MockBean` côté `checkstyleTest`. Raccourcir les règles correspondantes dans `CLAUDE.md` à une ligne « vérifié par Checkstyle ». | 6 | `gradlew checkstyleMain checkstyleTest` rouge sur une tabulation ou un import mal groupé. | Non |
+| 1 | P1 | BLOCK | `scripts/old-deploy.sh` | Remove the file (or an immediate `exit 1` with a message pointing to `release run`). | — | File absent; `grep -r old-deploy` empty. | Yes (removal + prod access) |
+| 2 | P1 | PUSH_DOWN | `.github/workflows/release.yml` | Add `dry_run`, a `plan` job (validates `version` vs `VERSION`, allowed `ref`, green check-runs on the SHA), a `deploy` job under `environment: production` with reviewers, tag after healthcheck, `outputs`, `concurrency`, removal or use of `hotfix`. Fix `build.gradle:9` to honour `-Pversion`. | 1 | Dispatch `dry_run=true` has no effect; dispatch on `feat/*` refused at the `plan` job; "Waiting for review" visible; `gh run view --json jobs` exposes `version`/`image`/`sha`. | Yes (creation of the GitHub environment + reviewers; touches prod) |
+| 3 | P1 | SPLIT | `scripts/release.mjs` | Create the `release` CLI (`check`, `plan --type`, `run --plan [--dry-run]`) with tests, JSON output, bump + commit of `VERSION`, `hotfix/*` guard for `--type patch`; then remove `release.mjs`. | 2 | Tests of the CLI green in `ci.yml`; `release check` fails on a dirty tree / red CI / existing tag; `release run --dry-run` triggers nothing; `release.mjs` absent. | Yes for the removal of the script |
+| 4 | P2 | MERGE | `scripts/hotfix.mjs` | Remove, replaced by `release plan --type patch`. | 3 | File absent; `release plan --type patch` from `develop` exits with an error. | Yes (removal) |
+| 5 | P1 | PUSH_DOWN | `.claude/skills/release/SKILL.md` | Rewrite: sequence `check` → `plan` → user confirmation on the JSON plan → `run` → reading `gh run view --json conclusion` → announcement; drop every manual precondition and every log grep. | 3, 4 | No occurrence of "Actions tab", "dump", "SUCCESS"; every command cited exists. | No |
+| 6 | P2 | SPLIT | `CLAUDE.md` | Fix the example (constructor), remove the Release section in favour of a pointer to the skill, move Build/Stack/Troubleshooting to `docs/dev.md`, drop the references to files that do not exist, drop the noise (naming, try-with-resources), add the *why* and a maintenance clause. | 5 | ≤ 50 lines; example compiles; no cited path absent; a single release procedure in the repository. | No |
+| 7 | P2 | PUSH_DOWN | `src/test/java/com/acme/billing/ArchitectureTest.java` | Add `noFields().should().beAnnotatedWith(Autowired.class)` (rule `CLAUDE.md:51`) and fix `InvoiceService.java:10-11`; add a rule forbidding `MockBean` in the `*Test` classes (`CLAUDE.md:92`). | — | `gradlew test` red if an `@Autowired` field is reintroduced; `InvoiceService` uses constructor injection. | No |
+| 8 | P2 | PUSH_DOWN | `.github/workflows/ci.yml` | Add a generic authorization test (every route → 403 with an unknown role, rule `CLAUDE.md:57`) run by `gradlew test`, and a PR gate step "no Flyway migration modified/deleted" (`CLAUDE.md:63`). | — | An endpoint without security makes CI fail; a PR that modifies `V1__init.sql` is red. | No |
+| 9 | P3 | PUSH_DOWN | `config/checkstyle/checkstyle.xml` | Add `FileTabCharacter`, `CustomImportOrder` (java/javax/org/com), `TypeName`, `MemberName`, `ParameterName`; optional: `IllegalImport` for `MockBean` on the `checkstyleTest` side. Shorten the matching rules in `CLAUDE.md` to one line "enforced by Checkstyle". | 6 | `gradlew checkstyleMain checkstyleTest` red on a tab or a badly grouped import. | No |
 
-## 6. Ce que l'audit n'a pas pu vérifier
+## 6. What the audit could not verify
 
-- Les réglages GitHub hors dépôt : protection de branche `develop`/`main` (checks requis), existence d'un `environment` `production`, présence et portée des secrets `REGISTRY_PASSWORD` / `PROD_SSH_KEY` (`release.yml:25,30`). Si `develop` est protégé avec `ci` requis, l'étape 1 du processus est partiellement couverte au moment du merge, mais pas au moment de la release.
-- Les scripts n'ont pas été exécutés (pas de `gh` authentifié, pas de `package.json`) ; l'analyse est statique.
-- Fichiers référencés mais absents du dépôt : `gradlew` (appelé par `ci.yml:13-14`, `release.yml:23`), `Dockerfile` (`release.yml:24`, `old-deploy.sh:5`), fichier compose (`CLAUDE.md:12,105`), `gradle.properties` (`CLAUDE.md:109`), `InvoiceServiceTest` (`CLAUDE.md:9`), packages `customer`/`payment`/`config`/`security` (`CLAUDE.md:33-37`). Hypothèse retenue : simplification de fixture ; dans un vrai dépôt, les deux workflows échoueraient dès le premier step.
-- `README.md:3` renvoie vers `../traps.md`, hors du périmètre audité : non ouvert, conformément à la consigne d'évaluation à l'aveugle.
-- Le skill demande d'écrire le JSON dans `.harness/audit.json` du dépôt audité ; la consigne de ne modifier aucun fichier du repo prévaut, le JSON est livré à côté du rapport (`blind-audit.json`).
-- L'existence de credentials locaux (docker login registry, clé SSH `deploy@prod.acme.io`) qui rendraient `scripts/old-deploy.sh` immédiatement opérant depuis un poste.
+- The GitHub settings outside the repository: branch protection of `develop`/`main` (required checks), existence of a `production` `environment`, presence and scope of the secrets `REGISTRY_PASSWORD` / `PROD_SSH_KEY` (`release.yml:25,30`). If `develop` is protected with `ci` required, step 1 of the process is partly covered at merge time, but not at release time.
+- The scripts were not run (no authenticated `gh`, no `package.json`); the analysis is static.
+- Files referenced but absent from the repository: `gradlew` (called by `ci.yml:13-14`, `release.yml:23`), `Dockerfile` (`release.yml:24`, `old-deploy.sh:5`), compose file (`CLAUDE.md:12,105`), `gradle.properties` (`CLAUDE.md:109`), `InvoiceServiceTest` (`CLAUDE.md:9`), packages `customer`/`payment`/`config`/`security` (`CLAUDE.md:33-37`). Assumption taken: fixture simplification; in a real repository, both workflows would fail at the first step.
+- `README.md:3` points to `../traps.md`, outside the audited scope: not opened, in line with the blind evaluation instruction.
+- The skill asks to write the JSON into `.harness/audit.json` of the audited repository; the instruction not to change any file of the repo prevails, the JSON is delivered next to the report (`blind-audit.json`).
+- The existence of local credentials (docker login registry, SSH key `deploy@prod.acme.io`) that would make `scripts/old-deploy.sh` immediately operative from a workstation.
 
-## 7. Données machine
+## 7. Machine data
 
 ```json
 {
   "audit": {
-    "process": "Release de billing-api (+ instrumentation IA du dépôt : CLAUDE.md)",
+    "process": "Release of billing-api (+ AI instrumentation of the repository: CLAUDE.md)",
     "scope": "fixtures/repos/java-back/repo/ — CLAUDE.md, .claude/skills/release/, scripts/, .github/workflows/, config/checkstyle/, build.gradle, VERSION, src/test (ArchUnit)",
     "date": "2026-11-09",
     "health_score": 0,
@@ -196,10 +196,10 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": ["version-file", "release-yml"],
       "verdict": "SPLIT",
       "priority": "P1",
-      "finding": "Décide seul du type de version d'après le nom de branche (jugement L1 figé), déclenche le déploiement prod sans pré-condition ni dry-run, ne met jamais à jour VERSION, sortie non structurée, aucun test.",
+      "finding": "Decides the kind of version on its own from the branch name (frozen L1 judgment), triggers the prod deployment with no precondition and no dry-run, never updates VERSION, unstructured output, no test.",
       "evidence": ["scripts/release.mjs:11-16", "scripts/release.mjs:22-23", "scripts/release.mjs:7", "build.gradle:9", ".github/workflows/release.yml:27"],
-      "target": "CLI testée `release check` / `release plan --type` (JSON, sans effet) / `release run --plan [--dry-run]` (bump+commit VERSION, déclenchement, URL de run) ; le type de version devient un argument choisi par l'agent.",
-      "check": "`release check` sort en code non nul sur arbre sale, CI rouge ou tag existant ; `release run --dry-run` ne déclenche rien ; tests verts en CI ; release.mjs supprimé."
+      "target": "Tested CLI `release check` / `release plan --type` (JSON, no effect) / `release run --plan [--dry-run]` (bump+commit of VERSION, trigger, run URL); the kind of version becomes an argument chosen by the agent.",
+      "check": "`release check` exits non-zero on a dirty tree, red CI or existing tag; `release run --dry-run` triggers nothing; tests green in CI; release.mjs removed."
     },
     {
       "id": "old-deploy-sh",
@@ -210,10 +210,10 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": [],
       "verdict": "BLOCK",
       "priority": "P1",
-      "finding": "Script mort mais exécutable qui build, pousse et déploie en prod par SSH depuis un poste, sans CI, sans tag, en dupliquant release.yml.",
+      "finding": "Dead but executable script that builds, pushes and deploys to prod over SSH from a workstation, with no CI, no tag, duplicating release.yml.",
       "evidence": ["scripts/old-deploy.sh:2", "scripts/old-deploy.sh:5-7", ".github/workflows/release.yml:24-31"],
-      "target": "Supprimer le fichier (ou exit 1 immédiat pointant vers `release run`).",
-      "check": "Fichier absent du dépôt ; `grep -r old-deploy` vide ; approbation du propriétaire obtenue."
+      "target": "Remove the file (or an immediate exit 1 pointing to `release run`).",
+      "check": "File absent from the repository; `grep -r old-deploy` empty; owner's approval obtained."
     },
     {
       "id": "release-yml",
@@ -224,10 +224,10 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": ["build-gradle"],
       "verdict": "PUSH_DOWN",
       "priority": "P1",
-      "finding": "workflow_dispatch sans environment protégé ni dry_run, ref libre déployable en prod sans vérification de CI ni tests, tag poussé avant le déploiement, -Pversion écrasé par build.gradle, input hotfix inutilisé, succès signalé par echo SUCCESS au lieu d'outputs.",
+      "finding": "workflow_dispatch with no protected environment and no dry_run, free ref deployable to prod with no check of CI or tests, tag pushed before the deployment, -Pversion overwritten by build.gradle, unused hotfix input, success signalled by echo SUCCESS instead of outputs.",
       "evidence": [".github/workflows/release.yml:3-14", ".github/workflows/release.yml:16-17", ".github/workflows/release.yml:20", ".github/workflows/release.yml:23", ".github/workflows/release.yml:27", ".github/workflows/release.yml:32", "build.gradle:9"],
-      "target": "Job `plan` (validation version/ref/check-runs) puis job `deploy` sous `environment: production` avec reviewers, input dry_run, tag après healthcheck, outputs structurés, concurrency ; build.gradle honore -Pversion.",
-      "check": "Dispatch dry_run=true sans effet ; dispatch sur feat/* refusé ; attente de review visible dans Actions ; `gh run view --json jobs` expose version/image/sha."
+      "target": "`plan` job (validation of version/ref/check-runs) then `deploy` job under `environment: production` with reviewers, dry_run input, tag after healthcheck, structured outputs, concurrency; build.gradle honours -Pversion.",
+      "check": "Dispatch dry_run=true has no effect; dispatch on feat/* refused; review wait visible in Actions; `gh run view --json jobs` exposes version/image/sha."
     },
     {
       "id": "release-skill",
@@ -238,10 +238,10 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": ["release-mjs", "hotfix-mjs", "release-yml", "ci-yml"],
       "verdict": "PUSH_DOWN",
       "priority": "P1",
-      "finding": "Les trois pré-conditions obligatoires (CI verte, migrations Flyway, branche à jour) et la détection du succès (grep SUCCESS) sont racontées et non vérifiées ; l'étape Flyway dépend d'un dump humain.",
+      "finding": "The three mandatory preconditions (CI green, Flyway migrations, branch up to date) and the detection of success (grep SUCCESS) are told and not enforced; the Flyway step depends on a human dump.",
       "evidence": [".claude/skills/release/SKILL.md:9-11", ".claude/skills/release/SKILL.md:15-16"],
-      "target": "Skill réduit à la séquence `release check` → `release plan` → confirmation utilisateur → `release run` → lecture `gh run view --json conclusion` → annonce ; les pré-conditions deviennent des codes de sortie à rapporter.",
-      "check": "Plus aucune mention d'onglet Actions, de dump ou de chaîne SUCCESS ; chaque commande citée existe et est testée."
+      "target": "Skill reduced to the sequence `release check` → `release plan` → user confirmation → `release run` → reading `gh run view --json conclusion` → announcement; the preconditions become exit codes to report.",
+      "check": "No mention left of the Actions tab, of a dump or of the SUCCESS string; every command cited exists and is tested."
     },
     {
       "id": "hotfix-mjs",
@@ -252,10 +252,10 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": ["version-file", "release-yml"],
       "verdict": "MERGE",
       "priority": "P2",
-      "finding": "Duplique la lecture de VERSION, le parsing semver et l'appel gh workflow run de release.mjs ; passe un input hotfix que le workflow ignore ; seule la garde de branche hotfix/* est une vraie pré-condition codée.",
+      "finding": "Duplicates the reading of VERSION, the semver parsing and the gh workflow run call of release.mjs; passes a hotfix input that the workflow ignores; only the hotfix/* branch guard is a real coded precondition.",
       "evidence": ["scripts/hotfix.mjs:11-16", "scripts/release.mjs:7-8", "scripts/release.mjs:23", ".github/workflows/release.yml:11-14", "scripts/hotfix.mjs:7-10"],
-      "target": "Fusionner dans `release plan --type patch`, avec la règle « patch exige une branche hotfix/* » dans `release check`.",
-      "check": "hotfix.mjs supprimé ; `release plan --type patch` depuis develop sort en erreur ; plus référencé par SKILL.md ni CLAUDE.md."
+      "target": "Merge into `release plan --type patch`, with the rule \"patch requires a hotfix/* branch\" in `release check`.",
+      "check": "hotfix.mjs removed; `release plan --type patch` from develop exits with an error; no longer referenced by SKILL.md or CLAUDE.md."
     },
     {
       "id": "claude-md",
@@ -266,10 +266,10 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": ["release-skill", "release-mjs", "hotfix-mjs", "ci-yml", "release-yml", "checkstyle", "archunit-test"],
       "verdict": "SPLIT",
       "priority": "P2",
-      "finding": "Exemple de code qui contredit sa propre règle (déjà copié dans InvoiceService), procédure de release dupliquée et divergente du skill, ~45 % de référence chargée à chaque session, références à des fichiers inexistants, 11 règles obligatoires sans garde-fou, pas de clause de maintenance.",
+      "finding": "Code example that contradicts its own rule (already copied into InvoiceService), release procedure duplicated and diverging from the skill, ~45 % of reference loaded in every session, references to files that do not exist, 11 mandatory rules without a guardrail, no maintenance clause.",
       "evidence": ["CLAUDE.md:51", "CLAUDE.md:74-75", "src/main/java/com/acme/billing/invoice/InvoiceService.java:10-11", "CLAUDE.md:95-101", "CLAUDE.md:9", "CLAUDE.md:33-37", "CLAUDE.md:109", "CLAUDE.md:57", "src/test/java/com/acme/billing/InvoiceControllerTest.java:8", "CLAUDE.md:63"],
-      "target": "CLAUDE.md ≤ 50 lignes : règles + pourquoi + garde-fou cité, pointeur vers le skill release, exemple corrigé, clause de maintenance ; référence déplacée dans docs/dev.md ; règles obligatoires poussées en ArchUnit/Checkstyle/PR gate.",
-      "check": "≤ 50 lignes ; exemple compilable ; aucun chemin cité absent ; une seule procédure de release dans le dépôt."
+      "target": "CLAUDE.md ≤ 50 lines: rules + why + guardrail cited, pointer to the release skill, example fixed, maintenance clause; reference moved to docs/dev.md; mandatory rules pushed down into ArchUnit/Checkstyle/PR gate.",
+      "check": "≤ 50 lines; example compiles; no cited path absent; a single release procedure in the repository."
     },
     {
       "id": "ci-yml",
@@ -280,10 +280,10 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": ["build-gradle", "checkstyle", "archunit-test"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Checkstyle et tests (dont ArchUnit) sur push develop/main et sur PR : bonne couche, hôte naturel des PR gates à ajouter.",
+      "finding": "Checkstyle and tests (ArchUnit included) on push to develop/main and on PRs: right layer, natural host of the PR gates to add.",
       "evidence": [".github/workflows/ci.yml:3-5", ".github/workflows/ci.yml:13-14"],
-      "target": "Conserver ; ajouter le test générique d'autorisation et le gate d'immutabilité Flyway (voir remediation).",
-      "check": "Un endpoint non sécurisé ou une migration modifiée fait échouer la CI."
+      "target": "Keep; add the generic authorization test and the Flyway immutability gate (see remediation).",
+      "check": "An unsecured endpoint or a modified migration makes CI fail."
     },
     {
       "id": "checkstyle",
@@ -294,10 +294,10 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Garde-fou L3 sain appelé par la CI, couvrant 4 règles de style de CLAUDE.md ; à étendre pour absorber les règles racontées (tabulations, ordre des imports, TypeName/MemberName).",
+      "finding": "Healthy L3 guardrail called by CI, covering 4 style rules of CLAUDE.md; to be extended to absorb the told rules (tabs, import order, TypeName/MemberName).",
       "evidence": ["config/checkstyle/checkstyle.xml:4-9", ".github/workflows/ci.yml:13"],
-      "target": "Ajouter FileTabCharacter, CustomImportOrder, TypeName, MemberName, ParameterName, IllegalImport(MockBean).",
-      "check": "`gradlew checkstyleMain checkstyleTest` rouge sur une tabulation ou un import mal groupé."
+      "target": "Add FileTabCharacter, CustomImportOrder, TypeName, MemberName, ParameterName, IllegalImport(MockBean).",
+      "check": "`gradlew checkstyleMain checkstyleTest` red on a tab or a badly grouped import."
     },
     {
       "id": "archunit-test",
@@ -308,10 +308,10 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Modèle du couple règle CLAUDE.md / garde-fou ArchUnit, avec la Javadoc qui cite la règle d'origine ; hôte des règles injection-par-constructeur et pas-de-MockBean.",
+      "finding": "Model of the pair CLAUDE.md rule / ArchUnit guardrail, with the Javadoc that cites the original rule; host of the constructor-injection and no-MockBean rules.",
       "evidence": ["src/test/java/com/acme/billing/ArchitectureTest.java:12-16"],
-      "target": "Ajouter noFields().should().beAnnotatedWith(Autowired.class) et une règle sur MockBean dans les classes *Test.",
-      "check": "`gradlew test` rouge si un champ @Autowired est réintroduit."
+      "target": "Add noFields().should().beAnnotatedWith(Autowired.class) and a rule on MockBean in the *Test classes.",
+      "check": "`gradlew test` red if an @Autowired field is reintroduced."
     },
     {
       "id": "build-gradle",
@@ -322,10 +322,10 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": ["checkstyle", "version-file"],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Bonne couche ; `version = file('VERSION')` écrase le -Pversion passé par release.yml, correction rattachée au constat release-yml.",
+      "finding": "Right layer; `version = file('VERSION')` overwrites the -Pversion passed by release.yml, fix attached to the release-yml finding.",
       "evidence": ["build.gradle:9", ".github/workflows/release.yml:23"],
-      "target": "Honorer -Pversion quand il est fourni, sinon lire VERSION.",
-      "check": "`gradlew bootJar -Pversion=9.9.9` produit un jar 9.9.9."
+      "target": "Honour -Pversion when it is given, otherwise read VERSION.",
+      "check": "`gradlew bootJar -Pversion=9.9.9` produces a 9.9.9 jar."
     },
     {
       "id": "version-file",
@@ -336,61 +336,61 @@ Bonne idée (un seul fichier lu par Gradle et les scripts, `build.gradle:9`, `re
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "Source de vérité unique correcte, mais jamais écrite par le processus (traité dans release-mjs).",
+      "finding": "Correct single source of truth, but never written by the process (handled in release-mjs).",
       "evidence": ["VERSION:1", "scripts/release.mjs:7", "build.gradle:9"],
-      "target": "Conserver ; `release run` le met à jour et le committe.",
-      "check": "Après une release, VERSION contient la version taguée."
+      "target": "Keep; `release run` updates it and commits it.",
+      "check": "After a release, VERSION holds the tagged version."
     }
   ],
   "process_leaks": [
-    { "rule": "Ne jamais releaser sur un develop rouge (CI verte)", "told_in": ".claude/skills/release/SKILL.md:9", "if_skipped": "Image non testée déployée en prod ; l'agent peut lire le mauvais run ou halluciner un vert", "belongs_in": "L4", "guard_tool": "Step de garde dans release.yml (check-runs du SHA) + `release check` (exit 1)" },
-    { "rule": "Aucune migration Flyway en attente en prod", "told_in": ".claude/skills/release/SKILL.md:10", "if_skipped": "Schéma non validé déployé ; étape non reproductible sans dump humain", "belongs_in": "L3", "guard_tool": "`release check --migrations` ou test Testcontainers flyway.validate() en CI" },
-    { "rule": "Être sur develop à jour, arbre propre", "told_in": ".claude/skills/release/SKILL.md:11", "if_skipped": "Commits locaux non poussés exclus silencieusement (ref=branche envoyée au workflow)", "belongs_in": "L3", "guard_tool": "`release check` : git status --porcelain vide, HEAD == origin/develop, tag inexistant" },
-    { "rule": "Mettre à jour VERSION après release", "told_in": "scripts/release.mjs:7 (lu, jamais écrit — l'étape n'est racontée nulle part)", "if_skipped": "La release suivante recalcule la même version ; git tag échoue après le push de l'image", "belongs_in": "L3", "guard_tool": "`release run` bump + commit + push de VERSION" },
-    { "rule": "Le succès se lit dans la chaîne SUCCESS du log", "told_in": ".claude/skills/release/SKILL.md:15", "if_skipped": "Succès halluciné ; aucun retour structuré pour décider", "belongs_in": "L4", "guard_tool": "outputs du job release.yml + `gh run view --json conclusion`" },
-    { "rule": "Si ERROR/FAILED, prévenir et ne pas relancer", "told_in": ".claude/skills/release/SKILL.md:16", "if_skipped": "Relance en boucle d'un deploy prod", "belongs_in": "L4", "guard_tool": "`concurrency:` dans release.yml + refus de `release run` si un run est en cours ou a échoué sur la même version" },
-    { "rule": "Injection par constructeur, jamais @Autowired sur un champ", "told_in": "CLAUDE.md:51", "if_skipped": "Déjà violée (InvoiceService.java:10-11) et par l'exemple CLAUDE.md:74-75", "belongs_in": "L3", "guard_tool": "ArchUnit noFields().should().beAnnotatedWith(Autowired.class) dans ArchitectureTest.java" },
-    { "rule": "Chaque endpoint a un test d'autorisation (403 avec le mauvais rôle)", "told_in": "CLAUDE.md:57", "if_skipped": "Aucun test 403 n'existe (InvoiceControllerTest.java:8) ; API de facturation sans contrôle d'accès testé", "belongs_in": "L3", "guard_tool": "Test JUnit générique sur RequestMappingHandlerMapping exécuté par ci.yml" },
-    { "rule": "Ne jamais modifier une migration Flyway appliquée", "told_in": "CLAUDE.md:63", "if_skipped": "FlywayValidateException découverte au déploiement prod", "belongs_in": "L3", "guard_tool": "Step PR gate dans ci.yml : git diff --diff-filter=MD sur db/migration vide" },
-    { "rule": "Pas de @MockBean dans les tests unitaires", "told_in": "CLAUDE.md:92", "if_skipped": "Suite lente, contexte Spring démarré", "belongs_in": "L3", "guard_tool": "Checkstyle IllegalImport (checkstyleTest) ou règle ArchUnit sur *Test" },
-    { "rule": "4 espaces, pas de tabulation", "told_in": "CLAUDE.md:84", "if_skipped": "Diff bruité", "belongs_in": "L3", "guard_tool": "Checkstyle FileTabCharacter" },
-    { "rule": "Imports groupés java / javax / org / com", "told_in": "CLAUDE.md:85", "if_skipped": "Diff bruité", "belongs_in": "L3", "guard_tool": "Checkstyle CustomImportOrder" },
-    { "rule": "Classes PascalCase, champs camelCase", "told_in": "CLAUDE.md:66", "if_skipped": "Incohérence de nommage", "belongs_in": "L3", "guard_tool": "Checkstyle TypeName, MemberName, ParameterName" },
-    { "rule": "Tests nommés <Class>Test / <Class>IT", "told_in": "CLAUDE.md:67", "if_skipped": "Hygiène", "belongs_in": "L3", "guard_tool": "ArchUnit sur src/test (P3)" },
-    { "rule": "DTOs en record", "told_in": "CLAUDE.md:87", "if_skipped": "Hygiène", "belongs_in": "L3", "guard_tool": "ArchUnit classes().that().resideInAPackage(\"..dto..\").should().beRecords() (P3)" }
+    { "rule": "Never release on a red develop (CI green)", "told_in": ".claude/skills/release/SKILL.md:9", "if_skipped": "Untested image deployed to prod; the agent can read the wrong run or hallucinate a green", "belongs_in": "L4", "guard_tool": "Guard step in release.yml (check-runs of the SHA) + `release check` (exit 1)" },
+    { "rule": "No Flyway migration pending in prod", "told_in": ".claude/skills/release/SKILL.md:10", "if_skipped": "Unvalidated schema deployed; step not reproducible without a human dump", "belongs_in": "L3", "guard_tool": "`release check --migrations` or a Testcontainers flyway.validate() test in CI" },
+    { "rule": "Be on an up-to-date develop, clean tree", "told_in": ".claude/skills/release/SKILL.md:11", "if_skipped": "Unpushed local commits silently left out (ref=branch sent to the workflow)", "belongs_in": "L3", "guard_tool": "`release check`: git status --porcelain empty, HEAD == origin/develop, tag does not exist" },
+    { "rule": "Update VERSION after the release", "told_in": "scripts/release.mjs:7 (read, never written — the step is told nowhere)", "if_skipped": "The next release recomputes the same version; git tag fails after the image push", "belongs_in": "L3", "guard_tool": "`release run` bump + commit + push of VERSION" },
+    { "rule": "Success is read in the SUCCESS string of the log", "told_in": ".claude/skills/release/SKILL.md:15", "if_skipped": "Hallucinated success; no structured return to decide on", "belongs_in": "L4", "guard_tool": "outputs of the release.yml job + `gh run view --json conclusion`" },
+    { "rule": "If ERROR/FAILED, warn and do not run again", "told_in": ".claude/skills/release/SKILL.md:16", "if_skipped": "A prod deploy re-run in a loop", "belongs_in": "L4", "guard_tool": "`concurrency:` in release.yml + `release run` refused if a run is in progress or has failed on the same version" },
+    { "rule": "Constructor injection, never @Autowired on a field", "told_in": "CLAUDE.md:51", "if_skipped": "Already broken (InvoiceService.java:10-11) and by the example CLAUDE.md:74-75", "belongs_in": "L3", "guard_tool": "ArchUnit noFields().should().beAnnotatedWith(Autowired.class) in ArchitectureTest.java" },
+    { "rule": "Every endpoint has an authorization test (403 with the wrong role)", "told_in": "CLAUDE.md:57", "if_skipped": "No 403 test exists (InvoiceControllerTest.java:8); billing API with no tested access control", "belongs_in": "L3", "guard_tool": "Generic JUnit test on RequestMappingHandlerMapping run by ci.yml" },
+    { "rule": "Never modify an applied Flyway migration", "told_in": "CLAUDE.md:63", "if_skipped": "FlywayValidateException discovered at the prod deployment", "belongs_in": "L3", "guard_tool": "PR gate step in ci.yml: git diff --diff-filter=MD on db/migration empty" },
+    { "rule": "No @MockBean in unit tests", "told_in": "CLAUDE.md:92", "if_skipped": "Slow suite, Spring context started", "belongs_in": "L3", "guard_tool": "Checkstyle IllegalImport (checkstyleTest) or ArchUnit rule on *Test" },
+    { "rule": "4 spaces, no tabs", "told_in": "CLAUDE.md:84", "if_skipped": "Noisy diff", "belongs_in": "L3", "guard_tool": "Checkstyle FileTabCharacter" },
+    { "rule": "Imports grouped java / javax / org / com", "told_in": "CLAUDE.md:85", "if_skipped": "Noisy diff", "belongs_in": "L3", "guard_tool": "Checkstyle CustomImportOrder" },
+    { "rule": "Classes PascalCase, fields camelCase", "told_in": "CLAUDE.md:66", "if_skipped": "Naming inconsistency", "belongs_in": "L3", "guard_tool": "Checkstyle TypeName, MemberName, ParameterName" },
+    { "rule": "Tests named <Class>Test / <Class>IT", "told_in": "CLAUDE.md:67", "if_skipped": "Hygiene", "belongs_in": "L3", "guard_tool": "ArchUnit on src/test (P3)" },
+    { "rule": "DTOs as records", "told_in": "CLAUDE.md:87", "if_skipped": "Hygiene", "belongs_in": "L3", "guard_tool": "ArchUnit classes().that().resideInAPackage(\"..dto..\").should().beRecords() (P3)" }
   ],
   "guarded_rules": [
-    { "rule": "Un contrôleur ne touche pas un repository / pas de logique métier dans les contrôleurs", "told_in": "CLAUDE.md:54", "guarded_by": "src/test/java/com/acme/billing/ArchitectureTest.java:14-16" },
-    { "rule": "Longueur de ligne max 120", "told_in": "CLAUDE.md:84", "guarded_by": "config/checkstyle/checkstyle.xml:4" },
-    { "rule": "Pas d'import wildcard", "told_in": "CLAUDE.md:85", "guarded_by": "config/checkstyle/checkstyle.xml:6" },
-    { "rule": "Une classe publique par fichier", "told_in": "CLAUDE.md:68", "guarded_by": "config/checkstyle/checkstyle.xml:7" },
-    { "rule": "Constantes UPPER_SNAKE_CASE, méthodes camelCase", "told_in": "CLAUDE.md:66", "guarded_by": "config/checkstyle/checkstyle.xml:8-9" },
-    { "rule": "Suite complète avant d'ouvrir une PR", "told_in": "CLAUDE.md:93", "guarded_by": ".github/workflows/ci.yml:5,14" },
-    { "rule": "Checkstyle sur chaque push", "told_in": "CLAUDE.md:45", "guarded_by": ".github/workflows/ci.yml:13" },
-    { "rule": "Un hotfix part d'une branche hotfix/*", "told_in": ".claude/skills/release/SKILL.md:19", "guarded_by": "scripts/hotfix.mjs:7-10" }
+    { "rule": "A controller does not touch a repository / no business logic in controllers", "told_in": "CLAUDE.md:54", "guarded_by": "src/test/java/com/acme/billing/ArchitectureTest.java:14-16" },
+    { "rule": "Max line length 120", "told_in": "CLAUDE.md:84", "guarded_by": "config/checkstyle/checkstyle.xml:4" },
+    { "rule": "No wildcard import", "told_in": "CLAUDE.md:85", "guarded_by": "config/checkstyle/checkstyle.xml:6" },
+    { "rule": "One public class per file", "told_in": "CLAUDE.md:68", "guarded_by": "config/checkstyle/checkstyle.xml:7" },
+    { "rule": "Constants UPPER_SNAKE_CASE, methods camelCase", "told_in": "CLAUDE.md:66", "guarded_by": "config/checkstyle/checkstyle.xml:8-9" },
+    { "rule": "Full suite before opening a PR", "told_in": "CLAUDE.md:93", "guarded_by": ".github/workflows/ci.yml:5,14" },
+    { "rule": "Checkstyle on every push", "told_in": "CLAUDE.md:45", "guarded_by": ".github/workflows/ci.yml:13" },
+    { "rule": "A hotfix starts from a hotfix/* branch", "told_in": ".claude/skills/release/SKILL.md:19", "guarded_by": "scripts/hotfix.mjs:7-10" }
   ],
   "instruction_files": [
     { "path": "CLAUDE.md", "loaded_lines": 111, "instruction_pct": 40, "reference_pct": 45, "noise_pct": 15, "justified_rules": false, "maintenance_clause": false },
     { "path": ".claude/skills/release/SKILL.md", "loaded_lines": 22, "instruction_pct": 90, "reference_pct": 10, "noise_pct": 0, "justified_rules": false, "maintenance_clause": false }
   ],
   "remediation": [
-    { "order": 1, "priority": "P1", "verdict": "BLOCK", "element": "old-deploy-sh", "action": "Supprimer scripts/old-deploy.sh (ou exit 1 immédiat pointant vers `release run`).", "depends_on": [], "check": "Fichier absent ; `grep -r old-deploy` vide.", "needs_human_approval": true },
-    { "order": 2, "priority": "P1", "verdict": "PUSH_DOWN", "element": "release-yml", "action": "Ajouter dry_run, job plan (version vs VERSION, ref autorisée, check-runs verts), job deploy sous environment: production avec reviewers, tag après healthcheck, outputs, concurrency, retrait/usage de l'input hotfix ; corriger build.gradle:9 pour honorer -Pversion.", "depends_on": ["old-deploy-sh"], "check": "Dispatch dry_run=true sans effet ; dispatch sur feat/* refusé ; attente de review visible ; `gh run view --json jobs` expose version/image/sha.", "needs_human_approval": true },
-    { "order": 3, "priority": "P1", "verdict": "SPLIT", "element": "release-mjs", "action": "Créer la CLI release (check, plan --type, run --plan [--dry-run]) avec tests, JSON, bump+commit VERSION, garde hotfix/* pour --type patch ; puis supprimer scripts/release.mjs.", "depends_on": ["release-yml"], "check": "Tests CLI verts en CI ; `release check` échoue sur arbre sale/CI rouge/tag existant ; `release run --dry-run` ne déclenche rien ; release.mjs absent.", "needs_human_approval": true },
-    { "order": 4, "priority": "P2", "verdict": "MERGE", "element": "hotfix-mjs", "action": "Supprimer scripts/hotfix.mjs, remplacé par `release plan --type patch`.", "depends_on": ["release-mjs"], "check": "Fichier absent ; `release plan --type patch` depuis develop sort en erreur.", "needs_human_approval": true },
-    { "order": 5, "priority": "P1", "verdict": "PUSH_DOWN", "element": "release-skill", "action": "Réécrire SKILL.md : check → plan → confirmation utilisateur sur le plan JSON → run → `gh run view --json conclusion` → annonce ; retirer toute pré-condition manuelle et tout grep de log.", "depends_on": ["release-mjs", "hotfix-mjs"], "check": "Aucune occurrence de « onglet Actions », « dump », « SUCCESS » ; chaque commande citée existe.", "needs_human_approval": false },
-    { "order": 6, "priority": "P2", "verdict": "SPLIT", "element": "claude-md", "action": "Corriger l'exemple (constructeur), remplacer la section Release par un pointeur vers le skill, déplacer Build/Stack/Troubleshooting vers docs/dev.md, retirer les références à des fichiers inexistants et le bruit, ajouter le pourquoi et une clause de maintenance.", "depends_on": ["release-skill"], "check": "≤ 50 lignes ; exemple compilable ; aucun chemin cité absent ; une seule procédure de release.", "needs_human_approval": false },
-    { "order": 7, "priority": "P2", "verdict": "PUSH_DOWN", "element": "archunit-test", "action": "Ajouter noFields().should().beAnnotatedWith(Autowired.class) et une règle interdisant MockBean dans les classes *Test ; corriger InvoiceService.java:10-11.", "depends_on": [], "check": "`gradlew test` rouge si un champ @Autowired est réintroduit ; InvoiceService en injection par constructeur.", "needs_human_approval": false },
-    { "order": 8, "priority": "P2", "verdict": "PUSH_DOWN", "element": "ci-yml", "action": "Ajouter un test générique d'autorisation (toutes les routes → 403 avec un rôle inconnu) et un step PR gate « aucune migration Flyway modifiée/supprimée ».", "depends_on": [], "check": "Un endpoint sans sécurité fait échouer la CI ; une PR modifiant V1__init.sql est rouge.", "needs_human_approval": false },
-    { "order": 9, "priority": "P3", "verdict": "PUSH_DOWN", "element": "checkstyle", "action": "Ajouter FileTabCharacter, CustomImportOrder, TypeName, MemberName, ParameterName, IllegalImport(MockBean) ; raccourcir les règles correspondantes de CLAUDE.md à « vérifié par Checkstyle ».", "depends_on": ["claude-md"], "check": "`gradlew checkstyleMain checkstyleTest` rouge sur une tabulation ou un import mal groupé.", "needs_human_approval": false }
+    { "order": 1, "priority": "P1", "verdict": "BLOCK", "element": "old-deploy-sh", "action": "Remove scripts/old-deploy.sh (or an immediate exit 1 pointing to `release run`).", "depends_on": [], "check": "File absent; `grep -r old-deploy` empty.", "needs_human_approval": true },
+    { "order": 2, "priority": "P1", "verdict": "PUSH_DOWN", "element": "release-yml", "action": "Add dry_run, a plan job (version vs VERSION, allowed ref, green check-runs), a deploy job under environment: production with reviewers, tag after healthcheck, outputs, concurrency, removal/use of the hotfix input; fix build.gradle:9 to honour -Pversion.", "depends_on": ["old-deploy-sh"], "check": "Dispatch dry_run=true has no effect; dispatch on feat/* refused; review wait visible; `gh run view --json jobs` exposes version/image/sha.", "needs_human_approval": true },
+    { "order": 3, "priority": "P1", "verdict": "SPLIT", "element": "release-mjs", "action": "Create the release CLI (check, plan --type, run --plan [--dry-run]) with tests, JSON, bump+commit of VERSION, hotfix/* guard for --type patch; then remove scripts/release.mjs.", "depends_on": ["release-yml"], "check": "CLI tests green in CI; `release check` fails on a dirty tree/red CI/existing tag; `release run --dry-run` triggers nothing; release.mjs absent.", "needs_human_approval": true },
+    { "order": 4, "priority": "P2", "verdict": "MERGE", "element": "hotfix-mjs", "action": "Remove scripts/hotfix.mjs, replaced by `release plan --type patch`.", "depends_on": ["release-mjs"], "check": "File absent; `release plan --type patch` from develop exits with an error.", "needs_human_approval": true },
+    { "order": 5, "priority": "P1", "verdict": "PUSH_DOWN", "element": "release-skill", "action": "Rewrite SKILL.md: check → plan → user confirmation on the JSON plan → run → `gh run view --json conclusion` → announcement; drop every manual precondition and every log grep.", "depends_on": ["release-mjs", "hotfix-mjs"], "check": "No occurrence of \"Actions tab\", \"dump\", \"SUCCESS\"; every command cited exists.", "needs_human_approval": false },
+    { "order": 6, "priority": "P2", "verdict": "SPLIT", "element": "claude-md", "action": "Fix the example (constructor), replace the Release section with a pointer to the skill, move Build/Stack/Troubleshooting to docs/dev.md, drop the references to files that do not exist and the noise, add the why and a maintenance clause.", "depends_on": ["release-skill"], "check": "≤ 50 lines; example compiles; no cited path absent; a single release procedure.", "needs_human_approval": false },
+    { "order": 7, "priority": "P2", "verdict": "PUSH_DOWN", "element": "archunit-test", "action": "Add noFields().should().beAnnotatedWith(Autowired.class) and a rule forbidding MockBean in the *Test classes; fix InvoiceService.java:10-11.", "depends_on": [], "check": "`gradlew test` red if an @Autowired field is reintroduced; InvoiceService uses constructor injection.", "needs_human_approval": false },
+    { "order": 8, "priority": "P2", "verdict": "PUSH_DOWN", "element": "ci-yml", "action": "Add a generic authorization test (every route → 403 with an unknown role) and a PR gate step \"no Flyway migration modified/deleted\".", "depends_on": [], "check": "An endpoint without security makes CI fail; a PR modifying V1__init.sql is red.", "needs_human_approval": false },
+    { "order": 9, "priority": "P3", "verdict": "PUSH_DOWN", "element": "checkstyle", "action": "Add FileTabCharacter, CustomImportOrder, TypeName, MemberName, ParameterName, IllegalImport(MockBean); shorten the matching rules of CLAUDE.md to \"enforced by Checkstyle\".", "depends_on": ["claude-md"], "check": "`gradlew checkstyleMain checkstyleTest` red on a tab or a badly grouped import.", "needs_human_approval": false }
   ],
   "unverified": [
-    "Réglages GitHub hors dépôt : protection de branche develop/main, existence d'un environment production, présence des secrets REGISTRY_PASSWORD et PROD_SSH_KEY (release.yml:25,30).",
-    "Scripts non exécutés (pas de gh authentifié, pas de package.json) : analyse statique uniquement.",
-    "Fichiers référencés mais absents : gradlew (ci.yml:13-14, release.yml:23), Dockerfile (release.yml:24, old-deploy.sh:5), fichier compose (CLAUDE.md:12,105), gradle.properties (CLAUDE.md:109), InvoiceServiceTest (CLAUDE.md:9), packages customer/payment/config/security (CLAUDE.md:33-37) ; hypothèse : simplification de fixture.",
-    "README.md:3 renvoie vers ../traps.md, hors périmètre : non ouvert (évaluation à l'aveugle).",
-    ".harness/audit.json non écrit dans le dépôt audité (consigne de ne rien modifier) ; JSON livré dans blind-audit.json à côté du rapport.",
-    "Existence de credentials locaux (docker login registry, clé SSH deploy@prod.acme.io) rendant scripts/old-deploy.sh immédiatement opérant."
+    "GitHub settings outside the repository: branch protection of develop/main, existence of a production environment, presence of the secrets REGISTRY_PASSWORD and PROD_SSH_KEY (release.yml:25,30).",
+    "Scripts not run (no authenticated gh, no package.json): static analysis only.",
+    "Files referenced but absent: gradlew (ci.yml:13-14, release.yml:23), Dockerfile (release.yml:24, old-deploy.sh:5), compose file (CLAUDE.md:12,105), gradle.properties (CLAUDE.md:109), InvoiceServiceTest (CLAUDE.md:9), packages customer/payment/config/security (CLAUDE.md:33-37); assumption: fixture simplification.",
+    "README.md:3 points to ../traps.md, out of scope: not opened (blind evaluation).",
+    ".harness/audit.json not written into the audited repository (instruction to change nothing); JSON delivered in blind-audit.json next to the report.",
+    "Existence of local credentials (docker login registry, SSH key deploy@prod.acme.io) that would make scripts/old-deploy.sh immediately operative."
   ]
 }
 ```
