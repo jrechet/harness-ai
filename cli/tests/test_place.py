@@ -1,5 +1,5 @@
-"""Tests de la grille de placement : chaque morceau d'un harness a une seule place, la même pour
-tout le monde, et la grille dit pourquoi et ce qui la ferait changer."""
+"""Tests of the placement grid: each piece of a harness has a single place, the same for
+everyone, and the grid says why and what would change it."""
 from __future__ import annotations
 
 import contextlib
@@ -17,40 +17,40 @@ from harnesslib import place  # noqa: E402
 
 GRID = place.load_grid()
 
-# Un morceau, ses réponses, la destination attendue. C'est le corrigé de la grille : un changement
-# de la grille qui déplace l'un de ces cas est un changement de doctrine, pas un détail.
+# A piece, its answers, the expected destination. This is the grid's answer key: a change
+# of the grid that moves one of these cases is a change of doctrine, not a detail.
 CASES = [
-    ("Ne jamais pousser sur main", {"nature": "limit", "bypass_limit": "dev"}, "server_protection"),
-    ("L'agent ne lit pas les fichiers .env", {"nature": "limit", "bypass_limit": "agent"}, "permission"),
-    ("Aucune équipe ne déploie en prod sans validation",
+    ("Never push to main", {"nature": "limit", "bypass_limit": "dev"}, "server_protection"),
+    ("The agent does not read .env files", {"nature": "limit", "bypass_limit": "agent"}, "permission"),
+    ("No team deploys to prod without approval",
      {"nature": "limit", "bypass_limit": "team"}, "managed"),
-    ("Lire le ticket Jira", {"nature": "action", "access": "consult"}, "mcp"),
-    ("Poster l'annonce dans le canal", {"nature": "action", "access": "write"}, "mcp"),
-    ("Publier le paquet", {"nature": "action", "access": "deliver"}, "pipeline"),
-    ("Toute route a un test d'autorisation",
+    ("Read the Jira ticket", {"nature": "action", "access": "consult"}, "mcp"),
+    ("Post the announcement in the channel", {"nature": "action", "access": "write"}, "mcp"),
+    ("Publish the package", {"nature": "action", "access": "deliver"}, "pipeline"),
+    ("Every route has an authorisation test",
      {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "dev"}, "ci_check"),
-    ("Les tests passent avant de rendre la main",
+    ("Tests pass before handing back",
      {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "agent"}, "hook_check"),
-    ("Détection de secrets dans tous les dépôts",
+    ("Secret detection in every repository",
      {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "team"}, "org_check"),
-    ("Toute version publiée a son entrée de changelog",
+    ("Every published version has its changelog entry",
      {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "release"}, "release_gate"),
-    ("Pas de release avec des fichiers non commités",
+    ("No release with uncommitted files",
      {"nature": "rule", "incident": "forget", "checkable": "yes", "bypass_rule": "agent"}, "hook_check"),
-    ("La description de PR explique le pourquoi",
+    ("The PR description explains the why",
      {"nature": "rule", "incident": "yes", "checkable": "no"}, "judge"),
-    ("On préfère les fonctions courtes", {"nature": "rule", "incident": "no", "scope": "always"}, "agents_md"),
-    ("Calculer la prochaine version", {"nature": "compute", "when": "on_demand"}, "cli"),
-    ("Formater après chaque édition", {"nature": "compute", "when": "agent_loop"}, "hook_compute"),
-    ("Mettre à jour le changelog à chaque PR", {"nature": "compute", "when": "repo_event"}, "workflow"),
-    ("Relire la PR sans le biais de l'auteur", {"nature": "judgment", "isolation": "independence"}, "subagent"),
-    ("Explorer 200 fichiers de logs", {"nature": "judgment", "isolation": "context"}, "subagent"),
-    ("Choisir le type de release", {"nature": "judgment", "isolation": "none"}, "session"),
-    ("Comment faire une release", {"nature": "procedure"}, "skill"),
-    ("La commande qui lance les tests d'intégration", {"nature": "knowledge", "scope": "always"}, "agents_md"),
-    ("Conventions du dossier migrations", {"nature": "knowledge", "scope": "zone"}, "agents_md_zone"),
-    ("L'architecture détaillée", {"nature": "knowledge", "scope": "reference"}, "doc"),
-    ("La liste des dossiers du dépôt", {"nature": "knowledge", "scope": "discoverable"}, "nothing"),
+    ("Short functions are preferred", {"nature": "rule", "incident": "no", "scope": "always"}, "agents_md"),
+    ("Compute the next version", {"nature": "compute", "when": "on_demand"}, "cli"),
+    ("Format after each edit", {"nature": "compute", "when": "agent_loop"}, "hook_compute"),
+    ("Update the changelog on each PR", {"nature": "compute", "when": "repo_event"}, "workflow"),
+    ("Review the PR without the author's bias", {"nature": "judgment", "isolation": "independence"}, "subagent"),
+    ("Explore 200 log files", {"nature": "judgment", "isolation": "context"}, "subagent"),
+    ("Choose the release type", {"nature": "judgment", "isolation": "none"}, "session"),
+    ("How to make a release", {"nature": "procedure"}, "skill"),
+    ("The command that runs the integration tests", {"nature": "knowledge", "scope": "always"}, "agents_md"),
+    ("Conventions of the migrations folder", {"nature": "knowledge", "scope": "zone"}, "agents_md_zone"),
+    ("The detailed architecture", {"nature": "knowledge", "scope": "reference"}, "doc"),
+    ("The list of the repository's folders", {"nature": "knowledge", "scope": "discoverable"}, "nothing"),
 ]
 
 
@@ -112,12 +112,12 @@ class WalkTests(unittest.TestCase):
 
     def test_an_invalid_option_is_refused_with_the_valid_ones(self):
         with self.assertRaises(ValueError) as ctx:
-            place.walk(GRID, {"nature": "limit", "bypass_limit": "personne"})
+            place.walk(GRID, {"nature": "limit", "bypass_limit": "nobody"})
         self.assertIn("agent", str(ctx.exception))
 
     def test_an_unknown_question_is_refused(self):
         with self.assertRaises(ValueError):
-            place.walk(GRID, {"nature": "procedure", "couleur": "bleu"})
+            place.walk(GRID, {"nature": "procedure", "colour": "blue"})
 
     def test_an_answer_off_the_path_is_reported_as_unused(self):
         result = place.walk(GRID, {"nature": "procedure", "scope": "always"})
@@ -125,7 +125,7 @@ class WalkTests(unittest.TestCase):
         self.assertEqual(result["unused"], ["scope"])
 
     def test_the_same_question_answered_twice_is_refused(self):
-        # Sinon l'ordre des clés déciderait : mêmes réponses, destinations différentes.
+        # Otherwise the key order would decide: same answers, different destinations.
         with self.assertRaises(ValueError):
             place.walk(GRID, {"Nature": "procedure", "nature": "limit", "bypass_limit": "dev"})
 
@@ -166,7 +166,7 @@ class ReviewTests(unittest.TestCase):
 
     def test_an_unknown_current_place_is_refused(self):
         with self.assertRaises(ValueError):
-            self._verdict({"nature": "procedure"}, "un-wiki")
+            self._verdict({"nature": "procedure"}, "a-wiki")
 
     def test_nothing_is_not_a_current_place(self):
         with self.assertRaises(ValueError):
@@ -190,20 +190,20 @@ def run_cli(*argv: str) -> tuple[int, str]:
     with contextlib.redirect_stdout(out), contextlib.redirect_stderr(io.StringIO()):
         try:
             code = harness.main(list(argv))
-        except SystemExit as exc:  # argparse refuse une saisie invalide par SystemExit(2)
+        except SystemExit as exc:  # argparse refuses invalid input with SystemExit(2)
             code = exc.code
     return code, out.getvalue()
 
 
 FIXTURES = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "fixtures", "design")
 EXPECTED = {
-    "traps": [{"id": "T1", "what": "limite racontée", "file": "skills/r/SKILL.md", "lines": [10, 12],
+    "traps": [{"id": "T1", "what": "limit told in prose", "file": "skills/r/SKILL.md", "lines": [10, 12],
                "accept": ["server_protection", "managed"]}],
-    "healthy": [{"id": "S1", "what": "procédure", "file": "skills/r/SKILL.md", "lines": [1, 5]}],
+    "healthy": [{"id": "S1", "what": "procedure", "file": "skills/r/SKILL.md", "lines": [1, 5]}],
 }
-TRAP = {"piece": "Ne jamais pousser", "answers": {"nature": "limit", "bypass_limit": "dev"},
+TRAP = {"piece": "Never push", "answers": {"nature": "limit", "bypass_limit": "dev"},
         "current": "skill", "evidence": ["skills/r/SKILL.md:11"]}
-SOUND = {"piece": "La procédure", "answers": {"nature": "procedure"}, "current": "skill",
+SOUND = {"piece": "The procedure", "answers": {"nature": "procedure"}, "current": "skill",
          "evidence": ["./skills/r/SKILL.md:2"]}
 
 
@@ -245,11 +245,11 @@ class CheckTests(unittest.TestCase):
         self.assertTrue(result["passed"])
 
     def test_another_piece_cut_from_the_same_line_does_not_flag_a_healthy_element(self):
-        # Le corrigé dit de quelle nature est l'élément sain : un morceau d'une autre nature, tiré de la
-        # même ligne, est un autre morceau.
+        # The answer key says which nature the healthy item is: a piece of another nature, cut from the
+        # same line, is another piece.
         expected = json.loads(json.dumps(EXPECTED))
         expected["healthy"][0]["natures"] = ["procedure"]
-        other = {"piece": "Publier", "answers": {"nature": "action", "access": "deliver"}, "current": "skill",
+        other = {"piece": "Publish", "answers": {"nature": "action", "access": "deliver"}, "current": "skill",
                  "evidence": ["skills/r/SKILL.md:2"]}
         result = place.check(GRID, expected, [TRAP, SOUND, other])
         self.assertEqual(result["healthy"][0]["status"], "kept")
@@ -257,10 +257,10 @@ class CheckTests(unittest.TestCase):
         self.assertEqual(place.check(GRID, expected, [TRAP, moved])["healthy"][0]["status"], "flagged")
 
     def test_in_create_mode_a_piece_without_current_is_found_by_its_destination(self):
-        expected = {"mode": "create", "traps": [{"id": "C1", "what": "calcul", "file": "demande.md",
+        expected = {"mode": "create", "traps": [{"id": "C1", "what": "computation", "file": "request.md",
                                                  "lines": [3, 3], "accept": ["cli"]}]}
-        piece = {"piece": "Nom de branche", "answers": {"nature": "compute", "when": "on_demand"},
-                 "evidence": ["demande.md:3"]}
+        piece = {"piece": "Branch name", "answers": {"nature": "compute", "when": "on_demand"},
+                 "evidence": ["request.md:3"]}
         self.assertTrue(place.check(GRID, expected, [piece])["passed"])
         wrong = {**piece, "answers": {"nature": "procedure"}}
         result = place.check(GRID, expected, [wrong])
@@ -272,23 +272,23 @@ class CheckTests(unittest.TestCase):
 
     def test_an_unknown_mode_is_refused(self):
         with self.assertRaises(ValueError):
-            place.check(GRID, {**EXPECTED, "mode": "devine"}, [TRAP])
+            place.check(GRID, {**EXPECTED, "mode": "guess"}, [TRAP])
 
     def test_an_unknown_nature_in_the_expected_file_is_refused(self):
         broken = json.loads(json.dumps(EXPECTED))
-        broken["healthy"][0]["natures"] = ["poesie"]
+        broken["healthy"][0]["natures"] = ["poetry"]
         with self.assertRaises(ValueError):
             place.check(GRID, broken, [TRAP])
 
     def test_an_expected_file_pointing_to_an_unknown_place_is_refused(self):
         broken = json.loads(json.dumps(EXPECTED))
-        broken["traps"][0]["accept"] = ["un-wiki"]
+        broken["traps"][0]["accept"] = ["a-wiki"]
         with self.assertRaises(ValueError):
             place.check(GRID, broken, [TRAP])
 
 
 class DesignFixtureTests(unittest.TestCase):
-    """Chaque fixture de harness-design : son corrigé tient debout, et le plan de son auteur le passe."""
+    """Each harness-design fixture: its answer key holds up, and its author's plan passes it."""
 
     def test_every_fixture_cites_real_lines_and_its_author_run_passes(self):
         names = sorted(n for n in os.listdir(FIXTURES) if os.path.isdir(os.path.join(FIXTURES, n)))
@@ -301,7 +301,7 @@ class DesignFixtureTests(unittest.TestCase):
                 for spec in expected["traps"] + expected.get("healthy", []):
                     with open(os.path.join(root, "artifact", spec["file"]), encoding="utf-8") as fh:
                         self.assertLessEqual(spec["lines"][1], len(fh.readlines()), spec["id"])
-                # Tout chemin de workflow cité par l'artefact existe : sinon l'agent ne peut pas le vérifier.
+                # Every workflow path cited by the artifact exists: otherwise the agent cannot check it.
                 for folder, _, files in os.walk(os.path.join(root, "artifact")):
                     for name_ in files:
                         with open(os.path.join(folder, name_), encoding="utf-8") as fh:
@@ -309,10 +309,10 @@ class DesignFixtureTests(unittest.TestCase):
                                 self.assertTrue(os.path.isfile(os.path.join(root, "artifact", cited)), cited)
                 runs = os.path.join(root, "runs")
                 author = [r for r in sorted(os.listdir(runs)) if r.endswith("-author")]
-                self.assertTrue(author, "pas de plan d'auteur")
+                self.assertTrue(author, "no author plan")
                 pieces = place.load_pieces(os.path.join(runs, author[-1], "pieces.json"))
                 result = place.check(GRID, expected, pieces)
-                # Un trou connu de la grille se déclare ; l'auteur ne force pas une réponse pour le masquer.
+                # A known gap of the grid is declared; the author does not force an answer to hide it.
                 gaps_file = os.path.join(runs, author[-1], "known-gaps.json")
                 known = []
                 if os.path.isfile(gaps_file):
@@ -345,9 +345,9 @@ class CliTests(unittest.TestCase):
         self.assertEqual(set(json.loads(out)["questions"]), set(GRID["questions"]))
 
     def test_a_plan_places_each_piece_and_flags_the_incomplete_ones(self):
-        pieces = [{"piece": "Ne jamais pousser sur main", "answers": {"nature": "limit", "bypass_limit": "dev"},
+        pieces = [{"piece": "Never push to main", "answers": {"nature": "limit", "bypass_limit": "dev"},
                    "current": "agents_md"},
-                  {"piece": "Relire la PR", "answers": {"nature": "judgment"}}]
+                  {"piece": "Review the PR", "answers": {"nature": "judgment"}}]
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "pieces.json")
             with open(path, "w", encoding="utf-8") as fh:

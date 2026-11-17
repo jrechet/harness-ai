@@ -1,5 +1,5 @@
-"""Tests du rapport commun : un état des lieux a toujours la même forme — sur quoi porte l'évaluation,
-ce qui est attendu, ce qui est observé, ce qui est conseillé — et un écart sans preuve est refusé."""
+"""Tests of the common report: an assessment always has the same form — what is evaluated,
+what is expected, what is observed, what is advised — and a gap without evidence is refused."""
 from __future__ import annotations
 
 import base64
@@ -25,15 +25,15 @@ def sample() -> dict:
         "subject": {"kind": "skill", "name": "release", "path": ".claude/skills/release/SKILL.md"},
         "date": "2026-11-15",
         "source": "harness-design",
-        "summary": "Le skill mélange une procédure et une limite.",
+        "summary": "The skill mixes a procedure and a limit.",
         "items": [
-            {"scope": "Ne jamais publier hors de main", "expected": "Protection côté serveur",
-             "observed": "Une phrase dans le skill", "advice": "Protéger la branche",
+            {"scope": "Never publish outside main", "expected": "Server-side protection",
+             "observed": "A sentence in the skill", "advice": "Protect the branch",
              "status": "blocker", "evidence": ["SKILL.md:12"], "tag": "PUSH_DOWN"},
-            {"scope": "Enchaîner tag et publication", "expected": "Skill", "observed": "Skill",
+            {"scope": "Chain tag and publication", "expected": "Skill", "observed": "Skill",
              "advice": "", "status": "ok"},
-            {"scope": "Calculer la version", "expected": "Sous-commande CLI", "observed": "N'existe pas encore",
-             "advice": "Écrire la sous-commande et son test", "status": "todo"},
+            {"scope": "Compute the version", "expected": "CLI subcommand", "observed": "Does not exist yet",
+             "advice": "Write the subcommand and its test", "status": "todo"},
         ],
     }
 
@@ -72,10 +72,10 @@ class ValidateTests(unittest.TestCase):
 
     def test_an_unknown_status_or_kind_is_refused(self):
         data = sample()
-        data["items"][1]["status"] = "bof"
+        data["items"][1]["status"] = "meh"
         data["subject"]["kind"] = "wiki"
         errors = report.validate(data)
-        self.assertTrue(any("bof" in e for e in errors) and any("wiki" in e for e in errors))
+        self.assertTrue(any("meh" in e for e in errors) and any("wiki" in e for e in errors))
 
     def test_a_report_without_items_or_with_a_bad_date_is_refused(self):
         data = sample()
@@ -91,13 +91,13 @@ class ValidateTests(unittest.TestCase):
 class SummaryTests(unittest.TestCase):
     def test_counts_by_status_and_the_first_advices_blockers_first(self):
         data = sample()
-        data["items"].append({"scope": "s", "expected": "e", "observed": "o", "advice": "Déplacer",
+        data["items"].append({"scope": "s", "expected": "e", "observed": "o", "advice": "Move",
                               "status": "gap", "evidence": ["a:1"]})
         data["items"].reverse()
         s = report.summarize(data)
         self.assertEqual(s["counts"], {"blocker": 1, "gap": 1, "todo": 1, "unknown": 0, "ok": 1})
         self.assertEqual([a["advice"] for a in s["first"]],
-                         ["Protéger la branche", "Déplacer", "Écrire la sous-commande et son test"])
+                         ["Protect the branch", "Move", "Write the subcommand and its test"])
 
 
 class HtmlTests(unittest.TestCase):
@@ -108,7 +108,7 @@ class HtmlTests(unittest.TestCase):
         self.assertEqual(self.html, report.render_html(sample()))
 
     def test_the_four_headings_and_every_text_are_there(self):
-        for label in ("Sur quoi porte l'évaluation", "Attendu", "Observé", "Conseillé"):
+        for label in ("What is evaluated", "Expected", "Observed", "Advice"):
             self.assertIn(label, self.html)
         for item in sample()["items"]:
             self.assertIn(item["scope"].replace("'", "&#x27;"), self.html)
@@ -144,12 +144,12 @@ class HtmlTests(unittest.TestCase):
             self.assertIn(f"'sha256-{digest}'", csp)
 
     def test_it_reads_without_javascript(self):
-        # Les filtres n'apparaissent que si le script tourne ; aucune carte n'est cachée au départ.
+        # The filters only appear if the script runs; no card is hidden at the start.
         self.assertRegex(self.html, r'<nav[^>]*\bhidden\b')
         self.assertNotRegex(self.html, r'<article[^>]*\bhidden\b')
 
     def test_it_declares_language_viewport_and_both_themes(self):
-        self.assertIn('<html lang="fr">', self.html)
+        self.assertIn('<html lang="en">', self.html)
         self.assertIn('name="viewport"', self.html)
         self.assertIn("prefers-color-scheme: dark", self.html)
         self.assertIn("@media print", self.html)
@@ -164,7 +164,7 @@ class FromPlaceTests(unittest.TestCase):
         return [place.place_piece(GRID, p) for p in pieces]
 
     def test_a_design_plan_becomes_things_to_create(self):
-        pieces = [{"piece": "Calculer la version", "answers": {"nature": "compute", "when": "on_demand"}}]
+        pieces = [{"piece": "Compute the version", "answers": {"nature": "compute", "when": "on_demand"}}]
         data = report.from_place(GRID, pieces, self._rows(pieces), {"kind": "skill", "name": "release"}, "2026-11-15")
         self.assertEqual(report.validate(data), [])
         item = data["items"][0]
@@ -173,10 +173,10 @@ class FromPlaceTests(unittest.TestCase):
 
     def test_a_review_maps_verdicts_to_statuses_and_keeps_the_evidence(self):
         pieces = [
-            {"piece": "Ne jamais pousser sur main", "answers": {"nature": "limit", "bypass_limit": "dev"},
+            {"piece": "Never push to main", "answers": {"nature": "limit", "bypass_limit": "dev"},
              "current": "agents_md", "evidence": ["AGENTS.md:14"]},
-            {"piece": "Comment faire une release", "answers": {"nature": "procedure"}, "current": "skill"},
-            {"piece": "L'architecture", "answers": {"nature": "knowledge", "scope": "reference"},
+            {"piece": "How to make a release", "answers": {"nature": "procedure"}, "current": "skill"},
+            {"piece": "The architecture", "answers": {"nature": "knowledge", "scope": "reference"},
              "current": "agents_md", "evidence": ["AGENTS.md:30"]},
         ]
         data = report.from_place(GRID, pieces, self._rows(pieces), {"kind": "repo", "name": "x"}, "2026-11-15")
@@ -191,7 +191,7 @@ class FromPlaceTests(unittest.TestCase):
         self.assertTrue(any("evidence" in e for e in report.validate(data)))
 
     def test_an_incomplete_piece_is_reported_as_not_evaluated(self):
-        pieces = [{"piece": "Rédiger l'annonce", "answers": {"nature": "judgment"}}]
+        pieces = [{"piece": "Write the announcement", "answers": {"nature": "judgment"}}]
         data = report.from_place(GRID, pieces, self._rows(pieces), {"kind": "skill", "name": "x"}, "2026-11-15")
         self.assertEqual(data["items"][0]["status"], "unknown")
         self.assertIn(GRID["questions"]["isolation"]["text"], data["items"][0]["advice"])
@@ -232,7 +232,7 @@ class CliTests(unittest.TestCase):
         self.assertFalse(os.path.exists(out))
 
     def test_from_place_builds_a_report_from_the_pieces_file(self):
-        pieces = [{"piece": "Calculer la version", "answers": {"nature": "compute", "when": "on_demand"}}]
+        pieces = [{"piece": "Compute the version", "answers": {"nature": "compute", "when": "on_demand"}}]
         code, out = run_cli("report", "from-place", self._write("p.json", pieces), "--kind", "skill",
                             "--name", "release", "--date", "2026-11-15", "--format", "json")
         self.assertEqual(code, 0)

@@ -1,39 +1,52 @@
 ---
 name: harness-medals
-description: Dit où en est un dépôt ou une marketplace de plugins sous forme de médaille (bronze, argent, or, platine), de succès débloqués et de prochaines étapes, et ouvre la page interactive qui les montre. Tout vient de mesures faites par `harness medals` dans le dépôt, jamais d'une appréciation. Utiliser quand l'utilisateur demande « à quel niveau on est », « pourquoi bronze » ou « pourquoi pas or », « quels succès on a débloqués », « que faire pour passer au rang suivant », « montre la page des médailles », ou veut un badge de maturité. Ne pas utiliser pour poser ou faire avancer l'instrumentation (harness-init, harness-step) ni pour l'auditer (harness-audit) : ce skill montre, il ne change rien d'autre que son fichier de médailles.
+description: Says where a repository or a plugin marketplace stands as a medal (bronze, silver, gold, platinum), unlocked achievements and next steps, and opens the interactive page that shows them. Everything comes from measurements made by `harness medals` in the repository, never from an opinion. Use when the user asks "what level are we at", "why bronze" or "why not gold", "which achievements have we unlocked", "what to do to reach the next rank", "show the medals page", or wants a maturity badge — also in French: « à quel niveau on est », « pourquoi bronze », « quels succès on a débloqués », « montre la page des médailles ». Do not use to set up or move the setup forward (harness-init, harness-step) or to audit it (harness-audit): this skill shows, it changes nothing but its medals file.
 ---
 
-# Harness medals — le niveau, et pourquoi
+# Harness medals — the level, and why
 
-Une médaille n'est pas une note. C'est le palier que `harness status` mesure, dit avec un nom qu'on retient, et découpé en succès qu'on débloque un par un. Ce skill n'évalue rien lui-même : il lance la commande et lit sa sortie.
+A medal is not a grade. It is the level `harness status` measures, given a name people remember, and split into achievements unlocked one by one. This skill evaluates nothing itself: it runs the command and reads its output.
 
-Trois règles :
-- **Tout chiffre vient de la commande.** Ne dis jamais « vous êtes plutôt or » : lance, puis cite.
-- **Une médaille ne dit pas que les agents travaillent mieux.** Elle dit que le harness a une forme. La preuve du gain est ailleurs (le banc, les signaux par PR). Dis-le si on te demande ce que vaut la médaille.
-- **On ne joue pas avec les règles pour débloquer un succès.** Un succès se débloque en faisant ce qu'il mesure. Écrire « Vérifiée par » devant une règle sans garde-fou est une triche que l'audit verra.
+Three rules:
+- **Every figure comes from the command.** Never say "you are more or less gold": run it, then quote.
+- **A medal does not say agents work better.** It says the harness has a shape. Proof of the gain is elsewhere (the bench, the signals per PR). Say so if asked what the medal is worth.
+- **No gaming the rules to unlock an achievement.** An achievement is unlocked by doing what it measures. Writing "Enforced by" in front of a rule without a guardrail is cheating the audit will see.
 
-## Déroulé
+## Guide the user
 
-### 1. Ce qu'on mesure
-Un dépôt (`--kind repo`, le défaut) ou la marketplace de plugins qu'il déclare (`--kind marketplace`, s'il a un `.claude-plugin/marketplace.json`). Si la demande ne le dit pas et que les deux existent, donne le dépôt et propose l'autre en une ligne.
+**Show the map first.** Before answering, run `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status --map --no-write <repo>` and show, in at most six short lines plus the map:
+- **Goal**: tell you where this repository stands, as a medal, and why, from measurements only.
+- **Plan**: 1. measure · 2. answer your question · 3. the page, if you want it.
+- **Where we are**: the map; each medal is a level (bronze = 1 Framed, silver = 2 Looped, gold = 3 Verified, platinum = 4 Delegated).
+- **Where we are going**: your answer, with the measured reasons; nothing in the repository changes unless you ask for the medals file.
+- **Now**: what you measure (repository or marketplace), and whether you will ask something.
 
-### 2. Mesurer
-`python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" medals <repo> [--kind marketplace]`. `--name <nom>` fixe le nom affiché (par défaut celui du fichier de médailles s'il existe, sinon celui du dossier), `--format json` rend les données. Il rend la médaille, la phrase qui dit pourquoi, les succès par rang avec leur date, les succès hors rang, et les prochaines étapes.
+**Ask with context.** Say why you ask and what the answer changes; give the default. One decision per question.
 
-### 3. Répondre à la question posée
-- **« Pourquoi ce niveau ? »** : la phrase « pourquoi », puis les succès qui manquent au rang suivant, chacun avec ce qui est mesuré.
-- **« Quels succès ? »** : la liste débloquée, avec les dates. Un succès marqué « perdu » se dit en premier : c'est une régression.
-- **« Et ensuite ? »** : les prochaines étapes, dans l'ordre. Une étape « en attente » ne dépend pas que de l'utilisateur (un harvest doit trouver un signal réel) : dis-le, ne la présente pas comme une tâche. Pour faire l'étape, c'est harness-step.
+**Plain words.** Each achievement is said in plain words; a signal code (S1–S4) or check id is never shown alone ("a real review remark turned into a rule", not "S1–S4"). Speak the language of the conversation.
 
-Ne recopie pas toute la sortie si on t'a posé une question précise.
+## Steps
 
-### 4. La page
-Sur demande, ou si l'utilisateur veut « voir » : `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" medals <repo> --page <fichier.html>`. La page est un seul fichier, sans ressource externe, avec ses données dedans. Écris-la hors du dépôt sauf si l'utilisateur la veut dedans, et ouvre-la.
+### 1. What is measured
+A repository (`--kind repo`, the default) or the plugin marketplace it declares (`--kind marketplace`, if it has a `.claude-plugin/marketplace.json`). If the request does not say and both exist, give the repository and offer the other in one line.
 
-### 5. Le fichier du dépôt
-`--write` met à jour `.harness/medals.json` (`.harness/medals-marketplace.json` pour une marketplace). Il garde la date où chaque succès a été débloqué et le parcours des médailles. Si la mesure n'a pas changé, le fichier n'est pas réécrit : sa date est celle du dernier changement. Ne l'écris que si l'utilisateur le demande ou si le fichier existe déjà. Qu'il soit commité est son choix : commité, il se voit en revue et un badge peut le lire.
+### 2. Measure
+`python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" medals <repo> [--kind marketplace]`. `--name <name>` sets the displayed name (default: the one of the medals file if it exists, otherwise the folder's), `--format json` returns the data. It gives the medal, the sentence that says why, the achievements by rank with their date, the achievements outside ranks, and the next steps.
 
-## Pièges fréquents
-- **Annoncer une médaille de mémoire.** Elle a pu changer : un harvest de plus de 45 jours fait perdre un succès d'argent.
-- **Présenter la médaille comme un objectif.** `harness target` dit où l'utilisateur veut s'arrêter. Bronze est un endroit où l'on peut rester.
-- **Confondre les deux mesures.** La médaille d'un dépôt et celle de sa marketplace ne mesurent pas la même chose, et peuvent différer.
+### 3. Answer the question asked
+- **"Why this level?"**: the "why" sentence, then the achievements missing for the next rank, each with what is measured, in plain words.
+- **"Which achievements?"**: the unlocked list, with dates. An achievement marked "lost" is said first: it is a regression.
+- **"What next?"**: the next steps, in order. A "waiting" step does not depend on the user alone (real reviews or real agent changes must happen over time): say so, do not present it as a task. To do the step, it is harness-step.
+
+Do not copy the whole output if a precise question was asked. End with the map's last line ("Next step: …") so the user knows where to go from here.
+
+### 4. The page
+On request, or if the user wants to "see": `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" medals <repo> --page <file.html>`. The page is a single file, without external resources, with its data inside. Write it outside the repository unless the user wants it inside, and open it.
+
+### 5. The repository file
+`--write` updates `.harness/medals.json` (`.harness/medals-marketplace.json` for a marketplace). It keeps the date each achievement was unlocked and the medal history. If the measurement has not changed, the file is not rewritten: its date is that of the last change. Write it only if the user asks or if the file already exists. Whether it is committed is their choice: committed, it shows in review and a badge can read it.
+
+## Common pitfalls
+- **Announcing a medal from memory.** It may have changed: a harvest older than 45 days loses a silver achievement.
+- **Presenting the medal as a goal.** `harness target` says where the user wants to stop. Bronze is a place where one can stay.
+- **Confusing the two measurements.** A repository's medal and its marketplace's do not measure the same thing, and can differ.

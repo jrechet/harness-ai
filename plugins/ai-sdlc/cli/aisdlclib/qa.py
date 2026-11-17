@@ -42,7 +42,10 @@ _TEST_CONFIG = re.compile(r"(?:^|/)(?:pytest\.ini|tox\.ini|setup\.cfg|pyproject\
 _CODE_EXT = (".py", ".js", ".jsx", ".mjs", ".ts", ".tsx", ".go", ".java", ".kt", ".rb", ".rs", ".cs", ".php", ".c", ".cpp",
              ".cc", ".h", ".hpp", ".swift", ".scala", ".vue", ".svelte", ".dart")
 _ASSERT = re.compile(r"\bassert\w*\b|\bexpect\(|\bshould\b|\brequire\.\w+\(|\bverify\(")
-_TEST_NAME = re.compile(r"\bdef\s+(test\w*)|\bfunc\s+(Test\w+)|\bfn\s+(test\w*)|\b(?:it|test)\(\s*['\"`]([^'\"`]+)|\bvoid\s+(test\w+)\s*\(")
+# A test is defined at the start of a line. `def test_x` inside a string is test code written as data by another
+# test, not a test of the suite: matching it anywhere made a renamed sample string look like a removed test.
+_TEST_NAME = re.compile(r"^\s*(?:async\s+)?def\s+(test\w*)|^\s*func\s+(Test\w+)|^\s*(?:pub\s+)?(?:async\s+)?fn\s+(test\w*)|"
+                        r"\b(?:it|test)\(\s*['\"`]([^'\"`]+)|^\s*(?:public\s+|private\s+|protected\s+)?void\s+(test\w+)\s*\(")
 _SHELL = {"&&", "||", "|", ";", "&", ">", ">>", "<", "2>&1"}
 _SECRET = re.compile(r"TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIAL|API_?KEY|PRIVATE", re.IGNORECASE)
 _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")

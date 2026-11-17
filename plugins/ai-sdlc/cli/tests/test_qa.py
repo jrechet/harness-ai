@@ -18,6 +18,15 @@ TICKET = "## Need\n" + "word " * 20 + "\n\n## Acceptance criteria\n1. The sum of
 TICKET_FR = "## Besoin\n" + "mot " * 20 + "\n\n## Critères d'acceptation\n1. La somme de 1 et 2 vaut 3.\n2. Une remise s'applique.\n"
 
 
+
+class TestNamesTests(unittest.TestCase):
+    def test_a_test_written_as_data_in_a_string_is_not_a_test_of_the_suite(self):
+        self.assertEqual(qa._names(['        self.write("p/tests/test_x.py", "def test_outil():\\n    assert True\\n")']), set())
+        self.assertEqual(qa._names(["    def test_real(self):", "def test_top():", "    async def test_async(self):",
+                                    "func TestGo(t *testing.T) {", "    fn test_rust() {", "  it('works', () => {",
+                                    "    public void testJava() {"]),
+                         {"test_real", "test_top", "test_async", "TestGo", "test_rust", "works", "testJava"})
+
 class Case(RepoCase):
     def setUp(self):
         super().setUp()

@@ -1,12 +1,12 @@
 # AI SDLC
 
-Préparation d'un framework d'entreprise qui part d'un ticket Jira et accompagne PO, devs, QA, sécurité et SRE jusqu'à la production, sur des dizaines d'équipes. Distinct des skills harness-* : il s'appuie sur ce qu'ils posent et mesurent.
+Preparation of a company framework that starts from a Jira ticket and supports POs, devs, QA, security and SRE all the way to production, across dozens of teams. Separate from the harness-* skills: it builds on what they set up and measure.
 
-| Fichier | Contenu |
+| File | Content |
 |---|---|
-| [proposition.md](proposition.md) | L'idée de départ confrontée aux preuves, et l'approche proposée. À discuter |
-| [Le rapport](reports/Pratiques%20IA%20SDLC%20des%20grandes%20entreprises.md) | État des lieux fin 2026 : labos, entreprises à l'échelle, chaîne ticket → prod, surcharges, mesure, échecs. Chaque chiffre daté, sourcé et qualifié |
-| [Les notes](research_notes/Pratiques%20IA%20SDLC%20des%20grandes%20entreprises/) | Notes sourcées par thème, sur lesquelles le rapport s'appuie |
-| [Le rapport complémentaire](reports/Rapport%20compl%C3%A9mentaire%20AI%20SDLC%20et%20d%C3%A9ploiement.md) | Apporté par le propriétaire : mécanismes gérés de Claude Code, Copilot, OpenAI, DORA 2025, plan de déploiement. Sources surtout secondaires : un chiffre se recoupe avec les notes avant d'être cité |
+| [proposal.md](proposal.md) | The starting idea confronted with the evidence, and the proposed approach. Open for discussion |
+| [The report](reports/AI%20SDLC%20practices%20at%20large%20companies.md) | State of the art at the end of 2026: labs, companies at scale, ticket → production chain, overrides, measurement, failures. Every figure dated, sourced and qualified |
+| [The notes](research_notes/AI%20SDLC%20practices%20at%20large%20companies/) | Sourced notes by theme, on which the report relies |
+| [The complementary report](reports/AI%20SDLC%20complementary%20report%20and%20rollout.md) | Brought by the owner: managed mechanisms of Claude Code, Copilot, OpenAI, DORA 2025, rollout plan. Mostly secondary sources: a figure is cross-checked against the notes before being cited |
 
-Recherche faite le 2026-11-14. L'écosystème change tous les trimestres : un chiffre cité plus de six mois après se revérifie.
+Research done on 2026-11-14. The ecosystem changes every quarter: a figure cited more than six months later is checked again.

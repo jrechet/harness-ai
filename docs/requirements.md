@@ -1,0 +1,44 @@
+# Requirements
+
+What harness-ai must deliver, dictated by the owner on 2026-11-10, and where it stands. The state of each requirement cites its evidence in the repository. Three states, not to be confused: **tooled** (the mechanism exists and is tested), **measured** (a blind run has tested it), **proven** (the measurement shows a gain). Today almost everything is tooled, and nothing that changed on 2026-11-10 is measured.
+
+Goal, unchanged: help someone set up their repository's AI harness, step by step, seeing at each step what has progressed.
+
+| # | Requirement | State | Evidence, and what is missing |
+|---|---|---|---|
+| C1 | Typical sample projects, one per common architecture style, versioned here, on which harness is played | Tooled for five styles | Five sample projects whose code runs, each with its starting state: hexagonal with nothing (`go-hexa`), monorepo with a generated file never reread (`ts-monorepo`), MVC monolith with an aged harness (`django-mvc`), hastily built project with accumulated notes (`vibe-app`), microservices with a healthy harness (`microservices`, held out). Plus three thin audit fixtures. Missing: data pipeline, infrastructure as code |
+| C2 | A dedicated skill that puts harness to the test on these projects, proposes its improvements and applies them | Started, two fixes | Maintainer skill `.claude/skills/harness-stress`, `harness bench` to play, grade and record, register `fixtures/results.jsonl`. One campaign fixed the interview of `harness-init`, measured before and after on `go-hexa`, then on `django-mvc` ([#4](https://github.com/jrechet/harness-ai/pull/4)); a second removed the blocking of `harness-step` on what only time brings |
+| C3 | Harness does not block: one step at a time, you can stop at a level, and what is set up stays consistent | Step 1 measured on four projects, `harness-step` on one | `harness target` and "target reached" in `harness status`; `harness-init` reduced to level 1; `harness-step`, one step per invocation. Step 1, played blind on four projects, reaches level 1 without setting up anything of the next levels. `harness-step`, played on the Go service: target reached respected, level 2 set up in one step, then two real guardrails, the audit and its P1 at level 3, then the process and a task contract at level 4, once the blocking on the review signal and a stop rule that blocked the delegated task were fixed (`runs/2026-11-14-step.md`, `runs/2026-11-14-level4.md`). Not played yet: the harvest, which needs a PR history |
+| C4 | What is set up is good, and **proves** that the agents work better than before | A chain shown on four projects | Thirty-one neutral runs, a single model. What is written in the repository, the agent without instructions finds on its own. What is written nowhere else reaches it only through the instructions: on the five projects, the arms that do not carry it fail seven times out of seven, those that carry it succeed fourteen times out of fourteen. The chain holds end to end on the five sample projects except `ts-monorepo`, never played as a chain: step 1 played blind collects the fact, by asking the owner on `django-mvc`, and the task played with this harness makes no mistake (`runs/*-chain.md`). The fact of `microservices`, discoverable, was replaced on 2026-11-14; a construction check now refuses a fact any piece of which can be read elsewhere. Not shown: a gain on a real repository |
+| C5 | Agents progress: nothing that is set up must hinder the next ones. Harness questions a file or a line, and discusses it with the user | Measured once on two projects | REMOVE verdict and relevance review of `harness-audit`, three reasons, question to the owner for the outdated; date on each rule and `harness rules`. Played blind by `bench audit` on 2026-11-14: on `django-mvc`, 10 of 10, the outdated always asked as a question, never decided; on `microservices`, held out, 2 of 3. An answer key and the grader, which were wrong, were fixed with the owner's agreement (`runs/2026-11-14-audit.md` of each project); and a harness built up to level 4 got in the way: a stop rule too broad blocked the very task it delegated, 5/8. `harness-step` now checks each stop case against the delegated task, and the task makes 8/8 again (`go-hexa/runs/2026-11-14-level4.md`) |
+
+## What each requirement asks
+
+**C1.** A sample project follows `fixtures/README.md`, section "Writing a sample project": the code runs, the facts are in the repository, each fact has its opposite, a typical task has its attempted solution. The projects are written by the model being evaluated on them: they are easier than a real repository. A real repository remains the reference for C4.
+
+**C2.** Three guardrails, because an agent that fixes both the skill and the answer key always raises the grade:
+- it changes the skills, never `expected.json`, `traps.md`, the tasks or the grader;
+- the `holdout` projects are held out of tuning and only serve to measure;
+- the cost of a campaign is announced before it starts. A blind run costs about 130,000 tokens.
+
+**C3.** A level is a place where you can stay. Three consequences: a step only sets up the material of its level; the user declares the level they aim for and `harness status` says "target reached" instead of pushing higher; the state after each step is consistent without the next step.
+
+**C4.** Two proofs, of different kinds:
+- on the sample projects, the same task given to the same agent with and without harness, graded by the project's tests and by the task's temptations. It proves the mechanism, not the gain for the user;
+- on the user's repository, the trend of real signals per agent PR: after-the-fact corrections, red checks, repeated questions. It proves the gain, and takes weeks.
+
+A run is one draw: a gap between two arms cannot be concluded from a single one.
+
+**C5.** The question asked of each line is not "is it true" but "does it still change what the agent does". Three possible answers, not to be confused:
+- **useless**: discoverable in the repository, or what a model does without being told. It costs context;
+- **harmful**: written to work around a limit that has disappeared, or contrary to a guardrail, it degrades the work of a current agent;
+- **outdated**: true yesterday, no longer today. Only the owner knows, hence the question.
+
+The proof of a removal is that of C4, in reverse: the task replayed without the line gives the same result. Replayed at each new model, the bench says which layers of the harness have become dead weight. The skills of harness-ai are subject to the same test.
+
+## What remains to go from tooled to measured
+
+1. **A real interview.** The owner answers the fourth question on espace-client himself; we check that what he says is written nowhere in the repository. It is the only measurement of the interview without author bias. It waits for his answer.
+2. **Play `harness-harvest`**, the last skill never played: it reads PR reviews, so it needs a PR history replayable offline for a sample project. Each on a tuning project, then on the held-out project.
+3. **Replay for variance**: one draw per arm decides nothing from a roll of the dice. Two more draws on the chains of `django-mvc`, `go-hexa` and `microservices`, and the chain of `ts-monorepo`.
+4. **The grader's remaining limits**, by nature: a task check only reads added lines, so a test that calls without asserting anything passes; a file modified then restored is not seen; `status` counts a linter that is configured even if it is not installed; a noise keyword such as "docstring" also hits a legitimate convention.

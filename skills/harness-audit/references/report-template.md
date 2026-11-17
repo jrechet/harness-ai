@@ -1,121 +1,125 @@
-# Format du rapport d'audit
+# Audit report format
 
-Reproduis ces sections dans cet ordre, avec ces titres. Une section sans contenu contient le mot « Aucun ». Le bloc JSON final suit exactement le schéma donné.
+Reproduce these sections in this order, with these titles. A section without content contains the word "None". The final JSON block follows the given schema exactly.
 
 ---
 
-# Audit du harness — <nom du processus>
+# Harness audit — <process name>
 
-**Périmètre** : <repo / dossiers audités> · **Date** : <AAAA-MM-JJ> · **Éléments inventoriés** : <n>
+**Scope**: <repo / folders audited> · **Date**: <YYYY-MM-DD> · **Items inventoried**: <n>
 
-## 1. Synthèse
+## 0. Where this leaves you
 
-- **Score de santé** : <0–100> — <une phrase : l'agent est-il un accélérateur ou un pilier ?>
-- **Résultat du test « coupe l'agent »** : RÉUSSI / ÉCHEC — <n> étape(s) du processus n'existent que dans des prompts.
-- **Points bloquants (P1)** : <n>
-- **Les trois actions qui changent le plus les choses** :
+The output of `harness status --map` after `.harness/audit.json` is written, then one plain sentence: what this audit changes on the map (the level that needed an audit, the urgent items found) and what comes next. No verdict or layer code here without its plain meaning.
+
+## 1. Summary
+
+- **Health score**: <0–100> — <one sentence: is the agent an accelerator or a pillar?>
+- **"Cut the agent" test result**: PASSED / FAILED — <n> process step(s) exist only in prompts.
+- **Blocking issues (P1)**: <n>
+- **The three actions that change things most**:
   1. …
   2. …
   3. …
 
-Le score se calcule ainsi : 100, moins 25 par P1, moins 8 par P2, moins 2 par P3, borné à 0. Le test « coupe l'agent » en échec plafonne le score à 60. Les lignes à retirer n'entrent pas une à une dans le score : c'est le verdict du fichier qui les porte qui compte.
+The score is computed as: 100, minus 25 per P1, minus 8 per P2, minus 2 per P3, floored at 0. A failed "cut the agent" test caps the score at 60. Lines to remove do not count one by one in the score: the verdict of the file carrying them is what counts.
 
-## 2. Carte du harness
+## 2. Map of the harness
 
-Tableau de tous les éléments inventoriés :
+Table of all inventoried items:
 
-| # | Élément | Chemin | Couche déclarée | Couche réelle | Appelé par | Appelle |
+| # | Item | Path | Declared layer | Actual layer | Called by | Calls |
 |---|---|---|---|---|---|---|
 
-Puis le processus nominal, étape par étape, avec la couche qui porte chaque étape :
+Then the nominal process, step by step, with the layer carrying each step:
 
-| Étape du processus | Portée par | Vérifiée par du code ? | Dry-run ? |
+| Process step | Carried by | Checked by code? | Dry-run? |
 |---|---|---|---|
 
-## 3. Fuites : règles et étapes racontées sans vérification
+## 3. Leaks: rules and steps told without enforcement
 
-Étapes de processus ou règles obligatoires qui ne vivent que dans un prompt, un SKILL.md ou un AGENTS.md, sans garde-fou en code ni en pipeline. Pour chacune : la règle ou l'étape, où elle est racontée (chemin:ligne), ce qui se passe si l'agent la saute, où elle devrait vivre et avec quel outil (sous-commande CLI, règle eslint, test ArchUnit, PR gate…).
+Process steps or mandatory rules that live only in a prompt, a SKILL.md or an AGENTS.md, with no guardrail in code or pipeline. For each: the rule or step, where it is told (path:line), what happens if the agent skips it, where it should live and with which tool (CLI subcommand, eslint rule, ArchUnit test, PR gate…).
 
-Mentionne aussi, en une ligne chacune, les règles qui **ont** leur garde-fou : c'est la partie saine du harness et elle guide ce qui peut être raccourci dans les fichiers d'instructions.
+Also mention, in one line each, the rules that **do** have their guardrail: that is the healthy part of the harness and it guides what can be shortened in the instruction files.
 
-## 3b. Coût de contexte (si des fichiers d'instructions sont dans le périmètre)
+## 3b. Context cost (if instruction files are in scope)
 
-| Fichier | Lignes chargées (avec includes) | Part instruction / référence / bruit | Chargé quand |
+| File | Lines loaded (with includes) | Share instruction / reference / noise | Loaded when |
 |---|---|---|---|
 
-Suivi d'une phrase sur la justification des règles (pourquoi + incidents cités ?) et sur la présence d'une clause de maintenance.
+Followed by one sentence on the justification of the rules (why + incidents cited?) and on the presence of a maintenance clause.
 
-## 3c. Lignes à retirer (si des fichiers d'instructions sont dans le périmètre)
+## 3c. Lines to remove (if instruction files are in scope)
 
-Résultat de la revue de pertinence. Les lignes nuisibles d'abord, puis les inutiles, regroupées par bloc homogène, puis les périmées, qui sont des questions.
+Result of the relevance review. Harmful lines first, then useless ones, grouped by homogeneous block, then outdated ones, which are questions.
 
-| Fichier:ligne | Texte | Motif | Preuve | Question au propriétaire ? |
+| File:line | Text | Reason | Proof | Question to the owner? |
 |---|---|---|---|---|
 
-Puis **Questions au propriétaire**, numérotées, une par ligne, avec le défaut proposé. Puis une phrase sur ce qui reste : combien de lignes avant, combien après, lesquelles sont à garder absolument.
+Then **Questions to the owner**, numbered, one per line, each with why it is asked and the proposed default. Then one sentence on what remains: how many lines before, how many after, which must absolutely be kept.
 
-## 4. Constats par élément
+## 4. Findings by item
 
-Un bloc par élément, dans l'ordre P1 → P2 → P3 puis KEEP en fin :
+One block per item, in the order P1 → P2 → P3 then KEEP at the end:
 
-### [<VERDICT>] [<P1|P2|P3|—>] <élément> — <chemin>
-- **Fait aujourd'hui** : …
-- **Problème** : … (preuve : chemin:ligne)
-- **Doit devenir** : …
-- **Critère de vérification** : …
+### [<VERDICT>] [<P1|P2|P3|—>] <item> — <path>
+- **Does today**: …
+- **Problem**: … (proof: path:line)
+- **Must become**: …
+- **Check criterion**: …
 
-Les éléments KEEP ont une ligne : `### [KEEP] <élément> — <chemin>` suivie d'une phrase.
+KEEP items have one line: `### [KEEP] <item> — <path>` followed by one sentence.
 
-## 5. Plan de remédiation
+## 5. Remediation plan
 
-Ordonné par priorité puis par dépendance.
+Ordered by priority then by dependency.
 
-| Ordre | Priorité | Verdict | Élément | Action | Dépend de | Vérification | Approbation humaine requise |
+| Order | Priority | Verdict | Item | Action | Depends on | Check | Human approval required |
 |---|---|---|---|---|---|---|---|
 
-## 6. Ce que l'audit n'a pas pu vérifier
+## 6. What the audit could not check
 
-Fichiers manquants, workflows non lisibles, tests non exécutables, hypothèses faites. Vide = « Aucun ».
+Missing files, unreadable workflows, tests that could not run, assumptions made. Empty = "None".
 
-## 7. Données machine
+## 7. Machine data
 
 ```json
 {
   "audit": {
-    "process": "<nom>",
-    "scope": "<repo/dossiers>",
-    "date": "<AAAA-MM-JJ>",
+    "process": "<name>",
+    "scope": "<repo/folders>",
+    "date": "<YYYY-MM-DD>",
     "health_score": 0,
     "cut_the_agent_test": { "passed": false, "leaked_steps": 0 }
   },
   "elements": [
     {
       "id": "<slug>",
-      "path": "<chemin>",
+      "path": "<path>",
       "declared_layer": "L1|L2|L3|L4",
       "actual_layer": "L1|L2|L3|L4|MIXED",
       "called_by": ["<id>"],
       "calls": ["<id>"],
       "verdict": "KEEP|INLINE|PUSH_DOWN|PROMOTE|MERGE|SPLIT|BLOCK|REMOVE",
       "priority": "P1|P2|P3|null",
-      "finding": "<une phrase>",
-      "evidence": ["<chemin:ligne>"],
-      "target": "<une phrase>",
-      "check": "<une phrase>"
+      "finding": "<one sentence>",
+      "evidence": ["<path:line>"],
+      "target": "<one sentence>",
+      "check": "<one sentence>"
     }
   ],
   "process_leaks": [
-    { "rule": "<règle ou étape>", "told_in": "<chemin:ligne>", "if_skipped": "<conséquence>", "belongs_in": "L3|L4", "guard_tool": "<outil cible>" }
+    { "rule": "<rule or step>", "told_in": "<path:line>", "if_skipped": "<consequence>", "belongs_in": "L3|L4", "guard_tool": "<target tool>" }
   ],
   "guarded_rules": [
-    { "rule": "<règle>", "told_in": "<chemin:ligne>", "guarded_by": "<chemin du linter/test/gate>" }
+    { "rule": "<rule>", "told_in": "<path:line>", "guarded_by": "<path of the linter/test/gate>" }
   ],
   "removals": [
-    { "path": "<fichier>", "line": 0, "text": "<la ligne citée, abrégée si longue>", "reason": "useless|harmful|outdated", "evidence": "<où c'est découvrable, ce qui la contredit, ce qui la date>", "ask_owner": false }
+    { "path": "<file>", "line": 0, "text": "<the quoted line, shortened if long>", "reason": "useless|harmful|outdated", "evidence": "<where it is discoverable, what contradicts it, what dates it>", "ask_owner": false }
   ],
-  "owner_questions": ["<question, avec le défaut proposé>"],
+  "owner_questions": ["<question, with the proposed default>"],
   "instruction_files": [
-    { "path": "<chemin>", "loaded_lines": 0, "instruction_pct": 0, "reference_pct": 0, "noise_pct": 0, "justified_rules": true, "maintenance_clause": true }
+    { "path": "<path>", "loaded_lines": 0, "instruction_pct": 0, "reference_pct": 0, "noise_pct": 0, "justified_rules": true, "maintenance_clause": true }
   ],
   "remediation": [
     {
@@ -123,12 +127,12 @@ Fichiers manquants, workflows non lisibles, tests non exécutables, hypothèses 
       "priority": "P1",
       "verdict": "PUSH_DOWN",
       "element": "<id>",
-      "action": "<une phrase>",
+      "action": "<one sentence>",
       "depends_on": [],
-      "check": "<une phrase>",
+      "check": "<one sentence>",
       "needs_human_approval": true
     }
   ],
-  "unverified": ["<texte>"]
+  "unverified": ["<text>"]
 }
 ```

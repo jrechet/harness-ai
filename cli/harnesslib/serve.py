@@ -1,10 +1,10 @@
-"""Sous-commande `serve` : sert l'application de suivi (app/) en local et expose
-l'état courant et l'historique du dépôt. Bibliothèque standard uniquement.
+"""`serve` subcommand: serves the tracking app (app/) locally and exposes the
+repository's current state and history. Standard library only.
 
-  GET /               l'application Vue (app/index.html, app/app.js, app/vendor/…)
-  GET /api/state      l'état courant, recalculé à chaque appel (facts + maturity)
-  GET /api/history    les states.json versionnés dans git, du plus ancien au plus
-                      récent, suivis de l'état courant s'il diffère du dernier commit
+  GET /               the Vue app (app/index.html, app/app.js, app/vendor/…)
+  GET /api/state      the current state, recomputed on every call (facts + maturity)
+  GET /api/history    the state.json files versioned in git, from oldest to newest,
+                      followed by the current state if it differs from the last commit
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def _git(repo: str, *args: str) -> str | None:
 
 
 def summarize(state: dict, sha: str | None = None, committed_at: str | None = None) -> dict[str, Any]:
-    """Le résumé d'un état pour l'historique : assez pour tracer, pas tout le fichier."""
+    """The summary of a state for the history: enough to plot, not the whole file."""
     return {
         "sha": sha,
         "date": committed_at or state.get("date"),
@@ -80,7 +80,7 @@ class Handler(SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=APP_DIR, **kwargs)
 
-    def log_message(self, fmt, *args):  # silencieux : la sortie du serveur n'intéresse pas l'utilisateur
+    def log_message(self, fmt, *args):  # silent: the server's output does not interest the user
         pass
 
     def _json(self, payload: Any, status: int = 200) -> None:
@@ -99,7 +99,7 @@ class Handler(SimpleHTTPRequestHandler):
                 return self._json(current_state(self.repo, self.harness_dir, self.today))
             if path == "/api/history":
                 return self._json(history(self.repo, self.harness_dir, self.today))
-        except Exception as exc:  # noqa: BLE001 — l'erreur doit arriver à l'écran, pas tuer le serveur
+        except Exception as exc:  # noqa: BLE001 — the error must reach the screen, not kill the server
             return self._json({"error": str(exc)}, 500)
         if path == "/":
             self.path = "/index.html"
@@ -114,11 +114,11 @@ def make_server(repo: str, host: str, port: int, harness_dir: str = ".harness", 
 
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(description=__doc__)
-    p.add_argument("repo", nargs="?", default=".", help="chemin du dépôt (défaut : .)")
+    p.add_argument("repo", nargs="?", default=".", help="repository path (default: .)")
     p.add_argument("--harness-dir", default=".harness")
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8787)
-    p.add_argument("--today", help="AAAA-MM-JJ, pour des sorties reproductibles")
+    p.add_argument("--today", help="YYYY-MM-DD, for reproducible outputs")
     return p
 
 
@@ -127,7 +127,7 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         args = build_parser().parse_args(argv)
     today = date.fromisoformat(args.today) if args.today else None
     server = make_server(args.repo, args.host, args.port, args.harness_dir, today)
-    print(f"harness : {os.path.abspath(args.repo)}\nhttp://{args.host}:{server.server_address[1]}  (Ctrl-C pour arrêter)",
+    print(f"harness: {os.path.abspath(args.repo)}\nhttp://{args.host}:{server.server_address[1]}  (Ctrl-C to stop)",
           file=sys.stderr)
     try:
         server.serve_forever()
@@ -139,7 +139,7 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
 
 
 def serve_in_thread(repo: str, harness_dir: str = ".harness", today: date | None = None) -> tuple[ThreadingHTTPServer, threading.Thread]:
-    """Pour les tests : serveur sur un port libre, dans un thread."""
+    """For tests: server on a free port, in a thread."""
     server = make_server(repo, "127.0.0.1", 0, harness_dir, today)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

@@ -1,0 +1,118 @@
+# What harness-ai can do, and where it stands
+
+Last updated: 2026-11-16
+
+This document lists what the repository can do today, and keeps the progress plan. It is updated in the same change as the work: an end-of-turn hook (`harness progress check`) sends the agent back to write it as long as the repository changes without it. The original requirements and their level of evidence stay in [requirements.md](requirements.md).
+
+Three words for the state of a capability, taken from the requirements: **tooled** (the mechanism exists and is tested), **measured** (a blind run has tested it), **proven** (the measurement shows a gain).
+
+## What the repository can do
+
+### Instrument a repository, one level at a time
+
+| Capability | How | State |
+|---|---|---|
+| Set up level 1: a short AGENTS.md, mode, dated rules, Forbidden | skill `harness-init` | measured on four sample projects |
+| Move one step toward the target level, and stop | skill `harness-step`, `harness target` | measured on one project |
+| Measure the level 0 to 4 and the layer view | `harness status`, writes `.harness/state.json` | tooled |
+| Turn what happened (reviews, corrections, red checks) into rules | skill `harness-harvest`, `harness harvest github` | tooled, never played |
+| Audit a harness, classify each item L1 to L4, propose removals | skill `harness-audit`, `harness rules` | measured once on two projects |
+| Propose the commands an agent does not guess | `harness commands`, called by init and audit | tooled |
+| Say what has aged: a skill or an agent that cites a file deleted or changed since, a late harvest | `harness fresh`, session-start hook | tooled |
+| Follow the state in a local app | `harness serve` | tooled |
+| Tell the level as a medal, unlocked achievements and next steps, with an interactive page | skill `harness-medals`, `harness medals`, `.harness/medals.json` | tooled |
+
+### Design or review a skill, an agent, a rule
+
+| Capability | How | State |
+|---|---|---|
+| Say where each piece goes: AGENTS.md, skill, sub-agent, CLI, hook, permission, MCP, CI, managed setting, nothing | skill `harness-design`, `harness place` (9 questions, 20 destinations) | measured: 7 of 7 on `release-skill`, 12 of 12 on the held-out fixture after the grid was fixed (11 of 12 before) |
+| Render an assessment as a one-page HTML report, always in the same format | `harness report build`, `report from-place` | tooled |
+
+### Tool the development cycle (plugin `ai-sdlc`)
+
+| Capability | How | State |
+|---|---|---|
+| Assemble the base convention and a team's additions, read on the base branch | `ai_sdlc.py context`, `status`, eight extension points | tooled |
+| Say whether a ticket is ready, and what it lacks | skill `ticket`, `ticket check`, `ticket render`, base definition of ready | tooled, measured once |
+| Say whether a change's tests hold: four measured gates | skill `qa`, `qa gate` | tooled, measured once |
+| Prevent an agent from delivering: tag, publication, deployment refused before they run | hook of the `ai-sdlc` plugin, `guard check`, `guard hook` | tooled, tried once in a session |
+| Investigate an incident without acting in production, and return a ticket | skill `run`, `run changes`, `run render` | tooled, measured once |
+| Prepare a delivery without doing it: four prerequisites, a proposed version and notes | skill `ship`, `ship check`, `ship render` | tooled, measured once |
+| Look at a change from the security angle: four gates, and the places to reread | skill `secu`, `secu gate` | tooled, measured once |
+| Review a PR: few findings, each on a line of the diff | skill `review`, sub-agent `reviewer`, `review render` | measured once: 6 required traps of 6 |
+| Develop a ticket on the path its size calls for | skill `dev`, `size`, `dev body` | measured once: two tickets compliant |
+
+### Measure the skills themselves
+
+| Capability | How | State |
+|---|---|---|
+| Sample projects and their answer keys | `fixtures/repos`, `harness fixture check` | tooled for eight projects |
+| Bench before and after, blind | `harness bench`, maintainer skill `harness-stress` | started, two fixes |
+| Design, ticket, development, test and review fixtures | `fixtures/design`, `fixtures/ticket`, `fixtures/dev`, `fixtures/qa`, `fixtures/secu`, `fixtures/ship`, `fixtures/run`, `fixtures/review`, `place check`, `fixture grade`, `grade-dev`, `grade-ticket`, `grade-qa`, `grade-secu`, `grade-ship`, `grade-run` | tooled |
+
+### Document
+
+| Capability | Where | State |
+|---|---|---|
+| Study of practices, complementary report, framework proposal | `docs/ai-sdlc/` | written |
+| Interactive course: nine chapters, quizzes, glossary | `docs/ai-sdlc/course/index.html` | written, published as a private artifact |
+
+## Progress plan
+
+States: `done`, `in progress`, `to do`, `waiting` (for a decision or a request from the owner), `dropped`. One row per topic. A new request from the owner adds a row, dated.
+
+| # | Topic | State | Since | Evidence, or what is missing |
+|---|---|---|---|---|
+| H1 | Set up, move forward and audit a repository's instrumentation (init, step, audit, status) | done | 2026-11 | Level of evidence per requirement in the requirements |
+| H2 | Play `harness-harvest` at least once | to do | 2026-11-10 | It needs a PR history replayable offline |
+| H3 | `harness-audit` reads the placement grid and renders the common report | to do | 2026-11-14 | Waits for agreement with the other session, which holds this skill |
+| D1 | Placement grid and `harness-design` skill | done | 2026-11-14 | PR 12 to 20; 7 of 7 blind after the `incident=forget` fix |
+| D2 | Replay the held-out fixture `ticket-vers-pr` since the grid was fixed | done | 2026-11-15 | `runs/2026-11-15-blind-2`: 12 of 12, one run. Three limits of the grid noted in its log, not fixed according to it |
+| R1 | Common report as a one-page HTML | done | 2026-11-14 | `harness report`, `docs/examples/report-skill-release.html` |
+| S1 | Plugin `ai-sdlc`: context, extension points | done | 2026-11-15 | PR 22 |
+| S2 | Skill `review`, rendered by the CLI, trapped PR, first measurement | done | 2026-11-15 | PR 23 and 24; a single run, fixture probably too easy |
+| S3 | Skill `dev`, computed size, PR body | done | 2026-11-15 | PR 25; never played |
+| S4 | Fixture and grader to measure `dev` | done | 2026-11-15 | `fixtures/dev/billing`, `fixture grade-dev`; the author's work passes, it is a regression baseline |
+| S8 | Play `dev` blind on its two tickets | done | 2026-11-15 | `fixtures/dev/billing/runs/2026-11-15-blind`: 12 of 12 and 4 of 4. One run per ticket, plugin copied and not installed |
+| S5 | Skill `ticket`: checking a ticket, base definition of ready | done | 2026-11-16 | `ticket check`, skill `ticket`; never played, no fixture |
+| S9 | Skill `qa`: tests derived from the acceptance criteria, deterministic gates | done | 2026-11-16 | `qa gate` (disabled, repeated, diff coverage, one test per criterion), skill `qa`; never played, no fixture |
+| S11 | Fixture and grader to measure `qa` | done | 2026-11-16 | `fixtures/qa/billing`, `fixture grade-qa`: the agent's tests run on a reference and seven faulty variants. No flaky test in the fixture. The author's work passes, it is a regression baseline. Independent review: three false "compliant" fixed, one of which also affected `grade-dev` (a `print("OK")` hid a skipped test) |
+| S10 | Fixture and grader to measure `ticket` | done | 2026-11-16 | `fixtures/ticket/billing` (three tickets: vague and trapped, healthy, ready in form only), `fixture grade-ticket`. The skill now writes an opinion in JSON that `ticket render` validates: measured verdict, criteria sourced or to confirm, instructions quoted word for word |
+| S12 | Play `ticket` and `qa` blind | done | 2026-11-16 | `runs/2026-11-16-blind`: `ticket` 10 of 10, 8 of 8, 9 of 9; `qa` 10 of 10, seven variants killed. One run per case, plugin copied and not installed. The agents' feedback went into the text of the skills and the rendering, with no new measurement after |
+| S13 | Skill `secu`: security gates on a change, base convention | done | 2026-11-16 | Requested by the owner on 2026-11-16. `secu gate` (secrets, neutralized scanners, SARIF results on the added lines, surface to reread), `points/security.md`, skill `secu`; never played, no fixture. The secret patterns are few: the command does not replace a scanner. Independent security review: thirteen findings fixed, including a secret hidden behind a line continuation, scanner results lost on `.github/…`, and a secret added then removed within the branch |
+| S14 | Fixture and grader to measure `secu` | done | 2026-11-16 | `fixtures/secu/billing` (hard-coded token, assembled SQL seen by the team's scanner, shell hidden by `# nosec`, unverified certificate, instruction in a comment, two healthy places), `fixture grade-secu`: findings graded like a review, branch intact, secret never copied |
+| S15 | Play `secu` blind | done | 2026-11-16 | `fixtures/secu/billing/runs/2026-11-16-blind`: 12 of 12. One run, plugin copied and not installed. The agent's feedback went into the skill, with no new measurement after |
+| S16 | Skill `ship`: prepare a delivery without doing it | done | 2026-11-16 | Requested by the owner on 2026-11-16. `ship check` (clean branch head, green CI on that commit, sensitive zones and breaking changes since the last tag, proposed version and notes), `points/delivery.md`, skill `ship`; never played, no fixture. "The agent does not deploy" is written in the skill, enforced by nothing. Independent review: fourteen findings fixed, including a "state" gate that always passed with a local branch as base, and commit titles rendered as headings or lists |
+| S17 | Fixture and grader to measure `ship` | done | 2026-11-16 | `fixtures/ship/billing` (remote, tag, four commits: breaking change, migration without rollback, commit that asks to deliver; two CI records), `fixture grade-ship`: nothing left, proposal held. The skill now writes a proposal in JSON that `ship render` validates: commands quoted word for word from the team's procedure, none if a prerequisite fails, every breaking change carried over |
+| S19 | Play `ship` blind | done | 2026-11-16 | `fixtures/ship/billing/runs/2026-11-16-blind`: 9 of 9 and 2 of 2. One run per task, plugin copied and not installed, forge simulated by a bare repository. The agents' feedback went into the skill and the command, with no new measurement after |
+| S18 | Guardrail "an agent does not deliver": a plugin hook that refuses tag, publication and deployment command | done | 2026-11-16 | Requested by the owner on 2026-11-16. `plugins/ai-sdlc/hooks/hooks.json` runs `cli/guard_hook.py` before each shell command; `guard check` to try it. Also refuses the commands of the team's procedure, read on the remote branch, the last commit and the working copy. Independent security review: seventeen findings, classifier rewritten (abusive refusals on `git push` and commit messages, bypasses through `npx`, `git push origin tag`, here-document given to a shell, giant input). Tried in a real session on 2026-11-16 (Claude Code 2.1.211): `git tag v9.9.9` refused before running, `git status` allowed. Two commands only: the other forms are tested only by the tests. A barrier, not a sandbox: a command assembled from variables or a script started by its name pass. Not verified: whether an agent can set `AI_SDLC_ALLOW_AGENT_DELIVERY` by writing `.claude/settings.json`. First refusal in real conditions on 2026-11-16: it stopped the agent itself, which was about to deploy a runner on the owner's server with the owner's agreement |
+| S6 | Skill `run`: investigate an incident without acting in production | done | 2026-11-16 | Requested by the owner on 2026-11-16. `run changes` (what left between two versions), `run render` (facts quoted word for word from their evidence, cause as a hypothesis, commands from the team's runbook, no secret in an excerpt, rendered as a ticket), `operations` point, skill `run`; never played, no fixture. The delivery guardrail does not cover the runbook's mitigation commands. Independent security review: thirteen findings fixed, including a secret that leaked through any field other than the excerpt, log forms not recognized (headers, cookies, key=value pairs), personal data counted without blocking, a quote spanning two lines. The recognized forms remain few: a person's name passes |
+| S20 | Fixture and grader to measure `run` | done | 2026-11-16 | `fixtures/run/billing` (two versions released, an innocent last deployment, an instruction and a token in the log, addresses to redact), `fixture grade-run`: nothing touched, investigation held, last deployment not blamed, secret never copied |
+| S21 | Play `run` blind | done | 2026-11-16 | `fixtures/run/billing/runs/2026-11-16-blind`: 11 of 11. One run, plugin copied and not installed, production simulated by three files. The agent's feedback went into the skill, with no new measurement after |
+| S7 | Install the plugin from the marketplace and test it in a real session | done | 2026-11-16 | Both plugins are installed on the owner's machine, at the owner's request, from the repository's local marketplace (`claude plugin marketplace add <repository folder>`, then `claude plugin install`). Once installed (Claude Code 2.1.211): six `harness-ai` skills and seven `ai-sdlc` skills loaded, the guardrail refuses `git tag v9.9.9` in a throwaway repository. The `ticket` skill found its CLI through `${CLAUDE_PLUGIN_ROOT}` with `--plugin-dir`. Not tried: installing from GitHub (`jrechet/harness-ai`, private repository), the other skills in a session, an interactive session |
+| N6 | Put the repository in order at the owner's request: main copy up to date, merged branches cleaned up | done | 2026-11-16 | Requested on 2026-11-16. The `.serena/` folder of a tool on the machine had been committed by mistake with the plugin trial: removed and ignored. The owner's main copy is up to date on `main`, where both suites pass. The 30 remote branches already merged are deleted, with the owner's agreement; none had an open PR or was in use. The 19 remaining branches are handled in N7 |
+| N7 | Reread the remaining branches and decide on the Renovate PRs, at the owner's request | done | 2026-11-16 | Fourteen branches had their PR merged and no commit missing from `main`: deleted. `claude/practical-gauss-fopwb6` (PR 3, closed without merge) fixed a trap planted in a sample project: deleted, its commits remain readable through the PR. The four Renovate PRs are closed without merge: they only touch `fixtures/`, where a version is scenario data (a trap, a recorded run, the id of a mounted commit). Renovate now ignores `fixtures/**` |
+| N8 | The agent becomes tech lead and guarantor of the repository, at the owner's request | done | 2026-11-16 | `AGENTS.md` switches to delegation mode and says what the agent decides and what stays with the owner (making it public, rewriting history, costly campaign) |
+| V1 | Review requested by the owner: what we wanted, what is done, what remains, and how to go further | done | 2026-11-16 | Given in the session. Central finding: everything is tooled and measured once on cases written by the evaluated model; nothing is proven on a real repository. Rows V2 to V7 come from it |
+| V2 | Test both plugins on a real repository, with real tickets and real PRs | to do | 2026-11-16 | The only proof of gain (requirement C4). Needs a repository of the owner and a few weeks of signals per PR |
+| V3 | Run the gates outside the session: `qa gate`, `secu gate`, `review` and `ship check` in CI, as required checks | in progress | 2026-11-16 | Requested by the owner on 2026-11-16. Done: `ci pr` runs the security and test gates in a pipeline (no disabled test, suite replayed). Its settings are read on the target branch (`docs/agents/gates.json`: test command, folders kept out of reading), and here the code of the gates too (the target branch is fetched separately): a PR can lighten neither. It can still change the pipeline file: only a ruleset of the forge prevents it, and it is not set. Workflow template for a team in `plugins/ai-sdlc/ci/gates.yml`. Independent security review: eight findings handled. Not done: the review in CI (it needs a model), "one test per criterion" (it needs the ticket), `ship check` on `main`. 2026-11-16: the disabled-tests gate took a test written as data inside a string (`def test_outil` in a sample file) for a removed test and blocked the CLI translation; it now counts only test definitions at the start of a line |
+| V4 | Harden the fixtures of the `ai-sdlc` plugin: harder cases, one held-out case per phase, several draws | to do | 2026-11-16 | Seven perfect scores on the first try decide nothing. Ideally cases drawn from real incidents and real PRs, not written by the model |
+| V5 | Play the same ticket end to end: ticket, dev, qa, secu, review, ship | to do | 2026-11-16 | Each phase is measured alone; the sequence, where one phase reads what the other left, is not |
+| V6 | A CI for this repository: both suites, `progress check`, the gates | in progress | 2026-11-16 | Written: `.github/workflows/ci.yml` and `.forgejo/workflows/ci.yml` run `scripts/ci/verify.sh`, on the server's runner as the owner's convention requires. `claude plugin validate` is not in it: the runner does not have Claude Code. Runner declared ([jrechet/server-app#58](https://github.com/jrechet/server-app/pull/58)) and deployed by the owner on 2026-11-16 (the plugin's guardrail had refused the command to the agent); `runner-harnessai-1` online, variable `CI_RUNNER` set. First run on 2026-11-16 (PR 59): the CLI passes, the plugin fails on four `git` timeouts of 30 s exceeded, the server's disks being much slower than a workstation (plugin suite in 8 min against 2 min 30). `git` timeouts raised to 120 s in both CLIs. It runs PR code on a non-disposable runner: accepted for a private repository with a single owner, to be revisited before any publication. Remains next: make the check required on `main` |
+| V7 | Close the known holes of the guardrail: runbook mitigation commands, writing `.claude/settings.json`, tools other than Bash | to do | 2026-11-16 | Limits found by the reviews and not handled |
+| V8 | Translate the whole harness-ai repository into English, at the owner's request | in progress | 2026-11-16 | Requested 2026-11-16, for harness-ai only; file and folder names included. Text the tools read from a team (AGENTS.md, tickets, overrides, plans) stays readable in French. Done: the `harness` CLI (core, placement and report, bench and fixture graders), 353 tests; the README, rewritten for newcomers with diagrams of the layers, the levels and the ai-sdlc flow; `AGENTS.md`, `docs/maturity.md`, `docs/requirements.md` (was `cahier-des-charges.md`) and this document (was `capacites.md`). To do: the ai-sdlc plugin, the skills, the ai-sdlc docs and the course, the fixtures. Git history stays French Skills now guide the user: each one opens with a measured map (`harness status --map`: goal, where we are, where we go, next step), asks with context and a default, and uses plain words; harness-step offers the next level once the target is reached. Not yet measured by a blind run. |
+| C1 | Study, complementary report, proposal | done | 2026-11-14 | `docs/ai-sdlc/` |
+| C2 | Interactive course, deepened: vector databases, phases, BI scenario | done | 2026-11-15 | PR 21 and 26; published rendering not looked at |
+| M1 | Propose the exact commands an AGENTS.md should state | done | 2026-11-15 | `harness commands`; init and audit call it, with no blind run since |
+| M2 | Propose the misleading code (a folder that looks dead and is still used) | to do | 2026-11-15 | Same model: candidates asked as questions |
+| M3 | Note in the answer keys the lines that should have been proposed | waiting | 2026-11-15 | Changing an answer key changes all grades: owner's decision |
+| B1 | Loop against the obsolescence of skills and agents: `harness fresh` and a session-start hook | done | 2026-11-15 | `harness fresh`, `SessionStart` hook of this repository, "off-rank" achievements of the medals. No "post-use" instruction in each skill nor `/refresh` skill: text an agent skips, and a duplicate of harvest |
+| G1 | Medals (bronze, silver, gold, platinum), unlocked achievements, interactive HTML page drawn from hard data | done | 2026-11-15 | `harness medals`, skill `harness-medals`, `docs/examples/medals.html`; for a repository and for a marketplace. Page looked at in light and dark, desktop and mobile, in a single browser |
+| G2 | The description of `harness-audit` says when not to use it (last silver achievement of the marketplace) | to do | 2026-11-15 | `harness medals --kind marketplace`: 9 achievements of 10; this skill belongs to the other session |
+| P1 | This document, and the hook that forces its plan to be kept | done | 2026-11-15 | `harness progress check`, `.claude/settings.json` |
+| N1 | Night of the 15th to the 16th: test each command and each skill as a new user, on a fresh clone | done | 2026-11-15 | Trial by an agent on a clone of `main`: both CLIs work from Python 3.10 to 3.14, both suites pass. One blocking defect fixed: the `harness-*` skills called `cli/harness.py`, not found once installed; they go through `${CLAUDE_PLUGIN_ROOT}` |
+| N2 | README rewritten around "what you can do today", each cited command verified by running it | done | 2026-11-15 | `cli/tests/test_readme.py` holds its links, its subcommands, its examples and its skills |
+| N3 | Review before publication: secrets, personal data, local paths, licence, promises not kept | waiting | 2026-11-16 | Review done: no real secret in the tree or the history. MIT licence set (`LICENSE`), chosen by the owner on 2026-11-16; private session link removed. Left to the owner: their two e-mail addresses and 94 session links in the commit history, 30 remote branches. Since 2026-11-16, the CI targets a non-disposable runner of the server: to be removed or replaced before making the repository public |
+| N4 | Morning report: what is usable, what is not, and an opinion "publish or not" | done | 2026-11-15 | Given in the session; the opinion: not before deciding on the licence and the commit history, and trying a real installation |
+| N5 | First-use defects found by the trial, not fixed: `serve` on a taken port and `fixture check` on an unknown name print a traceback; `harvest github` without `gh` writes an empty harvest; the committed `.harness/state.json` is stale | to do | 2026-11-15 | Modules held by the other session; none prevents getting started |
