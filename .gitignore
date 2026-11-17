@@ -3,7 +3,7 @@
 __pycache__/
 *.pyc
 
-# dossier de travail de l'outil Serena : propre à chaque poste
+# working folder of the Serena tool: specific to each workstation
 .serena/
 
 # the target branch fetched by CI to run the gates with its code

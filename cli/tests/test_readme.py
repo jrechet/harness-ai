@@ -1,5 +1,5 @@
-"""Le README ne promet que ce qui tourne : ses liens mènent quelque part, ses exemples passent dans les
-commandes qu'il cite, et chaque sous-commande qu'il nomme existe."""
+"""The README promises only what runs: its links lead somewhere, its examples pass in the
+commands it cites, and every subcommand it names exists."""
 from __future__ import annotations
 
 import contextlib
@@ -54,14 +54,14 @@ class ReadmeTests(unittest.TestCase):
 
     def test_every_skill_it_names_is_shipped_and_finds_its_cli_once_installed(self):
         for name in re.findall(r"^\| [^|]+ \| `([a-z-]+)`", readme(), re.MULTILINE):
-            in_sdlc = os.path.isdir(os.path.join(ROOT, "plugins/ai-sdlc/skills", name))   # un skill est dans un plugin ou l'autre
+            in_sdlc = os.path.isdir(os.path.join(ROOT, "plugins/ai-sdlc/skills", name))   # a skill lives in one plugin or the other
             folder = "plugins/ai-sdlc/skills" if in_sdlc else "skills"
             path = os.path.join(ROOT, folder, name, "SKILL.md")
             with self.subTest(name=name):
                 self.assertTrue(os.path.isfile(path), path)
                 with open(path, encoding="utf-8") as fh:
                     text = fh.read()
-                self.assertNotRegex(text, r"python3 cli/", "le skill doit appeler ${CLAUDE_PLUGIN_ROOT}/cli/…")
+                self.assertNotRegex(text, r"python3 cli/", "the skill must call ${CLAUDE_PLUGIN_ROOT}/cli/…")
 
 
 if __name__ == "__main__":

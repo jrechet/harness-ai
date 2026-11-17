@@ -4,7 +4,7 @@
     "name": "jrechet"
   },
   "metadata": {
-    "description": "Skills pour poser, auditer et faire évoluer l'instrumentation IA d'un dépôt, et pour outiller le cycle de développement d'une équipe."
+    "description": "Skills to set up, audit and evolve a repository's AI instrumentation, and to tool a team's development cycle."
   },
   "plugins": [
     {
