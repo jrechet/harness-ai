@@ -1,5 +1,5 @@
 {
-  "intro": "Je représente l'équipe qui maintient ce dépôt. Je réponds à vos questions, une par une ; je ne pense pas à tout de moi-même.",
+  "intro": "I represent the team that maintains this repository. I answer your questions, one by one; I do not think of everything on my own.",
   "answers": [
     {
       "id": "mode",
@@ -12,21 +12,32 @@
         "relisez",
         "relecture",
         "pilot*",
-        "autonom*"
+        "autonom*",
+        "delegat*",
+        "review every diff",
+        "reviews every diff",
+        "review each diff",
+        "reviews each diff",
+        "drives"
       ],
-      "answer": "Délégation. On veut confier des tickets entiers et relire la PR à la fin."
+      "answer": "Delegation. We want to hand over whole tickets and review the PR at the end."
     },
     {
-      "id": "equipe",
+      "id": "team",
       "any_of": [
         "équipe",
         "combien",
         "développeu*",
         "qa",
         "qui travaille",
-        "qui intervient"
+        "qui intervient",
+        "team",
+        "how many",
+        "developer*",
+        "who works",
+        "who is involved"
       ],
-      "answer": "Quatre développeurs, et une personne QA qui utilise la base de staging."
+      "answer": "Four developers, and one QA person who uses the staging database."
     },
     {
       "id": "ci",
@@ -42,12 +53,15 @@
         "workflow*",
         "github actions",
         "job",
-        "jobs"
+        "jobs",
+        "continuous integration",
+        "block*",
+        "merging"
       ],
-      "answer": "GitHub Actions. Les jobs `test` et `arch` bloquent la fusion. Le job `lint` tourne mais ne bloque pas : il y a trop d'avertissements hérités."
+      "answer": "GitHub Actions. The `test` and `arch` jobs block the merge. The `lint` job runs but does not block: there are too many inherited warnings."
     },
     {
-      "id": "outils",
+      "id": "tools",
       "any_of": [
         "outils",
         "outil",
@@ -56,12 +70,15 @@
         "codex",
         "quels agents",
         "assistant*",
-        "ide"
+        "ide",
+        "tools",
+        "tool",
+        "which agents"
       ],
-      "answer": "Claude Code et Copilot."
+      "answer": "Claude Code and Copilot."
     },
     {
-      "id": "premiere-tache",
+      "id": "first-task",
       "any_of": [
         "première tâche",
         "premiere tache",
@@ -73,12 +90,22 @@
         "répétitive*",
         "tâche* à confier",
         "confier en premier",
-        "contrat de tâche"
+        "contrat de tâche",
+        "first task",
+        "delegate first",
+        "which task",
+        "which tasks",
+        "first ticket",
+        "which tickets",
+        "repetitive",
+        "task* to hand over",
+        "hand over first",
+        "task contract"
       ],
-      "answer": "Ajouter un endpoint à partir d'un cas d'usage, du handler jusqu'au test."
+      "answer": "Add an endpoint from a use case, from the handler down to the test."
     },
     {
-      "id": "interdits",
+      "id": "forbidden",
       "any_of": [
         "interdits",
         "jamais toucher",
@@ -92,18 +119,27 @@
         "base partagée",
         "migration*",
         "deploy*",
-        "force push"
+        "force push",
+        "forbidden",
+        "never touch",
+        "must never",
+        "not to do",
+        "must not do",
+        "dangerous",
+        "risk*",
+        "shared database"
       ],
-      "answer": "Toucher à une base qui n'est pas la sienne, modifier une migration déjà appliquée, lancer `deploy.yml` sans `dry_run`."
+      "answer": "Touching a database that is not your own, modifying a migration already applied, running `deploy.yml` without `dry_run`."
     },
     {
       "id": "lint",
       "any_of": [
         "lint",
         "golangci*",
-        "avertissement*"
+        "avertissement*",
+        "warning*"
       ],
-      "answer": "Personne n'a pris le temps de solder la dette. Oui, on sait que ça affaiblit ce qui s'appuie dessus."
+      "answer": "Nobody took the time to pay off the debt. Yes, we know it weakens what relies on it."
     },
     {
       "id": "accounts",
@@ -111,32 +147,39 @@
         "/accounts",
         "post /accounts",
         "création de compte",
-        "creation de compte"
+        "creation de compte",
+        "account creation"
       ],
-      "answer": "Exact, `POST /accounts` n'a pas de clé d'idempotence. C'est au backlog, pas prioritaire."
+      "answer": "Correct, `POST /accounts` has no idempotency key. It is in the backlog, not a priority."
     },
     {
       "id": "e2e",
       "any_of": [
         "e2e",
         "bout en bout",
-        "readme"
+        "readme",
+        "end to end",
+        "end-to-end"
       ],
-      "answer": "La cible `make e2e` a été retirée il y a un an avec l'ancien banc de tests ; le README n'a pas suivi."
+      "answer": "The `make e2e` target was removed a year ago with the old test bench; the README did not follow."
     },
     {
-      "id": "attente",
+      "id": "expectation",
       "any_of": [
         "fichier court",
         "attend*",
         "longueur",
         "contributing",
-        "combien de lignes"
+        "combien de lignes",
+        "short file",
+        "expect*",
+        "length",
+        "how many lines"
       ],
-      "answer": "Un fichier court. On a déjà un CONTRIBUTING que personne ne lit, on ne veut pas d'un second."
+      "answer": "A short file. We already have a CONTRIBUTING that nobody reads, we do not want a second one."
     },
     {
-      "id": "arret",
+      "id": "stop",
       "any_of": [
         "s'arrêter",
         "s'arrete",
@@ -145,24 +188,33 @@
         "demander avant",
         "poser la question",
         "hésit*",
-        "s'arrête*"
+        "s'arrête*",
+        "stop",
+        "stops",
+        "when to ask",
+        "ask before",
+        "ask the question",
+        "hesitat*"
       ],
-      "answer": "Il s'arrête et demande avant de toucher à une migration, au schéma d'un contrat d'API ou à `deploy.yml`, et quand le ticket est ambigu sur un montant ou un arrondi. Le reste, il tranche et l'écrit dans la PR."
+      "answer": "It stops and asks before touching a migration, the schema of an API contract or `deploy.yml`, and when the ticket is ambiguous about an amount or a rounding. The rest, it decides and writes it in the PR."
     },
     {
-      "id": "fini",
+      "id": "done",
       "any_of": [
         "fini",
         "finie",
         "terminé*",
         "definition of done",
         "critère* de fin",
-        "critère* de fini"
+        "critère* de fini",
+        "done",
+        "finished",
+        "completion criteri*"
       ],
-      "answer": "Une tâche est finie quand `make test` et `make arch` passent, qu'un test couvre le changement, et que la PR dit pourquoi en deux lignes."
+      "answer": "A task is done when `make test` and `make arch` pass, a test covers the change, and the PR says why in two lines."
     },
     {
-      "id": "ci-rouge",
+      "id": "red-ci",
       "any_of": [
         "ci rouge",
         "ci est rouge",
@@ -170,12 +222,18 @@
         "instable*",
         "flaky",
         "test qui échoue",
-        "échec de la ci"
+        "échec de la ci",
+        "red ci",
+        "ci is red",
+        "red",
+        "unstable",
+        "failing test",
+        "ci failure"
       ],
-      "answer": "CI rouge à cause de son diff : il corrige. Rouge pour une cause étrangère : il le signale dans la PR et n'y touche pas. Un test instable : il relance une fois, puis ouvre une issue ; il ne le désactive jamais."
+      "answer": "CI red because of its diff: it fixes it. Red for an unrelated cause: it reports it in the PR and does not touch it. A flaky test: it reruns once, then opens an issue; it never disables it."
     },
     {
-      "id": "migration-nouvelle",
+      "id": "new-migration",
       "any_of": [
         "nouvelle migration",
         "ajouter une migration",
@@ -185,9 +243,18 @@
         "migration au numéro suivant",
         "ajout d'une migration",
         "ajouter ou modifier",
-        "ajout ou modification"
+        "ajout ou modification",
+        "new migration",
+        "add a migration",
+        "add a new migration",
+        "create a migration",
+        "new migration file",
+        "migration at the next number",
+        "adding a migration",
+        "add or modify",
+        "adding or modifying"
       ],
-      "answer": "Ajouter une migration au numéro suivant, c'est le chemin normal : pas besoin de demander. Ce qui demande mon accord, c'est modifier une migration existante, ou une migration qui supprime ou réécrit des données."
+      "answer": "Adding a migration at the next number is the normal path: no need to ask. What needs my agreement is modifying an existing migration, or a migration that deletes or rewrites data."
     },
     {
       "id": "oral",
@@ -250,10 +317,59 @@
         "répétez",
         "répète*",
         "répéter",
-        "répétées"
+        "répétées",
+        "nowhere",
+        "unwritten",
+        "not written",
+        "isn't written",
+        "repeat*",
+        "every time",
+        "each time",
+        "tacit*",
+        "implicit*",
+        "in your head*",
+        "habit*",
+        "pitfall*",
+        "trap*",
+        "newcomer*",
+        "new joiner*",
+        "surpris*",
+        "forget*",
+        "forgot*",
+        "anything else",
+        "something else",
+        "other rules",
+        "other rule",
+        "other instructions",
+        "to add",
+        "would you add",
+        "often correct*",
+        "often fix*",
+        "frequent mistake*",
+        "common mistake*",
+        "every review",
+        "in code review",
+        "review remark*",
+        "review comment*",
+        "come* up in review",
+        "without having written",
+        "without ever having written",
+        "no document",
+        "not in any",
+        "pr comment*",
+        "come* up most often",
+        "new developer*",
+        "new recruit*",
+        "new hire*",
+        "without the ci",
+        "team knowledge",
+        "in review",
+        "always miss*",
+        "always get* wrong",
+        "never written"
       ],
-      "answer": "Une chose qui n'est écrite nulle part, et qu'on redit à chaque revue : quand un endpoint rejoue une requête déjà traitée, sa réponse porte l'en-tête `Idempotency-Replayed: true`. L'application mobile s'en sert depuis juin 2026 pour ne pas afficher deux fois la confirmation. `POST /transfers` ne le fait pas encore, c'est au backlog ; tout nouvel endpoint d'écriture doit le faire."
+      "answer": "One thing that is written nowhere, and that we repeat at every review: when an endpoint replays a request already processed, its response carries the `Idempotency-Replayed: true` header. The mobile app has used it since June 2026 to avoid showing the confirmation twice. `POST /transfers` does not do it yet, it is in the backlog; every new write endpoint must do it."
     }
   ],
-  "default": "Regardez dans `docs/`, c'est écrit. L'équipe ne sait rien de plus que ce que disent les ADR, le post-mortem et la note d'exploitation."
+  "default": "Look in `docs/`, it is written down. The team knows nothing more than what the ADRs, the post-mortem and the operations note say."
 }

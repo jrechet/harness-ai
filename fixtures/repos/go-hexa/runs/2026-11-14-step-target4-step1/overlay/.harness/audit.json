@@ -1,0 +1,190 @@
+{
+  "audit": {
+    "process": "ledger — delegated development, migrations and deployment",
+    "scope": "ledger repo: AGENTS.md, CLAUDE.md, README.md, CONTRIBUTING.md, docs/, Makefile, tools/, deploy/, .github/workflows/, .golangci.yml, internal/adapters/httpapi (guardrail), .harness/",
+    "date": "2026-11-14",
+    "health_score": 31,
+    "cut_the_agent_test": { "passed": false, "leaked_steps": 6 }
+  },
+  "elements": [
+    {
+      "id": "makefile-reset-db-migrate",
+      "path": "Makefile",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["human", "agent"],
+      "calls": ["localdb", "psql"],
+      "verdict": "KEEP",
+      "priority": null,
+      "resolved": { "date": "2026-11-14", "by": "harness-step", "how": "tools/localdb called at the head of migrate and reset-db; TestMakeTargetsRefuseRemote seen red on the old Makefile (psql called with the staging URL), green afterwards. No override: docs/operations.md says staging and production only go through deploy.yml." },
+      "finding": "Fixed on 2026-11-14 (was P1): reset-db and migrate only checked the presence of DATABASE_URL, not the target; the forbidden item \"local database only\" existed only in AGENTS.md, although it was born of a loss of QA data on staging.",
+      "evidence": ["Makefile:19-26", "AGENTS.md:24", "docs/operations.md:12"],
+      "target": "Both targets refuse (exit 1, typed message) a DATABASE_URL whose host is not local (localhost, 127.0.0.1, ::1, Unix socket), unless an explicit override variable is set; the refusal is tested.",
+      "check": "`DATABASE_URL=postgres://u@staging.example/ledger_staging make reset-db` exits with 1 without calling psql; with localhost the target runs."
+    },
+    {
+      "id": "ci-lint",
+      "path": ".github/workflows/ci.yml",
+      "declared_layer": "L4",
+      "actual_layer": "L4",
+      "called_by": ["pull_request", "push main"],
+      "calls": ["golangci-lint", "golangci-config"],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "The lint job carries the rule \"no float for an amount\" (forbidigo) but runs in continue-on-error: the rule is not held, and internal/app/fees.go already violates it.",
+      "evidence": [".github/workflows/ci.yml:36-39", ".golangci.yml:11-18", "internal/app/fees.go:10,18", "AGENTS.md:20", "docs/adr/0002-amounts-in-cents.md:12"],
+      "target": "Fix fees.go with integer arithmetic, then a blocking job (or a test) limited to forbidigo on internal/domain and internal/app, independent of the debt of the other linters.",
+      "check": "A float64 added in internal/app makes a required check fail; fees.go no longer contains a float; TestOpenAccountAndQuote stays green (1000 → 15)."
+    },
+    {
+      "id": "idempotency-replayed-header",
+      "path": "internal/adapters/httpapi/server.go",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["httpapi"],
+      "calls": ["app.Service.Transfer"],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "The rule \"replayed response → Idempotency-Replayed: true\", confirmed by the owner and used by the mobile app, is neither implemented (POST /transfers) nor tested.",
+      "evidence": ["AGENTS.md:19", "internal/adapters/httpapi/server.go:81-111", "internal/adapters/httpapi/server_test.go:55-72"],
+      "target": "The use case signals the replay, the handler sets the header; a test walks routes() like idempotency_guard_test.go and requires the header on the second call of every non-exempt write route.",
+      "check": "The test fails on the current code (POST /transfers replayed without the header), then passes."
+    },
+    {
+      "id": "postgres-integration-tests",
+      "path": "internal/adapters/postgres/store_integration_test.go",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["make test-integration (manual)"],
+      "calls": ["postgres-store"],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "\"The key is looked up inside the write transaction\" is only checked by the review: the only SQL test is a round trip, it does not run in CI, and it cannot run at all (no pgx driver in go.mod).",
+      "evidence": ["AGENTS.md:14,18", "docs/operations.md:17", "internal/adapters/postgres/store_integration_test.go:16-28", "go.mod:1-3", "docs/postmortems/2026-04-double-debit.md:18"],
+      "target": "A CI job with a migrated PostgreSQL service that runs the integration tests, including a test of two concurrent transfers with the same key that requires a single debit.",
+      "check": "The job runs on every PR touching internal/adapters/postgres or internal/app; the concurrent test fails if the lookup is moved out of the transaction."
+    },
+    {
+      "id": "ci-migrations",
+      "path": ".github/workflows/ci.yml",
+      "declared_layer": "L4",
+      "actual_layer": "L4",
+      "called_by": ["pull_request"],
+      "calls": ["migrationcheck"],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "The owner cites test and arch as the only checks that block the merge: the migrations job does not appear as required, and it only runs on PRs; a red one can therefore be merged.",
+      "evidence": [".github/workflows/ci.yml:25-34", "AGENTS.md:3,21,26"],
+      "target": "The migrations job is a required check of the protection of main (like test and arch).",
+      "check": "A PR that modifies migrations/0001_accounts.sql is red and cannot be merged."
+    },
+    {
+      "id": "deploy-workflow",
+      "path": ".github/workflows/deploy.yml",
+      "declared_layer": "L4",
+      "actual_layer": "L4",
+      "called_by": ["workflow_dispatch"],
+      "calls": ["deploy-plan", "deploy-apply"],
+      "verdict": "PUSH_DOWN",
+      "priority": "P2",
+      "finding": "dry_run is true by default (healthy), but nothing in the repository prevents running the workflow from an unmerged branch with dry_run=false: its migrations, which never went through migrationcheck, would go to the shared staging database; the environment protections cannot be read and the owner did not confirm them.",
+      "evidence": [".github/workflows/deploy.yml:2-30", "AGENTS.md:25", "docs/operations.md:7-8,20"],
+      "target": "A step that fails if github.ref is not refs/heads/main when dry_run is false; staging and production environments limited to main, production with a required reviewer.",
+      "check": "A dispatch from another branch with dry_run=false fails before apply.sh; the environment settings are confirmed in writing."
+    },
+    {
+      "id": "deploy-plan",
+      "path": "deploy/plan.sh",
+      "declared_layer": "L3",
+      "actual_layer": "L3",
+      "called_by": ["deploy-workflow"],
+      "calls": ["git", "ls"],
+      "verdict": "KEEP",
+      "priority": "P3",
+      "finding": "The plan is JSON (healthy), but \"migrations\" counts every file whereas the header announces the pending migrations: a reviewer can be mistaken about what will be applied.",
+      "evidence": ["deploy/plan.sh:2,5"],
+      "target": "Rename the field (migrations_total) or really compute the pending migrations.",
+      "check": "The field says what it counts."
+    },
+    {
+      "id": "readme",
+      "path": "README.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": ["human", "agent"],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": "P3",
+      "finding": "README announces `make e2e`, a target missing from the Makefile: an agent that runs it fails.",
+      "evidence": ["README.md:13", "Makefile:1"],
+      "target": "Remove the line (or create the target if it exists elsewhere).",
+      "check": "Every command of the README exists."
+    },
+    {
+      "id": "agents-md",
+      "path": "AGENTS.md",
+      "declared_layer": "L2",
+      "actual_layer": "L2",
+      "called_by": ["CLAUDE.md", "agent"],
+      "calls": [],
+      "verdict": "KEEP",
+      "priority": null,
+      "finding": "33 lines, declared mode, dated and justified rules, leaks marked \"(unverified)\", maintenance clause; one forbidden line duplicates a rule.",
+      "evidence": ["AGENTS.md:1-33"],
+      "target": "Unchanged, apart from the removal of AGENTS.md:26.",
+      "check": "—"
+    },
+    { "id": "claude-md", "path": "CLAUDE.md", "declared_layer": "L2", "actual_layer": "L2", "called_by": ["Claude Code"], "calls": ["agents-md"], "verdict": "KEEP", "priority": null, "finding": "@AGENTS.md stub: a single source.", "evidence": ["CLAUDE.md:1"], "target": "Unchanged.", "check": "—" },
+    { "id": "archcheck", "path": "tools/archcheck/main.go", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-arch", "deploy-workflow", "make arch"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Tested guardrail, -json output, exit 1: carries the layers rule.", "evidence": ["tools/archcheck/main.go:36-106", "tools/archcheck/main_test.go"], "target": "Unchanged.", "check": "—" },
+    { "id": "ci-test-arch", "path": ".github/workflows/ci.yml", "declared_layer": "L4", "actual_layer": "L4", "called_by": ["pull_request", "push main"], "calls": ["go test", "archcheck"], "verdict": "KEEP", "priority": null, "finding": "Blocking jobs (confirmed by the owner).", "evidence": [".github/workflows/ci.yml:8-23"], "target": "Unchanged.", "check": "—" },
+    { "id": "idempotency-guard-test", "path": "internal/adapters/httpapi/idempotency_guard_test.go", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-test-arch"], "calls": ["httpapi.routes"], "verdict": "KEEP", "priority": null, "finding": "Walks the single list of routes, exemption justified and checked: carries the presence of the key.", "evidence": ["internal/adapters/httpapi/idempotency_guard_test.go:18-58"], "target": "Unchanged.", "check": "—" },
+    { "id": "migrationcheck", "path": "tools/migrationcheck/main.go", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-migrations"], "calls": ["git diff"], "verdict": "KEEP", "priority": null, "finding": "Tested tool, exit 1 on any entry that is not an addition; its weakness is the job that calls it (see ci-migrations).", "evidence": ["tools/migrationcheck/main.go:26-62"], "target": "Unchanged.", "check": "—" },
+    { "id": "golangci-config", "path": ".golangci.yml", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["ci-lint", "make lint"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "forbidigo rule citing ADR 0002; its weakness is the non-blocking job (see ci-lint).", "evidence": [".golangci.yml:14-18"], "target": "Unchanged.", "check": "—" },
+    { "id": "deploy-apply", "path": "deploy/apply.sh", "declared_layer": "L4", "actual_layer": "L4", "called_by": ["deploy-workflow"], "calls": ["psql"], "verdict": "KEEP", "priority": null, "finding": "Called only by deploy.yml, secret held in L4, JSON output, idempotent migrations (IF NOT EXISTS).", "evidence": ["deploy/apply.sh:2-7", "migrations/0001_accounts.sql:1"], "target": "Unchanged.", "check": "—" },
+    { "id": "docs", "path": "docs/", "declared_layer": "L2", "actual_layer": "L2", "called_by": ["agents-md"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "ADRs, post-mortem and operations give the why of the rules; loaded on demand.", "evidence": ["docs/postmortems/2026-04-double-debit.md", "docs/operations.md"], "target": "Unchanged.", "check": "—" },
+    { "id": "contributing", "path": "CONTRIBUTING.md", "declared_layer": "L2", "actual_layer": "L2", "called_by": ["human"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Generic human conventions, not loaded by the agent: no context cost.", "evidence": ["CONTRIBUTING.md:1-9"], "target": "Unchanged.", "check": "—" },
+    { "id": "harness-state", "path": ".harness/", "declared_layer": "L3", "actual_layer": "L3", "called_by": ["harness status"], "calls": [], "verdict": "KEEP", "priority": null, "finding": "Target 3, today's harvest marker with no signal yet: nothing collected without follow-up.", "evidence": [".harness/config.json:1", "AGENTS.md:33"], "target": "Unchanged.", "check": "—" }
+  ],
+  "process_leaks": [
+    { "rule": "Do not run deploy.yml with dry_run=false nor towards production", "told_in": "AGENTS.md:25", "if_skipped": "migrations of an unreviewed branch applied on shared staging, or production deployment", "belongs_in": "L4", "guard_tool": "guard step github.ref == main in deploy.yml + environment protections" },
+    { "rule": "No float for an amount in internal/domain and internal/app", "told_in": "AGENTS.md:20", "if_skipped": "rounding errors that distort a balance (ADR 0002)", "belongs_in": "L4", "guard_tool": "forbidigo as a blocking job, limited to internal/domain and internal/app" },
+    { "rule": "Replayed response → Idempotency-Replayed: true header", "told_in": "AGENTS.md:19", "if_skipped": "the mobile app shows two confirmations", "belongs_in": "L3", "guard_tool": "httpapi test that walks routes() and replays each write" },
+    { "rule": "Idempotency key looked up inside the write transaction", "told_in": "AGENTS.md:18", "if_skipped": "double debit (2026-04 incident, 37 accounts)", "belongs_in": "L3", "guard_tool": "concurrent PostgreSQL integration test in CI" },
+    { "rule": "An applied migration is never modified again (guardrail present, check not required)", "told_in": "AGENTS.md:21", "if_skipped": "staging and production diverge from the repository's schema", "belongs_in": "L4", "guard_tool": "migrations job as a required check on main" }
+  ],
+  "guarded_rules": [
+    { "rule": "Domain with no dependency, use cases → ports, independent adapters", "told_in": "AGENTS.md:17", "guarded_by": "tools/archcheck (job arch, blocking)" },
+    { "rule": "Every non-GET route requires Idempotency-Key (presence only)", "told_in": "AGENTS.md:18", "guarded_by": "internal/adapters/httpapi/idempotency_guard_test.go (job test, blocking)" },
+    { "rule": "make reset-db / make migrate only on your own local database", "told_in": "AGENTS.md:24", "guarded_by": "tools/localdb called by the Makefile targets; tools/localdb/main_test.go (job test, blocking), added on 2026-11-14" }
+  ],
+  "removals": [
+    { "path": "README.md", "line": 13, "text": "make e2e         # end-to-end scenarios", "reason": "harmful", "evidence": "no e2e target in Makefile:1-26", "ask_owner": false },
+    { "path": "AGENTS.md", "line": 26, "text": "Modifying an existing file of `migrations/`. … Enforced by: tools/migrationcheck", "reason": "useless", "evidence": "duplicate of the rule AGENTS.md:21, same guardrail", "ask_owner": false }
+  ],
+  "owner_questions": [
+    "1. What protections do the GitHub staging and production environments have (reviewers, branches limited to main)? Default: none taken for granted, github.ref guard in deploy.yml.",
+    "2. Is the migrations job a required check on main? Default: no, make it required.",
+    "3. Which hosts count as a \"local database\" for reset-db/migrate? Default: localhost, 127.0.0.1, ::1 and Unix socket, with an explicit override ALLOW_REMOTE_DB=1 reserved for deploy.",
+    "4. Must the integer fee keep the current rounding (to nearest, half up)? Default: yes, (cents*15+500)/1000."
+  ],
+  "instruction_files": [
+    { "path": "AGENTS.md", "loaded_lines": 33, "instruction_pct": 85, "reference_pct": 15, "noise_pct": 0, "justified_rules": true, "maintenance_clause": true }
+  ],
+  "remediation": [
+    { "order": 1, "priority": "P1", "verdict": "PUSH_DOWN", "element": "makefile-reset-db-migrate", "action": "Add to the reset-db and migrate targets a guard that refuses a non-local host (exit 1), tested.", "depends_on": [], "check": "reset-db with a staging URL exits with 1 without calling psql; then AGENTS.md:24 is reduced to its \"Enforced by\" line.", "needs_human_approval": true, "done": "2026-11-14" },
+    { "order": 2, "priority": "P2", "verdict": "PUSH_DOWN", "element": "deploy-workflow", "action": "Guard step github.ref == refs/heads/main when dry_run is false; confirm the environment protections.", "depends_on": [], "check": "Dispatch from a branch with dry_run=false fails before apply.sh.", "needs_human_approval": true },
+    { "order": 3, "priority": "P2", "verdict": "PUSH_DOWN", "element": "ci-migrations", "action": "Make the migrations job required in the protection of main.", "depends_on": [], "check": "A PR that modifies an existing migration cannot be merged.", "needs_human_approval": true },
+    { "order": 4, "priority": "P2", "verdict": "PUSH_DOWN", "element": "ci-lint", "action": "Rewrite fees.go with integers, then a blocking forbidigo job limited to internal/domain and internal/app.", "depends_on": [], "check": "A float64 added in internal/app makes the PR red and unmergeable.", "needs_human_approval": false },
+    { "order": 5, "priority": "P2", "verdict": "PUSH_DOWN", "element": "idempotency-replayed-header", "action": "Replay test on every write route, then the header on POST /transfers.", "depends_on": [], "check": "Test seen red on the current code, then green.", "needs_human_approval": false },
+    { "order": 6, "priority": "P2", "verdict": "PUSH_DOWN", "element": "postgres-integration-tests", "action": "Add the pgx driver, a PostgreSQL CI job and a test of concurrent transfers with the same key.", "depends_on": [], "check": "The job runs on PRs and fails if the lookup leaves the transaction.", "needs_human_approval": true },
+    { "order": 7, "priority": "P3", "verdict": "KEEP", "element": "readme", "action": "Remove `make e2e` from README.md:13.", "depends_on": [], "check": "Every command of the README exists.", "needs_human_approval": false },
+    { "order": 8, "priority": "P3", "verdict": "KEEP", "element": "deploy-plan", "action": "Rename the migrations field to migrations_total, or compute the pending migrations.", "depends_on": [], "check": "The field says what it counts.", "needs_human_approval": false },
+    { "order": 9, "priority": "P3", "verdict": "KEEP", "element": "agents-md", "action": "Remove the duplicate AGENTS.md:26.", "depends_on": [], "check": "The migrations rule appears only once.", "needs_human_approval": true }
+  ],
+  "unverified": [
+    "GitHub settings not readable from the repository: protection of main (beyond what the owner said) and protections of the staging/production environments; the owner did not answer the question about the environments.",
+    "golangci-lint not run locally: that forbidigo does flag float64 in fees.go is not verified.",
+    "Integration tests not run (no database, no pgx driver).",
+    "History of the CI runs not consulted: no guardrail was seen red during this audit."
+  ]
+}

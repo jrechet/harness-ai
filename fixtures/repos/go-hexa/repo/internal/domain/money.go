@@ -5,7 +5,7 @@ package domain
 import "fmt"
 
 // Money is an amount in minor units (cents) of one currency.
-// See docs/adr/0002-montants-en-centimes.md.
+// See docs/adr/0002-amounts-in-cents.md.
 type Money struct {
 	cents    int64
 	currency string

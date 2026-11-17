@@ -24,7 +24,7 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    # Trop d'avertissements hérités : à rendre bloquant quand la dette sera soldée.
+    # Too many inherited warnings: to be made blocking once the debt is paid off.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4

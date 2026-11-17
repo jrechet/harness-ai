@@ -1,40 +1,40 @@
 # ledger
 
-Service de tenue de comptes : ouvrir un compte, lire un solde, virer de l'argent d'un compte à un autre, chiffrer les frais d'un virement. Go, bibliothèque standard, PostgreSQL en staging et en production.
+Ledger service: open an account, read a balance, transfer money from one account to another, quote the fee of a transfer. Go, standard library, PostgreSQL in staging and in production.
 
-Dépôt **synthétique** : une fixture du projet harness-ai. Le pilote SQL n'est pas lié dans cette fixture, le binaire tourne donc en mémoire.
+**Synthetic** repository: a fixture of the harness-ai project. The SQL driver is not linked in this fixture, so the binary runs in memory.
 
-## Démarrer
+## Getting started
 
 ```bash
-make run          # sert sur :8080, stockage en mémoire tant que DATABASE_URL est vide
-make test         # tests unitaires
-make arch         # vérifie les dépendances entre couches
+make run          # serves on :8080, in-memory storage as long as DATABASE_URL is empty
+make test         # unit tests
+make arch         # checks the dependencies between layers
 make lint         # golangci-lint
-make e2e          # scénarios de bout en bout
+make e2e          # end-to-end scenarios
 ```
 
-## Organisation
+## Layout
 
 ```
-cmd/ledgerd/                  le binaire : assemble les adaptateurs
-internal/domain/              règles métier, sans dépendance
-internal/app/                 cas d'usage et ports
+cmd/ledgerd/                  the binary: wires the adapters together
+internal/domain/              business rules, no dependency
+internal/app/                 use cases and ports
 internal/adapters/httpapi/    HTTP
-internal/adapters/memory/     stockage en mémoire
-internal/adapters/postgres/   stockage SQL
-migrations/                   schéma, fichiers numérotés
-tools/archcheck/              contrôle des dépendances entre couches
-docs/                         décisions, incidents, exploitation
+internal/adapters/memory/     in-memory storage
+internal/adapters/postgres/   SQL storage
+migrations/                   schema, numbered files
+tools/archcheck/              check of the dependencies between layers
+docs/                         decisions, incidents, operations
 ```
 
 ## API
 
-| Méthode | Chemin | Rôle |
+| Method | Path | Role |
 |---|---|---|
-| POST | `/accounts` | ouvrir un compte |
-| GET | `/accounts/{id}` | lire un compte |
-| POST | `/transfers` | virer ; en-tête `Idempotency-Key` obligatoire |
-| GET | `/transfers/quote` | frais d'un virement |
+| POST | `/accounts` | open an account |
+| GET | `/accounts/{id}` | read an account |
+| POST | `/transfers` | transfer; `Idempotency-Key` header required |
+| GET | `/transfers/quote` | fee of a transfer |
 
-Voir `docs/` pour les décisions d'architecture, les incidents et l'exploitation.
+See `docs/` for the architecture decisions, the incidents and operations.

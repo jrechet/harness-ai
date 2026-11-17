@@ -1,0 +1,15 @@
+[
+  {
+    "question": "What is the first repetitive task you want to hand over whole to an agent, with its task contract? Proposed default if you have no preference: \"add an HTTP route that changes a balance\" (e.g. a new type of movement), since that is where idempotency, Money and migrations come into play.",
+    "ids": [
+      "first-task",
+      "forbidden"
+    ],
+    "answer": "Add an endpoint from a use case, from the handler down to the test.\nTouching a database that is not your own, modifying a migration already applied, running `deploy.yml` without `dry_run`."
+  },
+  {
+    "question": "For this task, is there a step or a verification that you always do by hand when reviewing these PRs and that should be written in the contract?",
+    "ids": [],
+    "answer": "Look in `docs/`, it is written down. The team knows nothing more than what the ADRs, the post-mortem and the operations note say."
+  }
+]

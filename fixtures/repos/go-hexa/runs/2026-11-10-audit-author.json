@@ -1,7 +1,7 @@
 {
   "audit": {
     "process": "ledger",
-    "scope": "dépôt après le pas 1",
+    "scope": "repository after step 1",
     "date": "2026-11-10",
     "health_score": 59,
     "cut_the_agent_test": {
@@ -19,10 +19,10 @@
       "calls": [],
       "verdict": "PUSH_DOWN",
       "priority": "P1",
-      "finding": "reset-db détruit le schéma de la base désignée par DATABASE_URL sans regarder laquelle",
+      "finding": "reset-db destroys the schema of the database designated by DATABASE_URL without looking at which one",
       "evidence": [
         "Makefile:25",
-        "docs/exploitation.md:12"
+        "docs/operations.md:12"
       ],
       "target": "",
       "check": ""
@@ -36,7 +36,7 @@
       "calls": [],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "le contrôle des flottants existe mais le job lint ne bloque pas",
+      "finding": "the check on floats exists but the lint job does not block",
       "evidence": [
         ".golangci.yml:14",
         ".github/workflows/ci.yml:27",
@@ -46,17 +46,17 @@
       "check": ""
     },
     {
-      "id": "docs/adr/0003-cle-d-idempotence.md",
-      "path": "docs/adr/0003-cle-d-idempotence.md",
+      "id": "docs/adr/0003-idempotency-key.md",
+      "path": "docs/adr/0003-idempotency-key.md",
       "declared_layer": "L2",
       "actual_layer": "L2",
       "called_by": [],
       "calls": [],
       "verdict": "PUSH_DOWN",
       "priority": "P2",
-      "finding": "la clé d'idempotence d'un nouvel endpoint n'est contrôlée que par la revue",
+      "finding": "the idempotency key of a new endpoint is only checked by the review",
       "evidence": [
-        "docs/adr/0003-cle-d-idempotence.md:15"
+        "docs/adr/0003-idempotency-key.md:15"
       ],
       "target": "",
       "check": ""
@@ -70,7 +70,7 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "garde-fou testé, sortie structurée, bloquant en CI",
+      "finding": "tested guardrail, structured output, blocking in CI",
       "evidence": [
         "tools/archcheck/main.go:1",
         ".github/workflows/ci.yml:19"
@@ -87,7 +87,7 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "dry_run par défaut, environnement protégé, tests avant",
+      "finding": "dry_run by default, protected environment, tests first",
       "evidence": [
         ".github/workflows/deploy.yml:11"
       ],
@@ -103,7 +103,7 @@
       "calls": [],
       "verdict": "KEEP",
       "priority": null,
-      "finding": "court, daté, honnête sur ce qui n'est pas vérifié",
+      "finding": "short, dated, honest about what is not verified",
       "evidence": [
         "AGENTS.md:1"
       ],
@@ -113,30 +113,30 @@
   ],
   "process_leaks": [
     {
-      "rule": "tout endpoint qui modifie un solde exige une clé d'idempotence cherchée dans la transaction",
+      "rule": "every endpoint that changes a balance requires an idempotency key looked up inside the transaction",
       "told_in": "AGENTS.md:18",
-      "if_skipped": "double débit",
+      "if_skipped": "double debit",
       "belongs_in": "L3",
-      "guard_tool": "test qui parcourt les routes d'écriture"
+      "guard_tool": "test that walks the write routes"
     },
     {
-      "rule": "aucun flottant pour un montant",
-      "told_in": "docs/adr/0002-montants-en-centimes.md:9",
-      "if_skipped": "solde faux d'un centime",
+      "rule": "no float for an amount",
+      "told_in": "docs/adr/0002-amounts-in-cents.md:9",
+      "if_skipped": "balance wrong by one cent",
       "belongs_in": "L3",
-      "guard_tool": "job lint rendu bloquant, ou contrôle dans archcheck"
+      "guard_tool": "lint job made blocking, or a check in archcheck"
     },
     {
-      "rule": "reset-db seulement sur une base locale",
+      "rule": "reset-db only on a local database",
       "told_in": "AGENTS.md:23",
-      "if_skipped": "données QA détruites",
+      "if_skipped": "QA data destroyed",
       "belongs_in": "L3",
-      "guard_tool": "refus de toute URL non locale dans la cible make"
+      "guard_tool": "refusal of any non-local URL in the make target"
     }
   ],
   "guarded_rules": [
     {
-      "rule": "dépendances entre couches",
+      "rule": "dependencies between layers",
       "told_in": "AGENTS.md:17",
       "guarded_by": "tools/archcheck/main.go"
     }
@@ -156,6 +156,6 @@
   ],
   "remediation": [],
   "unverified": [
-    "golangci-lint n'est pas installé : la règle forbidigo n'a pas été exécutée"
+    "golangci-lint is not installed: the forbidigo rule was not run"
   ]
 }

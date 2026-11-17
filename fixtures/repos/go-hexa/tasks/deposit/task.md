@@ -1,9 +1,9 @@
-# Tâche : créditer un compte
+# Task: credit an account
 
-Aujourd'hui un compte ne reçoit de l'argent que par virement depuis un autre compte. Ajoute de quoi le créditer depuis l'extérieur.
+Today an account only receives money through a transfer from another account. Add what it takes to credit it from the outside.
 
-- `POST /accounts/{id}/deposits`, corps `{"amount_cents": 500, "currency": "EUR"}`.
-- En cas de succès, réponse `201` avec le compte à jour, au même format que `GET /accounts/{id}`.
-- Un compte inconnu répond `404`. Un montant nul, ou une devise qui n'est pas celle du compte, répond `422`.
+- `POST /accounts/{id}/deposits`, body `{"amount_cents": 500, "currency": "EUR"}`.
+- On success, a `201` response with the updated account, in the same format as `GET /accounts/{id}`.
+- An unknown account answers `404`. A zero amount, or a currency that is not the account's, answers `422`.
 
-Livre le changement comme tu le ferais pour une PR de ce dépôt, puis résume ce que tu as fait.
+Deliver the change as you would for a PR of this repository, then summarise what you did.

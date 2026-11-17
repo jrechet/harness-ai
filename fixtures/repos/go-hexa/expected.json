@@ -26,28 +26,28 @@
     "must_surface": [
       {
         "id": "I1",
-        "what": "clé d'idempotence sur les écritures, avec l'incident du double débit",
+        "what": "idempotency key on writes, with the double-debit incident",
         "any_of": [
           "idempot"
         ]
       },
       {
         "id": "I2",
-        "what": "make reset-db interdit hors base locale",
+        "what": "make reset-db forbidden outside the local database",
         "any_of": [
           "reset-db"
         ]
       },
       {
         "id": "I3",
-        "what": "dépendances entre couches et leur garde-fou",
+        "what": "dependencies between layers and their guardrail",
         "any_of": [
           "archcheck"
         ]
       },
       {
         "id": "I4",
-        "what": "montants en centimes entiers, jamais de flottant",
+        "what": "amounts in integer cents, never a float",
         "any_of": [
           "float",
           "flottant",
@@ -57,14 +57,14 @@
       },
       {
         "id": "I5",
-        "what": "migrations appliquées immuables, appliquées par deploy.yml",
+        "what": "applied migrations are immutable, applied by deploy.yml",
         "any_of": [
           "migration"
         ]
       },
       {
         "id": "I6",
-        "what": "une réponse rejouée porte l'en-tête Idempotency-Replayed, dit par l'équipe et écrit nulle part ailleurs",
+        "what": "a replayed response carries the Idempotency-Replayed header, told by the team and written nowhere else",
         "any_of": [
           "idempotency-replayed"
         ],
@@ -76,7 +76,7 @@
     "must_not_write": [
       {
         "id": "N1",
-        "what": "commande périmée du README",
+        "what": "stale command of the README",
         "any_of": [
           "make e2e"
         ],
@@ -84,14 +84,16 @@
       },
       {
         "id": "N2",
-        "what": "principes génériques du CONTRIBUTING",
+        "what": "generic principles of the CONTRIBUTING",
         "any_of": [
           "idiomati",
           "gofmt",
           "tests en table",
           "table-driven",
           "fonctions courtes",
-          "nommer clairement"
+          "short functions",
+          "nommer clairement",
+          "clearly name"
         ]
       }
     ],
@@ -107,6 +109,7 @@
           "centime",
           "cents",
           "montant",
+          "amount",
           "money"
         ]
       },
@@ -118,6 +121,7 @@
           "centime",
           "cents",
           "montant",
+          "amount",
           "money"
         ]
       }
@@ -125,13 +129,13 @@
     "only_level_material": true,
     "never_guarded": [
       {
-        "what": "clé d'idempotence : seule la revue la contrôle",
+        "what": "idempotency key: only the review checks it",
         "rule_keywords": [
           "idempot"
         ]
       },
       {
-        "what": "montants entiers : le job lint ne bloque pas",
+        "what": "integer amounts: the lint job does not block",
         "rule_keywords": [
           "float",
           "flottant",
@@ -165,7 +169,7 @@
       },
       {
         "id": "T2",
-        "path": "docs/adr/0003-cle-d-idempotence.md",
+        "path": "docs/adr/0003-idempotency-key.md",
         "verdicts": [
           "PUSH_DOWN",
           "SPLIT",
@@ -227,6 +231,7 @@
           "centime",
           "cents",
           "montant",
+          "amount",
           "money"
         ]
       },
@@ -238,6 +243,7 @@
           "centime",
           "cents",
           "montant",
+          "amount",
           "money"
         ]
       }
@@ -248,13 +254,13 @@
     ],
     "never_guarded": [
       {
-        "what": "clé d'idempotence : seule la revue la contrôle",
+        "what": "idempotency key: only the review checks it",
         "rule_keywords": [
           "idempot"
         ]
       },
       {
-        "what": "montants entiers : le job lint ne bloque pas",
+        "what": "integer amounts: the lint job does not block",
         "rule_keywords": [
           "float",
           "flottant",

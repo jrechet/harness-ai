@@ -1,0 +1,16 @@
+{
+  "tokens": 83911,
+  "cache_read_tokens": 751871,
+  "output_tokens": 9847,
+  "turns": 23,
+  "duration_s": 93,
+  "denied": 5,
+  "denied_commands": [
+    "K=/tmp/claude-0/-home-user/c9c9c05e-e8c6-5b39-9449-fc2d7f51c43b/scratchpad/banc/w-mt5yf7e8/kit; ls -R $K; cat $K/skills/harness-init/SKILL.md",
+    "for f in .github/workflows/ci.yml .github/workflows/deploy.yml .golangci.yml CONTRIBUTING.md Makefile README.md docs/adr/*.md docs/operations.md docs/postmort",
+    "go version; go vet ./... ; echo \"vet=$?\"; go test ./... ; echo \"test=$?\"; go run ./tools/archcheck; echo \"arch=$?\"; which golangci-lint; make -n e2e; echo \"e2e=",
+    "make -n e2e",
+    "golangci-lint run"
+  ],
+  "error": null
+}
