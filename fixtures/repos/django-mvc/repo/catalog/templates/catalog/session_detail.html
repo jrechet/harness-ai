@@ -8,21 +8,21 @@
 {% if session.course.summary %}<p>{{ session.course.summary }}</p>{% endif %}
 
 {% if session.has_started %}
-  <p>Les inscriptions à cette session sont closes.</p>
+  <p>Enrollment for this session is closed.</p>
 {% else %}
   {% if session.seats_left > 0 %}
-    <p>{{ session.seats_left }} place{{ session.seats_left|pluralize }} sur {{ session.capacity }}.</p>
+    <p>{{ session.seats_left }} seat{{ session.seats_left|pluralize }} of {{ session.capacity }}.</p>
   {% else %}
-    <p>Session complète. Une inscription vous place sur liste d'attente.</p>
+    <p>Session full. Enrolling puts you on the waiting list.</p>
   {% endif %}
   <form method="post" action="{% url 'enrollments:enroll' session.pk %}">
     {% csrf_token %}
     {{ form.as_p }}
-    <button type="submit">S'inscrire</button>
+    <button type="submit">Enroll</button>
   </form>
 {% endif %}
 
 {% if user.is_staff %}
-<p><a href="{% url 'enrollments:roster' session.pk %}">Liste des inscrits</a></p>
+<p><a href="{% url 'enrollments:roster' session.pk %}">Roster</a></p>
 {% endif %}
 {% endblock %}

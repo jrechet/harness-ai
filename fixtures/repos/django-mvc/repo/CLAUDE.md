@@ -1,23 +1,23 @@
 # CLAUDE.md
 
-Notes pour Claude Code sur Cursus. L'essentiel d'AGENTS.md, en plus court.
+Notes for Claude Code on Cursus. The essentials of AGENTS.md, shorter.
 
-## Commandes
+## Commands
 
 ```bash
-python manage.py test                  # tout
-python manage.py test enrollments      # une application
+python manage.py test                  # everything
+python manage.py test enrollments      # one application
 python manage.py runserver
 ```
 
-## À savoir
+## Good to know
 
-- Réponds en français, code en anglais.
-- PEP 8, noms clairs, une docstring par fonction publique.
-- Python 3.8 sur le serveur : pas de `match`, pas de `X | Y`.
-- E-mails : toute inscription créée envoie sa confirmation, par `enrollments/notifications.py`. Pas de signal.
-- Capacité : une inscription se crée avec `services.enroll()`, jamais directement.
-- Migrations : ne modifie jamais une migration existante, la CI le refuse (job `frozen-migrations`).
-- Listes : pas de requête par ligne. `catalog/tests/test_queries.py` compte les requêtes des pages de liste ; ne change pas le nombre attendu pour faire passer un test.
-- Dates : `timezone.now()`.
-- Les PR visent `main`.
+- Answer in French, code in English.
+- PEP 8, clear names, a docstring per public function.
+- Python 3.8 on the server: no `match`, no `X | Y`.
+- E-mails: every enrollment created sends its confirmation, through `enrollments/notifications.py`. No signal.
+- Capacity: an enrollment is created with `services.enroll()`, never directly.
+- Migrations: never modify an existing migration, the CI rejects it (job `frozen-migrations`).
+- Lists: no query per row. `catalog/tests/test_queries.py` counts the queries of the list pages; do not change the expected number to make a test pass.
+- Dates: `timezone.now()`.
+- PRs target `main`.

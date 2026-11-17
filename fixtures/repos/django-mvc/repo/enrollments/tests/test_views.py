@@ -19,13 +19,13 @@ class EnrollViewTests(TestCase):
     def test_enrolls_and_confirms_by_email(self):
         response = self.post()
         self.assertRedirects(response, self.session.get_absolute_url())
-        self.assertContains(response, "Inscription confirmée")
+        self.assertContains(response, "Enrollment confirmed")
         self.assertEqual(Enrollment.objects.get().status, "confirmed")
         self.assertEqual(len(mail.outbox), 1)
 
     def test_a_full_session_puts_on_the_waiting_list(self):
         fill(self.session, confirmed=1)
-        self.assertContains(self.post(), "liste d'attente")
+        self.assertContains(self.post(), "waiting list")
         self.assertEqual(Enrollment.objects.get(email="ana@example.test").status, "waitlisted")
 
     def test_an_invalid_address_shows_the_form_again(self):
@@ -36,12 +36,12 @@ class EnrollViewTests(TestCase):
 
     def test_the_same_address_twice(self):
         self.post()
-        self.assertContains(self.post(), "déjà inscrite")
+        self.assertContains(self.post(), "already enrolled")
         self.assertEqual(Enrollment.objects.count(), 1)
 
     def test_a_started_session(self):
         url = reverse("enrollments:enroll", args=[make_session(days=-1).pk])
-        self.assertContains(self.client.post(url, {"email": "ana@example.test", "full_name": "Ana"}), "closes")
+        self.assertContains(self.client.post(url, {"email": "ana@example.test", "full_name": "Ana"}), "closed")
 
     def test_get_is_refused(self):
         self.assertEqual(self.client.get(self.url).status_code, 405)
@@ -63,7 +63,7 @@ class StaffPagesTests(TestCase):
         self.client.force_login(self.staff)
         response = self.client.get(self.roster)
         self.assertContains(response, "c0@example.test")
-        self.assertContains(response, "Liste d&#x27;attente")
+        self.assertContains(response, "Waiting list")
 
     def test_staff_cancels_and_the_waiting_list_moves_up(self):
         self.client.force_login(self.staff)
@@ -71,7 +71,7 @@ class StaffPagesTests(TestCase):
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(reverse("enrollments:cancel", args=[confirmed.pk]), follow=True)
         self.assertRedirects(response, self.roster)
-        self.assertContains(response, "Attente 0 passe de la liste d&#x27;attente aux inscrits")
+        self.assertContains(response, "Waiting 0 moves from the waiting list to the confirmed list")
         self.assertEqual(self.session.enrollments.get(email="w0@example.test").status, "confirmed")
         self.assertEqual(mail.outbox[-1].to, ["w0@example.test"])
 

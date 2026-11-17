@@ -12,10 +12,10 @@ class EnrollmentAdmin(admin.ModelAdmin):
     search_fields = ("full_name", "email")
     actions = ["cancel_selected"]
 
-    @admin.action(description="Annuler les inscriptions sélectionnées")
+    @admin.action(description="Cancel the selected enrollments")
     def cancel_selected(self, request, queryset):
         cancelled = 0
         for enrollment in queryset.exclude(status=Enrollment.Status.CANCELLED):
             services.cancel(enrollment)
             cancelled += 1
-        self.message_user(request, f"{cancelled} inscription(s) annulée(s).")
+        self.message_user(request, f"{cancelled} enrollment(s) cancelled.")

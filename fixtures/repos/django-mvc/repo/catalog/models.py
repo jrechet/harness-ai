@@ -5,13 +5,13 @@ from django.utils import timezone
 
 
 class Course(models.Model):
-    title = models.CharField("intitulé", max_length=200)
+    title = models.CharField("title", max_length=200)
     slug = models.SlugField(unique=True)
-    summary = models.TextField("résumé", blank=True)
+    summary = models.TextField("summary", blank=True)
 
     class Meta:
         ordering = ["title"]
-        verbose_name = "formation"
+        verbose_name = "course"
 
     def __str__(self) -> str:
         return self.title
@@ -35,10 +35,10 @@ class SessionQuerySet(models.QuerySet):
 
 
 class Session(models.Model):
-    course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name="sessions", verbose_name="formation")
-    starts_at = models.DateTimeField("début")
-    location = models.CharField("lieu", max_length=120)
-    capacity = models.PositiveIntegerField("places")
+    course = models.ForeignKey(Course, on_delete=models.PROTECT, related_name="sessions", verbose_name="course")
+    starts_at = models.DateTimeField("start")
+    location = models.CharField("location", max_length=120)
+    capacity = models.PositiveIntegerField("seats")
 
     objects = SessionQuerySet.as_manager()
 
