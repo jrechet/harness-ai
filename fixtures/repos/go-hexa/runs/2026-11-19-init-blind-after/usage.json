@@ -1,0 +1,13 @@
+{
+  "tokens": 87202,
+  "cache_read_tokens": 697557,
+  "output_tokens": 20673,
+  "turns": 32,
+  "duration_s": 394,
+  "denied": 2,
+  "denied_commands": [
+    "ls -la /private/tmp/claude-501/-Users-jre-dev-harness-ai--claude-worktrees-ai-sdlc-framework-a5cfb7/b7c5d7ba-c63d-4ac0-8693-1d24ea530d99/scratchpad/bench-e/w-b7",
+    "cd \"/private/tmp/claude-501/-Users-jre-dev-harness-ai--claude-worktrees-ai-sdlc-framework-a5cfb7/b7c5d7ba-c63d-4ac0-8693-1d24ea530d99/scratchpad/bench-e/w-b7u4x"
+  ],
+  "error": null
+}
