@@ -65,7 +65,11 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
             json.dump(state, fh, ensure_ascii=False, indent=2)
             fh.write("\n")
     if args.page:
-        page.write(args.page, page.build(args.repo, args.harness_dir, args.audit, args.harvest, today))
+        try:
+            page.write(args.page, page.build(args.repo, args.harness_dir, args.audit, args.harvest, today))
+        except (OSError, UnicodeError) as exc:
+            print(f"harness status: the page could not be written to {args.page}: {exc}", file=sys.stderr)
+            return 2
         print(f"page written: {args.page}", file=sys.stderr)
     if args.map:
         sys.stdout.write(maturity.render_map(state))

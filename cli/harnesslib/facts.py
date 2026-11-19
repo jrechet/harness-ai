@@ -321,7 +321,7 @@ def audit_facts(audit: dict | None) -> dict[str, Any] | None:
             layers[layer]["misplaced"] += 1
         verdict = e["verdict"] if isinstance(e.get("verdict"), str) and e["verdict"] else "?"
         verdicts[verdict] = verdicts.get(verdict, 0) + 1
-        if e.get("priority") in priorities:
+        if isinstance(e.get("priority"), str) and e["priority"] in priorities:
             priorities[e["priority"]] += 1
     meta = audit.get("audit") if isinstance(audit.get("audit"), dict) else {}
     cut = meta.get("cut_the_agent_test") if isinstance(meta.get("cut_the_agent_test"), dict) else {}
@@ -334,8 +334,8 @@ def audit_facts(audit: dict | None) -> dict[str, Any] | None:
         "layers": layers,
         "verdicts": verdicts,
         "priorities": priorities,
-        "process_leaks": len(audit.get("process_leaks") or []),
-        "guarded_rules": len(audit.get("guarded_rules") or []),
+        "process_leaks": len(audit["process_leaks"]) if isinstance(audit.get("process_leaks"), list) else 0,
+        "guarded_rules": len(audit["guarded_rules"]) if isinstance(audit.get("guarded_rules"), list) else 0,
         "removals": {reason: sum(1 for r in removals if r.get("reason") == reason)
                      for reason in ("useless", "harmful", "outdated")},
     }

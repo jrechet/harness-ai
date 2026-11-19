@@ -175,4 +175,8 @@ def render_html(data: dict[str, Any]) -> str:
 def write(path: str, data: dict[str, Any]) -> None:
     folder = os.path.dirname(os.path.abspath(path))
     os.makedirs(folder, exist_ok=True)
-    medals.write_file(path, render_html(data))
+    try:
+        medals.write_file(path, render_html(data))
+    finally:
+        if os.path.isfile(f"{path}.tmp"):          # a write that failed half-way leaves nothing behind
+            os.remove(f"{path}.tmp")

@@ -2,6 +2,8 @@
 file is standalone and inert."""
 from __future__ import annotations
 
+import base64
+import hashlib
 import io
 import json
 import os
@@ -126,7 +128,11 @@ class RenderTests(Case):
         self.assertNotIn("innerHTML", html)
         policy = re.search(r'Content-Security-Policy" content="([^"]+)"', html)[1]
         self.assertIn("default-src 'none'", policy)
-        self.assertEqual(len(re.findall(r"'sha256-[A-Za-z0-9+/=]+'", policy)), 2)
+        digests = re.findall(r"'sha256-([A-Za-z0-9+/=]+)'", policy)
+        for tag in ("style", "script"):                                              # the digest of the body that is really served
+            body = re.search(rf"<{tag}>(.*?)</{tag}>", html, re.DOTALL)[1]
+            self.assertIn(base64.b64encode(hashlib.sha256(body.encode("utf-8")).digest()).decode("ascii"), digests)
+        self.assertEqual(len(digests), 2)
         self.assertNotIn("unsafe", policy)
 
     def test_text_from_the_repository_cannot_close_the_data_block(self):
@@ -148,11 +154,20 @@ class CommandTests(Case):
 
     def test_a_hand_edited_audit_file_does_not_crash_status(self):
         write(self.repo, "AGENTS.md", AGENTS)
-        for broken in ({"elements": "none"}, {"elements": ["text", 3, None]}, {"audit": "x", "removals": ["y"], "elements": [{"verdict": ["a"]}]}):
+        for broken in ({"elements": "none"}, {"elements": ["text", 3, None]}, {"audit": "x", "removals": ["y"], "elements": [{"verdict": ["a"]}]},
+                       {"elements": [{"priority": ["x"], "actual_layer": 3}]}, {"process_leaks": 5, "guarded_rules": 3, "removals": 2}):
             write(self.repo, ".harness/audit.json", json.dumps(broken))
             code, out, _ = self.run_status("--no-write")
             self.assertEqual(code, 0)
             self.assertIn("Level", out)
+
+    def test_a_page_that_cannot_be_written_is_said_plainly(self):
+        write(self.repo, "AGENTS.md", AGENTS)
+        code, _, err = self.run_status("--no-write", "--page", self.repo)             # a folder, not a file
+        self.assertEqual(code, 2)
+        self.assertIn("could not be written", err)
+        self.assertNotIn("Traceback", err)
+        self.assertFalse(os.path.exists(self.repo + ".tmp"))
 
     def test_the_flag_writes_the_page_and_leaves_the_usual_output_alone(self):
         write(self.repo, "AGENTS.md", AGENTS)
