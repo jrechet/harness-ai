@@ -20,6 +20,8 @@ Default mode: **delegation** (the agent receives a whole task and comes back wit
 - **Where we are going**: level 1, Framed: the agent knows the project, its rules and what it must never do. Nothing beyond.
 - **Now**: the four questions, asked together.
 
+**Offer the page.** With the map, write the picture of it: `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status --no-write --page <repo>/.harness/state.html <repo>`, and give its path: one file to open in a browser, showing the files present or missing layer by layer and the steps to the target, one by one. Write it again at the end, so the user sees what moved. Never write that page yourself: it only shows what the command measured.
+
 **Ask with context.** For each question, say why it is asked and what the answer changes in the file; give the proposed default and what happens if the user takes it. One decision per question.
 
 **Plain words.** No check ids, no signal codes, no undefined internal word in what the user reads ("guardrail": a test or CI check that enforces a rule). Speak the language of the conversation. **The files you write follow the repository's language**: an English repository gets the English template; a repository whose docs and comments are in French gets the same sections in French (`Mode : **délégation**`, `## Règles`, `## Interdits`, `Pourquoi :`, `Vérifiée par :`, `(non vérifiée)`): `harness status` reads both.

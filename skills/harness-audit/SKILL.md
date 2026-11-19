@@ -16,6 +16,8 @@ A harness is healthy when **the agent is only an accelerator**: if you cut it, t
 - **Where we are going**: a report with one verdict per item and an ordered plan; `.harness/audit.json` written for `harness status`.
 - **Now**: what you read first, and whether you will ask something (a missing file, the scope).
 
+**Offer the page.** With the map, write the picture of it: `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status --no-write --page <repo>/.harness/state.html <repo>`, and give its path: one file to open in a browser, showing the files present or missing layer by layer and the steps to the target. Write it again once `.harness/audit.json` exists: the page then carries your remarks file by file, shown apart as opinions, not as measurements. Never write that page yourself.
+
 **Ask with context.** Say why you ask and what the answer changes; give the options in plain words and the proposed default. One decision per question.
 
 **Plain words.** The report keeps its fixed sections, verdicts and JSON keys (they are compared from one audit to the next), but each verdict and layer is explained in plain words the first time it appears ("PUSH_DOWN: move it from written text into code that enforces it"). No undefined "guardrail" ("a test or CI check that enforces a rule"), no raw check id. Speak the language of the conversation.

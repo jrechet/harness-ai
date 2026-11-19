@@ -121,6 +121,7 @@ Three levels of confidence, always the same words: **tested** (run on a fresh cl
 | See each rule, its age, its guardrail | `harness.py rules <repo>` | tested |
 | Find the commands an agent does not guess | `harness.py commands <repo>` | tested |
 | Know what has aged: a skill that cites a deleted file, a late harvest | `harness.py fresh <repo>` | tested |
+| See the files you have and miss, layer by layer, and walk the steps to your target, in one page to open in a browser ([example](docs/examples/state.html)) | `harness.py status <repo> --page F` | tested |
 | See your level as a medal, with achievements and next steps | `harness.py medals <repo> [--write] [--page F]` | tested |
 | Know where a piece of a skill or agent belongs: AGENTS.md, CLI, hook, permission, CI… | `harness.py place grid`, `place one`, `place plan <pieces.json>` | tested |
 | Write an assessment as a one-page HTML report | `harness.py report build <report.json> -o <page.html>` | tested |

@@ -21,6 +21,8 @@ Three rules that are not negotiable:
 - **Where we are going**: one step closer to the target, or the target confirmed as reached.
 - **Now**: what you do next, and whether you will ask something.
 
+**Offer the page.** With the map, write the picture of it: `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status --page <repo>/.harness/state.html <repo>`, and give its path: one file to open in a browser, showing the files present or missing layer by layer and the steps to the target, one by one. Write it again after the step, so the user sees what moved. Never write that page yourself: it only shows what the command measured.
+
 **Ask with context.** Say why you ask and what the answer changes; give the options in plain words with what each means; give the default and what happens if the user takes it. One decision per question.
 
 **Plain words.** The user never reads a check id (`L2.signal`), a signal code (S1–S5), or an undefined internal word. Say "a check that fails the build when the rule is broken", not "guardrail"; "collect what recent reviews taught", not "harvest". A level name comes with its phrase from the map the first time. Speak the language of the conversation; files written in the user's repository follow that repository's language.

@@ -330,7 +330,7 @@ def render_md(data: dict[str, Any]) -> str:
 
 # --- The page ---------------------------------------------------------------------------------------------
 
-def _csp(template: str) -> str:
+def csp(template: str) -> str:
     def digest(tag: str) -> str:
         body = re.search(rf"<{tag}>(.*?)</{tag}>", template, re.DOTALL)[1]
         return base64.b64encode(hashlib.sha256(body.encode("utf-8")).digest()).decode("ascii")
@@ -344,11 +344,11 @@ def render_html(data: dict[str, Any]) -> str:
         template = fh.read()
     raw = json.dumps(data, ensure_ascii=False, sort_keys=True).replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
     title = f"{data['medal']['name']} · {data['name']}".replace("&", "&amp;").replace("<", "&lt;")
-    fields = {"csp": _csp(template), "title": title, "data": raw}  # a single pass: a value is never read again
+    fields = {"csp": csp(template), "title": title, "data": raw}  # a single pass: a value is never read again
     return re.sub(r"\{\{(csp|title|data)\}\}", lambda m: fields[m[1]], template)
 
 
-def _write(path: str, text: str) -> None:
+def write_file(path: str, text: str) -> None:
     """Writes in one go: a half-written file would restart the dates from zero."""
     tmp = f"{path}.tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
@@ -393,11 +393,11 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
     data = build(evaluated, previous)
     try:
         if args.page:
-            _write(args.page, render_html(data))
+            write_file(args.page, render_html(data))
         # same measure, another day: the file does not move, its date is that of the last change
         if args.write and not (usable and {**previous, "date": None} == {**data, "date": None}):
             os.makedirs(os.path.dirname(path), exist_ok=True)
-            _write(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+            write_file(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
     except OSError as exc:
         print(f"harness medals: cannot write ({exc})", file=sys.stderr)
         return 2
