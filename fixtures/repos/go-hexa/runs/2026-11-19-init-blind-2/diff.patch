@@ -1,0 +1,373 @@
+diff --git a/.github/copilot-instructions.md b/.github/copilot-instructions.md
+new file mode 100644
+index 0000000..765eabf
+--- /dev/null
++++ b/.github/copilot-instructions.md
+@@ -0,0 +1 @@
++This repository's instructions live in `AGENTS.md` at the root. Read it before any change and apply it; no rule is defined here.
+diff --git a/.harness/state.json b/.harness/state.json
+new file mode 100644
+index 0000000..d7aa1be
+--- /dev/null
++++ b/.harness/state.json
+@@ -0,0 +1,323 @@
++{
++  "schema": "harness-state/1",
++  "repo": "/private/tmp/claude-501/-Users-jre-dev-harness-ai--claude-worktrees-ai-sdlc-framework-a5cfb7/b7c5d7ba-c63d-4ac0-8693-1d24ea530d99/scratchpad/bench-d/w-g3v7njag/repo",
++  "date": "2026-11-19",
++  "level": {
++    "reached": 1,
++    "name": "Framed",
++    "next": 2
++  },
++  "target": {
++    "level": null,
++    "name": null,
++    "reached": false
++  },
++  "levels": [
++    {
++      "level": 0,
++      "name": "None",
++      "summary": "No instruction file: the agent starts from zero at every session.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [],
++      "passed_checks": 0,
++      "total_checks": 0
++    },
++    {
++      "level": 1,
++      "name": "Framed",
++      "summary": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.",
++      "achieved": true,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L1.source",
++          "label": "An instruction file exists (AGENTS.md)",
++          "passed": true,
++          "value": "AGENTS.md",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.mode",
++          "label": "The line \"Mode: delegation | assistance\" is present",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.short",
++          "label": "The loaded file is at most 60 lines",
++          "passed": true,
++          "value": 24,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.single_source",
++          "label": "CLAUDE.md is an @AGENTS.md stub (or absent)",
++          "passed": true,
++          "value": {
++            "exists": true,
++            "lines": 1,
++            "loaded_lines": 24,
++            "is_stub": true
++          },
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L1.forbidden",
++          "label": "A \"Forbidden\" section says what an agent never does",
++          "passed": true,
++          "value": true,
++          "next_action": null,
++          "waits": false
++        }
++      ],
++      "passed_checks": 5,
++      "total_checks": 5
++    },
++    {
++      "level": 2,
++      "name": "Looped",
++      "summary": "The feedback loop runs: incidents become rules.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L2.maintenance",
++          "label": "A maintenance section says how the file evolves",
++          "passed": false,
++          "value": false,
++          "next_action": "Add the \"Maintaining this file\" section of the harness-init template.",
++          "waits": false
++        },
++        {
++          "id": "L2.rule_convention",
++          "label": "The `rule:` review convention is documented",
++          "passed": false,
++          "value": false,
++          "next_action": "Document it: a review comment that starts with `rule:` is a candidate rule.",
++          "waits": false
++        },
++        {
++          "id": "L2.marker_fresh",
++          "label": "A harvest ran less than 45 days ago",
++          "passed": false,
++          "value": null,
++          "next_action": "Run harness-harvest and merge its PR, which sets the marker.",
++          "waits": false
++        },
++        {
++          "id": "L2.signal",
++          "label": "The last harvest found at least one real signal (S1–S4)",
++          "passed": false,
++          "value": null,
++          "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.",
++          "waits": true
++        }
++      ],
++      "passed_checks": 0,
++      "total_checks": 4
++    },
++    {
++      "level": 3,
++      "name": "Verified",
++      "summary": "Mandatory rules are enforced by tools, not by text.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L3.ci",
++          "label": "A CI exists (workflows or .gitlab-ci.yml)",
++          "passed": true,
++          "value": [
++            "ci.yml",
++            "deploy.yml"
++          ],
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.guarded",
++          "label": "At least 50% of the rules are \"Enforced by\" a tool",
++          "passed": false,
++          "value": 0.0,
++          "next_action": "Push the narrated rules down to L3: custom lint, architecture test, PR check.",
++          "waits": false
++        },
++        {
++          "id": "L3.justified",
++          "label": "At least 50% of the rules say why",
++          "passed": true,
++          "value": 1.0,
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L3.audit",
++          "label": "A harness-audit exists and has no open P1",
++          "passed": false,
++          "value": null,
++          "next_action": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s.",
++          "waits": false
++        }
++      ],
++      "passed_checks": 2,
++      "total_checks": 4
++    },
++    {
++      "level": 4,
++      "name": "Delegated",
++      "summary": "Whole tasks are handed to the agent and come back clean.",
++      "achieved": false,
++      "in_scope": true,
++      "checks": [
++        {
++          "id": "L4.mode",
++          "label": "The mode is delegation",
++          "passed": true,
++          "value": "delegation",
++          "next_action": null,
++          "waits": false
++        },
++        {
++          "id": "L4.process",
++          "label": "A \"Working process\" section frames the agent",
++          "passed": false,
++          "value": false,
++          "next_action": "Add: when to stop and ask, definition of done, red CI, flaky test.",
++          "waits": false
++        },
++        {
++          "id": "L4.contracts",
++          "label": "At least one task contract exists and is referenced",
++          "passed": false,
++          "value": 0,
++          "next_action": "Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in AGENTS.md.",
++          "waits": false
++        },
++        {
++          "id": "L4.clean_prs",
++          "label": "The last harvest sees agent PRs with no after-the-fact correction",
++          "passed": false,
++          "value": null,
++          "next_action": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them.",
++          "waits": true
++        },
++        {
++          "id": "L4.cut_the_agent",
++          "label": "The audit's \"cut the agent\" test passes",
++          "passed": false,
++          "value": null,
++          "next_action": "Push down to L3/L4 the steps that exist only in prompts.",
++          "waits": false
++        }
++      ],
++      "passed_checks": 1,
++      "total_checks": 5
++    }
++  ],
++  "layers": {
++    "source": "estimate",
++    "layers": {
++      "L1": {
++        "total": null,
++        "misplaced": null
++      },
++      "L2": {
++        "total": 1,
++        "misplaced": null
++      },
++      "L3": {
++        "total": 1,
++        "misplaced": null
++      },
++      "L4": {
++        "total": 2,
++        "misplaced": null
++      }
++    },
++    "hint": "Run harness-audit for a measured layer view."
++  },
++  "next_actions": [
++    "Add the \"Maintaining this file\" section of the harness-init template.",
++    "Document it: a review comment that starts with `rule:` is a candidate rule.",
++    "Run harness-harvest and merge its PR, which sets the marker."
++  ],
++  "waiting": [
++    "L2.signal"
++  ],
++  "dangling": [],
++  "facts": {
++    "repo": "/private/tmp/claude-501/-Users-jre-dev-harness-ai--claude-worktrees-ai-sdlc-framework-a5cfb7/b7c5d7ba-c63d-4ac0-8693-1d24ea530d99/scratchpad/bench-d/w-g3v7njag/repo",
++    "date": "2026-11-19",
++    "instructions": {
++      "files": {
++        "AGENTS.md": {
++          "exists": true,
++          "lines": 24,
++          "loaded_lines": 24,
++          "is_stub": false
++        },
++        "CLAUDE.md": {
++          "exists": true,
++          "lines": 1,
++          "loaded_lines": 24,
++          "is_stub": true
++        },
++        ".github/copilot-instructions.md": {
++          "exists": true,
++          "lines": 1,
++          "loaded_lines": 1,
++          "is_stub": true
++        },
++        ".cursor/rules": {
++          "exists": false,
++          "files": []
++        }
++      },
++      "source": {
++        "path": "AGENTS.md",
++        "mode": "delegation",
++        "lines": 24,
++        "rules_total": 6,
++        "rules_guarded": 0,
++        "rules_unguarded_marked": 3,
++        "rules_justified": 6,
++        "rules_dated": 6,
++        "oldest_rule_date": "2025-09",
++        "has_maintenance_section": false,
++        "has_process_section": false,
++        "has_forbidden_section": true,
++        "mentions_rule_convention": false,
++        "harvest_marker": null
++      }
++    },
++    "contracts": {
++      "count": 0,
++      "items": []
++    },
++    "guardrails": {
++      "tools": {
++        "golangci-lint": [
++          ".golangci.yml"
++        ]
++      },
++      "workflows": [
++        "ci.yml",
++        "deploy.yml"
++      ],
++      "has_ci": true
++    },
++    "audit": null,
++    "harvest": null,
++    "harvest_marker_age_days": null,
++    "config": {
++      "target_level": null
++    },
++    "dangling": []
++  }
++}
+diff --git a/AGENTS.md b/AGENTS.md
+new file mode 100644
+index 0000000..cff4355
+--- /dev/null
++++ b/AGENTS.md
+@@ -0,0 +1,24 @@
++# ledger — instructions for agents
++
++Mode: **delegation**. An agent can receive a whole task and open a PR without intermediate review. What is mandatory here is enforced by the CI; this file explains, it does not guarantee.
++
++## What this repo does
++A Go ledger service: open accounts, read balances, transfer money, quote fees. The decisions are in `docs/adr/`, the incidents in `docs/postmortems/`, the operations in `docs/operations.md` — read them before changing behaviour.
++
++## What changes → what to run
++| If you touch… | Run… | Enforced in CI by |
++|---|---|---|
++| any Go code | `go test ./...` | `test` job (blocks) |
++| imports / layer boundaries in `internal/` | `go run ./tools/archcheck` | `arch` job (blocks) |
++
++`golangci-lint` runs in CI but **does not block** (`continue-on-error`, inherited-warning debt): do not rely on it to catch a mistake.
++
++## Rules
++- A replayed write response carries the `Idempotency-Replayed: true` header. Why: the mobile app relies on it since 2026-06 to not show a confirmation twice (said by the team; in no document). Nothing checks it, and `POST /transfers` does not emit it yet (backlog) — do not take transfers as the model. (unverified) [2026-06]
++- Every balance-changing endpoint requires the `Idempotency-Key`, looked up **inside** the write transaction, never before. Why: the double-debit incident, `docs/postmortems/2026-04-double-debit.md` and ADR 0003. Only review catches a new endpoint that forgets it. (unverified) [2026-04]
++- An amount is an `int64` in cents, no `float32`/`float64` in `internal/domain` or `internal/app`; the API exposes `amount_cents`, never a decimal. Why: float rounding errors on money, ADR 0002. A `forbidigo` rule exists but the non-blocking `lint` job does not enforce it. (unverified) [2025-09]
++
++## Forbidden
++- Touch a database that is not your own. Staging is shared with the QA team; `make reset-db`/`make migrate` do not check which database `DATABASE_URL` points to. Why: on 2026-02-03 `make reset-db` with the staging URL wiped two days of QA data (`docs/operations.md`). [2026-02]
++- Modify a migration already applied in staging or production. Add a new numbered file instead. Why: applied migrations are immutable, said by the team (`docs/operations.md`). [2026-11]
++- Run `deploy.yml` without `dry_run`, or run `deploy/apply.sh`/`deploy/plan.sh` from a local machine. Why: deploys are manual and production needs an approval, said by the team (`docs/operations.md`). [2026-11]
+diff --git a/CLAUDE.md b/CLAUDE.md
+new file mode 100644
+index 0000000..43c994c
+--- /dev/null
++++ b/CLAUDE.md
+@@ -0,0 +1 @@
++@AGENTS.md
