@@ -1,0 +1,15 @@
+{
+  "tokens": 61447,
+  "cache_read_tokens": 562090,
+  "output_tokens": 20069,
+  "turns": 34,
+  "duration_s": 276,
+  "denied": 4,
+  "denied_commands": [
+    "ls -la /private/tmp/claude-501/-Users-jre-dev-harness-ai--claude-worktrees-ai-sdlc-framework-a5cfb7/b7c5d7ba-c63d-4ac0-8693-1d24ea530d99/scratchpad/bench-g/w-hp",
+    "cd \"/private/tmp/claude-501/-Users-jre-dev-harness-ai--claude-worktrees-ai-sdlc-framework-a5cfb7/b7c5d7ba-c63d-4ac0-8693-1d24ea530d99/scratchpad/bench-g/w-hp__z",
+    "cd \"/private/tmp/claude-501/-Users-jre-dev-harness-ai--claude-worktrees-ai-sdlc-framework-a5cfb7/b7c5d7ba-c63d-4ac0-8693-1d24ea530d99/scratchpad/bench-g/w-hp__z",
+    "which golangci-lint make psql 2>&1; echo \"exit=$?\""
+  ],
+  "error": null
+}

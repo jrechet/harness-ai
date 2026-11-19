@@ -45,7 +45,7 @@ If the owner does not know ("I never read it again"), do not fill in for them: w
 - **Commands that surprise.** `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" commands <repo>` compares what the CI runs with what the ecosystem lets you guess: a wrapper (`make it` where you would expect `mvn verify`), options that change what runs, a target the CI does not run. Each unwritten candidate is confirmed: first read what it runs (the Makefile target, the script), run it only if it only checks, then it goes into the "what changes → what to run" table, with the obvious command it replaces if they are not equivalent ("`make it`, not `mvn verify`"). A delivery candidate, or any command that pushes, publishes or writes outside the repository even if the tool did not see it as such, is never run: it is a question for the owner, for a Forbidden line. An obvious command the CI runs as is needs no line.
 - **Guardrails, and whether they block.** For each linter, architecture test, check script: note its path, what it checks, and read the CI to see whether it **blocks**. A job in `continue-on-error`, a path filter that does not trigger it, a local hook, a job cited by a document but absent from the workflow: this guardrail guarantees nothing. Tests that assert nothing either.
 
-Test for each candidate sentence: *if I remove it, does the agent do anything differently?* If not, it does not go in the file.
+Test for each candidate sentence: *if I remove it, does the agent do anything differently?* If not, it does not go in the file. A rule that a check enforces passes this test: without its line, the agent only meets the rule when the CI turns red.
 
 ### 3. Writing
 From `references/agents-template.md`, block "Step 1":
