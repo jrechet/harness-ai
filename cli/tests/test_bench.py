@@ -323,6 +323,10 @@ class PlayTests(BenchCase):
         self.assertIn("--permission-mode dontAsk", joined)       # denies what is not listed, without a question
         self.assertNotIn("acceptEdits", joined)                   # that mode lets an unlisted command write files
         self.assertIn("Bash(go *)", cmd)
+        quoted = bench.agent_command({"agent_bash": ["python3 /kit/cli/harness.py *", "go *"]})
+        self.assertIn("Bash(python3 /kit/cli/harness.py *)", quoted)
+        self.assertIn('Bash(python3 "/kit/cli/harness.py" *)', quoted)   # the same script, path quoted
+        self.assertEqual(len([c for c in quoted if c.startswith("Bash(")]), 3)
         self.assertIn(f"Read(/{bench.repo_root()}/**)", cmd)
         self.assertNotIn("bypassPermissions", joined)
         self.assertNotIn("--dangerously-skip-permissions", joined)

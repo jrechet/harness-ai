@@ -242,13 +242,22 @@ def repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(fixtures.FIXTURES_ROOT)))
 
 
+def _rule_forms(rule: str) -> list[str]:
+    """A rule and, when it names a script by its absolute path, the same rule with that path in double
+    quotes: an agent often quotes a path, and a rule is matched as text. The same script, nothing more."""
+    words = rule.split(" ")
+    if len(words) > 1 and words[1].startswith("/"):
+        return [rule, " ".join([words[0], f'"{words[1]}"', *words[2:]])]
+    return [rule]
+
+
 def agent_command(task: dict[str, Any]) -> list[str]:
     """The command of the evaluated agent. Neutral: only the working repository's settings and
     instructions (`--setting-sources project`), no MCP server, no skill. Confined: edits accepted in its
     folder, commands limited to the task's `agent_bash` list, everything else denied without a
     question (`--permission-mode dontAsk`), reading this repository forbidden. Never a permission
     bypass."""
-    bash = [f"Bash({rule})" for rule in task.get("agent_bash", [])]
+    bash = [f"Bash({form})" for rule in task.get("agent_bash", []) for form in _rule_forms(rule)]
     return ["claude", "-p", "--output-format", "json", "--no-session-persistence",
             "--setting-sources", "project", "--strict-mcp-config", "--disable-slash-commands",
             "--permission-mode", "dontAsk",
