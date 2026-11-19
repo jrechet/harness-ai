@@ -306,33 +306,37 @@ def load_json(path: str) -> dict | None:
 
 
 def audit_facts(audit: dict | None) -> dict[str, Any] | None:
-    if not audit:
+    if not isinstance(audit, dict) or not audit:
         return None
-    elements = audit.get("elements") or []
+    raw = audit.get("elements")
+    elements = [e for e in raw if isinstance(e, dict)] if isinstance(raw, list) else []   # a hand-edited file must not crash status
     layers: dict[str, dict[str, int]] = {l: {"total": 0, "misplaced": 0} for l in ("L1", "L2", "L3", "L4", "MIXED")}
     verdicts: dict[str, int] = {}
     priorities: dict[str, int] = {"P1": 0, "P2": 0, "P3": 0}
     for e in elements:
-        layer = e.get("actual_layer") or "MIXED"
+        layer = e.get("actual_layer") if isinstance(e.get("actual_layer"), str) and e.get("actual_layer") else "MIXED"
         layers.setdefault(layer, {"total": 0, "misplaced": 0})
         layers[layer]["total"] += 1
         if e.get("verdict") and e["verdict"] != "KEEP":
             layers[layer]["misplaced"] += 1
-        verdicts[e.get("verdict") or "?"] = verdicts.get(e.get("verdict") or "?", 0) + 1
+        verdict = e["verdict"] if isinstance(e.get("verdict"), str) and e["verdict"] else "?"
+        verdicts[verdict] = verdicts.get(verdict, 0) + 1
         if e.get("priority") in priorities:
             priorities[e["priority"]] += 1
-    meta = audit.get("audit") or {}
+    meta = audit.get("audit") if isinstance(audit.get("audit"), dict) else {}
+    cut = meta.get("cut_the_agent_test") if isinstance(meta.get("cut_the_agent_test"), dict) else {}
+    removals = [r for r in audit.get("removals") or [] if isinstance(r, dict)] if isinstance(audit.get("removals"), list) else []
     return {
         "date": meta.get("date"),
         "health_score": meta.get("health_score"),
-        "cut_the_agent_passed": (meta.get("cut_the_agent_test") or {}).get("passed"),
+        "cut_the_agent_passed": cut.get("passed"),
         "elements": len(elements),
         "layers": layers,
         "verdicts": verdicts,
         "priorities": priorities,
         "process_leaks": len(audit.get("process_leaks") or []),
         "guarded_rules": len(audit.get("guarded_rules") or []),
-        "removals": {reason: sum(1 for r in audit.get("removals") or [] if r.get("reason") == reason)
+        "removals": {reason: sum(1 for r in removals if r.get("reason") == reason)
                      for reason in ("useless", "harmful", "outdated")},
     }
 

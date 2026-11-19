@@ -8,7 +8,7 @@ import os
 import sys
 from datetime import date
 
-from . import facts, maturity
+from . import facts, maturity, page
 
 
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
@@ -20,6 +20,8 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     p.add_argument("--format", choices=["md", "json"], default="md")
     p.add_argument("--map", action="store_true",
                    help="prints only the short plain-words map of the levels (what the skills show first)")
+    p.add_argument("--page", metavar="FILE",
+                   help="also writes the interactive HTML page: the files of today, the steps to the target, the medals")
     p.add_argument("--no-write", action="store_true", help="does not write <harness-dir>/state.json")
     p.add_argument("--today", help="YYYY-MM-DD, for reproducible outputs")
     return p
@@ -62,6 +64,9 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         with open(os.path.join(out_dir, "state.json"), "w", encoding="utf-8") as fh:
             json.dump(state, fh, ensure_ascii=False, indent=2)
             fh.write("\n")
+    if args.page:
+        page.write(args.page, page.build(args.repo, args.harness_dir, args.audit, args.harvest, today))
+        print(f"page written: {args.page}", file=sys.stderr)
     if args.map:
         sys.stdout.write(maturity.render_map(state))
     elif args.format == "json":

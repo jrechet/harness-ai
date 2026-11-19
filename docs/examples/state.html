@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'sha256-5gLpVQTYDMsqpBh9ayRMMlqcI+L4kZonPqjL7i+2+Vs='; script-src 'sha256-rU6q3GznXBR3+0UGECHlULD5mqs6d5p1zTf/yuqHa+4='; img-src data:; base-uri 'none'; form-action 'none'">
+<title>harness-ai · level 1</title>
+<style>
+:root {
+  --paper: oklch(96.5% 0.012 85);
+  --surface: oklch(99% 0.006 85);
+  --ink: oklch(22% 0.02 60);
+  --muted: oklch(48% 0.02 60);
+  --line: oklch(86% 0.015 80);
+  --quiet: oklch(92% 0.01 80);
+  --ok: oklch(52% 0.13 150);
+  --gap: oklch(52% 0.17 28);
+  --new: oklch(50% 0.14 255);
+  --new-wash: oklch(93% 0.035 255);
+  --opinion: oklch(55% 0.12 75);
+  --display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --pad: clamp(1rem, 4vw, 2.5rem);
+  --fast: 160ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: oklch(19% 0.012 70);
+    --surface: oklch(24% 0.014 70);
+    --ink: oklch(93% 0.012 85);
+    --muted: oklch(70% 0.015 80);
+    --line: oklch(36% 0.014 70);
+    --quiet: oklch(28% 0.012 70);
+    --ok: oklch(76% 0.14 150);
+    --gap: oklch(72% 0.16 28);
+    --new: oklch(78% 0.12 255);
+    --new-wash: oklch(30% 0.05 255);
+    --opinion: oklch(80% 0.12 80);
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 1rem/1.5 var(--ui); }
+main { max-width: 72rem; margin: 0 auto; padding: var(--pad) var(--pad) 4rem; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; line-height: 1.12; margin: 0; text-wrap: balance; }
+p { margin: 0; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--new); outline-offset: 3px; }
+.eyebrow { font: 0.76rem/1.2 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+
+.masthead { display: grid; gap: 0.9rem; padding-block: clamp(0.5rem, 3vw, 2rem) 1.5rem; border-bottom: 2px solid var(--ink); }
+.masthead h1 { font-size: clamp(2.3rem, 1.1rem + 5.2vw, 4.8rem); letter-spacing: -0.02em; }
+.masthead h1 em { font-style: italic; color: var(--muted); font-weight: 400; }
+.lede { font-size: clamp(1.05rem, 0.95rem + 0.5vw, 1.3rem); max-width: 44rem; }
+.tabs { display: flex; gap: 0.25rem; margin-top: 1.25rem; }
+.tabs button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 0.5rem 0.9rem 0.45rem; font: 600 0.95rem/1 var(--ui); color: var(--muted); }
+.tabs button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+.tabs button:hover { color: var(--ink); }
+
+.alert { margin-top: 1.25rem; padding: 0.8rem 1rem; border-left: 4px solid var(--gap); background: var(--surface); }
+.alert ul { margin: 0.3rem 0 0; padding-left: 1.1rem; font: 0.85rem/1.5 var(--mono); }
+
+.ladder { list-style: none; margin: 2rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); }
+.ladder li { position: relative; padding: 0.9rem 0.8rem 0.2rem 0; border-top: 4px solid var(--line); }
+.ladder li[data-held] { border-color: var(--ink); }
+.ladder li[data-out] { opacity: 0.45; }
+.ladder b { display: block; font: 600 1.7rem/1 var(--display); }
+.ladder strong { display: block; font: 600 0.95rem/1.2 var(--ui); margin-top: 0.25rem; }
+.ladder span { display: block; font-size: 0.82rem; line-height: 1.35; color: var(--muted); margin-top: 0.3rem; }
+.ladder i { position: absolute; top: -1.65rem; left: 0; font: 600 0.72rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; font-style: normal; padding: 0.25rem 0.45rem; }
+.ladder i.here { background: var(--ink); color: var(--paper); }
+.ladder i.goal { border: 1.5px solid var(--ink); left: auto; right: 0.8rem; }
+
+.walk { display: grid; grid-template-columns: auto 1fr auto; gap: 0.6rem 1rem; align-items: center; margin-top: 2.5rem; padding: 1rem 1.1rem; background: var(--surface); border: 1px solid var(--line); }
+.walk button { border: 1.5px solid var(--ink); background: none; padding: 0.4rem 0.8rem; font-weight: 600; transition: transform var(--fast) var(--ease); }
+.walk button:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+.walk button:active:not(:disabled) { transform: translateY(1px); }
+.walk button:disabled { opacity: 0.3; cursor: default; }
+.walk input { width: 100%; accent-color: var(--new); }
+.walk .now { grid-column: 1 / -1; display: grid; gap: 0.15rem; min-height: 3.2rem; }
+.walk .now b { font: 600 1.15rem/1.25 var(--display); }
+.walk .now span { color: var(--muted); font-size: 0.92rem; }
+
+.split { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: clamp(1.5rem, 4vw, 3.5rem); margin-top: 2rem; align-items: start; }
+.strata { display: grid; gap: 0.75rem; }
+.stratum { display: grid; grid-template-columns: 9.5rem 1fr; gap: 0.5rem 1rem; padding: 0.9rem 1rem; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--ink); }
+.stratum h3 { font-size: 1.15rem; }
+.stratum p { font-size: 0.8rem; line-height: 1.35; color: var(--muted); margin-top: 0.25rem; }
+.files { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; align-content: flex-start; }
+.files .none { font-size: 0.85rem; color: var(--muted); font-style: italic; padding: 0.3rem 0; }
+.file { display: grid; gap: 0.1rem; text-align: left; padding: 0.4rem 0.6rem; background: var(--paper); border: 1.5px solid var(--ink); transition: transform var(--fast) var(--ease), opacity var(--fast); }
+.file:hover { transform: translateY(-2px); }
+.file code { font: 600 0.8rem/1.2 var(--mono); overflow-wrap: anywhere; }
+.file small { font: 0.7rem/1.2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.file[data-state="missing"] { border-style: dashed; border-color: var(--gap); }
+.file[data-state="missing"] small { color: var(--gap); }
+.file[data-state="optional"] { border-style: dashed; border-color: var(--line); opacity: 0.7; }
+.file[data-state="pointer"] { border-color: var(--muted); }
+.file[data-state="added"], .file[data-state="changed"] { border-color: var(--new); background: var(--new-wash); }
+.file[data-state="added"] small, .file[data-state="changed"] small { color: var(--new); }
+.file[data-flag]::after { content: attr(data-flag); justify-self: start; font: 600 0.66rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--opinion); margin-top: 0.15rem; }
+
+.steps h2, .opinions h2, .medals h2 { font-size: 1.5rem; }
+.steps .note, .opinions .note { font-size: 0.85rem; color: var(--muted); margin-top: 0.3rem; }
+.steps ol { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: 0.35rem; counter-reset: step; }
+.steps li { counter-increment: step; }
+.steps li button { width: 100%; display: grid; grid-template-columns: 2.1rem 1fr; gap: 0.1rem 0.5rem; text-align: left; background: none; border: 0; border-left: 3px solid var(--line); padding: 0.45rem 0.6rem; }
+.steps li button::before { content: counter(step); grid-row: span 2; font: 600 1.25rem/1.1 var(--display); color: var(--muted); }
+.steps li b { font-weight: 600; font-size: 0.95rem; line-height: 1.3; }
+.steps li span { font-size: 0.8rem; color: var(--muted); }
+.steps li[data-done] button { border-color: var(--new); }
+.steps li[data-done] button::before { color: var(--new); }
+.steps li[data-current] button { background: var(--surface); border-color: var(--ink); }
+.steps li[data-current] button::before { color: var(--ink); }
+.steps li[data-out] { opacity: 0.45; }
+.steps .beyond { margin-top: 1.25rem; font: 0.76rem/1.2 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.tag { display: inline-block; font: 600 0.66rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; border: 1px solid currentColor; padding: 0.15rem 0.3rem; margin-left: 0.35rem; vertical-align: 0.1em; }
+
+.opinions { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--line); }
+.opinions ul { list-style: none; margin: 1rem 0 0; padding: 0; display: grid; gap: 0.6rem; }
+.opinions li { padding: 0.7rem 0.9rem; background: var(--surface); border-left: 4px solid var(--opinion); }
+.opinions code { font: 600 0.82rem/1.3 var(--mono); overflow-wrap: anywhere; }
+.opinions p { font-size: 0.9rem; margin-top: 0.25rem; }
+.opinions p.to { color: var(--muted); }
+
+.medals { margin-top: 2rem; }
+.medals .rank { font: 600 clamp(2rem, 1rem + 4vw, 3.6rem)/1 var(--display); margin-top: 0.4rem; }
+.medals .why { max-width: 40rem; margin-top: 0.6rem; }
+.medals ul { list-style: none; margin: 1.5rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr)); gap: 0.5rem; }
+.medals li { padding: 0.6rem 0.8rem; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--line); font-size: 0.9rem; }
+.medals li[data-got] { border-left-color: var(--ok); }
+.medals li small { display: block; font: 0.7rem/1.3 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.15rem; }
+.medals li:not([data-got]) { color: var(--muted); }
+
+dialog { border: 2px solid var(--ink); background: var(--surface); color: var(--ink); padding: 1.4rem 1.5rem; width: min(34rem, calc(100vw - 2rem)); }
+dialog::backdrop { background: oklch(20% 0.02 60 / 0.5); }
+dialog h2 { font: 600 1.05rem/1.3 var(--mono); overflow-wrap: anywhere; }
+dialog p { margin-top: 0.7rem; }
+dialog ul { margin: 0.4rem 0 0; padding-left: 1.1rem; font-size: 0.92rem; }
+dialog .close { margin-top: 1.2rem; border: 1.5px solid var(--ink); background: none; padding: 0.35rem 0.8rem; font-weight: 600; }
+[hidden] { display: none !important; }
+
+@media (max-width: 54rem) {
+  .split { grid-template-columns: 1fr; }
+  .ladder { grid-template-columns: 1fr; gap: 0.2rem; margin-top: 1.25rem; }
+  .ladder li { display: grid; grid-template-columns: 2rem 1fr; padding: 0.5rem 0 0.5rem 0.75rem; border-top: 0; border-left: 4px solid var(--line); }
+  .ladder li[data-held] { border-color: var(--ink); }
+  .ladder b { grid-row: span 2; font-size: 1.4rem; }
+  .ladder span { grid-column: 2; }
+  .ladder i { position: static; grid-column: 2; justify-self: start; margin-bottom: 0.25rem; }
+  .stratum { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<main id="app"></main>
+<dialog id="detail" aria-labelledby="detail-title"></dialog>
+<script type="application/json" id="page-data">{"audit": null, "dangling": [], "date": "2026-11-19", "ladder": [{"achieved": true, "in_scope": true, "level": 0, "name": "None", "plain": "no instructions: the agent starts from zero at every session"}, {"achieved": true, "in_scope": true, "level": 1, "name": "Framed", "plain": "the agent knows the project, its rules and what it must never do"}, {"achieved": false, "in_scope": true, "level": 2, "name": "Looped", "plain": "review remarks become rules, so the same mistake is not made twice"}, {"achieved": false, "in_scope": true, "level": 3, "name": "Verified", "plain": "mandatory rules are enforced by tools, not just written down"}, {"achieved": false, "in_scope": true, "level": 4, "name": "Delegated", "plain": "whole tasks go to the agent and come back clean"}], "layers": [{"id": "instructions", "items": [{"detail": "48 lines", "path": "AGENTS.md", "purpose": "The single source of instructions: the mode, the rules with their reason, what is forbidden.", "state": "present"}, {"detail": "points to the single source", "path": "CLAUDE.md", "purpose": "What Claude Code loads. It should only point to AGENTS.md, so there is one source.", "state": "pointer"}, {"detail": "", "path": ".github/copilot-instructions.md", "purpose": "What GitHub Copilot loads. Only needed if the team uses Copilot.", "state": "optional"}, {"detail": "", "path": ".cursor/rules", "purpose": "What Cursor loads. Only needed if the team uses Cursor.", "state": "optional"}], "plain": "what the agent reads at the start of every session", "title": "Instructions"}, {"id": "procedures", "items": [{"detail": "", "path": ".claude/skills/harness-stress/SKILL.md", "purpose": "A task the agent can be given whole: its steps and what done looks like.", "state": "present"}], "plain": "tasks written down so the agent can be given one whole", "title": "Procedures"}, {"id": "checks", "items": [], "plain": "tools that refuse a broken rule on the machine", "title": "Local checks"}, {"id": "pipeline", "items": [{"detail": "", "path": ".github/workflows/ci.yml", "purpose": "Runs on every change, away from the agent's machine.", "state": "present"}], "plain": "what runs on every change, away from the agent", "title": "Pipeline"}], "level": {"name": "Framed", "reached": 1}, "medals": {"date": "2026-11-19", "history": [{"date": "2026-11-15", "medal": "bronze"}], "kind": "repo", "medal": {"id": "bronze", "name": "Bronze", "of": 4, "rank": 1}, "name": "harness-ai", "next": [{"action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.", "id": "L2.signal", "title": "The last harvest found at least one real signal (S1–S4)", "waiting": true}], "schema": 1, "successes": [{"evidence": "AGENTS.md", "id": "L1.source", "lost": null, "next": null, "tier": "bronze", "title": "An instruction file exists (AGENTS.md)", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "delegation", "id": "L1.mode", "lost": null, "next": null, "tier": "bronze", "title": "The line \"Mode: delegation | assistance\" is present", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "48", "id": "L1.short", "lost": null, "next": null, "tier": "bronze", "title": "The loaded file is at most 60 lines", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "exists: yes, lines: 1, loaded_lines: 48, is_stub: yes", "id": "L1.single_source", "lost": null, "next": null, "tier": "bronze", "title": "CLAUDE.md is an @AGENTS.md stub (or absent)", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "yes", "id": "L1.forbidden", "lost": null, "next": null, "tier": "bronze", "title": "A \"Forbidden\" section says what an agent never does", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "yes", "id": "L2.maintenance", "lost": null, "next": null, "tier": "silver", "title": "A maintenance section says how the file evolves", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "yes", "id": "L2.rule_convention", "lost": null, "next": null, "tier": "silver", "title": "The `rule:` review convention is documented", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "10", "id": "L2.marker_fresh", "lost": null, "next": null, "tier": "silver", "title": "A harvest ran less than 45 days ago", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "", "id": "L2.signal", "lost": null, "next": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.", "tier": "silver", "title": "The last harvest found at least one real signal (S1–S4)", "unlocked": null, "waiting": true}, {"evidence": "ci.yml", "id": "L3.ci", "lost": null, "next": null, "tier": "gold", "title": "A CI exists (workflows or .gitlab-ci.yml)", "unlocked": "2026-11-17", "waiting": false}, {"evidence": "0.0", "id": "L3.guarded", "lost": null, "next": "Push the narrated rules down to L3: custom lint, architecture test, PR check.", "tier": "gold", "title": "At least 50% of the rules are \"Enforced by\" a tool", "unlocked": null, "waiting": false}, {"evidence": "0.56", "id": "L3.justified", "lost": null, "next": null, "tier": "gold", "title": "At least 50% of the rules say why", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "", "id": "L3.audit", "lost": null, "next": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s.", "tier": "gold", "title": "A harness-audit exists and has no open P1", "unlocked": null, "waiting": false}, {"evidence": "delegation", "id": "L4.mode", "lost": null, "next": null, "tier": "platinum", "title": "The mode is delegation", "unlocked": "2026-11-17", "waiting": false}, {"evidence": "yes", "id": "L4.process", "lost": null, "next": null, "tier": "platinum", "title": "A \"Working process\" section frames the agent", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "1", "id": "L4.contracts", "lost": null, "next": null, "tier": "platinum", "title": "At least one task contract exists and is referenced", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "", "id": "L4.clean_prs", "lost": null, "next": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them.", "tier": "platinum", "title": "The last harvest sees agent PRs with no after-the-fact correction", "unlocked": null, "waiting": true}, {"evidence": "", "id": "L4.cut_the_agent", "lost": null, "next": "Push down to L3/L4 the steps that exist only in prompts.", "tier": "platinum", "title": "The audit's \"cut the agent\" test passes", "unlocked": null, "waiting": false}, {"evidence": "nothing broken", "id": "B.fresh", "lost": null, "next": null, "tier": "bonus", "title": "No skill or agent cites what has vanished", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "9 of 9", "id": "B.dates", "lost": null, "next": null, "tier": "bonus", "title": "Each rule carries its date", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "5 of 9", "id": "B.why", "lost": null, "next": "Add \"Why: …\" to the rules that do not say it, or \"no known incident\".", "tier": "bonus", "title": "Each rule says why", "unlocked": null, "waiting": false}, {"evidence": "0 of 9", "id": "B.tools", "lost": null, "next": "Push the narrated rules to a lint, an architecture test or a PR check.", "tier": "bonus", "title": "Each rule is enforced by a tool", "unlocked": null, "waiting": false}, {"evidence": "0 reference(s) without a target", "id": "B.targets", "lost": null, "next": null, "tier": "bonus", "title": "No reference without a target", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "no departure from the obvious commands", "id": "B.commands", "lost": null, "next": null, "tier": "bonus", "title": "The commands the CI runs are written", "unlocked": "2026-11-15", "waiting": false}, {"evidence": "target: none", "id": "B.target", "lost": null, "next": "Say where you stop with `harness target \u003clevel\u003e`, then reach it.", "tier": "bonus", "title": "The target level is reached", "unlocked": null, "waiting": false}], "tiers": [{"done": 5, "earned": true, "id": "bronze", "name": "Bronze", "promise": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.", "title": "Framed", "total": 5}, {"done": 3, "earned": false, "id": "silver", "name": "Silver", "promise": "The feedback loop runs: incidents become rules.", "title": "Looped", "total": 4}, {"done": 2, "earned": false, "id": "gold", "name": "Gold", "promise": "Mandatory rules are enforced by tools, not by text.", "title": "Verified", "total": 4}, {"done": 3, "earned": false, "id": "platinum", "name": "Platinum", "promise": "Whole tasks are handed to the agent and come back clean.", "title": "Delegated", "total": 5}], "why": "Bronze: the 5 achievements of the \"Framed\" rank are unlocked, and 1 missing for silver."}, "name": "harness-ai", "schema": "harness-page/1", "steps": [{"action": "nothing to write: this comes with real reviews, over time", "in_scope": true, "level": 2, "missing": "no review remark or fixed agent change has fed a rule yet", "touch": null, "waits": true}, {"action": "turn one written rule into a check that fails when the rule is broken", "in_scope": true, "level": 3, "missing": "fewer than 50% of the rules are enforced by a tool (a test, a lint rule, a CI check)", "touch": {"effect": "add", "layer": "checks", "path": "a check for one rule"}, "waits": false}, {"action": "run a full review of the setup and fix its urgent findings", "in_scope": true, "level": 3, "missing": "no full review of the setup exists yet, or the last one found an urgent problem", "touch": null, "waits": false}, {"action": "nothing to write: this comes with real agent changes, over time", "in_scope": true, "level": 4, "missing": "no agent change has yet been seen merged without a fix afterwards", "touch": null, "waits": true}, {"action": "move one step that lives only in a prompt into a script or a CI job", "in_scope": true, "level": 4, "missing": "some mandatory steps exist only in prompts, not in scripts or CI", "touch": null, "waits": false}], "target": {"level": null, "name": null, "reached": false}}</script>
+<script>
+(() => {
+  const data = JSON.parse(document.getElementById("page-data").textContent);
+  const app = document.getElementById("app");
+  const dialog = document.getElementById("detail");
+  const LABELS = { present: "present", pointer: "pointer", missing: "missing", optional: "not needed unless used", added: "new", changed: "changed" };
+
+  const el = (tag, props = {}, ...children) => {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(props)) {
+      if (value === null || value === undefined || value === false) continue;
+      if (key === "text") node.textContent = value;
+      else if (key === "class") node.className = value;
+      else if (key === "on") for (const [name, fn] of Object.entries(value)) node.addEventListener(name, fn);
+      else node.setAttribute(key, value === true ? "" : value);
+    }
+    node.append(...children.filter(Boolean));
+    return node;
+  };
+
+  const walk = data.steps.filter((s) => s.in_scope);
+  const beyond = data.steps.filter((s) => !s.in_scope);
+  const top = data.ladder.length - 1;
+  const goal = data.target.level;
+  const ui = { at: 0, tab: "map" };
+  const cap = (text) => (text ? text[0].toUpperCase() + text.slice(1) : text);
+  const verdictsOf = (path) => (data.audit ? data.audit.rows.filter((r) => r.file === path) : []);
+
+  // The level held once the first `at` steps are done: every step of that level and below is behind.
+  const levelAt = (at) => {
+    const left = walk.slice(at).concat(beyond);
+    let level = top;
+    for (const step of left) level = Math.min(level, step.level - 1);
+    return Math.max(level, data.level.reached);
+  };
+
+  // The files as they stand once the first `at` steps are done.
+  const filesAt = (at) => data.layers.map((layer) => {
+    const items = layer.items.map((item) => ({ ...item, steps: [] }));
+    walk.slice(0, at).forEach((step, index) => {
+      if (!step.touch || step.touch.layer !== layer.id) return;
+      let item = items.find((i) => i.path === step.touch.path);
+      if (!item) {
+        item = { path: step.touch.path, state: "missing", purpose: "", detail: "", steps: [] };
+        items.push(item);
+      }
+      item.state = step.touch.effect === "add" || item.state === "missing" || item.state === "optional" ? "added" : "changed";
+      item.steps.push(index + 1);
+    });
+    return { ...layer, items };
+  });
+
+  const openFile = (item) => {
+    const opinions = verdictsOf(item.path);
+    dialog.replaceChildren(
+      el("p", { class: "eyebrow", text: LABELS[item.state] || item.state }),
+      el("h2", { id: "detail-title", text: item.path }),
+      item.purpose ? el("p", { text: item.purpose }) : null,
+      item.detail ? el("p", { text: `Measured: ${item.detail}.` }) : null,
+      item.steps.length ? el("p", { text: `Touched by step ${item.steps.join(", ")} of the walk.` }) : null,
+      opinions.length ? el("p", { text: "What the last audit thinks of it (an opinion, with its evidence in the audit report):" }) : null,
+      opinions.length ? el("ul", {}, ...opinions.map((r) => el("li", { text: `${r.path}: ${r.plain}. ${r.finding}` }))) : null,
+      el("button", { class: "close", text: "Close", on: { click: () => dialog.close() } }));
+    dialog.showModal();
+  };
+
+  const masthead = () => {
+    const target = goal === null
+      ? "No target level is chosen yet: you decide how far to go, and you can stay at any level."
+      : data.target.reached ? `Your target, level ${goal} (${data.target.name}), is reached.`
+        : `Your target is level ${goal} (${data.target.name}): ${walk.length} step${walk.length === 1 ? "" : "s"} from here.`;
+    return el("header", { class: "masthead" },
+      el("p", { class: "eyebrow", text: `${data.name} · measured on ${data.date}` }),
+      el("h1", {}, `Level ${data.level.reached} `, el("em", { text: data.level.name })),
+      el("p", { class: "lede", text: `${cap(data.ladder[data.level.reached].plain)}. ${target}` }),
+      el("nav", { class: "tabs", "aria-label": "Views" },
+        ...[["map", "Map"], ["medals", "Medals"]].map(([id, name]) => el("button", {
+          type: "button", "aria-pressed": String(ui.tab === id), text: name, on: { click: () => { ui.tab = id; render(); } } }))));
+  };
+
+  const ladder = (held) => el("ol", { class: "ladder", "aria-label": "The levels" },
+    ...data.ladder.map((l) => el("li", { "data-held": l.level <= held && l.level > 0, "data-out": !l.in_scope },
+      l.level === held ? el("i", { class: "here", text: ui.at ? `after step ${ui.at}` : "you are here" }) : null,
+      l.level === goal && l.level !== held ? el("i", { class: "goal", text: "target" }) : null,
+      el("b", { text: String(l.level) }), el("strong", { text: l.name }), el("span", { text: cap(l.plain) }))));
+
+  const stepper = () => {
+    const step = walk[ui.at - 1];
+    const go = (to) => { ui.at = Math.max(0, Math.min(walk.length, to)); render(); };
+    const slider = el("input", { type: "range", min: "0", max: String(walk.length), step: "1", value: String(ui.at),
+      "aria-label": "Walk from today to the target, step by step", on: { input: (e) => go(Number(e.target.value)) } });
+    return el("section", { class: "walk", "aria-label": "Step by step" },
+      el("button", { type: "button", text: "← Back", disabled: ui.at === 0, on: { click: () => go(ui.at - 1) } }),
+      slider,
+      el("button", { type: "button", text: "Next →", disabled: ui.at === walk.length, on: { click: () => go(ui.at + 1) } }),
+      el("div", { class: "now", "aria-live": "polite" },
+        el("b", { text: !walk.length ? "Nothing left to do for the chosen level."
+          : ui.at === 0 ? "Today: what is measured in the repository."
+            : `Step ${ui.at} of ${walk.length}: ${step.action}.` }),
+        el("span", { text: ui.at === 0 ? (walk.length ? "Press Next to see what each step adds or changes." : "")
+          : `It answers: ${step.missing}.${step.waits ? " This one comes with time, not with work." : ""}` })));
+  };
+
+  const strata = () => el("div", { class: "strata" }, ...filesAt(ui.at).map((layer) =>
+    el("section", { class: "stratum", "aria-label": layer.title },
+      el("div", {}, el("h3", { text: layer.title }), el("p", { text: layer.plain })),
+      el("ul", { class: "files" }, ...(layer.items.length ? layer.items.map((item) => el("li", {},
+        el("button", { type: "button", class: "file", "data-state": item.state,
+          "data-flag": verdictsOf(item.path).length ? `audit: ${verdictsOf(item.path).length} remark(s)` : null,
+          on: { click: () => openFile(item) } },
+        el("code", { text: item.path }), el("small", { text: LABELS[item.state] || item.state }))))
+        : [el("li", { class: "none", text: "Nothing here yet." })])))));
+
+  const stepRow = (step, index, out) => el("li", { "data-done": !out && index < ui.at, "data-current": !out && index === ui.at - 1, "data-out": out },
+    el("button", { type: "button", disabled: out, on: { click: () => { ui.at = index + 1; render(); } } },
+      el("b", {}, cap(step.action), step.waits ? el("span", { class: "tag", text: "time" }) : null),
+      el("span", { text: `towards level ${step.level}` })));
+
+  const steps = () => el("section", { class: "steps" },
+    el("h2", { text: goal === null ? "The steps, level by level" : "The steps to your target" }),
+    el("p", { class: "note", text: "One step at a time. Each is the smallest thing that moves the measurement." }),
+    walk.length ? el("ol", {}, ...walk.map((s, i) => stepRow(s, i, false))) : null,
+    beyond.length ? el("p", { class: "beyond", text: "Beyond your target" }) : null,
+    beyond.length ? el("ol", {}, ...beyond.map((s, i) => stepRow(s, i, true))) : null);
+
+  const opinions = () => !data.audit || !data.audit.rows.length ? null : el("section", { class: "opinions" },
+    el("h2", { text: "What the last audit thinks" }),
+    el("p", { class: "note", text: `An opinion with its evidence, not a measurement${data.audit.date ? ` (audit of ${data.audit.date})` : ""}. `
+      + `${data.audit.total} remark(s)${data.audit.total > data.audit.rows.length ? `, the first ${data.audit.rows.length} shown` : ""}.` }),
+    el("ul", {}, ...data.audit.rows.map((r) => el("li", {},
+      el("code", { text: r.path }), el("span", { class: "tag", text: r.priority || "—" }),
+      el("p", { text: `${cap(r.plain)}. ${r.finding}` }),
+      r.target ? el("p", { class: "to", text: `Proposed: ${r.target}` }) : null))));
+
+  const broken = () => !data.dangling.length ? null : el("div", { class: "alert", role: "alert" },
+    el("b", { text: "The instruction file cites what cannot be found. Fix or remove these first:" }),
+    el("ul", {}, ...data.dangling.map((d) => el("li", { text: d }))));
+
+  const medals = () => {
+    const m = data.medals;
+    const got = m.successes.filter((s) => s.unlocked).length;
+    return el("section", { class: "medals" },
+      el("p", { class: "eyebrow", text: `${got} achievements unlocked of ${m.successes.length}` }),
+      el("p", { class: "rank", text: m.medal.name }),
+      el("p", { class: "why", text: m.why }),
+      el("ul", {}, ...m.successes.map((s) => el("li", { "data-got": Boolean(s.unlocked) },
+        el("small", { text: s.unlocked ? `unlocked ${s.unlocked}` : s.lost ? `lost ${s.lost}` : s.waiting ? "comes with time" : "locked" }),
+        s.title))));
+  };
+
+  function render() {
+    const focus = document.activeElement && document.activeElement.type === "range";
+    app.replaceChildren(masthead(), ...(ui.tab === "medals" ? [medals()]
+      : [broken(), ladder(levelAt(ui.at)), stepper(), el("div", { class: "split" }, strata(), steps()), opinions()].filter(Boolean)));
+    if (focus) app.querySelector('input[type="range"]').focus();
+  }
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });
+  render();
+})();
+</script>
+</body>
+</html>
