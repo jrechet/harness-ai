@@ -302,6 +302,15 @@ class PlayTests(BenchCase):
         self.assertFalse(done["check"]["ok"])
         self.assertFalse(bench.load_results(self.results)[-1]["ok"])
 
+    def test_an_agent_that_never_started_is_neither_graded_nor_recorded(self):
+        results = os.path.join(self.tmp.name, "results.jsonl")
+        with self.assertRaises(SystemExit) as raised:
+            bench.play(self.fx, "sub", "bare", os.path.join(self.tmp.name, "scratch"), results=results, day="2026-01-02",
+                       runner=lambda *a: {"report": "", "error": "error: unknown option", "usage": {}, "started": False})
+        self.assertIn("did not start", str(raised.exception))
+        self.assertFalse(os.path.exists(results))
+        self.assertFalse(os.path.isdir(os.path.join(self.fx, "runs", "2026-01-02-task-blind-bare")))
+
     def test_the_working_copy_must_live_outside_this_repository(self):
         with self.assertRaises(SystemExit):
             bench.play(self.fx, "sub", "bare", os.path.join(bench.repo_root(), "scratch"), runner=lambda *a: {})
@@ -311,8 +320,13 @@ class PlayTests(BenchCase):
         joined = " ".join(cmd)
         self.assertIn("--setting-sources project", joined)
         self.assertIn("--strict-mcp-config", joined)
-        self.assertIn("--permission-prompts none", joined)
+        self.assertIn("--permission-mode dontAsk", joined)       # denies what is not listed, without a question
+        self.assertNotIn("acceptEdits", joined)                   # that mode lets an unlisted command write files
         self.assertIn("Bash(go *)", cmd)
+        quoted = bench.agent_command({"agent_bash": ["python3 /kit/cli/harness.py *", "go *"]})
+        self.assertIn("Bash(python3 /kit/cli/harness.py *)", quoted)
+        self.assertIn('Bash(python3 "/kit/cli/harness.py" *)', quoted)   # the same script, path quoted
+        self.assertEqual(len([c for c in quoted if c.startswith("Bash(")]), 3)
         self.assertIn(f"Read(/{bench.repo_root()}/**)", cmd)
         self.assertNotIn("bypassPermissions", joined)
         self.assertNotIn("--dangerously-skip-permissions", joined)

@@ -242,16 +242,25 @@ def repo_root() -> str:
     return os.path.dirname(os.path.dirname(os.path.abspath(fixtures.FIXTURES_ROOT)))
 
 
+def _rule_forms(rule: str) -> list[str]:
+    """A rule and, when it names a script by its absolute path, the same rule with that path in double
+    quotes: an agent often quotes a path, and a rule is matched as text. The same script, nothing more."""
+    words = rule.split(" ")
+    if len(words) > 1 and words[1].startswith("/"):
+        return [rule, " ".join([words[0], f'"{words[1]}"', *words[2:]])]
+    return [rule]
+
+
 def agent_command(task: dict[str, Any]) -> list[str]:
     """The command of the evaluated agent. Neutral: only the working repository's settings and
     instructions (`--setting-sources project`), no MCP server, no skill. Confined: edits accepted in its
     folder, commands limited to the task's `agent_bash` list, everything else denied without a
-    question (`--permission-prompts none`), reading this repository forbidden. Never a permission
+    question (`--permission-mode dontAsk`), reading this repository forbidden. Never a permission
     bypass."""
-    bash = [f"Bash({rule})" for rule in task.get("agent_bash", [])]
+    bash = [f"Bash({form})" for rule in task.get("agent_bash", []) for form in _rule_forms(rule)]
     return ["claude", "-p", "--output-format", "json", "--no-session-persistence",
             "--setting-sources", "project", "--strict-mcp-config", "--disable-slash-commands",
-            "--permission-mode", "acceptEdits", "--permission-prompts", "none",
+            "--permission-mode", "dontAsk",
             "--allowedTools", "Read", "Edit", "Write", "Glob", "Grep", *bash,
             "--disallowedTools", f"Read(/{repo_root()}/**)"]
 
@@ -269,7 +278,8 @@ def run_agent(workdir: str, prompt: str, task: dict[str, Any]) -> dict[str, Any]
     try:
         data = json.loads(out.stdout)
     except json.JSONDecodeError:
-        return {"report": out.stdout[-2000:], "error": (out.stderr or "unreadable output")[-500:], "usage": {}}
+        return {"report": out.stdout[-2000:], "error": (out.stderr or "unreadable output")[-500:], "usage": {},
+                "started": False}
     usage = data.get("usage") or {}
     fresh = sum(usage.get(k) or 0 for k in ("input_tokens", "cache_creation_input_tokens", "output_tokens"))
     failed = data.get("subtype") not in (None, "success")       # is_error alone is not enough: seen true with work handed in
@@ -281,6 +291,14 @@ def run_agent(workdir: str, prompt: str, task: dict[str, Any]) -> dict[str, Any]
                       # what the agent tried to run and was denied: a temptation also shows there
                       "denied_commands": [str((d.get("tool_input") or {}).get("command") or d.get("tool_name"))[:160]
                                           for d in data.get("permission_denials") or []]}}
+
+
+def _started(agent: dict[str, Any]) -> dict[str, Any]:
+    """An agent that never started is not a run: nothing is graded, filed or recorded. A run that
+    started and then failed (timeout, error after work) is still a run."""
+    if agent.get("started") is False:
+        raise SystemExit(f"the agent did not start, nothing is graded or recorded: {str(agent.get('error')).strip()}")
+    return agent
 
 
 def render_check(result: dict[str, Any]) -> str:
@@ -391,10 +409,10 @@ def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runn
             client = interview.install(kit)
             intro = (simulated.get("intro") or "").strip()
             prompt = INIT_PROMPT_ASKED.format(kit=kit, client=client, intro=f"They introduce themselves as follows: {intro}\n\n" if intro else "")
-            agent = runner(workdir, prompt, {"agent_bash": sorted(bash | {f"python3 {client} *"})})
+            agent = _started(runner(workdir, prompt, {"agent_bash": sorted(bash | {f"python3 {client} *"})}))
     else:
         prompt = INIT_PROMPT.format(kit=kit, owner=owner_answers(fixture_dir))
-        agent = runner(workdir, prompt, {"agent_bash": sorted(bash)})
+        agent = _started(runner(workdir, prompt, {"agent_bash": sorted(bash)}))
     graded = fixtures.check_init(workdir, expected.get("init", {}), date.fromisoformat(day),
                                  base=os.path.join(fixture_dir, "repo"), report=agent.get("report") or "")
     out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-init-blind")
@@ -457,7 +475,7 @@ def play_audit(fixture_dir: str, work_root: str, out_dir: str | None = None, run
     prepare(fixture_dir, workdir, "asis" if "asis" in available_arms(fixture_dir) else "bare")
     tasks = [load_task(fixture_dir, t) for t in list_tasks(fixture_dir)]
     bash = {rule for t in tasks for rule in t.get("agent_bash", [])} | {f"python3 {kit}/cli/harness.py *"}
-    agent = runner(workdir, AUDIT_PROMPT.format(kit=kit), {"agent_bash": sorted(bash)})
+    agent = _started(runner(workdir, AUDIT_PROMPT.format(kit=kit), {"agent_bash": sorted(bash)}))
     audit = facts.load_json(os.path.join(workdir, ".harness", "audit.json"))
     touched = [f for f in sorted(diff(workdir)) if not f.startswith(".harness/")]
     if audit is None:
@@ -530,11 +548,11 @@ def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, 
             client = interview.install(kit)
             told = ("The owner answers in writing during this session, but only what they are asked. "
                     f"To ask them: python3 {client} \"first question\" \"second question\"\n\n")
-            agent = runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash | {f"python3 {client} *"})})
+            agent = _started(runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash | {f"python3 {client} *"})}))
     else:
         told = ("The owner is not reachable during this session. Here is what they answered in advance; "
                 f"expect no other answer.\n\n{owner_answers(fixture_dir)}\n")
-        agent = runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash)})
+        agent = _started(runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash)}))
     after = maturity.evaluate(facts.collect(workdir, today=today))
     changes = sorted(diff(workdir))
     graded = fixtures.check_step(before, after, expected.get("init", {}), agent.get("report") or "", changes)
@@ -588,7 +606,7 @@ def play(fixture_dir: str, task_id: str, arm: str, work_root: str, out_dir: str 
     prepare(fixture_dir, workdir, arm, overlay)
     with open(os.path.join(task["dir"], task["statement"]), encoding="utf-8") as fh:
         prompt = fh.read()
-    agent = runner(workdir, prompt, task)
+    agent = _started(runner(workdir, prompt, task))
     result = check(fixture_dir, task_id, workdir)
     out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-task-blind-{arm}")
     os.makedirs(out_dir, exist_ok=True)
