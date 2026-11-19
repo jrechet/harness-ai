@@ -1,0 +1,12 @@
+{
+  "tokens": 74651,
+  "cache_read_tokens": 767574,
+  "output_tokens": 23115,
+  "turns": 35,
+  "duration_s": 307,
+  "denied": 1,
+  "denied_commands": [
+    "ls -la /private/tmp/claude-501/-Users-jre-dev-harness-ai--claude-worktrees-ai-sdlc-framework-a5cfb7/b7c5d7ba-c63d-4ac0-8693-1d24ea530d99/scratchpad/bench-d/w-g3"
+  ],
+  "error": null
+}
