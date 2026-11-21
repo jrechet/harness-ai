@@ -74,6 +74,32 @@ class ParseTests(unittest.TestCase):
             with self.subTest(needle=needle):
                 self.assertTrue(any(needle in e for e in progress.parse(text)[1]), progress.parse(text)[1])
 
+    def test_a_date_older_than_the_latest_row_is_refused(self):
+        stale = DOC.replace("| done | 2026-11-15 |", "| done | 2026-11-19 |")
+        errors = progress.parse(stale)[1]
+        self.assertTrue(any("2026-11-15" in e and "2026-11-19" in e and "A1" in e for e in errors), errors)
+        stale_fr = DOC_FR.replace("| à faire | 2026-11-15 |", "| à faire | 2026-11-19 |")
+        self.assertTrue(any("2026-11-19" in e and "A3" in e for e in progress.parse(stale_fr)[1]))
+
+    def test_a_date_equal_to_or_later_than_the_latest_row_passes(self):
+        current = DOC.replace("| done | 2026-11-15 |", "| done | 2026-11-19 |")
+        for date in ("2026-11-19", "2026-12-01"):
+            with self.subTest(date=date):
+                self.assertEqual(progress.parse(current.replace("Last updated: 2026-11-15", f"Last updated: {date}"))[1], [])
+
+    def test_the_since_column_is_found_by_its_header_and_a_date_elsewhere_is_not_one(self):
+        elsewhere = DOC.replace("| PR 1 |", "| PR 1, replayed on 2026-11-19 |").replace(
+            "| The grader |", "| The grader, due 2026-12-24 |")
+        self.assertEqual(progress.parse(elsewhere)[1], [])
+        moved = DOC.replace("| # | Topic | State | Since | Evidence |", "| # | Topic | State | Evidence | Since |").replace(
+            "| done | 2026-11-15 | PR 1 |", "| done | PR 1 | 2026-11-19 |")
+        self.assertTrue(any("2026-11-19" in e for e in progress.parse(moved)[1]), progress.parse(moved)[1])
+
+    def test_a_month_or_a_word_in_the_since_column_is_not_compared(self):
+        loose = DOC.replace("| done | 2026-11-15 |", "| done | 2026-12 |").replace("| in progress | 2026-11-15 |",
+                                                                                 "| in progress | soon |")
+        self.assertEqual(progress.parse(loose)[1], [])
+
 
 class CheckTests(unittest.TestCase):
     PLAN = "docs/capabilities.md"
@@ -96,8 +122,52 @@ class CheckTests(unittest.TestCase):
         with open(path, "w", encoding="utf-8") as fh:
             fh.write(text)
 
-    def check(self) -> list[str]:
-        return progress.check(self.repo, base="main")
+    TODAY = "2026-11-15"  # the day the plan of these tests is dated: a change made that day needs no new date
+    NEXT_DAY = "2026-11-16"
+
+    def check(self, today: str | None = None) -> list[str]:
+        return progress.check(self.repo, base="main", today=today or self.TODAY)
+
+    def redate(self, text: str, date: str) -> str:
+        return text.replace(f": {self.TODAY}", f": {date}", 1)
+
+    def test_a_plan_changed_on_a_later_day_without_moving_its_date_is_refused(self):
+        git(self.repo, "checkout", "-q", "-b", "pr")
+        self.write(self.PLAN, self.TEXT.replace(*self.STATE_PAIR))
+        errors = self.check(today=self.NEXT_DAY)
+        self.assertTrue(any(self.PLAN in e and self.TODAY in e and "did not move" in e for e in errors), errors)
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", "plan")
+        self.assertTrue(any("did not move" in e for e in self.check(today=self.NEXT_DAY)))
+
+    def test_a_plan_changed_on_a_later_day_with_its_date_moved_passes(self):
+        git(self.repo, "checkout", "-q", "-b", "pr")
+        self.write(self.PLAN, self.redate(self.TEXT.replace(*self.STATE_PAIR), self.NEXT_DAY))
+        self.assertEqual(self.check(today=self.NEXT_DAY), [])
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", "plan")
+        self.assertEqual(self.check(today=self.NEXT_DAY), [])
+
+    def test_an_untouched_plan_keeps_its_date_on_a_later_day(self):
+        self.assertEqual(self.check(today=self.NEXT_DAY), [])
+
+    def test_a_new_plan_has_no_former_date_to_move(self):
+        git(self.repo, "checkout", "-q", "-b", "pr")
+        git(self.repo, "rm", "-q", self.PLAN)
+        git(self.repo, "commit", "-q", "-m", "no plan")
+        git(self.repo, "checkout", "-q", "-b", "pr2")
+        self.write(self.PLAN, self.TEXT)
+        self.assertEqual(progress.check(self.repo, base="pr", today=self.NEXT_DAY), [])
+
+    def test_the_date_is_not_compared_when_the_base_is_unknown(self):
+        self.write(self.PLAN, self.TEXT.replace(*self.STATE_PAIR))
+        self.assertEqual(progress.check(self.repo, base="origin/missing", today=self.NEXT_DAY), [])
+
+    def test_the_command_refuses_a_plan_whose_date_did_not_move(self):
+        self.write(self.PLAN, self.TEXT.replace(*self.STATE_PAIR))  # the real day is later than the plan's date
+        code, err = self.run_cli(["check", self.repo, "--base", "main"])
+        self.assertEqual(code, 2)
+        self.assertIn("did not move", err)
 
     def test_nothing_changed_is_fine(self):
         self.assertEqual(self.check(), [])
@@ -176,6 +246,12 @@ class FrenchPlanCheckTests(CheckTests):
         self.write("b.py", "x\n")
         self.assertEqual(progress.default_doc(self.repo), "docs/capabilities.md")
         self.assertEqual(self.check(), [])
+
+    def test_renaming_the_plan_on_a_later_day_without_moving_its_date_is_refused(self):
+        git(self.repo, "checkout", "-q", "-b", "pr")
+        git(self.repo, "mv", self.PLAN, "docs/capabilities.md")
+        self.write("docs/capabilities.md", DOC)
+        self.assertTrue(any("did not move" in e for e in self.check(today=self.NEXT_DAY)))
 
 
 if __name__ == "__main__":
