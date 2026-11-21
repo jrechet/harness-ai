@@ -118,23 +118,23 @@ flowchart LR
 
 ## What you can do today
 
-Three levels of confidence, always the same words: **tested** (run on a fresh clone, with tests), **measured** (an agent that never saw the answer key played it, and a program graded the result), **written** (the skill exists, nobody has played it end to end yet).
+Three states, always the same words, those of [docs/capabilities.md](docs/capabilities.md): **tooled** (the mechanism exists and its code is tested; for a skill, no agent has played it blind yet), **measured** (an agent that never saw the answer key played it, and a program graded the result), **proven** (the measurement shows a gain). Nothing is proven today.
 
 ### With the CLI alone
 
 | You want to… | Command | State |
 |---|---|---|
-| Know where your repository stands, in plain words | `harness.py status <repo> --map` | tested |
-| Read every check behind the level, with its id | `harness.py status <repo>` | tested |
-| Say at which level you stop | `harness.py target <level> <repo>` | tested |
-| See each rule, its age, its guardrail | `harness.py rules <repo>` | tested |
-| Find the commands an agent does not guess | `harness.py commands <repo>` | tested |
-| Know what has aged: a skill that cites a deleted file, a late harvest | `harness.py fresh <repo>` | tested |
-| See the files you have and miss, layer by layer, and walk the steps to your target, in one page to open in a browser ([example](docs/examples/state.html)) | `harness.py status <repo> --page F` | tested |
-| See your level as a medal, with achievements and next steps | `harness.py medals <repo> [--write] [--page F]` | tested |
-| Know where a piece of a skill or agent belongs: AGENTS.md, CLI, hook, permission, CI… | `harness.py place grid`, `place one`, `place plan <pieces.json>` | tested |
-| Write an assessment as a one-page HTML report | `harness.py report build <report.json> -o <page.html>` | tested |
-| Follow progress in a local page | `harness.py serve <repo>` | tested, rendering not reviewed |
+| Know where your repository stands, in plain words | `harness.py status <repo> --map` | tooled |
+| Read every check behind the level, with its id | `harness.py status <repo>` | tooled |
+| Say at which level you stop | `harness.py target <level> <repo>` | tooled |
+| See each rule, its age, its guardrail | `harness.py rules <repo>` | tooled |
+| Find the commands an agent does not guess | `harness.py commands <repo>` | tooled |
+| Know what has aged: a skill that cites a deleted file, a late harvest | `harness.py fresh <repo>` | tooled |
+| See the files you have and miss, layer by layer, and walk the steps to your target, in one page to open in a browser ([example](docs/examples/state.html)) | `harness.py status <repo> --page F` | tooled |
+| See your level as a medal, with achievements and next steps | `harness.py medals <repo> [--write] [--page F]` | tooled |
+| Know where a piece of a skill or agent belongs: AGENTS.md, CLI, hook, permission, CI… | `harness.py place grid`, `place one`, `place plan <pieces.json>` | tooled |
+| Write an assessment as a one-page HTML report | `harness.py report build <report.json> -o <page.html>` | tooled |
+| Follow progress in a local page | `harness.py serve <repo>` | tooled, rendering not reviewed |
 
 `<repo>` is the path of your repository; without it, the current folder. Input examples are in [docs/examples/](docs/examples/): `report.json` for `report build`, `pieces.json` for `place plan` and `report from-place`.
 
@@ -144,10 +144,10 @@ Three levels of confidence, always the same words: **tested** (run on a fresh cl
 |---|---|---|
 | Write a first short `AGENTS.md`, or clean the one you have | `harness-init` | measured on four sample projects |
 | Move up one level, and stop | `harness-step` | measured on one project |
-| Audit your harness and remove what no longer serves | `harness-audit` | measured once on two projects |
+| Audit your harness and remove what no longer serves | `harness-audit` | measured once on each of two projects: one compliant, 10 of 10; the other, held out, not compliant, 2 of 3 |
 | Create or review a skill, an agent, a rule, putting each piece in its place | `harness-design` | measured: 12 traps of 12 on a held-out case |
-| Ask "why this level?" | `harness-medals` | written |
-| Draw rules from what happened in your PRs | `harness-harvest` | written, never played |
+| Ask "why this level?" | `harness-medals` | tooled |
+| Draw rules from what happened in your PRs | `harness-harvest` | tooled, never played |
 | Know whether a ticket is ready, and what it lacks | `ticket` (plugin `ai-sdlc`) | measured once: three tickets compliant |
 | Have the tests that come from the ticket's criteria written, and have a program say whether they hold | `qa` (plugin `ai-sdlc`) | measured once: seven planted defects of seven caught by the written tests |
 | Look at a change from the security angle: secrets, scanners, sensitive places to reread | `secu` (plugin `ai-sdlc`) | measured once: four planted defects of four, two healthy places left alone |
@@ -156,7 +156,7 @@ Three levels of confidence, always the same words: **tested** (run on a fresh cl
 | Investigate an incident without touching production, and turn it into a ticket | `run` (plugin `ai-sdlc`) | measured once: one incident, the innocent last deployment not blamed |
 | Have a ticket developed up to the PR, on the path its size calls for | `dev` (plugin `ai-sdlc`) | measured once: two tickets compliant |
 
-A measurement is one draw, not an average, and the test cases were written by the model being evaluated on them: they are easier than a real repository. The details are in [docs/capabilities.md](docs/capabilities.md) and [docs/requirements.md](docs/requirements.md).
+A measurement is one draw, not an average, and the test cases were written by the model being evaluated on them: they are easier than a real repository. Every "measured once" of the `ai-sdlc` rows played the earlier French text of the skills, before their English rewrite and its guiding map: the text that ships today has not been played. The details are in [docs/capabilities.md](docs/capabilities.md) and [docs/requirements.md](docs/requirements.md).
 
 ### What does not exist yet
 
@@ -181,7 +181,7 @@ To try without installing: `claude --plugin-dir /path/to/harness-ai`.
 
 ## The ai-sdlc plugin: from ticket to production
 
-A second plugin, in [plugins/ai-sdlc/](plugins/ai-sdlc/), tools the phases of the development cycle. It ships a base convention for each phase, which each team completes in its own repository with a file `docs/agents/<point>.md`, one per extension point: `definition-of-ready`, `definition-of-done`, `review`, `qa`, `security`, `sensitive-zones`, `delivery`, `operations`. These additions are read on the target branch, not in the PR: a PR cannot lighten its own review. Its design is in [docs/ai-sdlc/proposal.md](docs/ai-sdlc/proposal.md).
+A second plugin, in [plugins/ai-sdlc/](plugins/ai-sdlc/), tools the phases of the development cycle. It ships a base convention for each phase, which each team completes in its own repository with a file `docs/agents/<point>.md`, one per extension point: `definition-of-ready`, `definition-of-done`, `review`, `qa`, `security`, `sensitive-zones`, `delivery`, `operations`. All but one of these additions are read on the target branch, not in the PR: a PR cannot lighten its own review. The exception is `definition-of-ready`, read on the current branch: a ticket is judged before any PR exists. Its design is in [docs/ai-sdlc/proposal.md](docs/ai-sdlc/proposal.md).
 
 Each phase is a skill that does one thing and states what it never does. Its result goes through the plugin's CLI, which refuses a result that does not hold (a finding that cites no line of the diff, a fact not quoted from its evidence, a delivery command not taken from the team's procedure).
 
@@ -205,6 +205,8 @@ flowchart LR
     G -.- SH
     G -.- RU
 ```
+
+Each phase asks for a minimum harness level of the repository, the one `harness.py status` measures and writes in `.harness/state.json`. `ticket`, `dev`, `review` and `secu`: level 1; `run`: level 2; `qa` and `ship`: level 3. A level that is not reached is reported, not blocking: the phase still runs, says so at the top of its result, and its result is to be taken as a trial.
 
 **An agent does not deliver.** Once installed, the plugin sets a hook (`plugins/ai-sdlc/hooks/hooks.json`) that reads every shell command of the agent before it runs and refuses those that create or push a tag, create a release, start a workflow, publish a package or an image, deploy, or appear in the team's delivery procedure. It also refuses the commands of the team's runbook (`docs/agents/operations.md`) that the runbook does not mark read-only: write "read-only" on the same line, after each diagnostic command, or the agent cannot run it. It is a barrier against accidents and against an instruction slipped into a ticket, not a sandbox: a deployment script started by its name passes, as does a command assembled from variables. It reads the command of the Bash tool, of PowerShell and of any tool of an MCP server that carries a `command` field; a tool that names its command otherwise passes. A team that wants an agent to deliver sets `AI_SDLC_ALLOW_AGENT_DELIVERY=1` in the session's environment. The guardrail keeps that gate shut from the inside: it refuses a shell redirection, a `tee`, a `sed -i` or a copy onto `.claude/settings*.json`, and a Write or an Edit that leaves the variable in one of those files. These refusals are tested on the hook's input, not tried in a real session, and a script that writes the file under another name still passes: whether an agent can open the gate through its settings stays not verified, so keep `.claude/settings*.json` out of its reach where you can.
 
