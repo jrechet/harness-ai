@@ -1,7 +1,7 @@
 {
   "schema": "harness-state/1",
-  "repo": "/private/tmp/claude-501/-Users-jre-dev-harness-ai--claude-worktrees-ai-sdlc-framework-a5cfb7/b7c5d7ba-c63d-4ac0-8693-1d24ea530d99/scratchpad/wt-fixtures",
-  "date": "2026-11-17",
+  "repo": ".",
+  "date": "2026-11-21",
   "level": {
     "reached": 1,
     "name": "Framed",
@@ -106,7 +106,7 @@
           "id": "L2.marker_fresh",
           "label": "A harvest ran less than 45 days ago",
           "passed": true,
-          "value": 8,
+          "value": 12,
           "next_action": null,
           "waits": false
         },
@@ -143,7 +143,7 @@
           "id": "L3.guarded",
           "label": "At least 50% of the rules are \"Enforced by\" a tool",
           "passed": false,
-          "value": 0.0,
+          "value": 0.12,
           "next_action": "Push the narrated rules down to L3: custom lint, architecture test, PR check.",
           "waits": false
         },
@@ -151,7 +151,7 @@
           "id": "L3.justified",
           "label": "At least 50% of the rules say why",
           "passed": true,
-          "value": 0.56,
+          "value": 0.62,
           "next_action": null,
           "waits": false
         },
@@ -250,8 +250,8 @@
   ],
   "dangling": [],
   "facts": {
-    "repo": "/private/tmp/claude-501/-Users-jre-dev-harness-ai--claude-worktrees-ai-sdlc-framework-a5cfb7/b7c5d7ba-c63d-4ac0-8693-1d24ea530d99/scratchpad/wt-fixtures",
-    "date": "2026-11-17",
+    "repo": ".",
+    "date": "2026-11-21",
     "instructions": {
       "files": {
         "AGENTS.md": {
@@ -278,11 +278,11 @@
         "path": "AGENTS.md",
         "mode": "delegation",
         "lines": 48,
-        "rules_total": 9,
-        "rules_guarded": 0,
+        "rules_total": 8,
+        "rules_guarded": 1,
         "rules_unguarded_marked": 3,
         "rules_justified": 5,
-        "rules_dated": 9,
+        "rules_dated": 8,
         "oldest_rule_date": "2026-11",
         "has_maintenance_section": true,
         "has_process_section": true,
@@ -313,7 +313,7 @@
     },
     "audit": null,
     "harvest": null,
-    "harvest_marker_age_days": 8,
+    "harvest_marker_age_days": 12,
     "config": {
       "target_level": null
     },
