@@ -270,15 +270,16 @@ def _is_path_like(repo: str, token: str) -> bool:
 
 
 def _is_bare_path_like(repo: str, token: str) -> bool:
-    """Outside backticks a token sits in prose: a URL, a version (`3.12`) or an abbreviation (`e.g.`)
-    is not a path. The extension must hold a letter, and the name before it more than one character
-    unless the token is a dotfile or has a directory."""
+    """Outside backticks a token sits in prose: a URL, a version (`3.12`, `v9.x`), an abbreviation
+    (`e.g.`) or a product name (`Node.js`, `ASP.NET`) is not a path. Only a token with a directory or
+    the leading dot of a dotfile is judged, and its extension must hold a letter; a bare file name is
+    judged when it is written in backticks."""
     if "://" in token or not _is_path_like(repo, token):
         return False
-    stem, dot, ext = token.rpartition("/")[-1].rpartition(".")
+    _, dot, ext = token.rpartition("/")[-1].rpartition(".")
     if dot and not re.search(r"[A-Za-z]", ext):
         return False
-    return "/" in token or not dot or not stem or len(stem) > 1
+    return "/" in token or token.startswith(".")
 
 
 def cited_paths(repo: str, claim: str) -> list[str]:

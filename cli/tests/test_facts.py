@@ -84,6 +84,20 @@ class EnforcedByPathTest(unittest.TestCase):
 
         self.assertEqual(refs, [])
 
+    def test_does_not_judge_a_product_or_version_word_as_a_path(self) -> None:
+        refs = self.guards("Routes are guarded. Enforced by: Next.js middleware",
+                           "The runtime is pinned. Enforced by: Node.js engines check [2026-11]",
+                           "Components are typed. Enforced by: Vue.js compiler.",
+                           "Style is linted. Enforced by: ESLint v9.x",
+                           "Queries are typed. Enforced by: the ASP.NET analyzer, socket.io excluded")
+
+        self.assertEqual(refs, [])
+
+    def test_reports_a_missing_path_cited_after_a_product_word(self) -> None:
+        refs = self.guards("Routes are guarded. Enforced by: Next.js middleware in src/middleware.ts")
+
+        self.assertEqual(refs, ["src/middleware.ts"])
+
     def test_does_not_judge_a_url_as_a_path(self) -> None:
         refs = self.guards("Main is protected. Enforced by: https://example.test/settings/rules.html")
 
