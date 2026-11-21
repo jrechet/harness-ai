@@ -15,6 +15,7 @@ One folder per family. Each command below is completed on the family's page:
 | `secu/` | What the `secu` skill reports on a colleague's change, and what it forbids itself | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-secu` | [secu/README.md](secu/README.md) |
 | `ship/` | What the `ship` skill proposes before a delivery, and that it ships nothing | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-ship` | [ship/README.md](ship/README.md) |
 | `run/` | What the `run` skill makes of an incident: quoted facts, a cause that stays a hypothesis, nothing done in production | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-run` | [run/README.md](run/README.md) |
+| `guard/` | Which commands the guardrail "an agent does not deliver" refuses, on 150 commands written without reading its code: deliveries, ordinary work that looks like one, known pass-throughs. No agent is run | `python3 plugins/ai-sdlc/cli/ai_sdlc.py guard check` on each command, by the unit test `plugins/ai-sdlc/cli/tests/test_guard_corpus.py` | [guard/commands.json](guard/commands.json) |
 
 The rest of this page is about `repos/`: synthetic repositories with AI instrumentation traps.
 
