@@ -22,6 +22,12 @@ if [ -n "${BASE_REF:-}" ]; then
   echo "== The progress plan follows the change"
   python3 cli/harness.py progress check --base "$BASE_REF"
   gates_from="${GATES_FROM:-${PORTES_DE:-}}"
+  keys="cli/harness.py"
+  if [ -n "$gates_from" ] && [ -f "$gates_from/cli/harnesslib/keys.py" ]; then
+    keys="$gates_from/cli/harness.py"
+  fi
+  echo "== The answer keys do not change with what they grade"
+  python3 "$keys" keys check . --base "$BASE_REF"
   gates="plugins/ai-sdlc/cli/ai_sdlc.py"
   if [ -n "$gates_from" ] && [ -f "$gates_from/plugins/ai-sdlc/cli/aisdlclib/ci.py" ]; then
     gates="$gates_from/plugins/ai-sdlc/cli/ai_sdlc.py"

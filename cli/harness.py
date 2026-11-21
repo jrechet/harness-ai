@@ -13,6 +13,7 @@
   harness fresh [repo] [--hook|--strict]   what has aged: a skill citing a vanished file, a late harvest
   harness medals [repo] [--write] [--page F]   medal, unlocked achievements, next steps; HTML page
   harness progress check|remind      the progress plan in docs/capabilities.md follows every change
+  harness keys check [--base REF]    an answer key or a grader does not change with a skill or a run
   harness report build|from-place …  a one-page HTML assessment, always in the same format
 
 Python 3.10+, standard library only."""
@@ -27,7 +28,7 @@ if sys.version_info < (3, 10):  # before any import: the rest of the CLI does no
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harnesslib import bench, commands, fixtures, fresh, github, medals, place, progress, report, rules, serve, status  # noqa: E402
+from harnesslib import bench, commands, fixtures, fresh, github, keys, medals, place, progress, report, rules, serve, status  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -47,6 +48,7 @@ def main(argv: list[str] | None = None) -> int:
     report.build_parser(sub.add_parser("report", help="a one-page HTML assessment"))
     commands.build_parser(sub.add_parser("commands", help="the commands an agent does not guess"))
     progress.build_parser(sub.add_parser("progress", help="the progress plan follows every change"))
+    keys.build_parser(sub.add_parser("keys", help="the answer keys do not change with what they grade"))
     medals.build_parser(sub.add_parser("medals", help="medals and achievements: the maturity level and why"))
     fresh.build_parser(sub.add_parser("fresh", help="what has aged: skills, agents, rules"))
     args = parser.parse_args(argv)
@@ -76,6 +78,8 @@ def main(argv: list[str] | None = None) -> int:
         return commands.main(args=args)
     if args.command == "progress":
         return progress.main(args=args)
+    if args.command == "keys":
+        return keys.main(args=args)
     if args.command == "medals":
         return medals.main(args=args)
     if args.command == "fresh":
