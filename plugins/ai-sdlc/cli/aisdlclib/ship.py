@@ -34,6 +34,10 @@ _GOOD = {"success", "skipped", "neutral", "pass", "skipping"}
 _WAIT = {"queued", "in_progress", "pending", "waiting", "requested", "expected", "action_required"}
 
 
+class NothingToDeliver(Refused):
+    """No commit since the previous version. A refusal for `ship check`; a pipeline run on each push says it and passes."""
+
+
 def _gate(ident: str, title: str, status: str, evidence: str, action: str | None = None) -> dict[str, Any]:
     return {"id": ident, "title": title, "status": status, "evidence": evidence, "action": None if status == OK else action}
 
@@ -121,11 +125,12 @@ def _fetch_age(repo: str) -> float | None:
         return None
 
 
-def gate_state(repo: str, base: str) -> dict[str, Any]:
+def gate_state(repo: str, base: str, pipeline: bool = False) -> dict[str, Any]:
     title = "We deliver the head commit of the delivery branch, pushed and fully committed"
     target = _text(repo, "rev-parse", "--verify", f"{resolve_base(repo, base)}^{{commit}}")   # in full, like HEAD
     head = _text(repo, "rev-parse", "HEAD")
-    dirty = _text(repo, "status", "--porcelain")
+    # a pipeline examines a commit and leaves its tools beside it, untracked; a changed tracked file still counts
+    dirty = _text(repo, "status", "--porcelain", *(["--untracked-files=no"] if pipeline else []))
     shown = _plain(base, 60)
     problems = []
     if head != target:
@@ -223,7 +228,8 @@ def gate_breaking(found: list[dict[str, Any]], truncated: bool) -> dict[str, Any
     return _gate("breaking", title, OK, f"{len(found)} commit(s), none announced as breaking; an unannounced breaking change is not seen here")
 
 
-def check(table: dict[str, Any], repo: str, base: str, since: str | None = None, checks: Any = None) -> dict[str, Any]:
+def check(table: dict[str, Any], repo: str, base: str, since: str | None = None, checks: Any = None,
+          pipeline: bool = False) -> dict[str, Any]:
     if _text(repo, "rev-parse", "--is-shallow-repository") == "true":
         raise Refused("shallow clone: history and tags are missing, run git fetch --unshallow --tags")
     if since is not None:
@@ -238,7 +244,7 @@ def check(table: dict[str, Any], repo: str, base: str, since: str | None = None,
     truncated = len(found) > MAX_COMMITS
     found = found[:MAX_COMMITS]
     if not found:
-        raise Refused(f"no commit since {_plain(previous or '', 60)}: nothing to deliver")
+        raise NothingToDeliver(f"no commit since {_plain(previous or '', 60)}: nothing to deliver")
     version, why = propose_version(previous if is_version else None, found)
     if previous and not is_version:
         version, why = None, f"{_plain(previous, 40)} is not a tag of the form X.Y.Z: it may not be the last delivered version"
@@ -246,7 +252,7 @@ def check(table: dict[str, Any], repo: str, base: str, since: str | None = None,
         version, why = None, f"{version} already exists in the repository, on another branch"
     if truncated:
         version, why = None, f"more than {MAX_COMMITS} commits since the previous version, the oldest not read"
-    gates = [gate_state(repo, base), gate_checks(repo, checks), gate_zones(repo, previous, size.zones(table, repo, base)),
+    gates = [gate_state(repo, base, pipeline), gate_checks(repo, checks), gate_zones(repo, previous, size.zones(table, repo, base)),
              gate_breaking(found, truncated)]
     notes: dict[str, list[str]] = {}
     for commit in found:

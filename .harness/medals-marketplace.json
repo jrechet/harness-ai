@@ -4,12 +4,12 @@
   "name": "harness-ai",
   "date": "2026-11-21",
   "medal": {
-    "id": "bronze",
-    "name": "Bronze",
-    "rank": 1,
+    "id": "platinum",
+    "name": "Platinum",
+    "rank": 4,
     "of": 4
   },
-  "why": "Bronze: the 3 achievements of the \"Installable\" rank are unlocked, and 2 missing for silver.",
+  "why": "Platinum: the 2 achievements of the \"Measured\" rank are unlocked. It is the last rank.",
   "tiers": [
     {
       "id": "bronze",
@@ -25,9 +25,9 @@
       "name": "Silver",
       "title": "Described",
       "promise": "Each skill says when it serves, and when it does not.",
-      "done": 1,
+      "done": 3,
       "total": 3,
-      "earned": false
+      "earned": true
     },
     {
       "id": "gold",
@@ -36,7 +36,7 @@
       "promise": "What is guaranteed is in tested code, the skills stay short.",
       "done": 2,
       "total": 2,
-      "earned": false
+      "earned": true
     },
     {
       "id": "platinum",
@@ -45,7 +45,7 @@
       "promise": "The skills are tested blind, the progress is kept.",
       "done": 2,
       "total": 2,
-      "earned": false
+      "earned": true
     }
   ],
   "successes": [
@@ -93,20 +93,20 @@
       "id": "M2.when",
       "tier": "silver",
       "title": "Each description says when to use the skill",
-      "unlocked": null,
-      "lost": "2026-11-17",
-      "evidence": "11 of 13; missing: skills/harness-audit/SKILL.md, skills/harness-init/SKILL.md",
-      "next": "Write in the description the requests that must trigger the skill (\"Use when…\").",
+      "unlocked": "2026-11-21",
+      "lost": null,
+      "evidence": "13 of 13",
+      "next": null,
       "waiting": false
     },
     {
       "id": "M2.when-not",
       "tier": "silver",
       "title": "Each description says when not to use it",
-      "unlocked": null,
+      "unlocked": "2026-11-21",
       "lost": null,
-      "evidence": "12 of 13; missing: skills/harness-audit/SKILL.md",
-      "next": "Add \"Do not use for…\": it is what separates two neighbouring skills.",
+      "evidence": "13 of 13",
+      "next": null,
       "waiting": false
     },
     {
@@ -150,25 +150,16 @@
       "waiting": false
     }
   ],
-  "next": [
-    {
-      "id": "M2.when",
-      "title": "Each description says when to use the skill",
-      "action": "Write in the description the requests that must trigger the skill (\"Use when…\").",
-      "waiting": false
-    },
-    {
-      "id": "M2.when-not",
-      "title": "Each description says when not to use it",
-      "action": "Add \"Do not use for…\": it is what separates two neighbouring skills.",
-      "waiting": false
-    }
-  ],
+  "next": [],
   "offer": null,
   "history": [
     {
       "date": "2026-11-15",
       "medal": "bronze"
+    },
+    {
+      "date": "2026-11-21",
+      "medal": "platinum"
     }
   ]
 }

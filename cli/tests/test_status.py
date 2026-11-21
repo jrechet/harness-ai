@@ -376,6 +376,29 @@ class Level2Tests(TempRepo):
         write(self.repo, ".harness/harvest.json", harvest_json(real=1))
         self.assertEqual(self.state()["level"]["reached"], 2)
 
+    def test_the_marker_check_says_what_it_measures_not_that_a_harvest_ran(self):
+        # An init marker and no harvest file: the check passes (the measure does not move), and its label
+        # claims only the marker's age (issue 87).
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL2.replace("ref=https://gh/pr/9", "ref=init"))
+        s = self.state()
+        marker = self.check(s, "L2.marker_fresh")
+        self.assertTrue(marker["passed"])
+        self.assertEqual(marker["label"], "The harvest marker is less than 45 days old")
+        md = maturity.render_markdown(s)
+        self.assertIn("- [x] The harvest marker is less than 45 days old", md)
+        self.assertNotIn("harvest ran", md.lower())
+
+    def test_the_signal_check_tells_never_harvested_from_harvested_and_found_nothing(self):
+        never = self.check(self.state(), "L2.signal")
+        self.assertFalse(never["passed"])
+        self.assertIn("No harvest has run yet", never["next_action"])
+        write(self.repo, ".harness/harvest.json", harvest_json(real=0))
+        nothing = self.check(self.state(), "L2.signal")
+        self.assertFalse(nothing["passed"])
+        self.assertNotIn("No harvest has run yet", nothing["next_action"])
+        self.assertIn("rule:", nothing["next_action"])
+        self.assertTrue(never["waits"] and nothing["waits"])
+
     def test_orphan_rules_alone_do_not_count_as_signal(self):
         write(self.repo, ".harness/harvest.json", harvest_json(real=0))
         self.assertFalse(self.check(self.state(), "L2.signal")["passed"])
@@ -653,10 +676,47 @@ class MapTests(TempRepo):
 
     def test_a_waiting_level_says_time_and_the_step_goes_to_the_level_above(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
+        write(self.repo, ".harness/harvest.json", harvest_json(real=0))   # harvested, found nothing: time is what is left
         write(self.repo, ".harness/config.json", json.dumps({"target_level": 3}))
         m = maturity.render_map(self.state())
         self.assertIn("(comes with time, not with work)", m)
         self.assertIn("(towards level 3)", m)
+
+    def test_never_harvested_is_not_said_to_come_with_time_and_the_step_is_to_harvest_once(self):
+        # A fresh marker and no .harness/harvest.json: nothing has looked for a signal yet (issue 87).
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 3}))
+        s = self.state()
+        m = maturity.render_map(s)
+        self.assertNotIn("comes with time", m)
+        self.assertIn(f"- {maturity.NEVER_HARVESTED[0]}", m)
+        self.assertIn(f"Next step: {maturity.NEVER_HARVESTED[1]} (towards level 2).", m)
+        self.assertNotIn("(towards level 3)", m)
+        self.assertNotRegex(m, r"\bL\d\.|\bS\d\b|harvest")           # plain words, as everywhere on the map
+        self.assertEqual(s["waiting"], ["L2.signal"])                    # the measure and the state do not move
+
+    def test_never_harvested_step_comes_after_what_the_file_still_lacks(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        m = maturity.render_map(self.state())
+        self.assertNotIn("comes with time", m)
+        self.assertIn(f"- {maturity.NEVER_HARVESTED[0]}", m)
+        self.assertIn(f"Next step: {maturity.CHECK_PLAIN['L2.maintenance'][1]} (towards level 2).", m)
+
+    def test_harvested_and_found_nothing_keeps_comes_with_time(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
+        write(self.repo, ".harness/harvest.json", harvest_json(real=0))
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 2}))
+        m = maturity.render_map(self.state())
+        self.assertIn(f"- {maturity.CHECK_PLAIN['L2.signal'][0]} (comes with time, not with work)", m)
+        self.assertNotIn(maturity.NEVER_HARVESTED[0], m)
+        self.assertIn("Next step: none for now", m)
+
+    def test_never_harvested_step_stops_at_the_target(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 1}))
+        m = maturity.render_map(self.state())
+        self.assertNotIn(maturity.NEVER_HARVESTED[1], m)
+        self.assertIn("your target is reached", m)
 
     def test_broken_references_come_first(self):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL4)

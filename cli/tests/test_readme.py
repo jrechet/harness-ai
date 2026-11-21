@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import os
 import re
 import sys
@@ -14,11 +15,32 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import harness  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+STATE_WORDS = ("tooled", "measured", "proven")
 
 
 def readme() -> str:
     with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as fh:
         return fh.read()
+
+
+def points() -> dict:
+    with open(os.path.join(ROOT, "plugins/ai-sdlc/cli/aisdlclib/points.json"), encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def paragraph_with(*needles: str) -> str:
+    found = [p for p in readme().split("\n\n") if all(needle in p for needle in needles)]
+    if not found:
+        raise AssertionError(f"no README paragraph holds all of {needles}")
+    return found[0]
+
+
+def state_cells() -> list[str]:
+    """The last cell of each row of the two "What you can do today" tables."""
+    text = readme()
+    section = text[text.index("## What you can do today"):text.index("### What does not exist yet")]
+    rows = [line for line in section.splitlines() if line.startswith("| ") and not line.startswith("| You want")]
+    return [row.rstrip(" |").rsplit("|", 1)[1].strip() for row in rows]
 
 
 def run(*argv: str) -> int:
@@ -109,6 +131,53 @@ class ReadmeTests(unittest.TestCase):
         self.assertRegex(readme(), r"review loop needs GitHub")
         self.assertEqual(run("harvest", "github", "--help"), 0)
         self.assertNotEqual(run("harvest", "gitlab", "--help"), 0)
+
+    def test_it_names_states_with_the_three_words_of_the_capabilities_page(self):
+        legend = paragraph_with("always the same words")
+        self.assertEqual(tuple(re.findall(r"\*\*([a-z]+)\*\*", legend)), STATE_WORDS)
+        with open(os.path.join(ROOT, "docs/capabilities.md"), encoding="utf-8") as fh:
+            capabilities = fh.read()
+        for word in STATE_WORDS:
+            with self.subTest(word=word):
+                self.assertIn(f"**{word}**", capabilities)
+
+    def test_every_state_cell_opens_with_one_of_the_three_words(self):
+        cells = state_cells()
+        self.assertGreaterEqual(len(cells), 20)
+        for cell in cells:
+            with self.subTest(cell=cell):
+                self.assertIn(re.match(r"[a-z]+", cell).group(0), STATE_WORDS)
+
+    def test_the_audit_row_gives_the_score_of_the_held_out_project(self):
+        row = next(line for line in readme().splitlines() if line.startswith("| ") and "| `harness-audit` |" in line)
+        for words in ("10 of 10", "held out", "2 of 3", "not compliant"):
+            with self.subTest(words=words):
+                self.assertIn(words, row)
+
+    def test_it_says_the_phase_measurements_played_the_earlier_french_text(self):
+        note = paragraph_with("measured once", "French")
+        for words in ("before", "guiding map", "has not been played"):
+            with self.subTest(words=words):
+                self.assertIn(words, note)
+
+    def test_the_branch_each_addition_is_read_on_matches_the_points_table(self):
+        paragraph = paragraph_with("docs/agents/<point>.md")
+        self.assertNotIn("These additions are read on the target branch", paragraph)
+        sentence = next(s for s in re.split(r"(?<=\.) ", paragraph) if "current branch" in s)
+        on_current = sorted(name for name, point in points()["points"].items() if point["branch"] == "current")
+        self.assertTrue(on_current)
+        self.assertEqual(sorted(re.findall(r"`([a-z-]+)`", sentence)), on_current)
+        self.assertIn("target branch", paragraph)
+
+    def test_the_phase_levels_it_quotes_match_the_points_table(self):
+        paragraph = paragraph_with("minimum harness level")
+        quoted = {}
+        for group in re.findall(r"((?:`[a-z]+`[^`:;.]*?)+): level (\d)", paragraph):
+            for name in re.findall(r"`([a-z]+)`", group[0]):
+                quoted[name] = int(group[1])
+        expected = {name: phase["min_level"] for name, phase in points()["phases"].items()}
+        self.assertEqual(quoted, expected)
+        self.assertRegex(paragraph, r"reported, not block")
 
 
 if __name__ == "__main__":

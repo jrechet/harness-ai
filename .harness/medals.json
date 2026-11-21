@@ -122,7 +122,7 @@
     {
       "id": "L2.marker_fresh",
       "tier": "silver",
-      "title": "A harvest ran less than 45 days ago",
+      "title": "The harvest marker is less than 45 days old",
       "unlocked": "2026-11-15",
       "lost": null,
       "evidence": "12",
