@@ -219,6 +219,242 @@ class HookTests(unittest.TestCase):
         self.assertEqual(self.call("make test")[0], 0)
 
 
+RUNBOOK = """---
+point: operations
+mode: append
+---
+- API logs: `journalctl -u api --since <start time>`, read-only.
+- State: `systemctl status api` (read-only), then restart with `systemctl restart api`, decided by the on-call person.
+- Read-only diagnostic: `bin/ops queue depth`.
+- Mitigate: `bin/ops rollback VERSION=<previous version>`, decided and run by the on-call person.
+- `bin/ops purge cache` is not read-only: the on-call person decides it.
+"""
+GATE = '{"env":{"AI_SDLC_ALLOW_AGENT_DELIVERY":"1"}}'
+SETTINGS_WRITES = [
+    "echo " + GATE + " > .claude/settings.json", "echo '{}' >> .claude/settings.local.json", "echo x >.claude/settings.json",
+    "echo x | tee .claude/settings.json", "echo x | sudo tee -a /repo/.claude/settings.local.json", "sed -i 's/0/1/' .claude/settings.json",
+    "sed -i.bak -e 's/0/1/' $CLAUDE_PROJECT_DIR/.claude/settings.json", "perl -pi -e 's/0/1/' .claude/settings.json",
+    "cp /tmp/s.json .claude/settings.json", "mv /tmp/s.json ~/.claude/settings.json", "cat > .claude/settings.json <<'EOF'\n" + GATE + "\nEOF",
+    "sh -c 'echo x > .claude/settings.json'", "cd x && echo x > ./.claude/settings.json", "jq '.env.X=1' a.json > .claude/./settings.json",
+    "python3 -c \"open('.claude/settings.json','w').write('{}')\"", "echo 'x > .claude/settings.json",
+    "node -e \"require('fs').writeFileSync('.claude/settings.json', '{}')\"",
+]
+SETTINGS_READS = [
+    "cat .claude/settings.json", "jq .env .claude/settings.json", "jq . < .claude/settings.json", "grep -n hooks .claude/settings.local.json",
+    "sed -n 1,20p .claude/settings.json", "echo x > notes/settings.json", "echo x > .claude/notes.md", "echo x | tee out.json",
+    "sed -i 's/a/b/' src/app.py", "cp .claude/settings.json /tmp/backup.json", "git diff -- .claude/settings.json", "echo x > .vscode/settings.json",
+    "python3 -c \"import json; print(json.load(open('.claude/settings.json')))\"", "ls .claude > listing.txt",
+]
+
+
+class RunbookTests(unittest.TestCase):
+    """Issue #115, first hole: the commands of the team's runbook that are not marked read-only."""
+
+    def test_the_runbook_commands_not_marked_read_only_are_listed(self):
+        self.assertEqual(guard.runbook_commands(RUNBOOK),
+                         ["systemctl restart api", "bin/ops rollback VERSION=<previous-version>", "bin/ops purge cache"])
+        french = "- Journaux : `journalctl -u api`, lecture seule.\n- Relancer : `systemctl restart api`, par l'astreinte.\n"
+        self.assertEqual(guard.runbook_commands(french), ["systemctl restart api"])
+        self.assertEqual(guard.runbook_commands("no command here, and a `word` alone"), [])
+
+    def test_a_mitigation_of_the_runbook_is_refused_and_a_diagnostic_passes(self):
+        team = guard.runbook_commands(RUNBOOK)
+        for command in ("systemctl restart api", "ssh prod systemctl restart api", "ssh prod 'sudo systemctl restart api'",
+                        "sudo systemctl restart api", "cd /srv && systemctl restart api", "bin/ops rollback VERSION=v1.4.0",
+                        "./bin/ops purge cache", "sh -c 'systemctl restart api'"):
+            with self.subTest(command=command):
+                self.assertTrue(guard.reasons(command, team))
+        for command in ("systemctl status api", "journalctl -u api --since 10:00", "bin/ops queue depth", "cat docs/agents/operations.md",
+                        "grep -n restart docs/agents/operations.md", "systemctl status worker",
+                        "git commit -m 'docs: `systemctl restart api` is for the on-call'", "make test", "git status"):
+            with self.subTest(command=command):
+                self.assertEqual(guard.reasons(command, team), [])
+
+    def write(self, repo: str, name: str, text: str) -> None:
+        os.makedirs(os.path.join(repo, "docs", "agents"), exist_ok=True)
+        with open(os.path.join(repo, "docs", "agents", name), "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    def test_the_runbook_is_read_from_the_project_under_both_file_names(self):
+        for name in ("operations.md", "exploitation.md"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as repo:
+                self.write(repo, name, RUNBOOK)
+                lines = guard.team_lines(repo)
+                self.assertIn("systemctl restart api", lines)
+                self.assertNotIn("systemctl status api", lines)
+                for command, expected in (("systemctl restart api", 2), ("ssh prod systemctl restart api", 2), ("systemctl status api", 0),
+                                          ("cat docs/agents/" + name, 0)):
+                    payload = json.dumps({"tool_name": "Bash", "tool_input": {"command": command}})
+                    self.assertEqual(guard.run_hook(payload, {"CLAUDE_PROJECT_DIR": repo})[0], expected, command)
+                for command, expected in (("systemctl restart api", 1), ("ssh prod systemctl restart api", 1), ("systemctl status api", 0)):
+                    ran = subprocess.run([sys.executable, CLI, "guard", "check", "--repo", repo, command], capture_output=True)
+                    self.assertEqual(ran.returncode, expected, command)
+
+    def test_marking_a_command_read_only_in_the_working_copy_does_not_disarm_it(self):
+        with tempfile.TemporaryDirectory() as repo:
+            git = lambda *args: subprocess.run(["git", "-C", repo, "-c", "user.name=t", "-c", "user.email=t@example.com", *args],  # noqa: E731
+                                               capture_output=True, check=True)
+            git("init", "-q", "-b", "main")
+            self.write(repo, "operations.md", RUNBOOK)
+            git("add", "-A")
+            git("commit", "-q", "-m", "base")
+            self.write(repo, "operations.md", "- Restart: `systemctl restart api`, read-only.\n")
+            self.assertIn("systemctl restart api", guard.team_lines(repo))
+            os.remove(os.path.join(repo, "docs", "agents", "operations.md"))
+            self.assertIn("systemctl restart api", guard.team_lines(repo))
+
+    def test_the_delivery_procedure_keeps_all_its_commands_whatever_the_words_around(self):
+        with tempfile.TemporaryDirectory() as repo:
+            self.write(repo, "delivery.md", "- Check: `bin/go-live now`, read-only it is not.\n")
+            self.assertEqual(guard.team_lines(repo), ["bin/go-live now"])
+
+
+class SettingsTests(unittest.TestCase):
+    """Issue #115, second hole: the agent writes the variable that opens the gate into its own settings."""
+
+    def test_a_shell_write_into_the_settings_is_refused(self):
+        for command in SETTINGS_WRITES:
+            with self.subTest(command=command):
+                self.assertTrue(guard.reasons(command))
+
+    def test_reading_the_settings_and_writing_elsewhere_pass(self):
+        for command in SETTINGS_READS:
+            with self.subTest(command=command):
+                self.assertEqual(guard.reasons(command), [])
+
+    def test_the_issue_reproduction_from_the_command_line(self):
+        ran = subprocess.run([sys.executable, CLI, "guard", "check", "echo " + GATE + " > .claude/settings.json"], capture_output=True)
+        self.assertEqual(ran.returncode, 1)
+        text = guard.render(guard.reasons("echo x > .claude/settings.json"))
+        for name in guard.ALLOW_ENV_ALIASES:
+            self.assertNotIn(name, text)   # the name of the gate is not whispered
+        self.assertEqual(subprocess.run([sys.executable, CLI, "guard", "check", "cat .claude/settings.json"], capture_output=True).returncode, 0)
+
+    def tool(self, name: str, tool_input: dict, cwd: str = ".") -> int:
+        return guard.run_hook(json.dumps({"tool_name": name, "tool_input": tool_input, "cwd": cwd}), {})[0]
+
+    def test_a_write_of_the_settings_that_carries_the_gate_is_refused(self):
+        for path in (".claude/settings.json", "/repo/.claude/settings.local.json", ".claude/./settings.json", "x/../.claude/settings.json"):
+            with self.subTest(path=path):
+                self.assertEqual(self.tool("Write", {"file_path": path, "content": GATE}), 2)
+        self.assertEqual(self.tool("Write", {"file_path": ".claude/settings.json", "content": '{"env":{"AI_SDLC_LIVRAISON_PAR_AGENT":"1"}}'}), 2)
+        escaped = '{"env":{"\\u0041I_SDLC_ALLOW_AGENT_DELIVERY":"1"}}'   # the same name once the JSON is read
+        self.assertEqual(self.tool("Write", {"file_path": ".claude/settings.json", "content": escaped}), 2)
+        code, message = guard.run_hook(json.dumps({"tool_name": "Write", "tool_input": {"file_path": ".claude/settings.json", "content": GATE}}), {})
+        self.assertIn("refused", message)
+        for name in guard.ALLOW_ENV_ALIASES:
+            self.assertNotIn(name, message)
+
+    def test_an_ordinary_write_passes(self):
+        self.assertEqual(self.tool("Write", {"file_path": ".claude/settings.json", "content": '{"permissions":{"allow":["Bash(ls)"]}}'}), 0)
+        self.assertEqual(self.tool("Write", {"file_path": "docs/guardrail.md", "content": "Set AI_SDLC_ALLOW_AGENT_DELIVERY=1 to open the gate."}), 0)
+        self.assertEqual(self.tool("Write", {"file_path": "src/settings.json", "content": GATE}), 0)
+        self.assertEqual(self.tool("Edit", {"file_path": "README.md", "old_string": "a", "new_string": "AI_SDLC_ALLOW_AGENT_DELIVERY"}), 0)
+        with tempfile.TemporaryDirectory() as empty:
+            self.assertEqual(self.tool("Edit", {"file_path": ".claude/settings.json", "old_string": "a", "new_string": "b"}, cwd=empty), 0)
+        for odd in ({}, {"file_path": None}, {"file_path": 3, "content": GATE}, {"file_path": ".claude/settings.json"},
+                    {"file_path": ".claude/settings.json", "edits": "x"}, {"file_path": ".claude/settings.json\0", "content": 4}):
+            with self.subTest(odd=odd):
+                self.assertEqual(self.tool("Write", odd), 0)
+                self.assertEqual(self.tool("MultiEdit", odd), 0)
+
+    def test_an_edit_of_the_settings_is_judged_on_the_file_it_leaves(self):
+        with tempfile.TemporaryDirectory() as repo:
+            os.makedirs(os.path.join(repo, ".claude"))
+            path = os.path.join(repo, ".claude", "settings.json")
+            before = '{"env": {"AI_SDLC_ALLOW_": "1", "OTHER": "0"}, "permissions": {}}'
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(before)
+            edit = lambda old, new: self.tool("Edit", {"file_path": path, "old_string": old, "new_string": new}, cwd=repo)  # noqa: E731
+            self.assertEqual(edit('"OTHER": "0"', '"AI_SDLC_ALLOW_AGENT_DELIVERY": "1"'), 2)
+            self.assertEqual(edit('_": "1"', '_AGENT_DELIVERY": "1"'), 2)         # the name is assembled by the edit: the file left carries it
+            self.assertEqual(edit('"OTHER": "0"', '"OTHER": "1"'), 0)
+            relative = {"file_path": ".claude/settings.json", "old_string": '_": "1"', "new_string": '_AGENT_DELIVERY": "1"'}
+            self.assertEqual(self.tool("Edit", relative, cwd=repo), 2)             # a relative path is read from the folder of the call
+            edits = [{"old_string": "ALLOW_", "new_string": "ALLOW_AGENT_"}, {"old_string": 'AGENT_"', "new_string": 'AGENT_DELIVERY"'}]
+            self.assertEqual(self.tool("MultiEdit", {"file_path": path, "edits": edits}, cwd=repo), 2)
+            self.assertEqual(self.tool("MultiEdit", {"file_path": path, "edits": edits[:1]}, cwd=repo), 0)
+            with open(path, encoding="utf-8") as fh:
+                self.assertEqual(fh.read(), before)                                # the guardrail reads, it never writes
+
+    def test_the_team_gate_still_opens_everything(self):
+        payload = json.dumps({"tool_name": "Write", "tool_input": {"file_path": ".claude/settings.json", "content": GATE}})
+        self.assertEqual(guard.run_hook(payload, {guard.ALLOW_ENV: "1"}), (0, ""))
+
+    def test_a_call_that_cannot_be_read_and_writes_the_gate_into_the_settings_is_refused(self):
+        payload = json.dumps({"tool_name": "Write", "tool_input": {"file_path": ".claude/settings.json", "content": GATE}})
+        self.assertEqual(guard.run_hook(payload[:-3], {})[0], 2)
+        self.assertEqual(guard.run_hook(json.dumps({"tool_name": "Write", "tool_input": {"file_path": "a.md", "content": "x"}})[:-3], {}), (0, ""))
+
+
+class OtherToolsTests(unittest.TestCase):
+    """Issue #115, third hole: a shell command sent through a tool that is not Bash."""
+
+    def call(self, tool: str, tool_input: dict) -> int:
+        return guard.run_hook(json.dumps({"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": tool_input}), {})[0]
+
+    def test_a_delivery_through_another_tool_that_carries_a_command_is_refused(self):
+        for tool in ("mcp__terminal__run_in_terminal", "mcp__shell__exec", "PowerShell", "SomeFutureShell"):
+            with self.subTest(tool=tool):
+                self.assertEqual(self.call(tool, {"command": "git tag v1.0.0"}), 2)
+                self.assertEqual(self.call(tool, {"command": "cd x && npm publish", "cwd": "/tmp"}), 2)
+                self.assertEqual(self.call(tool, {"command": "echo x > .claude/settings.json"}), 2)
+                self.assertEqual(self.call(tool, {"command": "git status"}), 0)
+        self.assertEqual(self.call("mcp__shell__exec", {"command": ["git", "tag", "v1.0.0"]}), 2)   # a command given word by word
+        self.assertEqual(self.call("mcp__shell__exec", {"command": ["git", "status"]}), 0)
+
+    def test_a_tool_without_a_command_passes(self):
+        self.assertEqual(self.call("mcp__docs__search", {"query": "git tag v1.0.0"}), 0)
+        self.assertEqual(self.call("Read", {"file_path": ".claude/settings.json"}), 0)
+        self.assertEqual(self.call("mcp__shell__exec", {"command": {"git": "tag"}}), 0)
+        self.assertEqual(self.call("mcp__shell__exec", {"command": ["git", 3]}), 0)
+        self.assertEqual(self.call("Write", {"file_path": "notes.md", "content": "git tag v1.0.0", "command": "git tag v1.0.0"}), 0)
+
+    def test_the_hook_entry_point_refuses_the_cases_of_the_issue(self):
+        hook = os.path.join(PLUGIN, "cli", "guard_hook.py")
+        env = {k: v for k, v in os.environ.items() if k not in guard.ALLOW_ENV_ALIASES and k != "CLAUDE_PROJECT_DIR"}
+        cases = (({"tool_name": "mcp__terminal__run_in_terminal", "tool_input": {"command": "git tag v1.0.0"}}, 2),
+                 ({"tool_name": "Write", "tool_input": {"file_path": ".claude/settings.json", "content": GATE}}, 2),
+                 ({"tool_name": "mcp__terminal__run_in_terminal", "tool_input": {"command": "git status"}}, 0),
+                 ({"tool_name": "Write", "tool_input": {"file_path": "notes.md", "content": "git tag v1.0.0"}}, 0))
+        with tempfile.TemporaryDirectory() as tmp:
+            for payload, expected in cases:
+                ran = subprocess.run([sys.executable, hook], input=json.dumps({**payload, "cwd": tmp}).encode(), capture_output=True, env=env, timeout=30)
+                self.assertEqual(ran.returncode, expected, payload)
+                self.assertNotIn(b"Traceback", ran.stderr)
+
+    def test_the_hook_is_declared_for_the_file_tools_and_the_tools_of_other_servers(self):
+        import re
+        with open(os.path.join(PLUGIN, "hooks", "hooks.json"), encoding="utf-8") as fh:
+            entries = json.load(fh)["hooks"]["PreToolUse"]
+        matchers = [entry["matcher"] for entry in entries]
+        for tool in ("Bash", "Write", "Edit", "MultiEdit", "mcp__terminal__run_in_terminal", "mcp__shell__exec"):
+            with self.subTest(tool=tool):
+                self.assertTrue(any(re.fullmatch(matcher, tool) for matcher in matchers))
+        for entry in entries:
+            self.assertIn('"${CLAUDE_PLUGIN_ROOT}/cli/guard_hook.py"', entry["hooks"][0]["command"])
+            self.assertLessEqual(entry["hooks"][0]["timeout"], 30)
+
+    def test_the_last_resort_of_a_broken_plugin_refuses_the_gate_written_into_the_settings(self):
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            broken = os.path.join(tmp, "cli")
+            os.makedirs(os.path.join(broken, "aisdlclib"))
+            shutil.copy(os.path.join(PLUGIN, "cli", "guard_hook.py"), broken)
+            with open(os.path.join(broken, "aisdlclib", "guard.py"), "w", encoding="utf-8") as fh:
+                fh.write("raise RuntimeError('broken plugin')\n")
+            env = {k: v for k, v in os.environ.items() if k not in guard.ALLOW_ENV_ALIASES}
+            for payload, expected in (({"tool_name": "Write", "tool_input": {"file_path": ".claude/settings.json", "content": GATE}}, 2),
+                                      ({"tool_name": "Bash", "tool_input": {"command": "echo " + GATE + " > .claude/settings.json"}}, 2),
+                                      ({"tool_name": "mcp__terminal__run_in_terminal", "tool_input": {"command": "git tag v1.0.0"}}, 2),
+                                      ({"tool_name": "Write", "tool_input": {"file_path": ".claude/settings.json", "content": "{}"}}, 0),
+                                      ({"tool_name": "Write", "tool_input": {"file_path": "notes.md", "content": "hello"}}, 0)):
+                ran = subprocess.run([sys.executable, os.path.join(broken, "guard_hook.py")], input=json.dumps(payload).encode(),
+                                     capture_output=True, env=env, timeout=30)
+                self.assertEqual(ran.returncode, expected, payload)
+                self.assertNotIn(b"Traceback", ran.stderr)
+
+
 class PluginWiringTests(unittest.TestCase):
     def test_the_plugin_declares_the_hook_and_the_command_it_names_works(self):
         with open(os.path.join(PLUGIN, "hooks", "hooks.json"), encoding="utf-8") as fh:

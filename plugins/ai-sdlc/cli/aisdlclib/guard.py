@@ -2,8 +2,12 @@
 
 Called by a hook of the plugin before each command of the agent. It refuses what sends something out: a
 git tag created, moved or pushed, a release or a workflow started on the forge, a package or image
-publication, a deployment through the usual tools, a `make` target or a delivery script, and the commands
-the team's procedure writes itself.
+publication, a deployment through the usual tools, a `make` target or a delivery script, the commands the
+team's delivery procedure writes itself, and those of its runbook that it does not mark read-only.
+
+It also keeps its own gate shut: a shell command that writes `.claude/settings*.json`, and a Write or an Edit
+that leaves the variable of the gate in one of those files, are refused. And it reads the command of any
+tool that carries one, not only of Bash.
 
 It is a barrier against accidents and against an instruction slipped into a ticket or a commit, not a
 sandbox: a script that deploys, run by its name, passes, as does a command assembled from variables. What
@@ -27,6 +31,10 @@ ALLOW_ENV = "AI_SDLC_ALLOW_AGENT_DELIVERY"   # set by the team in the session's 
 ALLOW_ENV_ALIASES = (ALLOW_ENV, "AI_SDLC_LIVRAISON_PAR_AGENT")   # the former name is still read
 # the team's delivery procedure, under its English name and its former French name: both are read
 PROCEDURES = ("docs/agents/delivery.md", "docs/agents/livraison.md")
+# the team's runbook, same two names: its commands are refused unless the line marks them read-only
+RUNBOOKS = ("docs/agents/operations.md", "docs/agents/exploitation.md")
+FILE_TOOLS = ("Write", "Edit", "MultiEdit", "NotebookEdit")   # they write a file: their input is not a shell command
+MAX_SETTINGS = 1_000_000    # characters of a settings file read to judge an edit
 
 _VERB = re.compile(r"^(?:deploy\w*|release[sd]?|publish\w*|livr\w+|ship(?:it|ping)?|rollout|promote\w*|revenir|rollback|golive|go-live)$", re.IGNORECASE)
 _BENIGN = re.compile(r"^(?:notes?|docs?|check\w*|tests?|lint|preview|dry|dryrun|plan|diff|status|list|logs?|verify|validate)$", re.IGNORECASE)
@@ -94,6 +102,14 @@ _CRUDE = re.compile(r"\bgit\b[^\n;&|]{0,200}\btag\s+(?!-l\b|--list\b|-n\b|--cont
                     r"\b(?:kubectl|helm|terraform)\s+(?:apply|upgrade|install|destroy)\b|\bmake\s+(?:deploy|release|livr|publish)", re.IGNORECASE)
 _HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_]\w*)\1")
 _TO_SHELL = re.compile(r"(?:^|[|;&(\s])(?:sudo\s+)?(?:/[\w/.-]*/)?(?:sh|bash|zsh|dash|ksh)\b")
+_READ_ONLY = re.compile(r"(?<!not )(?<!pas en )(?:read[- ]?only|lecture[- ]seule)", re.IGNORECASE)
+_PLACEHOLDER = re.compile(r"<[^<>\n]*>")
+_SETTINGS = re.compile(r"(?:^|/)\.claude/settings[^/]*\.json$")
+_SETTINGS_IN_TEXT = re.compile(r"\.claude/(?:\./)*settings[^/\s'\"]*\.json")
+_CRUDE_SETTINGS = re.compile(r"(?:>|\b(?:tee|sed|perl|cp|mv|install|ln|dd)\b)[^\n]{0,400}\.claude/(?:\./)*settings[^/\s'\"]*\.json")
+_CODE_WRITES = re.compile(r"['\"][wax]\+?b?['\"]|write|dump|truncate|rename|replace|copy|move", re.IGNORECASE)
+_COPIERS = {"cp", "mv", "install", "ln", "rsync"}
+_SETTINGS_WHY = "it writes the agent's own settings (`.claude/settings*.json`), where the gate of this guardrail is"
 
 
 def _blank_quotes(line: str) -> str:
@@ -216,39 +232,43 @@ def _executed_inside(command: str) -> list[str]:
     return out
 
 
-def _segments(command: str) -> list[tuple[list[str], list[str]]]:
-    """The simple commands of a shell line: (words, texts given by `<<<`). Redirections are removed with their
-    target. Raises ValueError if the line cannot be split."""
+def _segments(command: str) -> list[tuple[list[str], list[str], list[str]]]:
+    """The simple commands of a shell line: (words, texts given by `<<<`, files written by a redirection).
+    Redirections are removed with their target. Raises ValueError if the line cannot be split."""
     lexer = shlex.shlex(command, posix=True, punctuation_chars=True)
     lexer.whitespace_split = True
-    out: list[tuple[list[str], list[str]]] = []
+    out: list[tuple[list[str], list[str], list[str]]] = []
     words: list[str] = []
     fed: list[str] = []
-    skip = ""
+    written: list[str] = []
+    skip = redirection = ""
     for token in lexer:
         if skip:
             if skip == "<<<":
                 fed.append(token)
+            elif ">" in redirection:
+                written.append(token)
             skip = ""
             continue
         if token and set(token) <= set("<>&|;()"):
             if "<" in token or ">" in token:           # a redirection: neither a command nor a separator
                 if words and words[-1].isdigit():
                     words.pop()
+                redirection = token
                 skip = token if not token.endswith("&") else ""
                 if token.endswith("&"):
                     skip = "&"                         # `2>&1`: the descriptor that follows is not a word
                 continue
-            if words or fed:
-                out.append((words, fed))
-            words, fed = [], []
+            if words or fed or written:
+                out.append((words, fed, written))
+            words, fed, written = [], [], []
         elif token in _OPERATORS:
-            if words or fed:
-                out.append((words, fed))
-            words, fed = [], []
+            if words or fed or written:
+                out.append((words, fed, written))
+            words, fed, written = [], [], []
         else:
             words.append(token)
-    return out + ([(words, fed)] if words or fed else [])
+    return out + ([(words, fed, written)] if words or fed or written else [])
 
 
 def _strip(argv: list[str]) -> list[str]:
@@ -338,6 +358,28 @@ def _http(name: str, args: list[str]) -> str | None:
     return None
 
 
+def _is_settings(path: Any) -> bool:
+    """Whether this path is a settings file of the agent: `.claude/settings.json`, `.claude/settings.local.json`…"""
+    if not isinstance(path, str) or not path or "\0" in path:
+        return False
+    return bool(_SETTINGS.search(os.path.normpath(path.replace("\\", "/"))))
+
+
+def _writes_settings(name: str, args: list[str]) -> bool:
+    """Whether this simple command writes a settings file through its arguments: `tee`, `sed -i`, `perl -i`, a
+    copy or a move onto it, `dd of=`. A redirection is seen by the caller; reading the file is not a write."""
+    if name == "tee":
+        return any(_is_settings(a) for a in args)
+    if name in ("sed", "gsed", "perl"):
+        in_place = any(a.startswith("--in-place") or (a.startswith("-") and not a.startswith("--") and "i" in a) for a in args)
+        return in_place and any(_is_settings(a) for a in args)
+    if name in _COPIERS:
+        return _is_settings(next((a for a in reversed(args) if not a.startswith("-")), ""))
+    if name == "dd":
+        return any(a.startswith("of=") and _is_settings(a[3:]) for a in args)
+    return False
+
+
 def _one(argv: list[str], team: list[list[str]], tags: set[str]) -> tuple[str | None, list[str]]:
     """Why this simple command delivers, or None; and the command it runs in turn, if there is one."""
     argv = _strip(argv)
@@ -347,7 +389,9 @@ def _one(argv: list[str], team: list[list[str]], tags: set[str]) -> tuple[str | 
     args = argv[1:]
     for known in team:
         if len(argv) >= len(known) and all(_team_word(want, got) for want, got in zip(known, [name, *args])):
-            return "it is a command of the team's delivery procedure", []
+            return "it is a command of the team's delivery procedure, or of its runbook without the read-only mark", []
+    if _writes_settings(name, args):
+        return _SETTINGS_WHY, []
     for prefix in _PASS:
         if (name, *args[:len(prefix) - 1]) == prefix:
             rest = args[len(prefix) - 1:]
@@ -461,7 +505,7 @@ def reasons(command: Any, team: list[str] | None = None, tags: set[str] | None =
     found: list[str] = []
     text, to_shell, _literal = _without_heredocs(command)
     if len(text) > MAX_COMMAND:   # too long to be split: judged on its text, not refused outright
-        return ["the command is very long and its text looks like a delivery"] if _CRUDE.search(text) else []
+        return ["the command is very long and its text looks like a delivery"] if _crude(text) else []
     executed = _executed_inside(text)
     inner = executed + to_shell if depth < MAX_DEPTH else []
     for piece in inner:
@@ -473,13 +517,15 @@ def reasons(command: Any, team: list[str] | None = None, tags: set[str] | None =
         segments = _segments(_join_lines(text.replace("\\\n", " ")))
     except ValueError:
         # a line shlex cannot split is judged on its text: better one refusal too many
-        return found + (["the command cannot be split, and its text looks like a delivery"] if _CRUDE.search(text) else [])
-    for argv, fed in segments:
+        return found + (["the command cannot be split, and its text looks like a delivery"] if _crude(text) else [])
+    for argv, fed, written in segments:
         why, launched = _one(argv, known, tags)
         if why:
             found.append(why)
+        if any(_is_settings(target) for target in written):
+            found.append(_SETTINGS_WHY)
         if depth >= MAX_DEPTH:
-            if _CRUDE.search(" ".join(argv)):
+            if _crude(" ".join(argv)):
                 found.append("a command nested too deep looks like a delivery")
             continue
         if launched:
@@ -489,7 +535,60 @@ def reasons(command: Any, team: list[str] | None = None, tags: set[str] | None =
             found += reasons(piece, team, tags, depth + 1, budget)
         if any(_CRUDE.search(piece) for piece in code):
             found.append("code passed to an interpreter runs a delivery")
+        if any(_SETTINGS_IN_TEXT.search(piece) and (_CODE_WRITES.search(piece) or _names_gate(piece)) for piece in code):
+            found.append(_SETTINGS_WHY)
     return list(dict.fromkeys(found))
+
+
+def _crude(text: str) -> bool:
+    """A text that could not be read as a command, and looks like a delivery or like a write of the settings."""
+    return bool(_CRUDE.search(text) or _CRUDE_SETTINGS.search(text))
+
+
+def _names_gate(text: str) -> bool:
+    return any(name in text for name in ALLOW_ENV_ALIASES)
+
+
+def _carries_gate(text: str) -> bool:
+    """Whether a settings file with this content names the variable of the gate, written plainly or with the
+    escapes of JSON (a letter written by its code point gives the same name once the file is read)."""
+    if _names_gate(text):
+        return True
+    if "\\u" not in text:
+        return False
+    try:
+        return _names_gate(json.dumps(json.loads(text), ensure_ascii=False))
+    except (ValueError, RecursionError):
+        return _names_gate(re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m[1], 16)), text))
+
+
+def settings_edit(tool_input: dict[str, Any], cwd: Any = ".") -> list[str]:
+    """Why a Write or an Edit is refused: it leaves the variable of the gate in a settings file of the agent. An
+    edit is judged on the file it leaves, read from the disk: the name can be assembled from two halves."""
+    path = tool_input.get("file_path") or tool_input.get("notebook_path")
+    if not _is_settings(path):
+        return []
+    content = tool_input.get("content")
+    if isinstance(content, str):
+        after = content
+    else:
+        try:
+            with open(os.path.join(cwd if isinstance(cwd, str) else ".", path), encoding="utf-8", errors="replace") as fh:
+                after = fh.read(MAX_SETTINGS)
+        except (OSError, ValueError):
+            after = ""
+        edits = tool_input.get("edits") if isinstance(tool_input.get("edits"), list) else [tool_input]
+        for edit in edits[:1000]:
+            old, new = (edit.get("old_string"), edit.get("new_string")) if isinstance(edit, dict) else (None, None)
+            if not isinstance(new, str):
+                continue
+            if _carries_gate(new):
+                after += new
+            elif isinstance(old, str) and old:
+                after = after.replace(old, new) if edit.get("replace_all") is True else after.replace(old, new, 1)
+    if not _carries_gate(after):
+        return []
+    return ["it leaves, in the agent's own settings (`.claude/settings*.json`), the variable that opens the gate of this guardrail"]
 
 
 def render(found: list[str]) -> str:
@@ -498,9 +597,32 @@ def render(found: list[str]) -> str:
             "(`ship render`): a human runs it, in their terminal.\n")
 
 
+def render_edit(found: list[str]) -> str:
+    return ("ai-sdlc: edit refused, " + "; ".join(found) + ".\n"
+            "An agent does not open that gate: the team sets it, in the session's environment.\n")
+
+
 def team_commands(procedure: str) -> list[str]:
     """The commands the team's procedure writes between backticks."""
     return list(dict.fromkeys(" ".join(m.split()) for m in _SPAN.findall(procedure) if " " in m.strip()))
+
+
+def runbook_commands(runbook: str) -> list[str]:
+    """The commands the team's runbook writes between backticks and does not mark read-only. The mark
+    ("read-only", "lecture seule") is on the same line: after the command and before the next one, or before the
+    first command of the line. A value between angle brackets is kept as one word (`<previous version>`)."""
+    out = []
+    for line in runbook.split("\n"):
+        spans = list(_SPAN.finditer(line))
+        for index, span in enumerate(spans):
+            after = line[span.end():spans[index + 1].start() if index + 1 < len(spans) else len(line)]
+            before = line[:span.start()] if index == 0 else ""
+            if _READ_ONLY.search(after) or _READ_ONLY.search(before):
+                continue
+            command = " ".join(_PLACEHOLDER.sub(lambda m: m[0].replace(" ", "-"), span[1]).split())
+            if " " in command:
+                out.append(command)
+    return list(dict.fromkeys(out))
 
 
 def _git_out(repo: str, *args: str) -> str:
@@ -512,18 +634,26 @@ def _git_out(repo: str, *args: str) -> str:
     return out.stdout.decode("utf-8", "replace") if out.returncode == 0 else ""
 
 
-def team_lines(repo: str) -> list[str]:
-    """The commands of the team's procedure, read on the remote branch, in the last commit and in the working
-    copy, under its English and its former French file name: removing the line from one's copy, or renaming the
-    file, does not disarm the guardrail."""
-    texts = [_git_out(repo, "show", f"{ref}:{path}")[:200_000] for path in PROCEDURES for ref in ("origin/HEAD", "HEAD")]
-    for path in PROCEDURES:
+def _versions(repo: str, paths: tuple[str, ...]) -> list[str]:
+    """The texts of these files on the remote branch, in the last commit and in the working copy."""
+    texts = [_git_out(repo, "show", f"{ref}:{path}")[:200_000] for path in paths for ref in ("origin/HEAD", "HEAD")]
+    for path in paths:
         try:
             with open(os.path.join(repo, path), encoding="utf-8", errors="replace") as fh:
                 texts.append(fh.read(200_000))
         except OSError:
             pass
-    return list(dict.fromkeys(line for text in texts for line in team_commands(text)))
+    return texts
+
+
+def team_lines(repo: str) -> list[str]:
+    """The commands of the team's delivery procedure, then those of its runbook that are not marked read-only.
+    Both are read on the remote branch, in the last commit and in the working copy, under their English and
+    their former French file name: removing a line from one's copy, renaming the file, or adding the read-only
+    mark in one's copy, does not disarm the guardrail."""
+    delivery = [line for text in _versions(repo, PROCEDURES) for line in team_commands(text)]
+    runbook = [line for text in _versions(repo, RUNBOOKS) for line in runbook_commands(text)]
+    return list(dict.fromkeys(delivery + runbook))
 
 
 def tag_names(repo: str) -> set[str]:
@@ -535,8 +665,16 @@ def hook(payload: Any, team: list[str] | None = None, tags: set[str] | None = No
     if not isinstance(payload, dict):
         return 0, ""
     tool_input = payload.get("tool_input")
-    command = tool_input.get("command") if isinstance(tool_input, dict) else None
-    if payload.get("tool_name") != "Bash" or not isinstance(command, str):
+    if not isinstance(tool_input, dict):
+        return 0, ""
+    if payload.get("tool_name") in FILE_TOOLS:
+        found = settings_edit(tool_input, payload.get("cwd") or ".")
+        return (2, render_edit(found)) if found else (0, "")
+    # any other tool that carries a command runs it: Bash, a terminal of another server, a shell to come
+    command = tool_input.get("command")
+    if isinstance(command, list) and command and all(isinstance(word, str) for word in command):
+        command = shlex.join(command)
+    if not isinstance(command, str):
         return 0, ""
     found = reasons(command, team, tags)
     return (2, render(found)) if found else (0, "")
@@ -547,14 +685,20 @@ def run_hook(raw: str, environ: dict[str, str]) -> tuple[int, str]:
     or truncated input, or an internal error, is judged on its text rather than opening the door."""
     if any(environ.get(name) == "1" for name in ALLOW_ENV_ALIASES):
         return 0, ""
-    fallback = (2, render(["the call could not be read and its text looks like a delivery"])) if _CRUDE.search(raw[:MAX_STDIN]) else (0, "")
+    text = raw[:MAX_STDIN]
+    fallback = (0, "")
+    if _CRUDE.search(text):
+        fallback = (2, render(["the call could not be read and its text looks like a delivery"]))
+    elif _SETTINGS_IN_TEXT.search(text) and _carries_gate(text):
+        fallback = (2, render_edit(["the call could not be read, and its text puts the variable of the gate in the agent's settings"]))
     try:
         payload = json.loads(raw)
     except (ValueError, RecursionError):
         return fallback
     try:
         repo = environ.get("CLAUDE_PROJECT_DIR") or (payload.get("cwd") if isinstance(payload, dict) else None) or "."
-        known = isinstance(repo, str) and "\0" not in repo and os.path.isdir(repo)
+        is_edit = isinstance(payload, dict) and payload.get("tool_name") in FILE_TOOLS   # an edit needs neither the procedure nor the tags
+        known = not is_edit and isinstance(repo, str) and "\0" not in repo and os.path.isdir(repo)
         return hook(payload, team_lines(repo) if known else None, tag_names(repo) if known else None)
     except Exception:   # noqa: BLE001 — a guardrail that crashes would let everything through: fall back, do not raise
         return fallback
