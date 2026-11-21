@@ -570,36 +570,63 @@ class Harvester:
 
 # Sections that hold no rule, in French and in English.
 NON_RULE_HEADINGS = re.compile(r"^#{1,6}\s+(maintenance|maintaining|t[âa]ches|tasks|delegated tasks|ce que fait|what this|"
-                               r"installation|commandes|commands|processus|working process|workflow)", re.I)
+                               r"installation|commandes|commands|processus|working process|workflow|"
+                               r"available ci/cd|ci/cd (?:disponibles?|available))", re.I)
+# Sections that say they hold rules. When a file has one, only their bullets are rules.
+RULE_HEADINGS = re.compile(r"^#{1,6}\s+(?:.*\b)?(rules?|r[èe]gles?|forbidden|interdit(?:e?s)?)\b", re.I)
+# A bullet that names its guardrail is a rule wherever it sits. Same wording as `facts.GUARDED_RE`,
+# which cannot be imported here: `facts` imports this module.
+ENFORCED_RE = re.compile(r"v[ée]rifi[ée]e?\s+par\s*:|guarded\s+by\s*:|enforced\s+by\s*:", re.I)
+HEADING_RE = re.compile(r"^(#{1,6})\s")
+BULLET_RE = re.compile(r"^\s*[-*]\s+")
+
+
+def has_rule_headings(agents_md: str) -> bool:
+    """True when the file has a section that announces rules ("Rules", "Forbidden", "Règles",
+    "Interdits"). Without one, what `iter_rules` returns are lines, not known rules."""
+    return any(RULE_HEADINGS.match(line) and not NON_RULE_HEADINGS.match(line)
+               for line in agents_md.splitlines())
 
 
 def iter_rules(agents_md: str) -> list[tuple[int, str]]:
-    """The bullets of an AGENTS.md with their line number (1 = first line), continuation lines
-    joined, outside the maintenance, tasks, commands and working-process sections (the process frames
-    the agent, it is not a rule an incident violates). No "Rules" heading is assumed: real files keep
-    their rules under "Pitfalls", "Database", etc."""
+    """The rules of an AGENTS.md with their line number (1 = first line), continuation lines joined.
+    A bullet that says "Enforced by:" is a rule in any section. For the others: when the file has
+    "Rules" or "Forbidden" sections, only the bullets under them (subsections included) count;
+    otherwise every bullet outside the maintenance, tasks, commands, CI/CD and working-process
+    sections does, because real files keep their rules under "Pitfalls", "Database", etc. — the caller
+    can tell the two cases apart with `has_rule_headings`."""
+    strict = has_rule_headings(agents_md)
     rules: list[tuple[int, str]] = []
-    skip = False
+    non_rule = False                 # the current section is one of NON_RULE_HEADINGS
+    rule_level: int | None = None    # the level of the rule heading we are under, if any
     current: list[str] | None = None
+    keep = False
     start = 0
 
     def flush() -> None:
         nonlocal current
         if current:
-            rules.append((start, " ".join(part.strip() for part in current)))
+            text = " ".join(part.strip() for part in current)
+            if keep or ENFORCED_RE.search(text):
+                rules.append((start, text))
         current = None
 
     for number, line in enumerate(agents_md.splitlines(), 1):
-        if re.match(r"^#{1,6}\s", line):
+        heading = HEADING_RE.match(line)
+        if heading:
             flush()
-            skip = bool(NON_RULE_HEADINGS.match(line))
+            level = len(heading.group(1))
+            if rule_level is not None and level <= rule_level:
+                rule_level = None
+            non_rule = bool(NON_RULE_HEADINGS.match(line))
+            if rule_level is None and not non_rule and RULE_HEADINGS.match(line):
+                rule_level = level
             continue
-        if skip:
-            continue
-        if re.match(r"^\s*[-*]\s+", line):
+        if BULLET_RE.match(line):
             flush()
-            current = [re.sub(r"^\s*[-*]\s+", "", line)]
+            current = [BULLET_RE.sub("", line)]
             start = number
+            keep = not non_rule and (rule_level is not None or not strict)
         elif current is not None and line.startswith("  ") and line.strip():
             current.append(line)
         else:
