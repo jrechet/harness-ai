@@ -12,8 +12,9 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from harnesslib import facts, maturity  # noqa: E402
+from harnesslib import facts, maturity, medals  # noqa: E402
 
+SILVER_RANK = 2
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CLI_ROOTS = ("cli", "plugins/ai-sdlc/cli")
 SKILL_ROOTS = {"skills": "harness.py", "plugins/ai-sdlc/skills": "ai_sdlc.py"}   # each plugin's skills call its own CLI
@@ -204,6 +205,22 @@ class OwnLevelOneTests(unittest.TestCase):
         self.assertGreater(source["lines"], 0)
         self.assertLessEqual(source["lines"], maturity.MAX_SOURCE_LINES)
         self.assertEqual(maturity.MAX_SOURCE_LINES, 60, "the limit this repository states in its level 1")
+
+
+class OwnMarketplaceMedalTests(unittest.TestCase):
+    """This repository's marketplace keeps the medal it asks of others, measured as `harness medals` measures it."""
+
+    def setUp(self):
+        self.evaluated = medals.evaluate_marketplace(ROOT)
+
+    def test_the_marketplace_medal_is_at_least_silver(self):
+        medal = medals.build(self.evaluated)["medal"]
+        self.assertGreaterEqual(medal["rank"], SILVER_RANK, f"the marketplace medal is {medal['name']}")
+
+    def test_every_skill_description_says_when_to_use_it_and_when_not(self):
+        described = {s["id"]: s for s in self.evaluated["successes"] if s["id"] in ("M2.when", "M2.when-not")}
+        self.assertEqual(sorted(described), ["M2.when", "M2.when-not"])
+        self.assertEqual({ident: s["evidence"] for ident, s in described.items() if not s["passed"]}, {})
 
 
 if __name__ == "__main__":

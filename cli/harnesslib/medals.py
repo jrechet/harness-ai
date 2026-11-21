@@ -38,7 +38,7 @@ MAX_SKILL_LINES = 500
 NOT_MEASURED = "not measured: no instruction file"
 # A skill description is written by its author, in French or in English: both are read.
 _TRIGGER = re.compile(r"(?<!ne pas )(?<!pas )\butiliser (?:dès|quand|pour|si|lorsque)|\bà utiliser\b|"
-                      r"(?<!not )(?<!n't )\buse (?:(?:this|it|the skill) )?(?:when|for|whenever)\b", re.IGNORECASE)
+                      r"(?<!not )(?<!n't )\buse (?:(?:this|it|the skill) )?(?:when|for|whenever|as soon as)\b", re.IGNORECASE)
 _NEGATIVE = re.compile(r"ne pas utiliser|do not use|don't use|not for\b|n'est pas pour", re.IGNORECASE)
 
 
