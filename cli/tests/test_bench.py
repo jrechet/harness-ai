@@ -631,6 +631,40 @@ class AskedOwnerTests(BenchCase):
             self.init([], answers="asked")
 
 
+class EvidencePathTests(unittest.TestCase):
+    """The registry and the requirements cite evidence by path: a cited path that no longer exists
+    is a number nobody can check any more."""
+
+    REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    CITED_PATH = re.compile(r"fixtures/[A-Za-z0-9_./-]+")
+
+    def cited_paths(self, text):
+        return sorted({found.rstrip("./") for found in self.CITED_PATH.findall(text)})
+
+    def missing(self, text):
+        return [path for path in self.cited_paths(text)
+                if not os.path.exists(os.path.join(self.REPO_ROOT, path))]
+
+    def test_every_fixture_path_cited_in_a_registry_note_exists(self):
+        registry = os.path.join(self.REPO_ROOT, "fixtures", "results.jsonl")
+        with open(registry, encoding="utf-8") as handle:
+            rows = [json.loads(line) for line in handle if line.strip()]
+        notes = [row["note"] for row in rows if isinstance(row.get("note"), str)]
+        self.assertTrue(any(self.cited_paths(note) for note in notes), "no note cites a path: the test checks nothing")
+        broken = {}
+        for number, row in enumerate(rows, 1):
+            note = row.get("note")
+            if isinstance(note, str) and self.missing(note):
+                broken[number] = self.missing(note)
+        self.assertEqual(broken, {})
+
+    def test_every_fixture_path_cited_in_the_requirements_exists(self):
+        with open(os.path.join(self.REPO_ROOT, "docs", "requirements.md"), encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertTrue(self.cited_paths(text), "the requirements cite no path: the test checks nothing")
+        self.assertEqual(self.missing(text), [])
+
+
 @unittest.skipUnless(os.environ.get("HARNESS_SELFTEST"), "HARNESS_SELFTEST=1: replays the tasks of the real fixtures (go, npm)")
 class RealFixtureTaskTests(unittest.TestCase):
     def test_every_task_of_every_fixture_is_well_posed(self):

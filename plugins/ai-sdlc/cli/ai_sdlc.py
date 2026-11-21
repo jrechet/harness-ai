@@ -8,6 +8,7 @@
   ai_sdlc.py dev body <body.json> [repo] [--base REF]         the PR body, if it is complete for its size
   ai_sdlc.py ticket check <ticket> [repo] [--base REF] [--comments FILE]     is the ticket ready to hand to an agent
   ai_sdlc.py ticket render <opinion.json> [repo] --ticket <ticket> [--base REF] [--comments FILE]   the skill's opinion, if well formed
+  ai_sdlc.py ticket render … --agreed N… --accepted <file>   also writes the accepted ticket: the description and the criteria its owner agreed to
   ai_sdlc.py qa gate [repo] [--base REF] [--run CMD] [--coverage F] [--ticket F --trace F]   the gates of /qa
   ai_sdlc.py secu gate [repo] [--base REF] [--report SARIF…]   the gates of /secu
   ai_sdlc.py ship check [repo] [--base REF] [--since REF] [--checks checks.json]   the prerequisites of a delivery
@@ -67,8 +68,14 @@ def build_parser() -> argparse.ArgumentParser:
     opinion = tck.add_parser("render", help="validates the skill's opinion and renders it, measured verdict first")
     opinion.add_argument("file", help="the opinion in JSON: gaps, criteria, split, questions, instructions")
     opinion.add_argument("--ticket", required=True, metavar="FILE", help="the ticket, as given to `ticket check`")
+    opinion.add_argument("--agreed", nargs="+", type=int, metavar="N",
+                         help="the numbers, in the rendered opinion, of the proposed criteria the ticket's owner agreed to")
+    opinion.add_argument("--accepted", metavar="FILE",
+                         help="where to write the accepted ticket (outside the repository): the description and the agreed criteria, "
+                              "for `ticket check`, `qa gate --ticket` and the dev skill. The tracker is not touched")
     tck = tck.add_parser("check", help="is the ticket ready to hand to an agent")
-    tck.add_argument("file", help="the text of the ticket, in Markdown or plain text, or the JSON of `gh issue view --json body,comments`")
+    tck.add_argument("file", help="the text of the ticket, in Markdown or plain text, the JSON of `gh issue view --json body,comments`, "
+                                  "or the accepted ticket written by `ticket render`")
     for sp in (opinion, tck):
         sp.add_argument("--comments", metavar="FILE", help="the comments, fetched apart from the ticket: text, or the JSON of "
                                                            "`gh issue view --json comments`. Counted and quotable, never measured")
@@ -77,7 +84,7 @@ def build_parser() -> argparse.ArgumentParser:
     gate.add_argument("--run", metavar="CMD", help="the repository's test command, run several times from its root")
     gate.add_argument("--runs", type=int, help="number of runs (default: the base's)")
     gate.add_argument("--coverage", metavar="FILE", help="an lcov or Cobertura report produced on this branch")
-    gate.add_argument("--ticket", metavar="FILE", help="the text of the ticket, for its acceptance criteria")
+    gate.add_argument("--ticket", metavar="FILE", help="the text of the ticket, or the accepted ticket written by `ticket render`, for its acceptance criteria")
     gate.add_argument("--trace", metavar="FILE", help="the criteria → tests mapping, in JSON")
     sgate = sub.add_parser("secu", help="what /secu guarantees").add_subparsers(dest="action", required=True)
     sgate = sgate.add_parser("gate", help="the four gates: secrets, neutralized, scanner, surface")
@@ -241,13 +248,20 @@ def main(argv: list[str] | None = None) -> int:
             zones, warning = ticket.zones_for(table, args.repo, args.base)
             data = {**ticket.check(text, zones, comments), "warning": warning}
             if args.action == "render":
+                if (args.agreed is None) != (args.accepted is None):
+                    raise context.Refused("--agreed and --accepted go together: the criteria the owner agreed to, and the file to write them in")
                 opinion = review.load(args.file)
                 commit = context.resolve_base(args.repo, args.base)
                 errors = ticket.check_opinion(opinion, ticket.quotable(text, comments),
                                               lambda rel: context.is_file_at(args.repo, commit, rel))
                 if errors:
                     raise context.Refused("opinion refused:\n- " + "\n- ".join(errors))
-                data, text = {"opinion": opinion, "check": data}, ticket.render_opinion(opinion, data, warning)
+                accepted = None
+                if args.accepted:
+                    accepted = ticket.accept(text, opinion, args.agreed, comments)
+                    ticket.write_accepted(accepted, args.accepted, args.repo, [source, args.file, *([args.comments] if args.comments else [])])
+                data, text = ({"opinion": opinion, "check": data, **({"accepted": accepted, "accepted_file": args.accepted} if accepted else {})},
+                              ticket.render_opinion(opinion, data, warning, accepted, args.accepted))
             else:
                 text, code = ticket.render_md(data, warning), 0 if data["ready"] else 1
         elif args.command == "size":

@@ -29,6 +29,8 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
 
 TARGET_LEVELS = (1, 2, 3, 4)
 DELEGATED_LEVEL = 4
+# what state.json says of the repository it sits in: the file is committed, a local path would leak and churn
+STATE_REPO = "."
 CLEAR_WORD = "none"
 
 
@@ -98,6 +100,33 @@ def target_main(args: argparse.Namespace) -> int:
     return 0
 
 
+def portable(state: dict) -> dict:
+    """The state as it is committed: the repository is `.`, not a path of the machine that measured it."""
+    return {**state, "repo": STATE_REPO, "facts": {**state["facts"], "repo": STATE_REPO}}
+
+
+def _undated(state: dict) -> dict:
+    facts_ = state.get("facts")
+    return {**state, "date": None, "facts": {**facts_, "date": None} if isinstance(facts_, dict) else facts_}
+
+
+def _write_state(path: str, state: dict) -> None:
+    """Writes state.json, unless the file already says the same thing on another day: its date is
+    then that of the last change, and its git history is the history of the progress."""
+    data = portable(state)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            previous = json.load(fh)
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        previous = None
+    if isinstance(previous, dict) and _undated(previous) == _undated(data):
+        return
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(data, fh, ensure_ascii=False, indent=2)
+        fh.write("\n")
+
+
 def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) -> int:
     if args is None:
         args = build_parser().parse_args(argv)
@@ -105,11 +134,7 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
     f = facts.collect(args.repo, args.harness_dir, args.audit, args.harvest, today)
     state = maturity.evaluate(f)
     if not args.no_write:
-        out_dir = os.path.join(os.path.abspath(args.repo), args.harness_dir)
-        os.makedirs(out_dir, exist_ok=True)
-        with open(os.path.join(out_dir, "state.json"), "w", encoding="utf-8") as fh:
-            json.dump(state, fh, ensure_ascii=False, indent=2)
-            fh.write("\n")
+        _write_state(os.path.join(os.path.abspath(args.repo), args.harness_dir, "state.json"), state)
     if args.page:
         try:
             page.write(args.page, page.build(args.repo, args.harness_dir, args.audit, args.harvest, today))

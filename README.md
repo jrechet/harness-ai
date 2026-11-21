@@ -20,11 +20,19 @@ You need Python 3.10 or later and git. Nothing to install: the CLI uses the stan
 git clone https://github.com/jrechet/harness-ai.git
 ```
 
+The repository is private today: the clone works only if the owner gave you access.
+
 ```bash
-python3 harness-ai/cli/harness.py status /path/to/your/repo
+python3 harness-ai/cli/harness.py status /path/to/your/repo --map
 ```
 
-`status` says which level your repository is at, from 0 (None) to 4 (Delegated), what is already in place, and the next action. It writes `.harness/state.json` in your repository. Then, as you like:
+`status --map` prints the five levels in plain words, from 0 (None) to 4 (Delegated), with "you are here", what the next level still needs, and the next step. Without `--map`, `status` prints the detailed report the skills read: every check with its id. Both write `.harness/state.json` in your repository.
+
+Commit what `.harness/` keeps: `config.json` (the level you aim for), `state.json`, and `audit.json` and `harvest.json` once they exist. Ignore `.harness/state.html`: it is a page rebuilt on demand by `status --page`.
+
+**By hand.** Without Claude Code, nothing writes `AGENTS.md` for you: copy the blocks of [the template](skills/harness-init/references/agents-template.md), one level at a time. Step 1 is the first `AGENTS.md` (level 1), Step 2 the maintenance block and the `rule:` convention (level 2), Step 4 the working process (level 4); level 3 has no block, it is earned by turning rules into checks. Run `status --map` again after each one. The review loop needs GitHub today: `harness.py harvest` has a single adapter, `github`.
+
+Then, as you like:
 
 ```bash
 python3 harness-ai/cli/harness.py commands /path/to/your/repo
@@ -116,7 +124,8 @@ Three levels of confidence, always the same words: **tested** (run on a fresh cl
 
 | You want to… | Command | State |
 |---|---|---|
-| Know where your repository stands | `harness.py status <repo>` | tested |
+| Know where your repository stands, in plain words | `harness.py status <repo> --map` | tested |
+| Read every check behind the level, with its id | `harness.py status <repo>` | tested |
 | Say at which level you stop | `harness.py target <level> <repo>` | tested |
 | See each rule, its age, its guardrail | `harness.py rules <repo>` | tested |
 | Find the commands an agent does not guess | `harness.py commands <repo>` | tested |
@@ -161,6 +170,8 @@ A measurement is one draw, not an average, and the test cases were written by th
 /plugin install harness-ai@harness-ai
 /plugin install ai-sdlc@harness-ai
 ```
+
+The repository is private today: the first line works only if your GitHub account has access to it. From a local clone, use `claude plugin marketplace add <clone folder>` instead, then the two install lines.
 
 A skill triggers on its description ("audit my AGENTS.md", "review this PR") or by its name: `/harness-ai:harness-init`, `/ai-sdlc:review`.
 

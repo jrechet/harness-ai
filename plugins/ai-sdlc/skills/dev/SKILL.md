@@ -31,7 +31,9 @@ Update the map at the end of the run (steps done, where we are, what comes next 
 ## Steps
 
 ### 1. The ticket
-Read it where it lives: the ticket tracker's MCP server if one is declared, `gh issue view <n>` for an issue, otherwise the given text. Restate in one sentence what must be true once the work is done, and how we will see it. If there is no verifiable criterion, ask for it before going further (say why: a vague ticket gives a change nobody can review).
+If the `ticket` skill left an accepted ticket file for this ticket, that file is the ticket: it carries the description and the criteria the ticket's owner agreed to, which the tracker does not have. Otherwise read the ticket where it lives (the tracker's MCP server if one is declared, `gh issue view <n> --json body,comments` for an issue, otherwise the given text) and put it, as it is, in a ticket file outside the repository.
+
+`python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" ticket check <ticket file> . --base <base>` lists the criteria that count (`--format json`, key `criteria`); a criterion written only in a comment is not one. Restate in one sentence what must be true once the work is done, and how we will see it. If there is no verifiable criterion, ask for it before going further (say why: a vague ticket gives a change nobody can review), or offer the `ticket` skill, which records the agreed criteria in an accepted ticket file.
 
 ### 2. The context and the base
 Find the target branch (the one the PR will be merged into; failing that, ask). Then:
@@ -80,7 +82,7 @@ Write the body in a JSON file outside the repository:
 **Exit 2**: the body is incomplete for its size, and `<body.md>` is empty; the message says what. Fix the body, not the size. Show the content of `<body.md>` as it is. Push the branch and open the PR only if the user asked for it or accepts it: `gh pr create --base <base> --title "<the JSON title>" --body-file <body.md>`.
 
 ### 8. Report, then stop
-Open with the updated map. Then: the PR link, the size in plain words, what is not verified, and what you saw outside the ticket. Offer the review by the `review` skill, which hands it to an agent that did not see the writing. Do not review your own change to declare it good.
+Open with the updated map. Then: the PR link, the size in plain words, what is not verified, what you saw outside the ticket, and the path of the ticket file you worked from, which is the one to give to the `qa` skill. Offer the review by the `review` skill, which hands it to an agent that did not see the writing. Do not review your own change to declare it good.
 
 ## Common traps
 - **Estimating the size instead of asking for it.** "It's small" is not a measure: one line in `migrations/` is size L.

@@ -1,8 +1,9 @@
 """The progress plan kept up to date: a change in the repository does not leave without its row.
 
 A progress document that nobody has to keep lies within a week. This module checks two things, without
-a model: the document has the expected shape (a date, a table whose rows each have a unique id and a
-known state), and it is part of every change of the branch. Plugged into an end-of-turn hook, it sends
+a model: the document has the expected shape (a date no older than its latest row, a table whose rows
+each have a unique id and a known state), and it is part of every change of the branch, with a date
+that moved when the plan did. Plugged into an end-of-turn hook, it sends
 the agent back to write its row before stopping.
 
 The plan is written in English (`docs/capabilities.md`, `## Progress plan`, `Last updated:`, states
@@ -12,6 +13,7 @@ is still read, so a plan not yet translated keeps passing."""
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -27,6 +29,9 @@ STATES = ("done", "in progress", "to do", "waiting", "dropped")
 LEGACY_STATES = ("fait", "en cours", "à faire", "en attente", "écarté")
 _DATE = re.compile(r"^(?:Last updated|Dernière mise à jour)\s*:\s*(\d{4}-\d{2}-\d{2})\b", re.MULTILINE)
 _ID = re.compile(r"^[A-Z]{1,3}\d{1,3}$")
+_DAY = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+SINCE = ("Since", "Depuis")
+SINCE_COLUMN = 3  # where the column sits when the table has no header that names it
 
 
 def default_doc(repo: str) -> str:
@@ -46,7 +51,8 @@ def reminder(doc: str = DOC) -> str:
 def parse(text: str) -> tuple[list[dict[str, str]], list[str]]:
     """The rows of the plan and what is wrong with its shape."""
     errors = []
-    if not _DATE.search(text):
+    updated = last_updated(text)
+    if updated is None:
         errors.append("line \"Last updated: YYYY-MM-DD\" missing")
     heading = next((h for h in (HEADING, *LEGACY_HEADINGS) if h in text), None)
     if heading is None:
@@ -54,11 +60,15 @@ def parse(text: str) -> tuple[list[dict[str, str]], list[str]]:
     section = text.split(heading, 1)[1].split("\n## ", 1)[0]
     known = STATES + LEGACY_STATES
     rows, seen = [], set()
+    since, latest = SINCE_COLUMN, ("", "")
     for line in section.splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.strip().startswith("|") else []
+        if not rows and any(c in SINCE for c in cells):
+            since = next(i for i, c in enumerate(cells) if c in SINCE)
         if len(cells) < 3 or not _ID.match(cells[0]):
             continue
         row = {"id": cells[0], "what": cells[1], "state": cells[2]}
+        latest = max([latest] + [(day, row["id"]) for day in _DAY.findall(cells[since] if since < len(cells) else "")])
         if row["id"] in seen:
             errors.append(f"{row['id']}: duplicate id")
         seen.add(row["id"])
@@ -69,7 +79,27 @@ def parse(text: str) -> tuple[list[dict[str, str]], list[str]]:
         rows.append(row)
     if not rows:
         errors.append("no row in the plan (| A1 | topic | state | …)")
+    if updated and updated < latest[0]:  # ISO dates sort as text
+        errors.append(f"\"Last updated: {updated}\" is older than the latest row ({latest[1]}, since {latest[0]}): "
+                      "update the date")
     return rows, errors
+
+
+def last_updated(text: str) -> str | None:
+    """The date the document says it was last updated on, None if the line is missing."""
+    found = _DATE.search(text)
+    return found.group(1) if found else None
+
+
+def base_text(repo: str, doc: str, base: str) -> str | None:
+    """The plan as the branch found it, under its present or former name; None if the base has none or is unknown."""
+    code, fork = _git(repo, "merge-base", base, "HEAD")
+    start = fork.strip() if code == 0 and fork.strip() else base
+    for name in dict.fromkeys((doc, DOC, *LEGACY_DOCS)):
+        code, text = _git(repo, "show", f"{start}:{name}")
+        if code == 0:
+            return text
+    return None
 
 
 def _git(repo: str, *args: str) -> tuple[int, str]:
@@ -104,8 +134,11 @@ def changed_paths(repo: str, base: str) -> set[str] | None:
     return paths
 
 
-def check(repo: str, doc: str | None = None, base: str = "origin/main") -> list[str]:
-    """What prevents stopping here: an empty list if the plan is well formed and follows the change."""
+def check(repo: str, doc: str | None = None, base: str = "origin/main", today: str | None = None) -> list[str]:
+    """What prevents stopping here: an empty list if the plan is well formed and follows the change.
+
+    `today` (YYYY-MM-DD, the local day by default) is the day of the change: a plan already dated that
+    day may change again without a new date."""
     doc = doc or default_doc(repo)
     try:
         with open(os.path.join(repo, doc), encoding="utf-8") as fh:
@@ -120,6 +153,12 @@ def check(repo: str, doc: str | None = None, base: str = "origin/main") -> list[
         sample = ", ".join(sorted(changed - {doc})[:4])
         errors.append(f"the repository changes ({sample}{'…' if len(changed) > 5 else ''}) and {doc} does not move: record "
                       "in the progress plan what is done, started or requested, and update the date")
+    updated = last_updated(text)
+    if changed is not None and doc in changed and updated and updated < (today or datetime.date.today().isoformat()):
+        before = base_text(repo, doc, base)
+        if before is not None and before != text and last_updated(before) == updated:
+            errors.append(f"{doc}: the plan changes and its \"Last updated\" date did not move ({updated}): "
+                          "set it to the day of the change")
     return errors
 
 
