@@ -1,5 +1,7 @@
 # AI SDLC — proposal
 
+This is the initial proposal, kept as it was written: where the build departed from it, [As built](#as-built-2026-11-21), at the end, says what the plugin ships today.
+
 Working document, 2026-11-14. It confronts the owner's starting idea with the state of the art ([report](reports/AI%20SDLC%20practices%20at%20large%20companies.md), [sourced notes](research_notes/AI%20SDLC%20practices%20at%20large%20companies/)) and proposes an approach. Nothing here changes harness-ai: the framework builds on what harness-ai sets up and measures, it does not replace it.
 
 ## Decisions taken
@@ -174,3 +176,36 @@ Doctolib chose OpenSpec wanting it replaceable: invest in practices, not in the 
 - Whether `/qa` from acceptance criteria works: no measured product found.
 - The cost: it rises everywhere, and almost nobody publishes a cost per PR.
 - What `/dev` does to juniors: delegating the writing lowers understanding, asking questions preserves it (Anthropic, randomized trial, Jan. 2026). The default mode of `/dev` for a junior profile is a team choice the sources do not settle.
+
+## As built (2026-11-21)
+
+The sections above are the proposal of 2026-11-14 and are kept as written. This one says what the plugin ships today where the build departed from it. Its two tables are generated from [points.json](../../plugins/ai-sdlc/cli/aisdlclib/points.json), the file the CLI reads, and a test (`plugins/ai-sdlc/cli/tests/test_proposal.py`) fails when they drift from it.
+
+- **The plugin has its own CLI**, `plugins/ai-sdlc/cli/ai_sdlc.py`: it does not share harness-ai's (`cli/harness.py`), contrary to the decision recorded above.
+- **Eight extension points, not seven**: `operations`, read by `/run`, was added. `security` and `sensitive-zones` are also read by `/review`.
+- **Every phase has a minimum harness level**, where the level table above names only `/ticket`, `/dev`, `/review` and `/qa`.
+
+### Extension points
+
+| Point | Read by | Replaceable? | Read on |
+|---|---|---|---|
+| `definition-of-ready` | `/ticket` | yes | current branch |
+| `definition-of-done` | `/dev`, `/review` | yes | base branch |
+| `review` | `/review` | no | base branch |
+| `qa` | `/qa` | yes | base branch |
+| `security` | `/secu`, `/review` | no | base branch |
+| `sensitive-zones` | `/dev`, `/review` | no | base branch |
+| `delivery` | `/ship` | yes | base branch |
+| `operations` | `/run` | no | base branch |
+
+### Minimum harness level of each phase
+
+| Phase | Minimum level |
+|---|---|
+| `/ticket` | 1 |
+| `/dev` | 1 |
+| `/review` | 1 |
+| `/qa` | 3 |
+| `/secu` | 1 |
+| `/ship` | 3 |
+| `/run` | 2 |

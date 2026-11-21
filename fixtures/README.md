@@ -1,6 +1,22 @@
 # Fixtures
 
-Synthetic repositories with AI instrumentation traps planted and documented. It is the L3 of our own skills: the only way to know whether a change to a SKILL.md improves or degrades what the agent finds.
+Synthetic cases with traps planted and documented, each with its answer key and a grader that reads it. It is the L3 of our own skills: the only way to know whether a change to a SKILL.md improves or degrades what the agent finds.
+
+One folder per family. Each command below is completed on the family's page:
+
+| Family | What it measures | Grader | Page |
+|---|---|---|---|
+| `repos/` | What `harness-audit` finds in a damaged harness, what `harness-init` and `harness-step` write on a sample project, and what a harness changes to a typical task | `python3 cli/harness.py fixture check`, `python3 cli/harness.py bench check` for a task | [below](#available-fixtures) |
+| `design/` | Whether `harness-design` sends each misplaced piece of a skill, an agent or a rule to the right place, with its evidence | `python3 cli/harness.py place check` | [design/README.md](design/README.md) |
+| `ticket/` | What the `ticket` skill says is missing from a ticket, without inventing anything | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-ticket` | [ticket/README.md](ticket/README.md) |
+| `dev/` | Whether the `dev` skill meets a ticket on the path of its size, within its scope | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-dev` | [dev/README.md](dev/README.md) |
+| `review/` | Whether the `review` skill finds the defects that matter in a trapped PR, with their line | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade` | [review/README.md](review/README.md) |
+| `qa/` | Whether the tests the `qa` skill writes come from the acceptance criteria and would have failed | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-qa` | [qa/README.md](qa/README.md) |
+| `secu/` | What the `secu` skill reports on a colleague's change, and what it forbids itself | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-secu` | [secu/README.md](secu/README.md) |
+| `ship/` | What the `ship` skill proposes before a delivery, and that it ships nothing | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-ship` | [ship/README.md](ship/README.md) |
+| `run/` | What the `run` skill makes of an incident: quoted facts, a cause that stays a hypothesis, nothing done in production | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-run` | [run/README.md](run/README.md) |
+
+The rest of this page is about `repos/`: synthetic repositories with AI instrumentation traps.
 
 ```
 fixtures/repos/<name>/
@@ -180,6 +196,8 @@ Deciding on a campaign and interpreting it remains the job of the `harness-stres
 
 ```bash
 python3 cli/harness.py fixture check java-back
-python3 cli/harness.py fixture check java-back --audit fixtures/repos/java-back/repo/.harness/audit.json
+python3 cli/harness.py fixture check java-back --audit fixtures/repos/java-back/runs/2026-11-09-blind-audit-2.json
 python3 cli/harness.py fixture check go-hexa --init fixtures/repos/go-hexa/runs/2026-11-10-step1-author
 ```
+
+The three pass from the root of the repository. The second grades a recorded audit, the second blind run of 2026-11-09; the audit of a new run is the JSON block the skill writes in `repo/.harness/audit.json`, a file no fixture carries. A recorded run may fail: `runs/2026-11-09-blind-audit.json`, the first blind run, exits 1 on the style conventions it filed as leaks.

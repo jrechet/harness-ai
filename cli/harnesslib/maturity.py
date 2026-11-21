@@ -27,6 +27,12 @@ Check = dict[str, Any]
 # the next level, if targeted, is worked on without waiting for it (2026-11-14).
 WAITING = {"L2.signal", "L4.clean_prs"}
 
+# With no instruction file, one thing is missing: the file. What it would carry (mode, length, single
+# source, forbidden section) is not measured, so it is not reported as failed for another reason: these
+# checks stay unpassed, the level does not move, and they are marked as following the file (2026-11-21).
+FOLLOWS_SOURCE = "L1.source"
+WITH_FILE = "comes with the instruction file"
+
 
 def _check(cid: str, label: str, passed: bool, value: Any, next_action: str) -> Check:
     return {"id": cid, "label": label, "passed": bool(passed), "value": value,
@@ -42,7 +48,7 @@ def level1(f: dict) -> list[Check]:
     files = f["instructions"]["files"]
     has_src = bool(src.get("path"))
     claude_ok = (not files["CLAUDE.md"]["exists"]) or files["CLAUDE.md"].get("is_stub") or src.get("path") == "CLAUDE.md"
-    return [
+    checks = [
         _check("L1.source", "An instruction file exists (AGENTS.md)", has_src, src.get("path"),
                "Run harness-init to create AGENTS.md."),
         _check("L1.mode", "The line \"Mode: delegation | assistance\" is present", bool(src.get("mode")), src.get("mode"),
@@ -56,6 +62,9 @@ def level1(f: dict) -> list[Check]:
                bool(src.get("has_forbidden_section")), src.get("has_forbidden_section"),
                "Add the Forbidden section: folders, secrets, production actions, force push."),
     ]
+    if has_src:
+        return checks
+    return [c if c["id"] == FOLLOWS_SOURCE else {**c, "next_action": None, "follows": FOLLOWS_SOURCE} for c in checks]
 
 
 def level2(f: dict) -> list[Check]:
@@ -221,7 +230,7 @@ def evaluate(f: dict) -> dict[str, Any]:
         if not l["in_scope"]:
             break
         failing = [c for c in l["checks"] if not c["passed"]]
-        doable = [c for c in failing if not c["waits"]]
+        doable = [c for c in failing if not c["waits"] and not c.get("follows")]
         waiting += [c["id"] for c in failing if c["waits"]]
         if doable:
             next_actions = [c["next_action"] for c in doable]
@@ -265,6 +274,9 @@ def render_markdown(state: dict) -> str:
         out.append(f"## {mark} Level {l['level']} — {l['name']} ({l['passed_checks']}/{l['total_checks']})")
         out.append(f"_{l['summary']}_")
         for c in l["checks"]:
+            if c.get("follows"):
+                out.append(f"- [ ] {c['label']} → {WITH_FILE}")
+                continue
             out.append(f"- [{'x' if c['passed'] else ' '}] {c['label']}"
                        + ("" if c["passed"] else (" → **waiting**: " if c.get("waits") else " → ") + c["next_action"]))
         out.append("")
@@ -309,7 +321,7 @@ def _first_doable(state: dict) -> tuple[int, Check] | None:
             continue
         if not l.get("in_scope", True):
             return None
-        doable = [c for c in l["checks"] if not c["passed"] and not c["waits"]]
+        doable = [c for c in l["checks"] if not c["passed"] and not c["waits"] and not c.get("follows")]
         if doable:
             return l["level"], doable[0]
     return None
@@ -361,7 +373,7 @@ def render_map(state: dict) -> str:
     if nxt is not None and (target["level"] is None or nxt <= target["level"]):
         out.append(f"What level {nxt} still needs:")
         for c in state["levels"][nxt]["checks"]:
-            if not c["passed"]:
+            if not c["passed"] and not c.get("follows"):
                 out.append(f"- {CHECK_PLAIN[c['id']][0]}" + (" (comes with time, not with work)" if c["waits"] else ""))
     if state.get("dangling"):
         out.append(f"Broken references: the instruction file cites {len(state['dangling'])} thing(s) "

@@ -9,6 +9,7 @@ repository's current state and history. Standard library only.
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import mimetypes
 import os
@@ -126,7 +127,13 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
     if args is None:
         args = build_parser().parse_args(argv)
     today = date.fromisoformat(args.today) if args.today else None
-    server = make_server(args.repo, args.host, args.port, args.harness_dir, today)
+    try:
+        server = make_server(args.repo, args.host, args.port, args.harness_dir, today)
+    except OSError as exc:
+        if exc.errno != errno.EADDRINUSE:
+            raise
+        print(f"harness serve: port {args.port} is taken: give --port <n>", file=sys.stderr)
+        return 2
     print(f"harness: {os.path.abspath(args.repo)}\nhttp://{args.host}:{server.server_address[1]}  (Ctrl-C to stop)",
           file=sys.stderr)
     try:

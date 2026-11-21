@@ -1,6 +1,10 @@
 """`rules` subcommand: the rules of the instruction files, one per line, with what a relevance audit
 must know without guessing it: since when the rule exists, whether it says why, whether a guardrail
-enforces it. The date comes from the rule (`[YYYY-MM]`), failing that from `git blame`."""
+enforces it. The date comes from the rule (`[YYYY-MM]`), failing that from `git blame`.
+
+A file with a "Rules" or "Forbidden" heading gives rules. A file without one gives its bullets as
+lines, not rules (`kind`): notes, logs and to-do boxes cannot be told from rules there. A bullet
+that says "Enforced by:" is a rule in both cases."""
 from __future__ import annotations
 
 import argparse
@@ -12,7 +16,7 @@ from datetime import date, datetime, timezone
 from typing import Any
 
 from . import facts
-from .github import iter_rules
+from .github import ENFORCED_RE, has_rule_headings, iter_rules
 
 RULE_FILES = {"AGENTS.md", "CLAUDE.md"}
 
@@ -44,11 +48,13 @@ def collect(repo: str, today: date | None = None, blame: bool = True) -> list[di
     repo = os.path.abspath(repo)
     rows = []
     for rel, text in facts.instruction_corpus(repo, RULE_FILES, resolve=False).items():
+        known = has_rule_headings(text)
         for line, rule in iter_rules(text):
             tagged = facts.rule_date(rule)
             since = tagged or (_blame_date(repo, rel, line) if blame else None)
             rows.append({
                 "file": rel, "line": line, "text": rule,
+                "kind": "rule" if known or ENFORCED_RE.search(rule) else "line",
                 "since": since, "since_source": "rule" if tagged else ("git" if since else None),
                 "age_days": _age_days(since, today),
                 "guarded": bool(facts.GUARDED_RE.search(rule)) and not facts.UNGUARDED_RE.search(rule),
@@ -58,19 +64,28 @@ def collect(repo: str, today: date | None = None, blame: bool = True) -> list[di
     return rows
 
 
+def _summary(rows: list[dict[str, Any]], noun: str) -> str:
+    return (f"{len(rows)} {noun}, {sum(1 for r in rows if r['since_source'] == 'rule')} dated in the text, "
+            f"{sum(1 for r in rows if r['guarded'])} with a guardrail, {sum(1 for r in rows if r['justified'])} justified.")
+
+
 def render_markdown(rows: list[dict[str, Any]]) -> str:
     if not rows:
         return "No rule found in AGENTS.md or CLAUDE.md.\n"
-    out = ["| Where | Rule | Since | Age (d) | Guardrail | Why |", "|---|---|---|---|---|---|"]
+    lines = [r for r in rows if r.get("kind") == "line"]
+    known = [r for r in rows if r.get("kind") != "line"]
+    out = [f"| Where | {'Rule' if known else 'Line'} | Since | Age (d) | Guardrail | Why |", "|---|---|---|---|---|---|"]
     for r in rows:
         text = r["text"] if len(r["text"]) <= 70 else r["text"][:67] + "…"
         since = "?" if not r["since"] else r["since"] + ("" if r["since_source"] == "rule" else " (git)")
         guard = "yes" if r["guarded"] else ("no, marked" if r["marked_unguarded"] else "no")
         out.append(f"| {r['file']}:{r['line']} | {text.replace('|', '/')} | {since} | "
                    f"{'?' if r['age_days'] is None else r['age_days']} | {guard} | {'yes' if r['justified'] else 'no'} |")
-    dated = sum(1 for r in rows if r["since_source"] == "rule")
-    out += ["", f"{len(rows)} rule(s), {dated} dated in the text, "
-                f"{sum(1 for r in rows if r['guarded'])} with a guardrail, {sum(1 for r in rows if r['justified'])} justified."]
+    out += ["", _summary(known, "rule(s)")]
+    if lines:
+        files = ", ".join(sorted({r["file"] for r in lines}))
+        out.append(f"{_summary(lines, 'line(s)')[:-1]}: lines, not rules — "
+                   f"no Rules or Forbidden heading in {files}.")
     return "\n".join(out) + "\n"
 
 

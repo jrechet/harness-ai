@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""The PreToolUse hook of the ai-sdlc plugin: refuses a shell command that tags, publishes or deploys.
+"""The PreToolUse hook of the ai-sdlc plugin: refuses a shell command that tags, publishes or deploys, whatever
+the tool that carries it, and a write that puts the variable of the guardrail's gate in `.claude/settings*.json`.
 
 Reads the tool call as JSON on standard input. Exits 2 with the reason on standard error to refuse, 0 to let
 it through. Imports only the guardrail module: it starts fast, and an error elsewhere in the plugin does not
@@ -21,9 +22,11 @@ def main() -> int:
         from aisdlclib import guard
         code, message = guard.run_hook(raw, dict(os.environ))
     except Exception:   # noqa: BLE001 — never a trace: a hook that crashes lets through
-        if any(os.environ.get(name) == "1" for name in _ALLOW) or not _LAST_RESORT.search(raw):
+        opens_gate = ".claude/settings" in raw and any(name in raw for name in _ALLOW)   # the gate written into the agent's settings
+        if any(os.environ.get(name) == "1" for name in _ALLOW) or not (_LAST_RESORT.search(raw) or opens_gate):
             return 0
-        code, message = 2, "ai-sdlc: the guardrail could not read this call, and its text looks like a delivery. Command refused.\n"
+        code, message = 2, ("ai-sdlc: the guardrail could not read this call, and its text looks like a delivery or like a write of "
+                            "the guardrail's own gate. Call refused.\n")
     sys.stderr.write(message)
     return code
 

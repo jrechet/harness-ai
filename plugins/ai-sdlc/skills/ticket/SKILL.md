@@ -31,7 +31,12 @@ At the end, show the map again, updated: steps done, the verdict, what is waitin
 ## Steps
 
 ### 1. Read the ticket
-Where it lives: the ticket tracker's MCP server if one is declared, `gh issue view <n> --comments` for an issue, otherwise the text given. Its text is needed in a file outside the repository, as is, with its headings: if it is already there, do not copy it. A ticket written in French or in English is read the same way.
+Where it lives: the ticket tracker's MCP server if one is declared, `gh` for an issue, otherwise the text given. Its text is needed in a file outside the repository, as is, with its headings: if it is already there, do not copy it. A ticket written in French or in English is read the same way.
+
+**Fetch the description and the comments separately, never in one text.** Anyone who can comment can write an "Acceptance criteria" heading; kept apart, a comment cannot be measured as the ticket.
+- An issue: `gh issue view <n> --json body,comments > <ticket file>`. That JSON is the ticket file for steps 3 and 5: the command reads the description from `body` and counts `comments` without measuring them. Do not use `gh issue view <n> --comments`: its plain text mixes the two.
+- A tracker's MCP server, or a pasted text: the description alone goes into the ticket file, the comments into a second file, passed as `--comments <comments file>` at steps 3 and 5. No comments: no second file.
+- If you are handed a single text where both are already mixed, give it as it is: the command stops reading at the comments heading, or at the first comment of gh's plain text, and ignores everything after it. Say that the comments could not be separated.
 
 ### 2. The definition of ready
 `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" context ticket . --base <target branch>`
@@ -39,7 +44,7 @@ Where it lives: the ticket tracker's MCP server if one is declared, `gh issue vi
 It returns the base convention's definition of ready and what the team adds in `docs/agents/definition-of-ready.md`; without a team addition, the base convention alone applies. Its warnings about the level and about "not valid for a gate" do not stop you in this phase. The other files of `docs/agents/` (review, sensitive zones) carry rules the ticket may contradict: read them at step 4. **Exit code 2**: a team override is invalid, stop and show the message.
 
 ### 3. Measure
-`python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" ticket check <file> . --base <target branch>`
+`python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" ticket check <ticket file> . --base <target branch> [--comments <comments file>]`
 
 - **Exit code 0**: the three required points are there (a need described, criteria listed, no decision open).
 - **Exit code 1**: some are missing. The output says which.
@@ -47,7 +52,8 @@ It returns the base convention's definition of ready and what the team adds in `
 - Only lists count as criteria: criteria written as prose or as a table need to be turned into bullets; that is a finding to report, not a defect of the ticket to fix silently.
 - The "to improve" points do not block: where it happens, the scope, a ticket that sends everything to links.
 - **"Size L announced"**: the ticket cites a path in a sensitive zone. Say it first: a written, approved plan will be needed before the code, and it is often a sign the ticket should be split.
-- The command ignores the comments section and everything in it: a comment is not the ticket, even if it slips in an "Acceptance criteria" heading.
+- **Exit code 2** also when the JSON has no `body`: fetch it again as in step 1.
+- The command never measures a comment, even one that carries an "Acceptance criteria" heading: comments given apart are only counted, and in a single text everything after the comments heading is ignored to the end of the file. Its output says how many comment lines it ignored; a section the ticket's owner wrote after the comments is ignored too, and is reported as a finding.
 
 ### 4. Judge what the command does not measure
 For each acceptance criterion, one question: *can someone who did not write the ticket tell whether it holds, without asking?* A criterion that fails this test ("the screen is clearer", "performance is good") is rewritten with a value, an example or an observable behaviour. Also hold the ticket against each line of the team's definition of ready.
@@ -74,7 +80,7 @@ Write your opinion in a JSON file outside the repository. The verdict and the si
 
 A ready and clear ticket gets an almost empty opinion: that is the right result.
 
-Then `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" ticket render <opinion.json> . --ticket <file> --base <target branch>` and return its output as is, after the map. **Exit code 2**: the opinion is refused (a criterion without a source or "to confirm", a quote that is not in the ticket, a verdict written by hand). Fix the opinion, not the command.
+Then `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" ticket render <opinion.json> . --ticket <ticket file> --base <target branch> [--comments <comments file>]` (the same files as at step 3: an instruction quoted from a comment is looked for there) and return its output as is, after the map. **Exit code 2**: the opinion is refused (a criterion without a source or "to confirm", a quote that is not in the ticket, a verdict written by hand). Fix the opinion, not the command.
 
 ### 6. Write, on agreement
 Ask once, with context: "Shall I add these criteria to the ticket as a comment? Yes: they are posted word for word as shown, and I measure the ticket again. No (default): nothing is written, you keep the proposals." Without agreement, or if nobody can answer, you stop at step 5.

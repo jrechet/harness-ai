@@ -174,6 +174,51 @@ class RepoTests(RepoCase):
         self.assertFalse(os.path.exists(os.path.join(self.repo, ".harness")))
 
 
+class NoSourceTests(RepoCase):
+    """No instruction file: what cannot be measured is said so, not shown as measured and failed."""
+    NEED_THE_FILE = ("B.fresh", "B.dates", "B.why", "B.tools", "B.targets", "B.commands")
+
+    def test_off_rank_achievements_say_not_measured(self):
+        found = medals.evaluate_repo(self.repo)
+        self.assertEqual(found["rank"], 0)
+        by_id = {s["id"]: s for s in found["successes"]}
+        for ident in self.NEED_THE_FILE:
+            with self.subTest(achievement=ident):
+                self.assertFalse(by_id[ident]["passed"])
+                self.assertEqual(by_id[ident]["evidence"], "not measured: no instruction file")
+                self.assertIn("harness-init", by_id[ident]["next"])
+        self.assertIn("target", by_id["B.target"]["evidence"])          # this one does not read the file
+
+    def test_the_text_shows_no_false_count_and_one_next_step(self):
+        code, out = self.run_cli()
+        self.assertEqual(code, 0)
+        self.assertIn("[ ] No reference without a target (not measured: no instruction file)", out)
+        self.assertNotIn("0 reference(s) without a target", out)
+        self.assertNotIn("0 of 0", out)
+        steps = out.split("## Next steps\n")[1].strip().splitlines()
+        self.assertEqual(len(steps), 1, steps)
+        self.assertIn("harness-init", steps[0])
+
+    def test_the_rank_achievements_that_come_with_the_file_say_so_and_still_count_as_missing(self):
+        data = medals.build(medals.evaluate_repo(self.repo))
+        self.assertEqual(data["medal"]["id"], "none")
+        self.assertEqual(data["why"], "No medal yet: 5 achievement(s) missing for bronze.")
+        bronze = {s["id"]: s for s in data["successes"] if s["tier"] == "bronze"}
+        self.assertTrue(bronze["L1.source"]["next"])
+        for ident in ("L1.mode", "L1.short", "L1.single_source", "L1.forbidden"):
+            with self.subTest(achievement=ident):
+                self.assertIsNone(bronze[ident]["unlocked"])
+                self.assertIsNone(bronze[ident]["next"])
+                self.assertEqual(bronze[ident]["evidence"], "comes with the instruction file")
+        self.assertEqual([s["id"] for s in data["next"]], ["L1.source"])
+
+    def test_with_a_file_the_measure_is_shown(self):
+        self.write("AGENTS.md", AGENTS)
+        by_id = {s["id"]: s for s in medals.evaluate_repo(self.repo)["successes"]}
+        self.assertEqual(by_id["B.targets"]["evidence"], "0 reference(s) without a target")
+        self.assertTrue(by_id["B.targets"]["passed"])
+
+
 class MarketplaceTests(RepoCase):
     def plugin(self, description: str) -> None:
         self.write(".claude-plugin/marketplace.json", json.dumps({"name": "demo", "plugins": [{"name": "p", "source": "./p"}]}))

@@ -11,9 +11,15 @@ It does not judge the substance: whether a criterion is the right one, whether t
 the job of the skill and of the person who owns the ticket. The thresholds are starting choices, with
 no measurement behind them.
 
-The ticket is written by a team, in French or in English: headings and markers are read in both."""
+The ticket is written by a team, in French or in English: headings and markers are read in both.
+
+Comments are never the ticket: whoever can comment could otherwise make a vague ticket measure ready.
+They are best given apart (`--comments`, or the JSON of `gh issue view --json body,comments`). Mixed
+into the text, everything after a comments heading, or after the first comment of gh's plain text,
+is muted to the end of the file."""
 from __future__ import annotations
 
+import json
 import re
 from typing import Any
 
@@ -40,6 +46,8 @@ _KNOWN_FILES = ("Dockerfile", "Jenkinsfile", "Makefile")
 _LINK = re.compile(r"https?://\S+")
 _CODE = re.compile(r"```.*?```|`[^`\n]+`", re.DOTALL)
 _PATH = re.compile(r"^[\w.@-]+(?:/[\w.@*-]+)+/?$|^[\w-]+\.[a-z]{1,5}$")
+GH_RULE = "--"             # gh's plain text closes the issue header and frames each comment with this line
+GH_AUTHOR = "author:\t"    # and opens each comment with this field; in the issue header it comes third
 
 
 def read(path: str) -> str:
@@ -72,13 +80,61 @@ def _heading(line: str) -> tuple[int, str] | None:
     return None
 
 
+def _comment_bodies(data: dict[str, Any]) -> str:
+    items = data.get("comments", [])
+    if not isinstance(items, list) or any(not isinstance(i, dict) or not isinstance(i.get("body"), str) for i in items):
+        raise Refused("ticket in JSON: \"comments\" is a list of objects with a \"body\" text, "
+                      "as `gh issue view --json body,comments` writes it")
+    return "\n".join(item["body"] for item in items)
+
+
+def split(text: str, only_comments: bool = False) -> tuple[str, str]:
+    """The body and the comments of what was given. The JSON of `gh issue view --json body,comments`
+    carries them apart; any other text is taken whole, as the body, or as comments when the file
+    was given as the comments."""
+    data = None
+    if text.lstrip().startswith("{"):
+        try:
+            data = json.loads(text)
+        except (ValueError, RecursionError):
+            data = None       # not JSON: a text that happens to open with a brace
+    if not isinstance(data, dict):
+        return ("", text) if only_comments else (text, "")
+    if only_comments:
+        if "comments" not in data:
+            raise Refused("comments in JSON: a \"comments\" list is expected, as `gh issue view --json comments` writes it")
+        return "", _comment_bodies(data)
+    if not isinstance(data.get("body"), str):
+        raise Refused("ticket in JSON: a \"body\" text is expected, as `gh issue view --json body,comments` writes it")
+    return data["body"], _comment_bodies(data)
+
+
+def _apart(comments: str) -> str:
+    return split(comments, only_comments=True)[1] if comments else ""
+
+
+def quotable(text: str, comments: str = "") -> str:
+    """Everything an opinion may quote word for word: the body, and the comments wherever they came from."""
+    return "\n".join([*split(text), _apart(comments)])
+
+
 def sections(text: str) -> list[dict[str, Any]]:
     """The ticket split by headings, outside code blocks. What comes before the first heading is the
-    description. A comments section keeps everything that follows it up to a heading of its level
-    or higher: a heading slipped into a comment does not reopen the ticket there."""
+    description. Comments start at a comments heading, or at the first comment of gh's plain text
+    (an `author:` field that opens the file or follows a `--` line), and keep everything to the end
+    of the file: no heading written in a comment, whatever its level, reopens the ticket."""
     out = [{"title": "", "level": 0, "comment": False, "lines": []}]
-    fenced, muted = False, None
+    fenced, muted, last = False, False, None
     for line in text.splitlines():
+        if muted:
+            out[-1]["lines"].append(line)
+            continue
+        if line.startswith(GH_AUTHOR) and last in (None, GH_RULE):     # read even inside a code block left open
+            muted = True
+            out.append({"title": "", "level": 0, "comment": True, "lines": [line]})
+            continue
+        if line.strip():
+            last = line.rstrip()
         if line.lstrip().startswith(("```", "~~~")):
             fenced = not fenced
         found = None if fenced else _heading(line)
@@ -86,11 +142,8 @@ def sections(text: str) -> list[dict[str, Any]]:
             out[-1]["lines"].append(line)
             continue
         level, title = found
-        if muted is not None and level > muted:
-            out[-1]["lines"].append(line)      # under the comments: text, not a heading of the ticket
-            continue
-        muted = level if _COMMENTS.search(title) else None
-        out.append({"title": title, "level": level, "comment": muted is not None, "lines": []})
+        muted = bool(_COMMENTS.search(title))
+        out.append({"title": title, "level": level, "comment": muted, "lines": []})
     return out
 
 
@@ -125,8 +178,11 @@ def loose_paths(text: str) -> list[str]:
     return list(dict.fromkeys(p for p in found if p))
 
 
-def check(text: str, zones: list[dict[str, str]]) -> dict[str, Any]:
-    """The six checks, the size announced by the cited paths, and the verdict."""
+def check(text: str, zones: list[dict[str, str]], comments: str = "") -> dict[str, Any]:
+    """The six checks, the size announced by the cited paths, and the verdict. `comments` is the text
+    of the comments when they were fetched apart: counted, never measured."""
+    text, inner = split(text)
+    apart = [inner, _apart(comments)]
     parts = sections(text)
     body = [p for p in parts if not p["comment"]]    # a comment is not the ticket
     need = [p for p in body if not _CRITERIA.search(p["title"]) and not _SCOPE.search(p["title"])]
@@ -165,7 +221,8 @@ def check(text: str, zones: list[dict[str, str]]) -> dict[str, Any]:
     return {"ready": all(c["ok"] for c in checks if c["required"]), "checks": checks,
             "criteria": criteria, "paths": paths, "sensitive": sensitive,
             "size": "L" if sensitive else None,
-            "comments": sum(len([line for line in p["lines"] if line.strip()]) for p in parts if p["comment"])}
+            "comments": sum(len([line for line in p["lines"] if line.strip()]) for p in parts if p["comment"])
+                        + sum(1 for block in apart for line in block.splitlines() if line.strip())}
 
 
 def zones_for(table: dict[str, Any], repo: str, base: str) -> tuple[list[dict[str, str]], str | None]:

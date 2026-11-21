@@ -562,10 +562,36 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     return p
 
 
+def known_fixtures() -> list[str]:
+    """The names accepted by `fixture check` and `fixture bare`."""
+    try:
+        names = os.listdir(FIXTURES_ROOT)
+    except OSError:
+        return []
+    return sorted(n for n in names if os.path.isfile(os.path.join(FIXTURES_ROOT, n, "expected.json")))
+
+
+def _usage_problem(args: argparse.Namespace, fixture_dir: str) -> str | None:
+    """One sentence when the command line names something that does not exist, else None."""
+    if not os.path.isdir(fixture_dir):
+        return f"unknown fixture {args.name}; known fixtures: {', '.join(known_fixtures()) or 'none'}"
+    if args.fixture_command == "bare":
+        return None
+    if not os.path.isfile(os.path.join(fixture_dir, "expected.json")):
+        return f"{args.name} is not a fixture: it has no expected.json"
+    if args.audit and not os.path.isfile(args.audit):
+        return f"audit file not found: {args.audit}; this file is produced by a harness-audit run"
+    return None
+
+
 def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) -> int:
     if args is None:
         args = build_parser().parse_args(argv)
     fixture_dir = args.name if os.path.isdir(args.name) else os.path.join(FIXTURES_ROOT, args.name)
+    problem = _usage_problem(args, fixture_dir)
+    if problem:
+        print(f"harness fixture {args.fixture_command}: {problem}", file=sys.stderr)
+        return 2
     if args.fixture_command == "bare":
         removed = bare_copy(fixture_dir, args.dest, args.branch)
         print(f"bare repository in {args.dest} (branch {args.branch}); removed: {', '.join(removed) or 'nothing'}")
