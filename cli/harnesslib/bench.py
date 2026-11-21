@@ -33,10 +33,19 @@ from typing import Any
 from . import facts, fixtures, maturity, owner
 
 ARMS = ("bare", "asis", "harness")
-# Estimated cost of one agent run, in tokens. Audit and init: the first seven blind evaluations,
-# played by an agent of the session. Task: fresh tokens measured by `bench play` on 2026-11-11
-# (70,000 and 75,000), excluding cache reads, which add about 650,000 per run.
-COST = {"audit": 130_000, "init": 130_000, "task": 75_000, "step": 90_000}
+# Estimated cost of one agent run, in tokens, per kind of run. Each figure comes from the `tokens`
+# field of the `usage.json` files recorded under `fixtures/repos/*/runs/`, read on 2026-11-21. It
+# counts fresh tokens only: cache reads, 190,000 to 2,000,000 more per run, are recorded apart in
+# `cache_read_tokens` and are not in the estimate.
+#   audit: the highest of the 2 `*audit-blind*` runs (141,996 and 142,527), rounded up.
+#   init:  the highest of the 14 `*init-blind*` runs (47,769 to 104,684, mean 71,800), rounded up.
+#   task:  kept from the first `bench play` runs of 2026-11-11 (70,000 and 75,000); the 26
+#          `*task-blind*` runs range from 29,698 to 122,818, mean 67,200: above the mean, not a ceiling.
+#   step:  kept; the 11 `*step-*` runs range from 16,820 to 141,985, mean 49,000: not a ceiling either.
+# The audit and init figures are held to the recorded runs by a test of cli/tests/test_bench.py, on
+# purpose: a costlier recorded blind run turns the suite red until the figure, this comment and
+# docs/requirements.md follow.
+COST = {"audit": 145_000, "init": 105_000, "task": 75_000, "step": 90_000}
 RESULTS = os.path.join(os.path.dirname(fixtures.FIXTURES_ROOT), "results.jsonl")
 OVERLAY_SKIP = {"RUN.md", "README.md", "REMOVE.txt"}   # what describes a run is not harness
 OVERLAY_HARNESS_KEPT = {".harness/audit.json", ".harness/harvest.json"}   # what a next step must find again
