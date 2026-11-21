@@ -101,7 +101,7 @@ def level2(f: dict) -> list[Check]:
         _check("L2.marker_fresh", f"A harvest ran less than {MAX_MARKER_AGE_DAYS} days ago",
                age is not None and age <= MAX_MARKER_AGE_DAYS, age,
                "Run harness-harvest and merge its PR, which sets the marker."),
-        _check("L2.signal", "The last harvest found at least one real signal (S1–S4)",
+        _check("L2.signal", "The last harvest found at least one real signal: a review remark or a fixed agent change",
                bool(h and h["real_signals"] > 0), h["real_signals"] if h else None,
                "Mark incidents in review with `rule:`; without a signal, the loop is not running yet."),
     ]
@@ -118,13 +118,13 @@ def level3(f: dict) -> list[Check]:
                f["guardrails"]["workflows"], "Without CI, no rule can be guaranteed: set one up."),
         _check("L3.guarded", f"At least {int(MIN_GUARDED_RATIO*100)}% of the rules are \"Enforced by\" a tool",
                total > 0 and guarded_ratio >= MIN_GUARDED_RATIO, round(guarded_ratio, 2),
-               "Push the narrated rules down to L3: custom lint, architecture test, PR check."),
+               "Push the narrated rules down to a tool: custom lint, architecture test, PR check."),
         _check("L3.justified", f"At least {int(MIN_JUSTIFIED_RATIO*100)}% of the rules say why",
                total > 0 and justified_ratio >= MIN_JUSTIFIED_RATIO, round(justified_ratio, 2),
                "Add \"Why:\" or the link to the incident to each rule."),
-        _check("L3.audit", "A harness-audit exists and has no open P1",
+        _check("L3.audit", "A harness-audit exists and has no urgent finding open",
                bool(a) and a["priorities"].get("P1", 0) == 0, a["priorities"] if a else None,
-               "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s."),
+               "Run harness-audit, write its JSON to .harness/audit.json, handle its urgent findings."),
     ]
 
 
@@ -144,10 +144,10 @@ def level4(f: dict) -> list[Check]:
         _check("L4.clean_prs", "The last harvest sees agent PRs with no after-the-fact correction",
                bool(h and (h["agent_prs"] or 0) > 0 and h["corrections_on_agent_prs"] == 0),
                {"agent_prs": h["agent_prs"], "S2": h["corrections_on_agent_prs"]} if h else None,
-               "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them."),
+               "Each after-the-fact correction on an agent PR is a missing rule or guardrail: handle them."),
         _check("L4.cut_the_agent", "The audit's \"cut the agent\" test passes",
                bool(a and a["cut_the_agent_passed"]), a["cut_the_agent_passed"] if a else None,
-               "Push down to L3/L4 the steps that exist only in prompts."),
+               "Move into scripts or CI the steps that exist only in prompts."),
     ]
 
 
@@ -320,7 +320,9 @@ def render_markdown(state: dict) -> str:
     out.append("")
     if state.get("waiting"):
         out.append("## Waiting")
-        out.append(f"{', '.join(state['waiting'])}: only time makes them pass, with real reviews or real PRs. "
+        # Plain words, as on the map: the check ids stay in the JSON (`waiting`).
+        out.extend(f"- {CHECK_PLAIN[cid][0]}" for cid in state["waiting"])
+        out.append("Only time makes them pass, with real reviews or real PRs. "
                    "The level that carries them will count then; the targeted levels above are worked on without waiting for it.")
         out.append("")
     if state["next_actions"]:
@@ -347,6 +349,20 @@ def _first_doable(state: dict) -> tuple[int, Check] | None:
     return None
 
 
+def beyond_target(state: dict, target: dict | None = None) -> str | None:
+    """The one-line offer made once the target is held (or every level reached): the level above, as a
+    choice. None while there is still something to reach. The map and the medals say this same line."""
+    target = target or state.get("target") or {"level": None, "reached": False}
+    reached = state["level"]["reached"]
+    if not (target["reached"] or reached >= len(LEVELS) - 1):
+        return None
+    above = max(target["level"] or 0, reached) + 1
+    if above >= len(LEVELS):
+        return "every level is reached. What is in place still needs upkeep."
+    return (f"your target is reached. If you want more, level {above} ({LEVELS[above][1]}) "
+            f"would bring this: {LEVEL_PLAIN[above]}. It is your choice.")
+
+
 def _next_step(state: dict, target: dict) -> str:
     if state.get("dangling"):
         return "fix or remove what the instruction file cites but cannot be found."
@@ -354,13 +370,9 @@ def _next_step(state: dict, target: dict) -> str:
     if found:
         num, check = found
         return f"{CHECK_PLAIN[check['id']][1]} (towards level {num})."
-    reached = state["level"]["reached"]
-    if target["reached"] or reached >= len(LEVELS) - 1:
-        above = max(target["level"] or 0, reached) + 1
-        if above >= len(LEVELS):
-            return "none: every level is reached. What is in place still needs upkeep."
-        return (f"none: your target is reached. If you want more, level {above} ({LEVELS[above][1]}) "
-                f"would bring this: {LEVEL_PLAIN[above]}. It is your choice.")
+    offer = beyond_target(state, target)
+    if offer:
+        return f"none: {offer}"
     if state.get("waiting"):
         return "none for now: what is missing comes with real reviews and real agent changes, over time."
     return "none."

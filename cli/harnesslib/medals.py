@@ -59,6 +59,20 @@ def _short(value: Any) -> str:
     return "" if value is None else str(value)[:160]
 
 
+def _sentence(text: str) -> str:
+    return text[:1].upper() + text[1:] + ("" if text.endswith(".") else ".")
+
+
+def _plain_step(check: dict[str, Any]) -> str | None:
+    """The step that unlocks a level check, in the plain words of the map (`maturity.CHECK_PLAIN`): no
+    check id, no signal or layer code. None when the check passes or comes with the instruction file."""
+    if not check.get("next_action"):
+        return None
+    step = _sentence(maturity.CHECK_PLAIN[check["id"]][1])
+    # Creating the file is the one step a skill does whole: it is named, as `status` names it.
+    return f"{step} harness-init does it." if check["id"] == maturity.FOLLOWS_SOURCE else step
+
+
 # --- A repository: the levels of harness status ----------------------------------------------------------
 
 def evaluate_repo(repo: str, today: date | None = None) -> dict[str, Any]:
@@ -69,7 +83,7 @@ def evaluate_repo(repo: str, today: date | None = None) -> dict[str, Any]:
         tiers.append({"id": medal["id"], "name": medal["name"], "title": level["name"], "promise": level["summary"]})
         successes += [_success(c["id"], medal["id"], c["label"], c["passed"],
                                maturity.WITH_FILE if c.get("follows") else _short(c.get("value")),
-                               c.get("next_action"), c.get("waits", False)) for c in level["checks"]]
+                               _plain_step(c), c.get("waits", False)) for c in level["checks"]]
     source = state["facts"]["instructions"]["source"]
     total = source.get("rules_total") or 0
     found = commands.collect(repo)
@@ -99,11 +113,15 @@ def evaluate_repo(repo: str, today: date | None = None) -> dict[str, Any]:
          f"target: {target.get('name') or 'none'}", "Say where you stop with `harness target <level>`, then reach it."),
     ]
     if not source.get("path"):      # nothing to read: not measured, rather than measured and failed
-        create = next(c["next_action"] for c in state["levels"][1]["checks"] if c["id"] == maturity.FOLLOWS_SOURCE)
+        create = next(_plain_step(c) for c in state["levels"][1]["checks"] if c["id"] == maturity.FOLLOWS_SOURCE)
         bonus = [row if row[0] == "B.target" else (row[0], row[1], False, NOT_MEASURED, create) for row in bonus]
     successes += [_success(i, "bonus", t, p, e, a) for i, t, p, e, a in bonus]
+    # A level is a place where one can stay: once the target is held, no step is proposed beyond it,
+    # only the offer the map makes (`status --map`), in the same words.
+    offer = maturity.beyond_target(state) if target.get("reached") else None
     return {"kind": "repo", "name": os.path.basename(os.path.abspath(repo)), "date": state["date"],
-            "rank": state["level"]["reached"], "tiers": tiers, "successes": successes}
+            "rank": state["level"]["reached"], "tiers": tiers, "successes": successes,
+            "offer": _sentence(offer) if offer else None}
 
 
 # --- A plugin marketplace -----------------------------------------------------------------------------
@@ -297,7 +315,10 @@ def build(evaluated: dict[str, Any], previous: Any = None) -> dict[str, Any]:
     upcoming = evaluated["tiers"][rank]["id"] if rank < len(evaluated["tiers"]) else None
     missing = [s for s in successes if s["tier"] == upcoming and not s["unlocked"]]
     # An achievement that comes with another one (no action of its own) is missing, but is not a step.
-    steps = [{"id": s["id"], "title": s["title"], "action": s["next"], "waiting": s["waiting"]} for s in missing if s["next"]]
+    # With an offer, the target is reached: the steps stop there.
+    offer = evaluated.get("offer")
+    steps = [] if offer else [{"id": s["id"], "title": s["title"], "action": s["next"], "waiting": s["waiting"]}
+                              for s in missing if s["next"]]
     if rank and tiers:
         why = f"{medal['name']}: the {tiers[rank - 1]['total']} achievements of the \"{tiers[rank - 1]['title']}\" rank are unlocked"
         why += f", and {len(missing)} missing for {MEDALS[rank + 1]['name'].lower()}." if upcoming else ". It is the last rank."
@@ -309,7 +330,7 @@ def build(evaluated: dict[str, Any], previous: Any = None) -> dict[str, Any]:
     if not history or history[-1].get("medal") != medal["id"]:
         history.append({"date": today, "medal": medal["id"]})
     return {"schema": SCHEMA, "kind": evaluated["kind"], "name": evaluated["name"], "date": today, "medal": medal,
-            "why": why, "tiers": tiers, "successes": successes, "next": steps, "history": history[-50:]}
+            "why": why, "tiers": tiers, "successes": successes, "next": steps, "offer": offer, "history": history[-50:]}
 
 
 def render_md(data: dict[str, Any]) -> str:
@@ -327,7 +348,9 @@ def render_md(data: dict[str, Any]) -> str:
     if extra:
         out.append(f"## Outside the ranks ({sum(bool(s['unlocked']) for s in extra)}/{len(extra)})")
         out += [f"- [{'x' if s['unlocked'] else ' '}] {s['title']} ({s['evidence']})" for s in extra] + [""]
-    if data["next"]:
+    if data.get("offer"):
+        out += ["## Target reached", data["offer"]]
+    elif data["next"]:
         out.append("## Next steps")
         out += [f"{n}. {s['action'] or s['title']}" + (" (waiting: it does not depend on you alone)" if s["waiting"] else "")
                 for n, s in enumerate(data["next"], 1)]
