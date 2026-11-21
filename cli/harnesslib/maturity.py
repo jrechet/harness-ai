@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 MAX_SOURCE_LINES = 60          # level 1: beyond this, it is reference material to move out
-MAX_MARKER_AGE_DAYS = 45       # level 2: a harvest must have run recently
+MAX_MARKER_AGE_DAYS = 45       # level 2: the harvest marker must be recent (a date, not proof that a harvest ran)
 MIN_GUARDED_RATIO = 0.5        # level 3: half of the rules enforced by a tool
 MIN_JUSTIFIED_RATIO = 0.5      # level 3: half of the rules say why
 
@@ -37,6 +37,14 @@ WITH_FILE = "comes with the instruction file"
 # and next actions name the file actually found, never the one that would have been preferred (2026-11-21).
 DEFAULT_SOURCE = "AGENTS.md"
 CLAUDE_SOURCE = "CLAUDE.md"
+
+# The signal check fails the same way in two different situations: a harvest ran and found nothing, and
+# no harvest ever ran (no .harness/harvest.json; a `ref=init` marker is a date, not a harvest). Only the
+# first one comes with time: in the second, nothing has looked yet, and one harvest tells. The measure
+# does not move; the words do (2026-11-21).
+SIGNAL = "L2.signal"
+NEVER_HARVESTED = ("nobody has looked yet for a review remark or a fixed agent change to turn into a rule",
+                   "collect once what recent reviews taught, to see whether a rule comes out of it")
 
 
 def _check(cid: str, label: str, passed: bool, value: Any, next_action: str) -> Check:
@@ -98,12 +106,13 @@ def level2(f: dict) -> list[Check]:
         _check("L2.rule_convention", "The `rule:` review convention is documented",
                bool(src.get("mentions_rule_convention")), src.get("mentions_rule_convention"),
                "Document it: a review comment that starts with `rule:` is a candidate rule."),
-        _check("L2.marker_fresh", f"A harvest ran less than {MAX_MARKER_AGE_DAYS} days ago",
+        _check("L2.marker_fresh", f"The harvest marker is less than {MAX_MARKER_AGE_DAYS} days old",
                age is not None and age <= MAX_MARKER_AGE_DAYS, age,
                "Run harness-harvest and merge its PR, which sets the marker."),
         _check("L2.signal", "The last harvest found at least one real signal: a review remark or a fixed agent change",
                bool(h and h["real_signals"] > 0), h["real_signals"] if h else None,
-               "Mark incidents in review with `rule:`; without a signal, the loop is not running yet."),
+               "Mark incidents in review with `rule:`; without a signal, the loop is not running yet." if h else
+               "No harvest has run yet: run harness-harvest once, it says whether a signal is already there."),
     ]
 
 
@@ -336,14 +345,26 @@ def render_markdown(state: dict) -> str:
     return "\n".join(out)
 
 
+def _never_harvested(state: dict, check: Check) -> bool:
+    """The signal check fails and no harvest ever ran: nothing has looked for a signal yet."""
+    return check["id"] == SIGNAL and not check["passed"] and not (state.get("facts") or {}).get("harvest")
+
+
+def _plain(state: dict, check: Check) -> tuple[str, str]:
+    """What is missing and the step that fixes it, in the map's words, for a failing check."""
+    return NEVER_HARVESTED if _never_harvested(state, check) else CHECK_PLAIN[check["id"]]
+
+
 def _first_doable(state: dict) -> tuple[int, Check] | None:
-    """The level and failing check the next step works on: the same walk as `evaluate`."""
+    """The level and failing check the next step works on: the same walk as `evaluate`, except that a
+    signal nobody has looked for yet is a step (one harvest), once the rest of its level is done."""
     for l in state["levels"]:
         if l["achieved"] or not l["level"]:
             continue
         if not l.get("in_scope", True):
             return None
-        doable = [c for c in l["checks"] if not c["passed"] and not c["waits"] and not c.get("follows")]
+        failing = [c for c in l["checks"] if not c["passed"] and not c.get("follows")]
+        doable = [c for c in failing if not c["waits"]] or [c for c in failing if _never_harvested(state, c)]
         if doable:
             return l["level"], doable[0]
     return None
@@ -369,7 +390,7 @@ def _next_step(state: dict, target: dict) -> str:
     found = _first_doable(state)
     if found:
         num, check = found
-        return f"{CHECK_PLAIN[check['id']][1]} (towards level {num})."
+        return f"{_plain(state, check)[1]} (towards level {num})."
     offer = beyond_target(state, target)
     if offer:
         return f"none: {offer}"
@@ -406,7 +427,8 @@ def render_map(state: dict) -> str:
         out.append(f"What level {nxt} still needs:")
         for c in state["levels"][nxt]["checks"]:
             if not c["passed"] and not c.get("follows"):
-                out.append(f"- {CHECK_PLAIN[c['id']][0]}" + (" (comes with time, not with work)" if c["waits"] else ""))
+                waits = c["waits"] and not _never_harvested(state, c)
+                out.append(f"- {_plain(state, c)[0]}" + (" (comes with time, not with work)" if waits else ""))
     if state.get("dangling"):
         out.append(f"Broken references: the instruction file cites {len(state['dangling'])} thing(s) "
                    "that cannot be found.")
