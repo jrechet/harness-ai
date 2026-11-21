@@ -15,7 +15,8 @@ least one source could not be read, 0 otherwise.
 
 Offline: `--record <dir>` writes each answer of `gh` to its own JSON file,
 `--from <dir>` reads them back instead of calling `gh`, with the same
-options (the window above all: `--since` is part of one call).
+options. The window is recorded too (`_window.json`): a replay without
+`--since` takes it, whatever the day; a replay with another `--since` is refused.
 
 Example:
   python3 cli/harness.py harvest github --repo owner/repo --since 2026-10-08 \
@@ -115,6 +116,43 @@ def replaying(folder: str) -> Fetcher:
             raise GhError(f"{name} does not answer this call (it holds {found!r})")
         return recorded["answer"]
     return fetch_recorded
+
+
+WINDOW_FILE = "_window.json"   # record_name never starts a name with "_": no call can take this one
+
+
+def write_window(folder: str, since: datetime) -> None:
+    """Keeps the start of the window next to the recorded answers: it shapes the calls and sorts
+    what they return, and by default it depends on the day of the recording."""
+    with open(os.path.join(folder, WINDOW_FILE), "w", encoding="utf-8") as fh:
+        json.dump({"since": since.strftime(ISO)}, fh, indent=2)
+        fh.write("\n")
+
+
+def read_window(folder: str) -> datetime | None:
+    """The start of the window `folder` was recorded with; None if the folder does not say.
+    A file that is there and cannot be understood is an error, not a missing one."""
+    try:
+        with open(os.path.join(folder, WINDOW_FILE), encoding="utf-8") as fh:
+            recorded = json.load(fh)
+        return datetime.strptime(recorded["since"], ISO).replace(tzinfo=timezone.utc)
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise GhError(f"{WINDOW_FILE} cannot be read: {exc!r}") from exc
+
+
+def replay_window(folder: str, asked: datetime | None) -> datetime:
+    """The window of a replay: the one of the recording. `asked` (--since) stands in for a
+    recording that kept none, and must agree with one that did."""
+    recorded = read_window(folder)
+    if recorded is None and asked is None:
+        raise GhError(f"{folder} does not say which window it was recorded with (no {WINDOW_FILE}): "
+                      "repeat the --since of the recording")
+    if recorded is not None and asked is not None and recorded != asked:
+        raise GhError(f"{folder} was recorded with --since {recorded.strftime(ISO)}, "
+                      f"not {asked.strftime(ISO)}: drop --since to replay it")
+    return recorded if recorded is not None else asked
 
 
 def paginate(fetch: Fetcher, path: str, params: dict[str, Any] | None = None,
@@ -763,9 +801,11 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     offline = p.add_mutually_exclusive_group()
     offline.add_argument("--from", dest="replay_from", metavar="DIR",
                          help="reads the recorded answers of gh in DIR (one JSON file per call) "
-                              "instead of calling gh; same options as the recording, --since included")
+                              "instead of calling gh; same options as the recording, "
+                              "except --since, which the recording remembers")
     offline.add_argument("--record", metavar="DIR",
-                         help="also writes each answer of gh to DIR, one JSON file per call, for --from")
+                         help="also writes each answer of gh to DIR, one JSON file per call, "
+                              "and the window, for --from")
     return p
 
 
@@ -774,9 +814,16 @@ def main(argv: list[str] | None = None, fetch: Fetcher = gh_api,
     if args is None:
         args = build_parser().parse_args(argv)
     replay_from, record = getattr(args, "replay_from", None), getattr(args, "record", None)
+    asked = datetime.strptime(args.since, "%Y-%m-%d").replace(tzinfo=timezone.utc) if args.since else None
+    since = None
     if replay_from:
         if not os.path.isdir(replay_from):
             print(f"harness harvest github: --from {replay_from} is not a directory", file=sys.stderr)
+            return 2
+        try:
+            since = replay_window(replay_from, asked)
+        except GhError as exc:
+            print(f"harness harvest github: --from {exc}", file=sys.stderr)
             return 2
         fetch = replaying(replay_from)
     elif record:
@@ -786,12 +833,18 @@ def main(argv: list[str] | None = None, fetch: Fetcher = gh_api,
             print(f"harness harvest github: --record {record} cannot be created: {exc}", file=sys.stderr)
             return 2
         fetch = recording(fetch, record)
-    since_s = args.since or read_marker(args.agents_md)
-    if since_s:
-        since = datetime.strptime(since_s, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    else:
-        since = datetime.now(timezone.utc) - timedelta(days=30)
+    marker = None if since or asked else read_marker(args.agents_md)
+    if since is None and (asked or marker):
+        since = asked or datetime.strptime(marker, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    elif since is None:
+        since = (datetime.now(timezone.utc) - timedelta(days=30)).replace(microsecond=0)
         print("no --since and no earlier harvest marker (a ref=init marker does not count): 30-day window", file=sys.stderr)
+    if record:
+        try:
+            write_window(record, since)
+        except OSError as exc:
+            print(f"harness harvest github: --record {record} cannot be written: {exc}", file=sys.stderr)
+            return 2
     markers = AgentMarkers(
         logins=args.agent_login or ["claude", "github-actions[bot]"],
         branch_prefixes=args.agent_branch_prefix or ["claude/"],

@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 
@@ -470,7 +471,8 @@ class RecordReplayTests(unittest.TestCase):
         fake = FakeGitHub(build_tiny())
         code, _, _ = self.run_main(self.ARGS + ["--record", self.folder], fetch=fake)
         self.assertEqual(code, 0)
-        names = sorted(os.listdir(self.folder))
+        self.assertIn(g.WINDOW_FILE, os.listdir(self.folder))   # the window is not a call: counted apart
+        names = sorted(n for n in os.listdir(self.folder) if n != g.WINDOW_FILE)
         self.assertEqual(len(names), len(fake.calls))
         self.assertTrue(all(n.endswith(".json") for n in names), names)
         with open(os.path.join(self.folder, "repos_acme_app.json"), encoding="utf-8") as fh:
@@ -553,6 +555,86 @@ class RecordReplayTests(unittest.TestCase):
         code, _, _ = self.run_main(self.ARGS + ["--record", self.folder], fetch=fake)
         self.assertEqual(code, 2)
         self.assertNotIn(g.record_name(f"{failing}?per_page=100&page=1"), os.listdir(self.folder))
+
+    NO_SINCE = ["--repo", REPO, "--agent-login", "claude"]
+
+    def test_replay_without_since_takes_the_window_of_the_recording(self):
+        code, recorded, _ = self.record()
+        self.assertEqual(code, 0)
+        code, replayed, err = self.run_main(self.NO_SINCE + ["--from", self.folder])
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(replayed), json.loads(recorded))
+        self.assertEqual(json.loads(replayed)["since"], "2026-10-01")
+        self.assertNotIn("30-day window", err)
+
+    def test_record_writes_its_window_next_to_the_answers(self):
+        self.record()
+        with open(os.path.join(self.folder, g.WINDOW_FILE), encoding="utf-8") as fh:
+            self.assertEqual(json.load(fh), {"since": "2026-10-01T00:00:00Z"})
+        stem = g.WINDOW_FILE[:-len(".json")]
+        self.assertNotEqual(g.record_name(stem), g.WINDOW_FILE)   # no call can be named like it
+
+    def test_a_default_window_is_replayed_to_the_second(self):
+        fake = FakeGitHub(build_tiny())
+        code, _, _ = self.run_main(self.NO_SINCE + ["--record", self.folder], fetch=fake)
+        self.assertEqual(code, 0)
+        with open(os.path.join(self.folder, g.WINDOW_FILE), encoding="utf-8") as fh:
+            self.assertRegex(json.load(fh)["since"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+        with open(os.path.join(self.folder, g.WINDOW_FILE), "w", encoding="utf-8") as fh:
+            json.dump({"since": "2026-09-20T08:09:10Z"}, fh)   # as if recorded another day
+        seen = []
+
+        def spy(path, params=None):
+            seen.append((params or {}).get("since"))
+            return fake(path, params)
+
+        with mock.patch.object(g, "replaying", lambda folder: spy):
+            code, _, err = self.run_main(self.NO_SINCE + ["--from", self.folder])
+        self.assertEqual(code, 0, err)
+        self.assertIn("2026-09-20T08:09:10Z", seen)
+
+    def test_the_window_of_the_recording_wins_over_the_marker_of_agents_md(self):
+        self.record()
+        agents_md = os.path.join(self.dir.name, "AGENTS.md")
+        with open(agents_md, "w", encoding="utf-8") as fh:
+            fh.write("# Rules\n<!-- harvest: last=2026-10-09 ref=abc -->\n")
+        code, out, err = self.run_main(self.NO_SINCE + ["--agents-md", agents_md, "--from", self.folder])
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(out)["since"], "2026-10-01")
+
+    def test_replay_with_another_since_than_the_recording_is_refused(self):
+        self.record()
+        code, out, err = self.run_main(self.NO_SINCE + ["--since", "2026-10-02", "--from", self.folder])
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertIn("2026-10-01", err)
+        self.assertIn("2026-10-02", err)
+
+    def test_a_recording_without_its_window_still_replays_with_since(self):
+        self.record()
+        os.unlink(os.path.join(self.folder, g.WINDOW_FILE))
+        code, out, err = self.run_main(self.ARGS + ["--from", self.folder])
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(out)["counts"], {"S1": 1, "S2": 1})
+
+    def test_a_recording_without_its_window_and_without_since_says_what_to_do(self):
+        self.record()
+        os.unlink(os.path.join(self.folder, g.WINDOW_FILE))
+        code, out, err = self.run_main(self.NO_SINCE + ["--from", self.folder])
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertIn("--since", err)
+
+    def test_an_unreadable_window_file_is_an_error(self):
+        self.record()
+        for content in ("{not json", '{"since": "yesterday"}', "[]"):
+            with self.subTest(content=content):
+                with open(os.path.join(self.folder, g.WINDOW_FILE), "w", encoding="utf-8") as fh:
+                    fh.write(content)
+                code, out, err = self.run_main(self.NO_SINCE + ["--from", self.folder])
+                self.assertEqual(code, 2)
+                self.assertEqual(out, "")
+                self.assertIn(g.WINDOW_FILE, err)
 
     def test_record_names_are_distinct_and_plain(self):
         a = g.record_name("repos/acme/app/pulls?state=all&per_page=100&page=1")
