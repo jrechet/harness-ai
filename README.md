@@ -232,7 +232,7 @@ It refuses 1 of the 74 ordinary commands, most of them chosen because they look 
 
 These figures are those of one corpus, written by an agent of the same family as the guardrail's author: they say what this draft found, not how often the guardrail is wrong on a team's own commands. The test fails when a listed command changes verdict, so that this list follows the guardrail.
 
-The CI gates (`ci pr`) run the security and test gates in a pipeline, with their settings (`docs/agents/gates.json`) read on the target branch. A workflow template is in `plugins/ai-sdlc/ci/gates.yml`. The review in CI, "one test per criterion" in CI, and `ship check` on `main` are not done yet.
+The CI gates (`ci pr`) run the security and test gates in a pipeline, with their settings (`docs/agents/gates.json`) read on the target branch. "One test per criterion" runs there too when the pipeline gives the accepted ticket and the trace the `qa` skill leaves (`--ticket`, `--trace`); without them it is not run, and the summary says so. On a push to the delivery branch, `ci main` runs `ship check` and says whether that commit could be delivered. A workflow template is in `plugins/ai-sdlc/ci/gates.yml`: as shipped, an unmeasured gate passes, and the template says when to turn `--strict` on. The review in CI is not done yet.
 
 Its CLI also runs by hand. On a repository without a remote, give the target branch with `--base`:
 
@@ -252,7 +252,8 @@ python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /path/to/your/repo --ba
 | `ship render <proposal.json>` | The skill's delivery proposal, refused if a command is not quoted from the team's procedure or if a prerequisite fails |
 | `run changes --since <version>` | What left between two versions: the commits and the files in a sensitive zone |
 | `run render <investigation.json> --evidence <file>…` | The investigation of an incident rendered as a ticket, refused if a fact is not quoted word for word from its evidence, if a cause is "confirmed" without a fact, or if a command does not come from the team's runbook |
-| `ci pr [--strict]` | The gates of a pull request run by a pipeline: security and tests, settings read on the target branch. Blocks the merge if a gate fails |
+| `ci pr [--ticket <ticket> --trace <mapping.json>] [--strict]` | The gates of a pull request run by a pipeline: security and tests, settings read on the target branch, and one test per criterion when the ticket and the trace are given. Blocks the merge if a gate fails |
+| `ci main [--checks <checks.json>] [--strict]` | The prerequisites of a delivery (`ship check`) run by a pipeline on a push to the delivery branch. Fails the job if a prerequisite fails; delivers nothing |
 | `guard check "<command>"` | Says whether a shell command creates a tag, publishes or deploys. It is what the plugin's hook calls before each command of the agent, to refuse it |
 | `size [--paths …]` | The size of a change (XS, S-M, L) by rules: files, lines, sensitive zones |
 | `dev body <body.json>` | The body of a PR, refused if it is incomplete for its size |

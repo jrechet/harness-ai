@@ -1,8 +1,15 @@
 """The gates run in CI: verification leaves the session that wrote the code.
 
 In a session, the agent runs `qa gate` and `secu gate`, so it may not do it. Here a pipeline runs them on
-each pull request, and its exit code blocks the merge. What CI cannot run without a model or a ticket (the
-review, one test per criterion) is not claimed.
+each pull request, and its exit code blocks the merge. What CI cannot run without a model (the review) is not
+claimed. "One test per criterion" runs when the pipeline gives the two files /qa leaves, the accepted ticket and
+the criteria-to-tests trace; without them it is not run, and the summary says so. The gate reads the ticket from
+the file it is given: that this file is the ticket its owner agreed to, and not one the pull request rewrote, is
+the pipeline's to guarantee (fetched from the tracker, or kept where the pull request cannot write).
+
+On a push to the delivery branch, `ci main` says the prerequisites of a delivery (`ship check`) for that commit.
+It delivers nothing, and what it cannot measure there (the CI report of the commit, while this very job runs) is
+said unmeasured.
 
 The settings come from `docs/agents/gates.json` (or, failing that, its former French name
 `docs/agents/portes.json`, with its French keys), read **on the base branch**: a pull request can neither
@@ -16,7 +23,7 @@ import json
 import os
 from typing import Any
 
-from . import qa, secu, size
+from . import qa, secu, ship, size
 from .context import Refused, _read_at, resolve_base
 
 CONFIG = "docs/agents/gates.json"
@@ -73,8 +80,9 @@ def load_config(repo: str, base: str) -> dict[str, Any]:
 
 
 def run(table: dict[str, Any], repo: str, base: str, coverage: str | None = None, reports: list[str] | None = None,
-        strict: bool = False) -> dict[str, Any]:
-    """The gates of a pull request: security, then tests. `strict` fails what is not measured."""
+        strict: bool = False, ticket_text: str | None = None, mapping: Any = None) -> dict[str, Any]:
+    """The gates of a pull request: security, then tests. `strict` fails what is not measured. With the text of a
+    ticket, "one test per criterion" is run against `mapping`, the trace /qa leaves."""
     config = load_config(repo, base)
     security = secu.run_gates(table, repo, base, reports, config["security"]["exclude"], pipeline=True)
     spared = [size.glob_regex(g) for g in config["qa"]["exclude"]]
@@ -85,11 +93,13 @@ def run(table: dict[str, Any], repo: str, base: str, coverage: str | None = None
         tests.append(qa.gate_repeat(repo, config["qa"]["command"], config["qa"]["runs"] or table["qa"]["runs"]))
     if coverage:
         tests.append(qa.gate_coverage(repo, base, coverage, table["qa"]["diff_coverage"]))
+    if ticket_text is not None:
+        tests.append(qa.gate_criteria(repo, ticket_text, mapping))
     gates = security["gates"] + tests
     failed = [g["id"] for g in gates if g["status"] == qa.FAIL]
     unknown = [g["id"] for g in gates if g["status"] == qa.UNKNOWN]
     return {"pass": not failed and not (strict and unknown), "failed": failed, "unknown": unknown, "strict": strict, "gates": gates,
-            "excluded": sorted({*security["excluded"], *(secu._where(p) for p in changed if p not in paths)}), "configured": config}
+            "criteria": ticket_text is not None, "excluded": sorted({*security["excluded"], *(secu._where(p) for p in changed if p not in paths)}), "configured": config}
 
 
 def render_md(result: dict[str, Any]) -> str:
@@ -111,8 +121,36 @@ def render_md(result: dict[str, Any]) -> str:
                    + (f" and {len(result['excluded']) - 8} more" if len(result["excluded"]) > 8 else "") + ".")
     if not result["configured"]["qa"]["command"]:
         out.append(f"- The test suite is not replayed here: `{CONFIG}` gives no command on the base branch.")
-    out += ["", "These gates run neither the review nor \"one test per criterion\": that takes a ticket and a reviewer.",
-            "They do not say a change is safe: they say what was looked at."]
+    if result.get("criteria"):
+        out += ["", "These gates do not run the review: that takes a reviewer. The criteria are read from the ticket file the "
+                    "pipeline gives: where that file comes from is the pipeline's to guarantee."]
+    else:
+        out += ["", "These gates run neither the review nor \"one test per criterion\": the review takes a reviewer, and the "
+                    "criteria gate takes the accepted ticket and the trace /qa leaves, given through `--ticket` and `--trace`."]
+    out.append("They do not say a change is safe: they say what was looked at.")
+    return "\n".join(out) + "\n"
+
+
+def main(table: dict[str, Any], repo: str, base: str, since: str | None = None, checks: Any = None,
+         strict: bool = False) -> dict[str, Any]:
+    """The prerequisites of a delivery, on a push to the delivery branch: `ship check`, with the exit code of a
+    pipeline. A push that carries nothing since the last version passes. `strict` fails what is not cleared."""
+    try:
+        delivery = ship.check(table, repo, base, since, checks, pipeline=True)
+    except ship.NothingToDeliver as exc:
+        return {"pass": True, "failed": [], "unknown": [], "strict": strict, "gates": [], "delivery": None, "nothing": str(exc)}
+    failed, unknown = delivery["failed"], delivery["unknown"]
+    return {"pass": not failed and not (strict and unknown), "failed": failed, "unknown": unknown, "strict": strict,
+            "gates": delivery["gates"], "delivery": delivery, "nothing": None}
+
+
+def render_main(result: dict[str, Any]) -> str:
+    if result["delivery"] is None:
+        return f"### Delivery: {result['nothing']}.\n\nNothing was tagged, pushed or deployed.\n"
+    out = ["### " + ship.render_md(result["delivery"]).rstrip("\n")]
+    if result["unknown"] and not result["failed"]:
+        out += ["", "This repository requires them cleared before this job passes (`--strict`): the job fails." if result["strict"]
+                else "This job passes with prerequisites left to a human: `--strict` makes it fail instead."]
     return "\n".join(out) + "\n"
 
 

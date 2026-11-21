@@ -76,6 +76,8 @@ A modified test configuration (`pytest.ini`, `jest.config.*`, `conftest.py`…) 
 ### 6. Report
 The updated map, then the output of `qa gate` as is, then in three lines at most: the tests added, the criteria left without a test with their reason, what is not measured. The criteria without a test wait for a human's agreement: do not present them as settled.
 
+Give the paths of the two files you leave: the ticket file of step 1 and the mapping of step 4. A team pipeline can replay "each criterion has its test" on the pull request from them (`ci pr --ticket <ticket file> --trace <mapping.json>`); without them it does not run that check, and says so. How the files reach the pipeline is the team's choice, read in `AGENTS.md`: if nothing is written there, say that this check ran in this session only. Do not commit the ticket file into the pull request on your own: a ticket the pull request carries is a ticket its author can rewrite.
+
 ## Common traps
 - **Testing the code you just read.** Start from the criterion's sentence, not from the function.
 - **Inflating coverage.** A test without an assertion runs lines and checks nothing: the gate passes, so does the defect.

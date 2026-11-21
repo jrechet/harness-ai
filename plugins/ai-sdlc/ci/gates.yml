@@ -1,25 +1,38 @@
-# Template: the gates of the ai-sdlc plugin run on each pull request of a team repository.
+# Template: the gates of the ai-sdlc plugin run on each pull request of a team repository, and the
+# prerequisites of a delivery are said on each push to its delivery branch.
 # Copy to .github/workflows/gates.yml, then:
-#   1. replace <runner> with the team's runner, and <plugin repository> with where it is fetched from;
+#   1. replace <runner> with the team's runner, <plugin repository> with where it is fetched from,
+#      and <delivery branch> with the branch the team delivers from (main, usually);
 #   2. pin `ref` to a precise version of the plugin, not to a branch;
 #   3. make the "gates" check required through a ruleset or a "required workflow" of the forge:
 #      without it, a pull request can remove this file, or change it, and pass. This file comes
 #      from the pull request; the code of the gates comes from the plugin repository, at the pinned version;
-#      and do not make it required while the job can be skipped: a skipped check counts as passed;
-#   4. write docs/agents/gates.json on the target branch if the repository has a test command to
-#      replay or a folder to keep out of reading. It is read on the target branch, not in the PR:
-#      a PR to an unprotected branch takes that branch's settings;
+#      and do not make it required while the job can be skipped: a skipped check counts as passed
+#      (its `if` below only tells a pull request from a push: on a pull request it always runs);
+#   4. write docs/agents/gates.json on the target branch, with the repository's test command in
+#      qa.command ({"qa": {"command": "make test"}}). Without that command no test is replayed:
+#      the job only checks that no test was disabled, says "The test suite is not replayed here",
+#      and still passes. The same file keeps a folder out of reading (security.exclude, qa.exclude).
+#      It is read on the target branch, not in the PR: a PR to an unprotected branch takes that
+#      branch's settings;
 #   5. on a runner that is not disposable, do not run the test command of a PR coming from a fork.
+#
+# As shipped, this job fails only on what it measured and found wrong. What it could not measure is
+# written "unmeasured" in the job summary and passes: with no scanner report, no coverage report and
+# no ticket, that is most of the gates. See the commented lines under the run line to change that.
 name: Gates
 
 on:
   pull_request:
+  push:
+    branches: [<delivery branch>]
 
 permissions:
   contents: read
 
 jobs:
   gates:
+    if: github.event_name == 'pull_request'
     runs-on: <runner>
     timeout-minutes: 20
     steps:
@@ -38,3 +51,38 @@ jobs:
         env:
           TARGET: ${{ github.base_ref }}   # never interpolated into the command: a branch name can carry shell
         run: python3 .ai-sdlc/plugins/ai-sdlc/cli/ai_sdlc.py ci pr . --base "origin/$TARGET"
+        # "One test per criterion" runs only when the pipeline gives the two files the qa skill leaves:
+        # the accepted ticket and the criteria-to-tests trace. Fetch the ticket from where the pull
+        # request cannot write (the tracker, an artifact of the ticket step): a ticket file committed
+        # in the pull request is a ticket its author can rewrite. Then:
+        # run: python3 .ai-sdlc/plugins/ai-sdlc/cli/ai_sdlc.py ci pr . --base "origin/$TARGET" --ticket "$RUNNER_TEMP/ticket.md" --trace "$RUNNER_TEMP/trace.json"
+        #
+        # --strict makes an unmeasured gate block the merge too. Turn it on once every gate has what
+        # it needs on every pull request: a test command in docs/agents/gates.json, the scanners'
+        # reports (--report), a coverage report (--coverage) and, if the team gates on criteria, the
+        # ticket and the trace. Before that it blocks every pull request; without it, read the summary:
+        # run: python3 .ai-sdlc/plugins/ai-sdlc/cli/ai_sdlc.py ci pr . --base "origin/$TARGET" --strict
+
+  # On a push to the delivery branch: is this commit deliverable? Runs `ship check` and delivers
+  # nothing. It fails when a prerequisite fails, for example when a later push overtook this commit:
+  # it is no longer the head of the branch. The CI report of the commit is unmeasured here, since
+  # this job is part of it: pass one through --checks from a later job if the team wants it measured.
+  # --strict fails the job on any prerequisite left to a human; without --checks that is every push.
+  delivery:
+    if: github.event_name == 'push'
+    runs-on: <runner>
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0          # the previous version is a tag, and the notes read the history since it
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          repository: <plugin repository>
+          ref: <version>
+          path: .ai-sdlc
+      - name: Prerequisites of a delivery
+        env:
+          BRANCH: ${{ github.ref_name }}   # never interpolated into the command: a branch name can carry shell
+        run: python3 .ai-sdlc/plugins/ai-sdlc/cli/ai_sdlc.py ci main . --base "origin/$BRANCH"
