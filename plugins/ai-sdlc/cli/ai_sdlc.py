@@ -2,7 +2,7 @@
 """CLI of the ai-sdlc plugin: the deterministic logic its skills call.
 
   ai_sdlc.py context <phase> [repo] [--base REF]   the base and the team's additions, with their provenance
-  ai_sdlc.py status [repo] [--base REF]            the extension points: convention, overridden, invalid
+  ai_sdlc.py status [repo] [--base REF]            the extension points: convention, overridden, invalid; then the forge locks
   ai_sdlc.py review render <review.json> [repo] [--base REF]   the rendered review, if each finding quotes the diff
   ai_sdlc.py size [repo] [--base REF] [--paths P…]  the size of the change and the path it imposes
   ai_sdlc.py dev body <body.json> [repo] [--base REF]         the PR body, if it is complete for its size
@@ -29,7 +29,9 @@
 
 Exit codes of `context`: 0 served, 2 refused (invalid override, unknown phase or branch): nothing
 is printed on standard output, the reason is on standard error. `status` exits 0 and shows an
-invalid override in its table: it describes, it does not act as a gate. `review render`: 0 rendered, 2 refused
+invalid override in its table: it describes, it does not act as a gate. Its Locks section (Markdown only) says
+whether the forge protects the base branch, requires a review and requires a check: read with `gh`, read-only,
+"unmeasured" when `gh` is missing or the forge is not GitHub. `review render`: 0 rendered, 2 refused
 (incomplete form, finding outside the diff). `ticket check`: 0 ready, 1 not ready, 2 unreadable. `ticket render`: 0 rendered, 2 refused. `qa gate`: 0 the four
 gates pass, 1 a gate failed, 3 nothing failed but a gate is unmeasured, 2 refused; `secu gate` and `ship check` follow the same codes. `fixture grade`: 0 compliant, 1 not compliant, 2 unreadable file.
 
@@ -279,6 +281,8 @@ def main(argv: list[str] | None = None) -> int:
         else:
             data = context.status(table, args.repo, args.base)
             text = context.render_status_md(data)
+            if args.format == "md":   # the JSON stays the list of points; the forge is only asked when its answer is shown
+                text += "\n" + context.render_locks_md(context.locks(args.repo, args.base))
     except context.Refused as exc:
         print(f"ai-sdlc: {exc}", file=sys.stderr)
         return 2

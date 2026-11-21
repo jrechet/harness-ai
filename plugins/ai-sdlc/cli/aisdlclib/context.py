@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 from typing import Any
 
@@ -221,6 +222,135 @@ def status(table: dict[str, Any], repo: str, base: str) -> list[dict[str, Any]]:
     return rows
 
 
+# --- Forge locks -----------------------------------------------------------------------------------
+# The skills say that merging and approving are locked by the forge. That is only true where the forge
+# is set up that way, so `status` reads it instead of asserting it. Read-only: three GET requests through
+# `gh`, nothing is ever written. What cannot be read is "unmeasured" (None), never "no".
+
+GH = "gh"          # the GitHub CLI; a test points it at a fake
+GH_TIMEOUT = 20    # seconds per request: a description must not hang on a slow network
+REMOTE_URL = re.compile(r"^(?:[a-z+]+://)?(?:[^@/]+@)?(?P<host>[A-Za-z0-9.-]+)(?::\d+)?[:/]"
+                        r"(?P<owner>[A-Za-z0-9_.-]+)/(?P<name>[A-Za-z0-9_.-]+?)(?:\.git)?/?$")
+GITHUB_COM_TOKENS = ("GH_TOKEN", "GITHUB_TOKEN")
+TOKEN_VARIABLES = (*GITHUB_COM_TOKENS, "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN")
+BRANCH_NAME = re.compile(r"[A-Za-z0-9_./-]+")   # what goes into the request path: no query, no escape
+
+
+def _gh_env(host: str) -> dict[str, str]:
+    """The environment `gh` runs in. The host comes from .git/config, which a cloned repository controls,
+    and `gh` sends a token of the environment to whatever host it is given: GH_ENTERPRISE_TOKEN to any host
+    that is not github.com. So a token of the environment only goes to github.com; any other host is read
+    with the credentials `gh auth login` stored for that very host, or not at all."""
+    kept = GITHUB_COM_TOKENS if host.lower() == "github.com" else ()
+    env = {key: value for key, value in os.environ.items() if key not in TOKEN_VARIABLES or key in kept}
+    return {**env, "GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1"}
+
+
+def _gh_get(host: str, path: str) -> tuple[int, Any]:
+    """One GET on the forge's API: the exit code of `gh` and the JSON it printed (None if it is not JSON).
+    OSError if `gh` is not installed."""
+    env = _gh_env(host)
+    try:
+        out = subprocess.run([GH, "api", "--method", "GET", "--hostname", host, path],
+                             capture_output=True, timeout=GH_TIMEOUT, env=env, stdin=subprocess.DEVNULL)
+    except subprocess.TimeoutExpired:
+        return 1, None
+    try:
+        return out.returncode, json.loads(out.stdout.decode("utf-8", "replace"))
+    except json.JSONDecodeError:
+        return out.returncode or 1, None
+
+
+def _forge_branch(repo: str, base: str) -> tuple[str, str]:
+    """The remote and the branch name a base ref stands for; Refused if it is not a branch of a remote."""
+    code, out = _git(repo, "remote")
+    remotes = out.decode("utf-8", "replace").split() if code == 0 else []
+    if not remotes:
+        raise Refused("the repository has no remote, so no forge to ask")
+    code, out = _git(repo, "rev-parse", "--symbolic-full-name", "--verify", "--quiet", base)
+    full = out.decode("utf-8", "replace").strip() if code == 0 else ""
+    if full.startswith("refs/heads/"):
+        return ("origin" if "origin" in remotes else remotes[0]), full[len("refs/heads/"):]
+    for remote in sorted(remotes, key=len, reverse=True):
+        prefix = f"refs/remotes/{remote}/"
+        if full.startswith(prefix) and full != prefix + "HEAD":
+            return remote, full[len(prefix):]
+    shown = "".join(ch if ch.isprintable() else "?" for ch in base)[:80]
+    raise Refused(f"the base {shown} is not a branch, and protection is set on a branch")
+
+
+def _either(*values: bool | None) -> bool | None:
+    """Yes if one source says yes; no only if every source answered no."""
+    if any(v is True for v in values):
+        return True
+    return None if any(v is None for v in values) else False
+
+
+def _names_a_check(checks: Any) -> bool:
+    return isinstance(checks, dict) and bool(checks.get("contexts") or checks.get("checks"))
+
+
+def _classic_locks(host: str, slug: str, branch: str, summary: dict[str, Any]) -> tuple[bool | None, bool | None]:
+    """(review required, check required) as classic branch protection sets them."""
+    if not summary["protected"]:
+        return False, False
+    code, detail = _gh_get(host, f"repos/{slug}/branches/{branch}/protection")
+    if code == 0 and isinstance(detail, dict):
+        reviews = detail.get("required_pull_request_reviews")
+        count = reviews.get("required_approving_review_count") if isinstance(reviews, dict) else 0
+        return isinstance(count, int) and count >= 1, _names_a_check(detail.get("required_status_checks"))
+    if isinstance(detail, dict) and detail.get("message") == "Branch not protected":
+        return False, False   # protected by a ruleset only: the rules answer
+    # The detail needs admin rights. The branch summary still names the required checks; it says nothing of reviews.
+    protection = summary.get("protection")
+    named = _names_a_check(protection.get("required_status_checks") if isinstance(protection, dict) else None)
+    return None, (True if named else None)
+
+
+def _ruleset_locks(host: str, slug: str, branch: str) -> tuple[bool | None, bool | None, bool | None]:
+    """(a rule applies, review required, check required) as the active rulesets of the branch set them."""
+    code, rules = _gh_get(host, f"repos/{slug}/rules/branches/{branch}")
+    if code != 0 or not isinstance(rules, list):
+        return None, None, None
+    review = check = False
+    for rule in (r for r in rules if isinstance(r, dict)):
+        params = rule.get("parameters") if isinstance(rule.get("parameters"), dict) else {}
+        count = params.get("required_approving_review_count")
+        if rule.get("type") == "pull_request" and isinstance(count, int) and count >= 1:
+            review = True
+        if rule.get("type") == "required_status_checks" and params.get("required_status_checks"):
+            check = True
+    return bool(rules), review, check
+
+
+def locks(repo: str, base: str) -> dict[str, Any]:
+    """Whether the forge protects the base branch, requires a review and requires a check.
+    Each answer is True, False, or None when it could not be read. Never refuses: `status` describes."""
+    result = {"measured": False, "reason": None, "branch": None, "repository": None,
+              "protected": None, "requires_review": None, "requires_check": None}
+    try:
+        remote, branch = _forge_branch(repo, base)
+        code, out = _git(repo, "remote", "get-url", remote)
+    except Refused as exc:
+        return {**result, "reason": str(exc)}
+    url = REMOTE_URL.match(out.decode("utf-8", "replace").strip()) if code == 0 else None
+    # An owner or a name made of dots would walk the request path somewhere else on the API.
+    if not url or {url["owner"], url["name"]} & {".", ".."} or not BRANCH_NAME.fullmatch(branch):
+        return {**result, "reason": f"the remote {remote} or the branch name cannot be turned into a forge request"}
+    host, slug = url["host"], f"{url['owner']}/{url['name']}"
+    result = {**result, "branch": branch, "repository": f"{host}/{slug}"}
+    try:
+        code, summary = _gh_get(host, f"repos/{slug}/branches/{branch}")
+        if code != 0 or not isinstance(summary, dict) or not isinstance(summary.get("protected"), bool):
+            return {**result, "reason": f"gh could not read {branch} on {host}/{slug} (not GitHub, not signed in, or no such branch there)"}
+        review, check = _classic_locks(host, slug, branch, summary)
+        ruled, rule_review, rule_check = _ruleset_locks(host, slug, branch)
+    except OSError:
+        return {**result, "reason": "gh is not installed"}
+    return {**result, "measured": True, "protected": _either(summary["protected"], ruled),
+            "requires_review": _either(review, rule_review), "requires_check": _either(check, rule_check)}
+
+
 # --- Rendering -------------------------------------------------------------------------------------
 
 def render_context_md(result: dict[str, Any]) -> str:
@@ -257,4 +387,24 @@ def render_status_md(rows: list[dict[str, Any]]) -> str:
         else:
             state = "framework convention" if row["has_default"] else "no convention yet"
         out.append(f"| `{row['point']}` | {', '.join(row['read_by'])} | {state} |")
+    return "\n".join(out) + "\n"
+
+
+LOCK_ROWS = (("protected", "Base branch protected"), ("requires_review", "A review is required before merging"),
+             ("requires_check", "A check is required before merging"))
+LOCK_WORDS = {True: "yes", False: "no", None: "unmeasured (gh could not read it; some settings need admin rights)"}
+
+
+def render_locks_md(result: dict[str, Any]) -> str:
+    out = ["## Locks", ""]
+    if not result["measured"]:
+        out += [f"Unmeasured: {result['reason']}.",
+                "Whether the base branch is protected, requires a review and requires a check is unmeasured: "
+                "look at the branch settings on the forge."]
+        return "\n".join(out) + "\n"
+    out += [f"What the forge enforces on `{result['branch']}` of {result['repository']}, read with gh. Nothing is changed.", "",
+            "| Lock | State |", "|---|---|"]
+    out += [f"| {label} | {LOCK_WORDS[result[key]]} |" for key, label in LOCK_ROWS]
+    if result["protected"] is False:
+        out += ["", "Nothing on the forge stops a merge or a push to this branch: here, an agent that does not merge is a habit, not a lock."]
     return "\n".join(out) + "\n"
