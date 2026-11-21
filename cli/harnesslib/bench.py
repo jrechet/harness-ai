@@ -42,6 +42,9 @@ ARMS = ("bare", "asis", "harness")
 #   task:  kept from the first `bench play` runs of 2026-11-11 (70,000 and 75,000); the 26
 #          `*task-blind*` runs range from 29,698 to 122,818, mean 67,200: above the mean, not a ceiling.
 #   step:  kept; the 11 `*step-*` runs range from 16,820 to 141,985, mean 49,000: not a ceiling either.
+# The audit and init figures are held to the recorded runs by a test of cli/tests/test_bench.py, on
+# purpose: a costlier recorded blind run turns the suite red until the figure, this comment and
+# docs/requirements.md follow.
 COST = {"audit": 145_000, "init": 105_000, "task": 75_000, "step": 90_000}
 RESULTS = os.path.join(os.path.dirname(fixtures.FIXTURES_ROOT), "results.jsonl")
 OVERLAY_SKIP = {"RUN.md", "README.md", "REMOVE.txt"}   # what describes a run is not harness

@@ -253,16 +253,25 @@ class PlanAndRegistryTests(BenchCase):
         self.assertIn("2 agent run(s), about 250,000 tokens.", out.getvalue())
 
     def test_init_and_audit_estimates_cover_every_recorded_blind_run(self):
+        """Intended guard, coupled on purpose to the recorded runs: the estimate `bench plan`
+        announces is the highest recorded blind run, rounded up. Recording a costlier run turns
+        this red until `bench.COST` and its comment follow. Without it the init figure stayed at
+        130,000 while no recorded run was above 104,684."""
         runs = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                             "fixtures", "repos", "*", "runs")
         for kind in ("init", "audit"):
-            recorded = []
+            recorded = {}
             for path in glob.glob(os.path.join(runs, f"*{kind}-blind*", "usage.json")):
                 with open(path, encoding="utf-8") as fh:
-                    recorded.append(json.load(fh)["tokens"])
+                    recorded[path] = json.load(fh)["tokens"]
             self.assertTrue(recorded, f"no recorded {kind} run")
-            self.assertGreaterEqual(bench.COST[kind], max(recorded), kind)
-            self.assertLess(bench.COST[kind] - max(recorded), 5_000, f"{kind}: the estimate is the highest recorded run, rounded up")
+            costliest = max(recorded, key=recorded.get)
+            highest = recorded[costliest]
+            remedy = (f"{kind}: the costliest recorded run is {highest:,} tokens ({costliest}), the estimate is "
+                      f"{bench.COST[kind]:,}. Set bench.COST[{kind!r}] to that run rounded up to the next 5,000, "
+                      "then update the comment above COST and docs/requirements.md; do not edit the recorded run.")
+            self.assertGreaterEqual(bench.COST[kind], highest, remedy)
+            self.assertLess(bench.COST[kind] - highest, 5_000, remedy)
 
     def test_holdout_fixture_is_kept_out_of_a_tuning_campaign(self):
         write(self.fx, "expected.json", json.dumps({"fixture": "demo", "role": "holdout", "status": {}, "init": {}}))
