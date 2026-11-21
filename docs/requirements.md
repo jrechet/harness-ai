@@ -21,7 +21,7 @@ Goal, in the owner's current words: help someone set up their repository's AI ha
 **C2.** Three guardrails, because an agent that fixes both the skill and the answer key always raises the grade:
 - it changes the skills, never `expected.json`, `traps.md`, the tasks or the grader;
 - the `holdout` projects are held out of tuning and only serve to measure;
-- the cost of a campaign is announced before it starts. A blind run costs about 130,000 tokens.
+- the cost of a campaign is announced before it starts. The estimate depends on the kind of run: about 145,000 tokens for a blind audit, 105,000 for a blind init, 75,000 for a task and 90,000 for a step. These figures come from the recorded runs (`usage.json` under `fixtures/repos/*/runs/`), count fresh tokens only, not cache reads, and are the ones `harness bench plan` adds up.
 
 **C3.** A level is a place where you can stay. Three consequences: a step only sets up the material of its level; the user declares the level they aim for and `harness status` says "target reached" instead of pushing higher; the state after each step is consistent without the next step.
 

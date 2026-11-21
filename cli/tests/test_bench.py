@@ -2,6 +2,9 @@
 arms, diff, checks, hidden tests, well-posed task, plan and registry. Offline, Python only."""
 from __future__ import annotations
 
+import contextlib
+import glob
+import io
 import json
 import os
 import re
@@ -235,6 +238,31 @@ class PlanAndRegistryTests(BenchCase):
         self.assertEqual([(c["kind"], c.get("arm")) for c in cells],
                          [("audit", None), ("init", None), ("task", "bare"), ("task", "asis"), ("task", "harness")])
         self.assertEqual(sum(c["tokens"] for c in cells), bench.COST["audit"] + bench.COST["init"] + 3 * bench.COST["task"])
+
+    def test_plan_announces_the_cost_per_kind_of_run(self):
+        cells = self.plan()
+        self.assertEqual({c["kind"]: c["tokens"] for c in cells}, {"audit": 145_000, "init": 105_000, "task": 75_000})
+        self.assertEqual(sum(c["tokens"] for c in cells), 145_000 + 105_000 + 3 * 75_000)
+
+    def test_plan_command_prints_the_total_of_the_per_kind_estimates(self):
+        out = io.StringIO()
+        with mock.patch.object(fixtures, "FIXTURES_ROOT", self.root), contextlib.redirect_stdout(out):
+            self.assertEqual(bench.main(["plan", "--kind", "audit", "--kind", "init"]), 0)
+        self.assertIn("| audit |  |  | 145,000 |", out.getvalue())
+        self.assertIn("| init |  |  | 105,000 |", out.getvalue())
+        self.assertIn("2 agent run(s), about 250,000 tokens.", out.getvalue())
+
+    def test_init_and_audit_estimates_cover_every_recorded_blind_run(self):
+        runs = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                            "fixtures", "repos", "*", "runs")
+        for kind in ("init", "audit"):
+            recorded = []
+            for path in glob.glob(os.path.join(runs, f"*{kind}-blind*", "usage.json")):
+                with open(path, encoding="utf-8") as fh:
+                    recorded.append(json.load(fh)["tokens"])
+            self.assertTrue(recorded, f"no recorded {kind} run")
+            self.assertGreaterEqual(bench.COST[kind], max(recorded), kind)
+            self.assertLess(bench.COST[kind] - max(recorded), 5_000, f"{kind}: the estimate is the highest recorded run, rounded up")
 
     def test_holdout_fixture_is_kept_out_of_a_tuning_campaign(self):
         write(self.fx, "expected.json", json.dumps({"fixture": "demo", "role": "holdout", "status": {}, "init": {}}))
