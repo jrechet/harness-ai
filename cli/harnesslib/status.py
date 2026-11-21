@@ -27,28 +27,74 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     return p
 
 
+TARGET_LEVELS = (1, 2, 3, 4)
+DELEGATED_LEVEL = 4
+CLEAR_WORD = "none"
+
+
+def _level_or_path(value: str) -> int | str:
+    """The first argument of `target`: a level, the word that clears it, or a repository path."""
+    if value.isdigit() and int(value) in TARGET_LEVELS:
+        return int(value)
+    if value.lower() == CLEAR_WORD:
+        return CLEAR_WORD
+    if os.path.isdir(value):
+        return value
+    raise argparse.ArgumentTypeError(
+        f"{value!r} is not a level (1 to 4), '{CLEAR_WORD}' (clears the target) or the path of a repository")
+
+
 def build_target_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-    parser.add_argument("level", nargs="?", type=int, choices=[1, 2, 3, 4], help="target level; omitted: shows the target")
+    parser.add_argument("level", nargs="?", type=_level_or_path, metavar=f"{{1,2,3,4,{CLEAR_WORD}}}",
+                        help=f"target level, or '{CLEAR_WORD}' to clear it; omitted: shows the target")
     parser.add_argument("repo", nargs="?", default=".", help="repository path (default: .)")
     parser.add_argument("--harness-dir", default=".harness")
     return parser
 
 
-def target_main(args: argparse.Namespace) -> int:
-    """Writes the target level to `<harness-dir>/config.json`: beyond it, `status` proposes nothing."""
-    hdir = os.path.join(os.path.abspath(args.repo), args.harness_dir)
-    path = os.path.join(hdir, "config.json")
-    config = facts.load_json(path) or {"schema": "harness-config/1"}
-    if args.level is None:
-        current = facts.config_facts(hdir)["target_level"]
-        print(f"target level: {current}" if current else "no target level")
-        return 0
-    config["target_level"] = args.level
-    os.makedirs(hdir, exist_ok=True)
+def _write_config(path: str, config: dict) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(config, fh, ensure_ascii=False, indent=2)
         fh.write("\n")
-    print(f"target level: {args.level} · {maturity.LEVELS[args.level][1]} (written to {os.path.relpath(path)})")
+
+
+def _warn_if_delegated_in_assistance(repo: str, level: int | None) -> None:
+    """Level 4 is delegation: in assistance mode it is not a target. Said, not refused."""
+    if level != DELEGATED_LEVEL or facts.instruction_facts(repo)["source"].get("mode") != "assistance":
+        return
+    print(f"warning: level {DELEGATED_LEVEL} ({maturity.LEVELS[DELEGATED_LEVEL][1]}) is not a target in assistance mode: "
+          "it only counts once the team switches to delegation", file=sys.stderr)
+
+
+def target_main(args: argparse.Namespace) -> int:
+    """Shows, writes or clears the target level of `<harness-dir>/config.json`: beyond it, `status` proposes nothing."""
+    level, repo = args.level, args.repo
+    if isinstance(level, str) and level != CLEAR_WORD:  # a single path: shows the target of that repository
+        if repo != ".":
+            print(f"harness target: {level} is a path, not a level: give a level (1 to 4) or '{CLEAR_WORD}' "
+                  "before the repository, or the repository alone", file=sys.stderr)
+            return 2
+        level, repo = None, level
+    repo = os.path.abspath(repo)
+    hdir = os.path.join(repo, args.harness_dir)
+    path = os.path.join(hdir, "config.json")
+    if level is None:
+        current = facts.config_facts(hdir)["target_level"]
+        print(f"target level: {current}" if current else "no target level")
+        _warn_if_delegated_in_assistance(repo, current)
+        return 0
+    config = facts.load_json(path) or {"schema": "harness-config/1"}
+    if level == CLEAR_WORD:
+        if "target_level" not in config:
+            print("no target level (nothing to clear)")
+            return 0
+        _write_config(path, {key: value for key, value in config.items() if key != "target_level"})
+        print(f"no target level (cleared in {os.path.relpath(path)})")
+        return 0
+    _write_config(path, {**config, "target_level": level})
+    print(f"target level: {level} · {maturity.LEVELS[level][1]} (written to {os.path.relpath(path)})")
+    _warn_if_delegated_in_assistance(repo, level)
     return 0
 
 
