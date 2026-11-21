@@ -132,11 +132,11 @@
     {
       "id": "L2.signal",
       "tier": "silver",
-      "title": "The last harvest found at least one real signal (S1–S4)",
+      "title": "The last harvest found at least one real signal: a review remark or a fixed agent change",
       "unlocked": null,
       "lost": null,
       "evidence": "",
-      "next": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.",
+      "next": "Nothing to write: this comes with real reviews, over time.",
       "waiting": true
     },
     {
@@ -156,7 +156,7 @@
       "unlocked": null,
       "lost": null,
       "evidence": "0.12",
-      "next": "Push the narrated rules down to L3: custom lint, architecture test, PR check.",
+      "next": "Turn one written rule into a check that fails when the rule is broken.",
       "waiting": false
     },
     {
@@ -172,11 +172,11 @@
     {
       "id": "L3.audit",
       "tier": "gold",
-      "title": "A harness-audit exists and has no open P1",
+      "title": "A harness-audit exists and has no urgent finding open",
       "unlocked": null,
       "lost": null,
       "evidence": "",
-      "next": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s.",
+      "next": "Run a full review of the setup and fix its urgent findings.",
       "waiting": false
     },
     {
@@ -216,7 +216,7 @@
       "unlocked": null,
       "lost": null,
       "evidence": "",
-      "next": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them.",
+      "next": "Nothing to write: this comes with real agent changes, over time.",
       "waiting": true
     },
     {
@@ -226,7 +226,7 @@
       "unlocked": null,
       "lost": null,
       "evidence": "",
-      "next": "Push down to L3/L4 the steps that exist only in prompts.",
+      "next": "Move one step that lives only in a prompt into a script or a CI job.",
       "waiting": false
     },
     {
@@ -303,11 +303,12 @@
   "next": [
     {
       "id": "L2.signal",
-      "title": "The last harvest found at least one real signal (S1–S4)",
-      "action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.",
+      "title": "The last harvest found at least one real signal: a review remark or a fixed agent change",
+      "action": "Nothing to write: this comes with real reviews, over time.",
       "waiting": true
     }
   ],
+  "offer": null,
   "history": [
     {
       "date": "2026-11-15",
