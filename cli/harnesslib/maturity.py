@@ -15,7 +15,7 @@ MIN_JUSTIFIED_RATIO = 0.5      # level 3: half of the rules say why
 
 LEVELS = [
     (0, "None", "No instruction file: the agent starts from zero at every session."),
-    (1, "Framed", "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is."),
+    (1, "Framed", "A short instruction file, an explicit mode, a single source: the agent knows where it is."),
     (2, "Looped", "The feedback loop runs: incidents become rules."),
     (3, "Verified", "Mandatory rules are enforced by tools, not by text."),
     (4, "Delegated", "Whole tasks are handed to the agent and come back clean."),
@@ -33,6 +33,11 @@ WAITING = {"L2.signal", "L4.clean_prs"}
 FOLLOWS_SOURCE = "L1.source"
 WITH_FILE = "comes with the instruction file"
 
+# The file the harness writes, and the one it also accepts as the source when it stands alone. Labels
+# and next actions name the file actually found, never the one that would have been preferred (2026-11-21).
+DEFAULT_SOURCE = "AGENTS.md"
+CLAUDE_SOURCE = "CLAUDE.md"
+
 
 def _check(cid: str, label: str, passed: bool, value: Any, next_action: str) -> Check:
     return {"id": cid, "label": label, "passed": bool(passed), "value": value,
@@ -43,21 +48,36 @@ def _src(f: dict) -> dict:
     return f["instructions"]["source"]
 
 
+def source_name(f: dict) -> str:
+    """The instruction file found, by its path; the one harness-init writes when there is none."""
+    return _src(f).get("path") or DEFAULT_SOURCE
+
+
+def _single_source(f: dict, has_src: bool, name: str) -> Check:
+    claude = f["instructions"]["files"][CLAUDE_SOURCE]
+    if name == CLAUDE_SOURCE:
+        # Accepted on purpose: the check holds, and its line says what is true instead of naming a stub.
+        return _check("L1.single_source",
+                      f"{CLAUDE_SOURCE} is the source: fine, or move it to {DEFAULT_SOURCE} and leave a pointer",
+                      True, claude, "")
+    return _check("L1.single_source", f"{CLAUDE_SOURCE} is an @{DEFAULT_SOURCE} stub (or absent)",
+                  has_src and ((not claude["exists"]) or claude.get("is_stub")), claude,
+                  f"Reduce {CLAUDE_SOURCE} to `@{DEFAULT_SOURCE}` and merge its useful content into {DEFAULT_SOURCE}.")
+
+
 def level1(f: dict) -> list[Check]:
     src = _src(f)
-    files = f["instructions"]["files"]
     has_src = bool(src.get("path"))
-    claude_ok = (not files["CLAUDE.md"]["exists"]) or files["CLAUDE.md"].get("is_stub") or src.get("path") == "CLAUDE.md"
+    name = source_name(f)
     checks = [
-        _check("L1.source", "An instruction file exists (AGENTS.md)", has_src, src.get("path"),
-               "Run harness-init to create AGENTS.md."),
+        _check("L1.source", f"An instruction file exists ({name})", has_src, src.get("path"),
+               f"Run harness-init to create {DEFAULT_SOURCE}."),
         _check("L1.mode", "The line \"Mode: delegation | assistance\" is present", bool(src.get("mode")), src.get("mode"),
-               "Add the mode line at the top of AGENTS.md; harness-audit uses it for its scoring."),
+               f"Add the mode line at the top of {name}; harness-audit uses it for its scoring."),
         _check("L1.short", f"The loaded file is at most {MAX_SOURCE_LINES} lines",
                has_src and (src.get("lines") or 0) <= MAX_SOURCE_LINES, src.get("lines"),
                "Move the reference material (commands, architecture) to on-demand files or skills."),
-        _check("L1.single_source", "CLAUDE.md is an @AGENTS.md stub (or absent)", has_src and claude_ok,
-               files["CLAUDE.md"], "Reduce CLAUDE.md to `@AGENTS.md` and merge its useful content into AGENTS.md."),
+        _single_source(f, has_src, name),
         _check("L1.forbidden", "A \"Forbidden\" section says what an agent never does",
                bool(src.get("has_forbidden_section")), src.get("has_forbidden_section"),
                "Add the Forbidden section: folders, secrets, production actions, force push."),
@@ -120,7 +140,7 @@ def level4(f: dict) -> list[Check]:
                "Add: when to stop and ask, definition of done, red CI, flaky test."),
         _check("L4.contracts", "At least one task contract exists and is referenced",
                any(c["referenced"] for c in f["contracts"]["items"]), f["contracts"]["count"],
-               "Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in AGENTS.md."),
+               f"Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in {source_name(f)}."),
         _check("L4.clean_prs", "The last harvest sees agent PRs with no after-the-fact correction",
                bool(h and (h["agent_prs"] or 0) > 0 and h["corrections_on_agent_prs"] == 0),
                {"agent_prs": h["agent_prs"], "S2": h["corrections_on_agent_prs"]} if h else None,

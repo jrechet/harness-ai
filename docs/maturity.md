@@ -11,10 +11,12 @@ A level is reached when all its checks pass and the previous level is reached. E
 | Level | Name | What it means | Checks |
 |---|---|---|---|
 | 0 | None | The agent starts from zero at every session | none |
-| 1 | Framed | The agent knows where it is | AGENTS.md exists · "Mode" line · at most 60 lines · CLAUDE.md is an `@AGENTS.md` stub or absent · Forbidden section |
+| 1 | Framed | The agent knows where it is | an instruction file exists: AGENTS.md, or CLAUDE.md alone when it is not a stub · "Mode" line · at most 60 lines · a single source: CLAUDE.md is an `@AGENTS.md` stub or absent, or is itself the source · Forbidden section |
 | 2 | Looped | Incidents become rules | Maintenance section · `rule:` convention documented · harvest marker less than 45 days old · the last harvest found at least one real signal (S1 to S4, not S5) |
 | 3 | Verified | Mandatory rules are carried by tools | a CI exists · at least 50% of the rules "Enforced by" · at least 50% say why · an audit exists with no open P1 |
 | 4 | Delegated | Whole tasks come back clean | delegation mode · Working process section · at least one contract referenced · agent PRs with no after-the-fact correction (S2 = 0) in the last harvest · the audit's "cut the agent" test passes |
+
+**The source is the file found.** `AGENTS.md` is the source when it exists; otherwise a `CLAUDE.md` that is not a stub is the source, and such a repository can hold level 1 as it is. The state, the map and the page then name `CLAUDE.md` in their labels, next actions and steps, and the single-source line reads "CLAUDE.md is the source: fine, or move it to AGENTS.md and leave a pointer". Moving to `AGENTS.md` is offered, never required.
 
 ## Why these checks and not others
 
