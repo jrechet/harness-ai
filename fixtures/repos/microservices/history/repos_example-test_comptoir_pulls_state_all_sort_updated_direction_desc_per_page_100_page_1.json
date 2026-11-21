@@ -1,0 +1,78 @@
+{
+  "call": "repos/example-test/comptoir/pulls?state=all&sort=updated&direction=desc&per_page=100&page=1",
+  "answer": [
+    {
+      "number": 59,
+      "title": "Bump actions/checkout from 4 to 5",
+      "state": "closed",
+      "html_url": "https://github.com/example-test/comptoir/pull/59",
+      "user": {
+        "login": "dependabot[bot]"
+      },
+      "body": "Bumps actions/checkout from 4 to 5.",
+      "labels": [],
+      "created_at": "2026-11-12T05:00:00Z",
+      "updated_at": "2026-11-12T08:00:00Z",
+      "closed_at": "2026-11-12T08:00:00Z",
+      "merged_at": "2026-11-12T08:00:00Z",
+      "merge_commit_sha": "745c99b9ad383f7d23a8552b83b13a5f1a8c6c78",
+      "head": {
+        "ref": "dependabot/github_actions/actions/checkout-5",
+        "sha": "2c7503c6113aebd8288f2dcb79e5a9b7eac3f3c3"
+      },
+      "base": {
+        "ref": "main"
+      }
+    },
+    {
+      "number": 57,
+      "title": "refactor: name the billing logger",
+      "state": "closed",
+      "html_url": "https://github.com/example-test/comptoir/pull/57",
+      "user": {
+        "login": "cmartin"
+      },
+      "body": "The logger was the root one.",
+      "labels": [],
+      "created_at": "2026-11-10T16:00:00Z",
+      "updated_at": "2026-11-11T09:00:00Z",
+      "closed_at": "2026-11-11T09:00:00Z",
+      "merged_at": "2026-11-11T09:00:00Z",
+      "merge_commit_sha": "ba1d5ceae5ca627328129d95e68bb721e2ec7faa",
+      "head": {
+        "ref": "refactor/billing-logger",
+        "sha": "ff8803488f9a60e486409f6f2691566d882892a3"
+      },
+      "base": {
+        "ref": "main"
+      }
+    },
+    {
+      "number": 58,
+      "title": "Add due_date to invoice.issued",
+      "state": "closed",
+      "html_url": "https://github.com/example-test/comptoir/pull/58",
+      "user": {
+        "login": "ndubois"
+      },
+      "body": "Billing publishes the due date of an invoice.\n\nTests: `python3 -m unittest discover`.",
+      "labels": [
+        {
+          "name": "billing"
+        }
+      ],
+      "created_at": "2026-11-09T10:00:00Z",
+      "updated_at": "2026-11-10T14:00:00Z",
+      "closed_at": "2026-11-10T14:00:00Z",
+      "merged_at": "2026-11-10T14:00:00Z",
+      "merge_commit_sha": "6f75d65a085ad7a835b41ee505628e7729cf9372",
+      "head": {
+        "ref": "feat/invoice-due-date",
+        "sha": "b8768920797cd8380917841a478a3806bff505f9"
+      },
+      "base": {
+        "ref": "main"
+      }
+    }
+  ]
+}

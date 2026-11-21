@@ -1,0 +1,28 @@
+{
+  "call": "repos/example-test/ledger/pulls/40/commits?per_page=100&page=1",
+  "answer": [
+    {
+      "sha": "0d1fc5c5dd575984e903cc0436f348fe51e7d90e",
+      "html_url": "https://github.com/example-test/ledger/commit/0d1fc5c5dd575984e903cc0436f348fe51e7d90e",
+      "commit": {
+        "message": "docs: fix the make targets in the README",
+        "author": {
+          "name": "mlefevre",
+          "date": "2026-09-30T12:50:00Z"
+        },
+        "committer": {
+          "name": "mlefevre",
+          "date": "2026-09-30T12:50:00Z"
+        }
+      },
+      "author": {
+        "login": "mlefevre"
+      },
+      "parents": [
+        {
+          "sha": "32ffd49755c3e4e4c177c4a03656656bc9a3af21"
+        }
+      ]
+    }
+  ]
+}

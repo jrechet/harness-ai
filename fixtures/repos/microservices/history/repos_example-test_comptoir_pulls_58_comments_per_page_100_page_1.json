@@ -1,0 +1,35 @@
+{
+  "call": "repos/example-test/comptoir/pulls/58/comments?per_page=100&page=1",
+  "answer": [
+    {
+      "id": 5801,
+      "html_url": "https://github.com/example-test/comptoir/pull/58#discussion_r5801",
+      "user": {
+        "login": "cmartin"
+      },
+      "path": "contracts/events/invoice.issued.json",
+      "created_at": "2026-11-10T09:15:00Z",
+      "body": "rule: a field added to a contract stays optional for one release before it joins `required`.\n\nHere `due_date` is required at once: `notifications` validates against the schema it has."
+    },
+    {
+      "id": 5802,
+      "html_url": "https://github.com/example-test/comptoir/pull/58#discussion_r5802",
+      "user": {
+        "login": "cmartin"
+      },
+      "path": "services/billing/app.py",
+      "created_at": "2026-11-10T09:20:00Z",
+      "body": "Please cover the missing due date in the billing contract test as well."
+    },
+    {
+      "id": 5803,
+      "html_url": "https://github.com/example-test/comptoir/pull/58#discussion_r5803",
+      "user": {
+        "login": "cmartin"
+      },
+      "path": "services/billing/test_app.py",
+      "created_at": "2026-11-10T09:22:00Z",
+      "body": "Please cover the missing due date in the billing contract test as well, same remark."
+    }
+  ]
+}

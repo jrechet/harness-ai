@@ -1,0 +1,21 @@
+{
+  "call": "repos/example-test/comptoir/pulls/58/files?per_page=100&page=1",
+  "answer": [
+    {
+      "filename": "contracts/events/invoice.issued.json",
+      "status": "modified"
+    },
+    {
+      "filename": "services/billing/app.py",
+      "status": "modified"
+    },
+    {
+      "filename": "services/billing/test_app.py",
+      "status": "modified"
+    },
+    {
+      "filename": "services/billing/test_contract.py",
+      "status": "modified"
+    }
+  ]
+}

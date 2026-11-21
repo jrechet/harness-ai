@@ -1,0 +1,8 @@
+{
+  "call": "repos/example-test/comptoir",
+  "answer": {
+    "full_name": "example-test/comptoir",
+    "default_branch": "main",
+    "private": true
+  }
+}

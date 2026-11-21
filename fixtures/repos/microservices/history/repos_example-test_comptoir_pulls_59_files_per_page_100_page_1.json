@@ -1,0 +1,9 @@
+{
+  "call": "repos/example-test/comptoir/pulls/59/files?per_page=100&page=1",
+  "answer": [
+    {
+      "filename": ".github/workflows/ci.yml",
+      "status": "modified"
+    }
+  ]
+}

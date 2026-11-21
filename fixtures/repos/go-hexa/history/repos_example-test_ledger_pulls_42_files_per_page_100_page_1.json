@@ -1,0 +1,25 @@
+{
+  "call": "repos/example-test/ledger/pulls/42/files?per_page=100&page=1",
+  "answer": [
+    {
+      "filename": "internal/adapters/httpapi/server.go",
+      "status": "modified"
+    },
+    {
+      "filename": "internal/adapters/httpapi/server_test.go",
+      "status": "modified"
+    },
+    {
+      "filename": "internal/app/ports.go",
+      "status": "modified"
+    },
+    {
+      "filename": "internal/app/service.go",
+      "status": "modified"
+    },
+    {
+      "filename": "internal/adapters/memory/store.go",
+      "status": "modified"
+    }
+  ]
+}
