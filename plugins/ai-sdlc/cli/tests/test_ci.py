@@ -357,6 +357,48 @@ class CriteriaTests(Case):
                 self.assertEqual(out, "")
                 self.assertIn("ai-sdlc:", err)
 
+    def test_a_ticket_inside_the_checked_out_repository_is_refused(self):
+        # a file of the checkout is a file the pull request can rewrite: it is not the accepted ticket
+        trace = self.outside("trace.json", json.dumps(TRACE))
+        self.write("docs/ticket.md", TICKET)
+        untracked = os.path.join(self.repo, "docs", "ticket.md")
+        self.write("tickets/118.md", TICKET)
+        git(self.repo, "add", "tickets/118.md")
+        git(self.repo, "commit", "-q", "-m", "the ticket, carried by the pull request")
+        link = os.path.join(self.tmp.name, "link.md")       # outside by its name, inside by what it points to
+        os.symlink(untracked, link)
+        door = os.path.join(self.repo, "door.md")           # inside by its name, outside by what it points to
+        os.symlink(self.ticket, door)
+        for said, path in {"untracked": untracked, "committed": os.path.join(self.repo, "tickets", "118.md"),
+                           "a link into the repository": link, "a link out of the repository": door,
+                           "dotted": os.path.join(self.repo, "app", "..", "docs", "ticket.md")}.items():
+            with self.subTest(said=said):
+                code, out, err = self.pr("--ticket", path, "--trace", trace)
+                self.assertEqual(code, 2)
+                self.assertEqual(out, "")
+                self.assertIn("ai-sdlc: --ticket", err)
+                self.assertIn("inside the checked-out repository", err)
+
+    def test_the_repository_is_the_whole_checkout_even_when_a_subfolder_is_given(self):
+        self.write("ticket.md", TICKET)
+        code, out, err = call("ci", "pr", os.path.join(self.repo, "app"), "--base", "main", "--ticket", os.path.join(self.repo, "ticket.md"),
+                              "--trace", self.outside("trace.json", json.dumps(TRACE)))
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("inside the checked-out repository", err)
+
+    def test_a_relative_ticket_path_is_judged_from_where_the_command_runs(self):
+        self.write("ticket.md", TICKET)
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.repo)
+        code, _, err = call("ci", "pr", ".", "--base", "main", "--ticket", "ticket.md", "--trace", self.outside("trace.json", json.dumps(TRACE)))
+        self.assertEqual(code, 2)
+        self.assertIn("inside the checked-out repository", err)
+
+    def test_the_summary_says_the_ticket_came_from_outside_the_checkout_and_no_more(self):
+        _, out, _ = self.pr("--ticket", self.ticket, "--trace", self.outside("trace.json", json.dumps(TRACE)))
+        self.assertIn("outside the checked-out repository", out)
+        self.assertIn("the pipeline's to guarantee", out)   # outside the checkout is not yet "the accepted one"
+
 
 class MainTests(unittest.TestCase):
     """`ci main`: the prerequisites of a delivery, said on each push to the delivery branch."""
@@ -457,6 +499,16 @@ class TemplateTests(unittest.TestCase):
         self.assertIn("unmeasured", self.template)
         self.assertIn("--ticket", self.template)
         self.assertIn("--trace", self.template)
+
+    def test_the_ticket_example_fetches_the_ticket_outside_the_checkout_before_it_reads_it(self):
+        lines = self.template.splitlines()
+        fetch = [i for i, line in enumerate(lines) if '> "$RUNNER_TEMP/ticket.md"' in line]
+        read = [i for i, line in enumerate(lines) if '--ticket "$RUNNER_TEMP/ticket.md"' in line]
+        self.assertTrue(fetch and read)                      # the example shows where the file comes from, not only its path
+        self.assertTrue(all(lines[i].lstrip().startswith("#") for i in fetch + read))   # offered, commented: off as shipped
+        self.assertLess(fetch[0], read[0])
+        self.assertTrue(all("${{" not in lines[i] for i in fetch))   # no pull request text enters the shell line
+        self.assertIn("inside the checked-out repository is refused", self.template)
 
     def test_the_template_runs_ci_main_on_a_push_and_no_branch_name_enters_a_shell_line(self):
         self.assertIn("push:", self.template)

@@ -54,7 +54,17 @@ jobs:
         # "One test per criterion" runs only when the pipeline gives the two files the qa skill leaves:
         # the accepted ticket and the criteria-to-tests trace. Fetch the ticket from where the pull
         # request cannot write (the tracker, an artifact of the ticket step): a ticket file committed
-        # in the pull request is a ticket its author can rewrite. Then:
+        # in the pull request is a ticket its author can rewrite, and a --ticket file
+        # inside the checked-out repository is refused (exit code 2). Add a step before this one that writes the
+        # ticket outside the checkout, for a ticket kept as an issue (with `issues: read` in the
+        # permissions, and TICKET set from what the team trusts to name the ticket of a pull request):
+        #   - name: Fetch the ticket
+        #     env:
+        #       GH_TOKEN: ${{ github.token }}
+        #     run: gh issue view "$TICKET" --json body,comments > "$RUNNER_TEMP/ticket.md"
+        # and one that puts the trace beside it. `ci pr` cannot tell whether the fetched file is the
+        # ticket its owner agreed to: a pull request that picks its own ticket number picks its criteria.
+        # Then:
         # run: python3 .ai-sdlc/plugins/ai-sdlc/cli/ai_sdlc.py ci pr . --base "origin/$TARGET" --ticket "$RUNNER_TEMP/ticket.md" --trace "$RUNNER_TEMP/trace.json"
         #
         # --strict makes an unmeasured gate block the merge too. Turn it on once every gate has what

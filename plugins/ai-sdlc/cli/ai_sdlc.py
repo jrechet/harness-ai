@@ -114,7 +114,7 @@ def build_parser() -> argparse.ArgumentParser:
     cip.add_argument("--coverage", metavar="FILE", help="an lcov or Cobertura report produced by the pipeline")
     cip.add_argument("--report", nargs="+", metavar="SARIF", default=[], help="the reports of the scanners run by the pipeline")
     cip.add_argument("--ticket", metavar="FILE", help="the accepted ticket (or the text of the ticket), for \"one test per criterion\"; "
-                                                      "goes with --trace")
+                                                      "a file outside the checked-out repository; goes with --trace")
     cip.add_argument("--trace", metavar="FILE", help="the criteria → tests mapping /qa leaves, in JSON; goes with --ticket")
     cip.add_argument("--strict", action="store_true", help="an unmeasured gate blocks too")
     cim = cis.add_parser("main", help="the prerequisites of a delivery (ship check) on a push to the delivery branch; 1 fails the job")
@@ -240,7 +240,7 @@ def main(argv: list[str] | None = None) -> int:
             if (args.ticket is None) != (args.trace is None):
                 raise context.Refused("--ticket and --trace go together: the accepted ticket, and the criteria → tests mapping /qa leaves")
             data = ci.run(table, args.repo, args.base, args.coverage, args.report, args.strict,
-                          ticket.read(args.ticket) if args.ticket else None, review.load(args.trace) if args.trace else None)
+                          ci.read_ticket(args.repo, args.ticket) if args.ticket else None, review.load(args.trace) if args.trace else None)
             text, code = ci.render_md(data), 0 if data["pass"] else 1
             ci.publish(text, dict(os.environ))
         elif args.command == "run":

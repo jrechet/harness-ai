@@ -4,8 +4,9 @@ In a session, the agent runs `qa gate` and `secu gate`, so it may not do it. Her
 each pull request, and its exit code blocks the merge. What CI cannot run without a model (the review) is not
 claimed. "One test per criterion" runs when the pipeline gives the two files /qa leaves, the accepted ticket and
 the criteria-to-tests trace; without them it is not run, and the summary says so. The gate reads the ticket from
-the file it is given: that this file is the ticket its owner agreed to, and not one the pull request rewrote, is
-the pipeline's to guarantee (fetched from the tracker, or kept where the pull request cannot write).
+the file it is given, and refuses a file inside the checked-out repository: there the pull request can rewrite it.
+That a file outside the checkout is the ticket its owner agreed to stays the pipeline's to guarantee (fetched from
+the tracker, or kept where the pull request cannot write): `ci pr` cannot tell.
 
 On a push to the delivery branch, `ci main` says the prerequisites of a delivery (`ship check`) for that commit.
 It delivers nothing, and what it cannot measure there (the CI report of the commit, while this very job runs) is
@@ -23,8 +24,8 @@ import json
 import os
 from typing import Any
 
-from . import qa, secu, ship, size
-from .context import Refused, _read_at, resolve_base
+from . import qa, secu, ship, size, ticket
+from .context import Refused, _git, _read_at, resolve_base
 
 CONFIG = "docs/agents/gates.json"
 FORMER_CONFIG = "docs/agents/portes.json"
@@ -79,6 +80,21 @@ def load_config(repo: str, base: str) -> dict[str, Any]:
             "source": source}
 
 
+def read_ticket(repo: str, path: str) -> str:
+    """The text of the ticket the pipeline gives. Refused when the file is inside the checked-out repository, by
+    its name or by what it points to: there the pull request can rewrite it. A file outside is not thereby the
+    accepted ticket; where it comes from stays the pipeline's to guarantee."""
+    code, top = _git(repo, "rev-parse", "--show-toplevel")
+    root = os.path.realpath(top.decode("utf-8", "replace").strip() if code == 0 and top.strip() else repo)
+    named = os.path.abspath(path)
+    for full in (os.path.realpath(named), os.path.join(os.path.realpath(os.path.dirname(named)), os.path.basename(named))):
+        if full == root or full.startswith(root + os.sep):
+            raise Refused(f"--ticket {os.path.basename(named)}: the file is inside the checked-out repository, where the pull "
+                          "request can rewrite it; fetch the accepted ticket from the tracker or an artifact into a folder "
+                          "outside the checkout ($RUNNER_TEMP)")
+    return ticket.read(path)
+
+
 def run(table: dict[str, Any], repo: str, base: str, coverage: str | None = None, reports: list[str] | None = None,
         strict: bool = False, ticket_text: str | None = None, mapping: Any = None) -> dict[str, Any]:
     """The gates of a pull request: security, then tests. `strict` fails what is not measured. With the text of a
@@ -123,7 +139,8 @@ def render_md(result: dict[str, Any]) -> str:
         out.append(f"- The test suite is not replayed here: `{CONFIG}` gives no command on the base branch.")
     if result.get("criteria"):
         out += ["", "These gates do not run the review: that takes a reviewer. The criteria are read from the ticket file the "
-                    "pipeline gives: where that file comes from is the pipeline's to guarantee."]
+                    "pipeline gives, outside the checked-out repository: that this file is the ticket its owner agreed to is "
+                    "the pipeline's to guarantee."]
     else:
         out += ["", "These gates run neither the review nor \"one test per criterion\": the review takes a reviewer, and the "
                     "criteria gate takes the accepted ticket and the trace /qa leaves, given through `--ticket` and `--trace`."]
