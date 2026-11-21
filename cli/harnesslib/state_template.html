@@ -181,8 +181,10 @@ dialog .close { margin-top: 1.2rem; border: 1.5px solid var(--ink); background: 
     return node;
   };
 
-  const walk = data.steps.filter((s) => s.in_scope);
-  const beyond = data.steps.filter((s) => !s.in_scope);
+  // A step that follows another one (what comes with the instruction file) is not a step of its own.
+  const own = data.steps.filter((s) => !s.follows);
+  const walk = own.filter((s) => s.in_scope);
+  const beyond = own.filter((s) => !s.in_scope);
   const top = data.ladder.length - 1;
   const goal = data.target.level;
   const ui = { at: 0, tab: "map" };

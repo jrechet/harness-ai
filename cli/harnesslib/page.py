@@ -17,6 +17,7 @@ SCHEMA = "harness-page/1"
 TEMPLATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "state_template.html")
 MAX_VERDICTS = 40
 MAX_TEXT = 400
+NOT_MEASURED = "nothing to measure yet: there is no instruction file"
 
 # The four layers, from what the agent reads to what runs away from it.
 LAYERS = (
@@ -101,15 +102,18 @@ def _layers(f: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _steps(state: dict[str, Any]) -> list[dict[str, Any]]:
     """Every check that does not hold yet, in the order of the ladder: one step each. A step beyond
-    the target level is kept, marked out of scope."""
+    the target level is kept, marked out of scope. With no instruction file, what the file would carry
+    is marked `follows`: the page folds it into the step that creates the file, and does not show it."""
     out = []
     for level in state["levels"]:
         for check in level["checks"]:
             if check["passed"]:
                 continue
-            missing, action = maturity.CHECK_PLAIN[check["id"]]
-            touch = TOUCHES.get(check["id"])
+            follows = bool(check.get("follows"))
+            missing, action = (NOT_MEASURED, maturity.WITH_FILE) if follows else maturity.CHECK_PLAIN[check["id"]]
+            touch = None if follows else TOUCHES.get(check["id"])
             out.append({"level": level["level"], "missing": missing, "action": action, "waits": bool(check.get("waits")),
+                        "follows": follows,
                         "in_scope": bool(level.get("in_scope", True)),
                         "touch": None if touch is None else {"layer": touch[0], "path": touch[1], "effect": touch[2]}})
     return out
