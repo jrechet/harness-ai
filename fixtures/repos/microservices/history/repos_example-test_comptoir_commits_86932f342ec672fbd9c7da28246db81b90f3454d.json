@@ -1,0 +1,32 @@
+{
+  "call": "repos/example-test/comptoir/commits/86932f342ec672fbd9c7da28246db81b90f3454d",
+  "answer": {
+    "sha": "86932f342ec672fbd9c7da28246db81b90f3454d",
+    "html_url": "https://github.com/example-test/comptoir/commit/86932f342ec672fbd9c7da28246db81b90f3454d",
+    "commit": {
+      "message": "docs: say who may replay the broker",
+      "author": {
+        "name": "ndubois",
+        "date": "2026-11-11T11:00:00Z"
+      },
+      "committer": {
+        "name": "ndubois",
+        "date": "2026-11-11T11:00:00Z"
+      }
+    },
+    "author": {
+      "login": "ndubois"
+    },
+    "parents": [
+      {
+        "sha": "2bf35ab21104399c1b9b866e4a7a8dbfcc91bbfc"
+      }
+    ],
+    "files": [
+      {
+        "filename": "docs/operations.md",
+        "status": "modified"
+      }
+    ]
+  }
+}

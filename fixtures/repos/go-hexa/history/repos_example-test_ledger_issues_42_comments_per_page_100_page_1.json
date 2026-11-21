@@ -1,0 +1,14 @@
+{
+  "call": "repos/example-test/ledger/issues/42/comments?per_page=100&page=1",
+  "answer": [
+    {
+      "id": 4203,
+      "html_url": "https://github.com/example-test/ledger/pull/42#issuecomment-4203",
+      "user": {
+        "login": "claude"
+      },
+      "created_at": "2026-11-03T15:25:00Z",
+      "body": "Done. I applied the rule: `limit` and `cursor` are now read from the query string."
+    }
+  ]
+}

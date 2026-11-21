@@ -1,0 +1,74 @@
+{
+  "call": "repos/example-test/ledger/pulls/42/commits?per_page=100&page=1",
+  "answer": [
+    {
+      "sha": "be618a77499546cf8ec54597b8e0023ae38d4356",
+      "html_url": "https://github.com/example-test/ledger/commit/be618a77499546cf8ec54597b8e0023ae38d4356",
+      "commit": {
+        "message": "Add the transfers list to the store port\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+        "author": {
+          "name": "claude",
+          "date": "2026-11-03T09:00:00Z"
+        },
+        "committer": {
+          "name": "claude",
+          "date": "2026-11-03T09:00:00Z"
+        }
+      },
+      "author": {
+        "login": "claude"
+      },
+      "parents": [
+        {
+          "sha": "6114bdfb1dccb17f62f9e91d9c0d0a67729e46ee"
+        }
+      ]
+    },
+    {
+      "sha": "08b9c0e017f7067d4c9468365ec771ad930640bd",
+      "html_url": "https://github.com/example-test/ledger/commit/08b9c0e017f7067d4c9468365ec771ad930640bd",
+      "commit": {
+        "message": "Serve GET /accounts/{id}/transfers\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+        "author": {
+          "name": "claude",
+          "date": "2026-11-03T09:05:00Z"
+        },
+        "committer": {
+          "name": "claude",
+          "date": "2026-11-03T09:05:00Z"
+        }
+      },
+      "author": {
+        "login": "claude"
+      },
+      "parents": [
+        {
+          "sha": "5139656c99ed1213db2303540bdfc5247ee7afb1"
+        }
+      ]
+    },
+    {
+      "sha": "344805a4fa0d77c387b2fd8a1f9ae68234b193dc",
+      "html_url": "https://github.com/example-test/ledger/commit/344805a4fa0d77c387b2fd8a1f9ae68234b193dc",
+      "commit": {
+        "message": "Paginate the transfers list with limit and cursor\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+        "author": {
+          "name": "claude",
+          "date": "2026-11-03T15:20:00Z"
+        },
+        "committer": {
+          "name": "claude",
+          "date": "2026-11-03T15:20:00Z"
+        }
+      },
+      "author": {
+        "login": "claude"
+      },
+      "parents": [
+        {
+          "sha": "d04d33269436233138ae309f765a66fb6aa4b268"
+        }
+      ]
+    }
+  ]
+}

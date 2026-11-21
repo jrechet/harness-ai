@@ -26,6 +26,8 @@ fixtures/repos/<name>/
 ├── owner.md         # sample projects: the fictional owner's answers, given in advance
 ├── owner.json       # optional: the same owner, who answers only what they are asked
 ├── tasks/<id>/      # sample projects: a typical task, its hidden tests, its solution, a tempted solution
+├── history/         # go-hexa, microservices: a recorded pull-request history, replayed offline by harvest
+├── history-expected.json   # the harvest that replay must give, and the noise it must not count
 └── runs/            # dated runs, graded by fixture check; <date>-step1-author = the author's step 1
 ```
 
@@ -191,6 +193,19 @@ python3 cli/harness.py bench play go-hexa deposit --arm harness --work-root /tmp
 A run names the agent's report `report.md`, the interview `interview.md` / `interview.json` and the author's step 1 `<date>-step1-author`; the fixtures recorded in French were renamed when they were translated, and their original names are in git history. The `note` fields of the registry `results.jsonl` were translated on 2026-11-17; the paths and scores they sit beside are unchanged.
 
 Deciding on a campaign and interpreting it remains the job of the `harness-stress` skill, on request.
+
+## A recorded pull-request history
+
+`harness-harvest` reads pull requests, and a fixture has none: `go-hexa` and `microservices` carry a `history/` folder instead, the answers of `gh api` for a few weeks of their fictional team, in the format `harvest github --record` writes (one JSON file per call, `{"call", "answer"}`, and the window in `_window.json`). It is replayed without network, without `gh` and whatever the day:
+
+```bash
+python3 cli/harness.py harvest github --repo example-test/ledger --from fixtures/repos/go-hexa/history
+python3 cli/harness.py harvest github --repo example-test/comptoir --agent-trailer "Co-Authored-By: Claude" --from fixtures/repos/microservices/history
+```
+
+Each history holds one `rule:` review comment and one after-the-fact correction on an agent PR (a fix on its files the day after the merge for `go-hexa`, a revert for `microservices`, whose agent PR is marked by its commit trailer alone), and around them what must not count: a dependency bot's PR, a `rule:` comment older than the window, a remark made once, a fix that comes too late or touches other files, a merge commit. `history-expected.json`, beside the folder, gives the options of the replay (`options`), the whole harvest it must print (`result`) and that noise, each with its reason (`noise`). It is not the fixture's `expected.json`, which no history changes.
+
+`cli/tests/test_harvest_replay.py` replays both at every commit, and shows a repository leaving level 1: the `go-hexa` repository, the files of its level-2 step (`runs/2026-11-14-step-target2/overlay`), then the harvest written to `.harness/harvest.json`; `harness status` answers level 1 before and level 2 after. A history is synthetic, like the repository: an answer the replay no longer reads fails that test, and so does a call the harvest makes that the history does not answer. The histories are not copied into working copies: no evaluated agent sees them.
 
 ## Running
 

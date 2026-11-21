@@ -1,0 +1,104 @@
+{
+  "fixture": "go-hexa",
+  "about": "Recorded pull-request history of the ledger repository, replayed with `harvest github --from`. `result` is the whole harvest the replay must print; `noise` lists what the history holds that must not count.",
+  "options": [
+    "--repo",
+    "example-test/ledger"
+  ],
+  "result": {
+    "source": "github",
+    "repo": "example-test/ledger",
+    "since": "2026-10-15",
+    "default_branch": "main",
+    "prs_scanned": 3,
+    "agent_prs": 1,
+    "counts": {
+      "S1": 1,
+      "S2": 1
+    },
+    "errors": [],
+    "evidence": [
+      {
+        "id": "github-1",
+        "signal": "S1",
+        "source": "github",
+        "url": "https://github.com/example-test/ledger/pull/42#discussion_r4201",
+        "date": "2026-11-03",
+        "author": "mlefevre",
+        "agent_authored": false,
+        "files": [
+          "internal/adapters/httpapi/server.go"
+        ],
+        "text": "a list endpoint is paginated with `limit` and `cursor`; it never returns a whole table.",
+        "related_rule": null,
+        "group_key": "rule:endpoint paginated returns table. whole"
+      },
+      {
+        "id": "github-2",
+        "signal": "S2",
+        "source": "github",
+        "url": "https://github.com/example-test/ledger/commit/d129eeb64d2e9331b8b5564384eb89d043d9bc0b",
+        "date": "2026-11-05",
+        "author": "mlefevre",
+        "agent_authored": false,
+        "files": [
+          "internal/adapters/httpapi/server.go",
+          "internal/adapters/httpapi/server_test.go"
+        ],
+        "text": "Fix 'fix: cap the transfers page at 100 rows' on files of agent PR #42 (Add GET /accounts/{id}/transfers) 23 h after its merge",
+        "related_rule": null,
+        "group_key": "zone:internal/adapters/httpapi"
+      }
+    ]
+  },
+  "noise": [
+    {
+      "url": "https://github.com/example-test/ledger/pull/44",
+      "why": "a dependency bot's PR (branch renovate/): its [bot] login does not make it an agent PR, and it is no recurring task"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/commit/307622a30d0cc47a0130561daceddfec10c6d3b9",
+      "why": "the squash commit of the dependency bot's PR: a bot's commit corrects no agent PR"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/pull/42#discussion_r4202",
+      "why": "a review nit said once: no `rule:` prefix, and nothing recurs on a second PR"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/pull/42#issuecomment-4203",
+      "why": "the agent's answer says 'the rule:' in the middle of a sentence: only a comment that starts with `rule:` is one"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/pull/42#pullrequestreview-4204",
+      "why": "one commit follows this review within the hour, not the three that make a burst"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/actions/runs/4212",
+      "why": "the lint check fails on a single agent PR: an ignored guardrail is one that fails on two"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/pull/40#discussion_r4001",
+      "why": "a `rule:` comment written on 2026-10-01, before the window opens on 2026-10-15, on a PR updated since"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/pull/40#discussion_r4002",
+      "why": "a reviewer's question on a human PR, asked once"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/commit/1494a72a1942ed260e9996ce5fba2c1455f2b201",
+      "why": "a human commit 22 hours after the agent PR's merge that touches none of its files"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/commit/4446d212ebe1065e96e4105acaef1b1ee623cc16",
+      "why": "a human fix eight days after the merge: outside the 48-hour window of an after-the-fact correction"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/commit/32cc62a6352b69ecdbffa18fd8628d3477dc46ee",
+      "why": "a merge commit of a release branch: it brings in work done elsewhere"
+    },
+    {
+      "url": "https://github.com/example-test/ledger/commit/efa76c980ceacc52b91f43c7bc086eb5f89c92f6",
+      "why": "the squash commit of the agent PR itself"
+    }
+  ]
+}

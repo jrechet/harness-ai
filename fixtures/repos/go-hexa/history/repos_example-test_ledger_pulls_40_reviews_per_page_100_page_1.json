@@ -1,0 +1,15 @@
+{
+  "call": "repos/example-test/ledger/pulls/40/reviews?per_page=100&page=1",
+  "answer": [
+    {
+      "id": 4003,
+      "html_url": "https://github.com/example-test/ledger/pull/40#pullrequestreview-4003",
+      "user": {
+        "login": "sdiallo"
+      },
+      "state": "APPROVED",
+      "submitted_at": "2026-10-28T10:50:00Z",
+      "body": ""
+    }
+  ]
+}

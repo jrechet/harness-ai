@@ -1,0 +1,8 @@
+{
+  "call": "repos/example-test/ledger",
+  "answer": {
+    "full_name": "example-test/ledger",
+    "default_branch": "main",
+    "private": true
+  }
+}

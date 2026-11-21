@@ -1,0 +1,74 @@
+{
+  "call": "repos/example-test/ledger/pulls?state=all&sort=updated&direction=desc&per_page=100&page=1",
+  "answer": [
+    {
+      "number": 44,
+      "title": "chore(deps): update golang to 1.23",
+      "state": "closed",
+      "html_url": "https://github.com/example-test/ledger/pull/44",
+      "user": {
+        "login": "renovate[bot]"
+      },
+      "body": "This PR updates golang from 1.22 to 1.23.",
+      "labels": [],
+      "created_at": "2026-11-06T06:00:00Z",
+      "updated_at": "2026-11-06T09:00:00Z",
+      "closed_at": "2026-11-06T09:00:00Z",
+      "merged_at": "2026-11-06T09:00:00Z",
+      "merge_commit_sha": "307622a30d0cc47a0130561daceddfec10c6d3b9",
+      "head": {
+        "ref": "renovate/golang-1.x",
+        "sha": "779045f49ac0f6748d580ba78b4ee41f0a1af6bb"
+      },
+      "base": {
+        "ref": "main"
+      }
+    },
+    {
+      "number": 42,
+      "title": "Add GET /accounts/{id}/transfers",
+      "state": "closed",
+      "html_url": "https://github.com/example-test/ledger/pull/42",
+      "user": {
+        "login": "claude"
+      },
+      "body": "Lists the transfers of an account, most recent first.\n\nI assumed the default page size is 50.\n\nTests: `go vet ./... && go test ./...`.",
+      "labels": [],
+      "created_at": "2026-11-03T09:10:00Z",
+      "updated_at": "2026-11-04T10:00:00Z",
+      "closed_at": "2026-11-04T10:00:00Z",
+      "merged_at": "2026-11-04T10:00:00Z",
+      "merge_commit_sha": "efa76c980ceacc52b91f43c7bc086eb5f89c92f6",
+      "head": {
+        "ref": "claude/list-transfers",
+        "sha": "cd5a165dcb0993ff3abc76577fd3079c0fdae6ca"
+      },
+      "base": {
+        "ref": "main"
+      }
+    },
+    {
+      "number": 40,
+      "title": "docs: fix the make targets in the README",
+      "state": "closed",
+      "html_url": "https://github.com/example-test/ledger/pull/40",
+      "user": {
+        "login": "mlefevre"
+      },
+      "body": "The README still named `make e2e`.",
+      "labels": [],
+      "created_at": "2026-09-30T13:00:00Z",
+      "updated_at": "2026-10-28T11:00:00Z",
+      "closed_at": "2026-10-28T11:00:00Z",
+      "merged_at": "2026-10-28T11:00:00Z",
+      "merge_commit_sha": "3ce5ed2fed9103713ee26b385fa88cec472680d7",
+      "head": {
+        "ref": "docs/readme-make-targets",
+        "sha": "c45ef7d026ce0b76b01a2b3e939e38f7698e8ae0"
+      },
+      "base": {
+        "ref": "main"
+      }
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "call": "repos/example-test/comptoir/commits/b8768920797cd8380917841a478a3806bff505f9/check-runs",
+  "answer": {
+    "total_count": 2,
+    "check_runs": [
+      {
+        "name": "test",
+        "conclusion": "success",
+        "completed_at": "2026-11-10T11:05:00Z",
+        "html_url": "https://github.com/example-test/comptoir/actions/runs/5810"
+      },
+      {
+        "name": "boundaries",
+        "conclusion": "success",
+        "completed_at": "2026-11-10T11:04:00Z",
+        "html_url": "https://github.com/example-test/comptoir/actions/runs/5811"
+      }
+    ]
+  }
+}

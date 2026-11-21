@@ -1,0 +1,28 @@
+{
+  "call": "repos/example-test/comptoir/pulls/59/commits?per_page=100&page=1",
+  "answer": [
+    {
+      "sha": "1c506ebe401eb7bee6da850b0e3e8d878b64d1f1",
+      "html_url": "https://github.com/example-test/comptoir/commit/1c506ebe401eb7bee6da850b0e3e8d878b64d1f1",
+      "commit": {
+        "message": "Bump actions/checkout from 4 to 5",
+        "author": {
+          "name": "dependabot[bot]",
+          "date": "2026-11-12T05:00:00Z"
+        },
+        "committer": {
+          "name": "dependabot[bot]",
+          "date": "2026-11-12T05:00:00Z"
+        }
+      },
+      "author": {
+        "login": "dependabot[bot]"
+      },
+      "parents": [
+        {
+          "sha": "94199f37a63eaa55009b11c47d4f1000cb0e5422"
+        }
+      ]
+    }
+  ]
+}

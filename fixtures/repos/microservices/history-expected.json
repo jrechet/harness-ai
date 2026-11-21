@@ -1,0 +1,92 @@
+{
+  "fixture": "microservices",
+  "about": "Recorded pull-request history of the comptoir repository, replayed with `harvest github --from`. The agent PR is opened from a human account: only the trailer of its commits marks it. `result` is the whole harvest the replay must print; `noise` lists what the history holds that must not count.",
+  "options": [
+    "--repo",
+    "example-test/comptoir",
+    "--agent-trailer",
+    "Co-Authored-By: Claude"
+  ],
+  "result": {
+    "source": "github",
+    "repo": "example-test/comptoir",
+    "since": "2026-10-20",
+    "default_branch": "main",
+    "prs_scanned": 3,
+    "agent_prs": 1,
+    "counts": {
+      "S1": 1,
+      "S2": 1
+    },
+    "errors": [],
+    "evidence": [
+      {
+        "id": "github-1",
+        "signal": "S1",
+        "source": "github",
+        "url": "https://github.com/example-test/comptoir/pull/58#discussion_r5801",
+        "date": "2026-11-10",
+        "author": "cmartin",
+        "agent_authored": false,
+        "files": [
+          "contracts/events/invoice.issued.json"
+        ],
+        "text": "a field added to a contract stays optional for one release before it joins `required`.",
+        "related_rule": null,
+        "group_key": "rule:added before contract field joins optional release stays"
+      },
+      {
+        "id": "github-2",
+        "signal": "S2",
+        "source": "github",
+        "url": "https://github.com/example-test/comptoir/commit/c7897f486ceb8c28d628107feddeaf49fc45ce70",
+        "date": "2026-11-11",
+        "author": "cmartin",
+        "agent_authored": false,
+        "files": [
+          "contracts/events/invoice.issued.json",
+          "services/billing/app.py",
+          "services/billing/test_app.py",
+          "services/billing/test_contract.py"
+        ],
+        "text": "Revert of an agent PR: Add due_date to invoice.issued",
+        "related_rule": null,
+        "group_key": "zone:."
+      }
+    ]
+  },
+  "noise": [
+    {
+      "url": "https://github.com/example-test/comptoir/pull/59",
+      "why": "a dependency bot's PR (branch dependabot/): neither an agent PR nor a recurring task"
+    },
+    {
+      "url": "https://github.com/example-test/comptoir/commit/745c99b9ad383f7d23a8552b83b13a5f1a8c6c78",
+      "why": "the squash commit of the dependency bot's PR"
+    },
+    {
+      "url": "https://github.com/example-test/comptoir/pull/58#discussion_r5802",
+      "why": "the same remark made twice on one PR: a recurring correction comes back on a second PR"
+    },
+    {
+      "url": "https://github.com/example-test/comptoir/pull/58#discussion_r5803",
+      "why": "the same remark made twice on one PR: a recurring correction comes back on a second PR"
+    },
+    {
+      "url": "https://github.com/example-test/comptoir/pull/57#issuecomment-5701",
+      "why": "the author's note on their own PR, and 'rule of thumb:' is not the `rule:` prefix"
+    },
+    {
+      "url": "https://github.com/example-test/comptoir/commit/ba1d5ceae5ca627328129d95e68bb721e2ec7faa",
+      "why": "the squash commit of a human refactoring PR, 19 hours after the agent PR's merge and on one of its files: it is no fix and cites no agent PR"
+    },
+    {
+      "url": "https://github.com/example-test/comptoir/commit/86932f342ec672fbd9c7da28246db81b90f3454d",
+      "why": "a human commit within 48 hours of the merge that touches none of the agent PR's files"
+    },
+    {
+      "url": "https://github.com/example-test/comptoir/commit/6f75d65a085ad7a835b41ee505628e7729cf9372",
+      "why": "the squash commit of the agent PR itself"
+    }
+  ]
+}

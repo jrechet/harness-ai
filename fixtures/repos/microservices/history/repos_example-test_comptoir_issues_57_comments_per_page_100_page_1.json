@@ -1,0 +1,14 @@
+{
+  "call": "repos/example-test/comptoir/issues/57/comments?per_page=100&page=1",
+  "answer": [
+    {
+      "id": 5701,
+      "html_url": "https://github.com/example-test/comptoir/pull/57#issuecomment-5701",
+      "user": {
+        "login": "cmartin"
+      },
+      "created_at": "2026-11-10T16:05:00Z",
+      "body": "rule of thumb: one logger per service. Merging once the CI is green."
+    }
+  ]
+}

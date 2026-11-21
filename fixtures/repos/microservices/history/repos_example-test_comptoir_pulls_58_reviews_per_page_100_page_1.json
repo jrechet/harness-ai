@@ -1,0 +1,15 @@
+{
+  "call": "repos/example-test/comptoir/pulls/58/reviews?per_page=100&page=1",
+  "answer": [
+    {
+      "id": 5804,
+      "html_url": "https://github.com/example-test/comptoir/pull/58#pullrequestreview-5804",
+      "user": {
+        "login": "cmartin"
+      },
+      "state": "COMMENTED",
+      "submitted_at": "2026-11-10T09:25:00Z",
+      "body": "Two remarks, then fine by me."
+    }
+  ]
+}
