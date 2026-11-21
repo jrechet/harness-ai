@@ -122,12 +122,9 @@ class NothingBuiltIsCommittedTests(unittest.TestCase):
     """AGENTS.md, Forbidden: no `__pycache__` and no `.skill` in the repository."""
 
     def test_git_tracks_no_pycache_no_pyc_and_no_packaged_skill(self):
-        try:
-            done = subprocess.run(["git", "-C", ROOT, "ls-files", "-z"], capture_output=True, check=False)
-        except OSError as exc:
-            self.skipTest(f"git is not available: {exc}")
-        if done.returncode != 0:
-            self.skipTest("not in a git checkout")
+        # No way out: without git or outside a checkout this test fails, it never passes by not looking.
+        done = subprocess.run(["git", "-C", ROOT, "ls-files", "-z"], capture_output=True, check=False)
+        self.assertEqual(done.returncode, 0, "this rule is read from git: run the suite in a checkout")
         tracked = [name for name in done.stdout.decode("utf-8", "surrogateescape").split("\0") if name]
         self.assertGreater(len(tracked), 0)
         self.assertEqual([name for name in tracked if FORBIDDEN_TRACKED.search(name)], [])
