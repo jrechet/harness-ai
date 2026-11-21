@@ -2,7 +2,7 @@
   "schema": 1,
   "kind": "repo",
   "name": "harness-ai",
-  "date": "2026-11-17",
+  "date": "2026-11-21",
   "medal": {
     "id": "bronze",
     "name": "Bronze",
@@ -15,7 +15,7 @@
       "id": "bronze",
       "name": "Bronze",
       "title": "Framed",
-      "promise": "A short AGENTS.md, an explicit mode, stubs: the agent knows where it is.",
+      "promise": "A short instruction file, an explicit mode, a single source: the agent knows where it is.",
       "done": 5,
       "total": 5,
       "earned": true
@@ -125,7 +125,7 @@
       "title": "A harvest ran less than 45 days ago",
       "unlocked": "2026-11-15",
       "lost": null,
-      "evidence": "8",
+      "evidence": "12",
       "next": null,
       "waiting": false
     },
@@ -155,7 +155,7 @@
       "title": "At least 50% of the rules are \"Enforced by\" a tool",
       "unlocked": null,
       "lost": null,
-      "evidence": "0.0",
+      "evidence": "0.12",
       "next": "Push the narrated rules down to L3: custom lint, architecture test, PR check.",
       "waiting": false
     },
@@ -165,7 +165,7 @@
       "title": "At least 50% of the rules say why",
       "unlocked": "2026-11-15",
       "lost": null,
-      "evidence": "0.56",
+      "evidence": "0.62",
       "next": null,
       "waiting": false
     },
@@ -245,7 +245,7 @@
       "title": "Each rule carries its date",
       "unlocked": "2026-11-15",
       "lost": null,
-      "evidence": "9 of 9",
+      "evidence": "8 of 8",
       "next": null,
       "waiting": false
     },
@@ -255,7 +255,7 @@
       "title": "Each rule says why",
       "unlocked": null,
       "lost": null,
-      "evidence": "5 of 9",
+      "evidence": "5 of 8",
       "next": "Add \"Why: …\" to the rules that do not say it, or \"no known incident\".",
       "waiting": false
     },
@@ -265,7 +265,7 @@
       "title": "Each rule is enforced by a tool",
       "unlocked": null,
       "lost": null,
-      "evidence": "0 of 9",
+      "evidence": "1 of 8",
       "next": "Push the narrated rules to a lint, an architecture test or a PR check.",
       "waiting": false
     },

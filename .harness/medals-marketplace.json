@@ -2,7 +2,7 @@
   "schema": 1,
   "kind": "marketplace",
   "name": "harness-ai",
-  "date": "2026-11-17",
+  "date": "2026-11-21",
   "medal": {
     "id": "bronze",
     "name": "Bronze",
@@ -135,7 +135,7 @@
       "title": "At least one blind run is stored in the repository",
       "unlocked": "2026-11-15",
       "lost": null,
-      "evidence": "53 run(s) under fixtures/",
+      "evidence": "60 run(s) under fixtures/",
       "next": null,
       "waiting": false
     },
