@@ -1,0 +1,120 @@
+{
+  "call": "repos/example-test/comptoir/commits?sha=main&since=2026-10-20T00:00:00Z&per_page=100&page=1",
+  "answer": [
+    {
+      "sha": "745c99b9ad383f7d23a8552b83b13a5f1a8c6c78",
+      "html_url": "https://github.com/example-test/comptoir/commit/745c99b9ad383f7d23a8552b83b13a5f1a8c6c78",
+      "commit": {
+        "message": "Bump actions/checkout from 4 to 5 (#59)",
+        "author": {
+          "name": "dependabot[bot]",
+          "date": "2026-11-12T08:00:00Z"
+        },
+        "committer": {
+          "name": "dependabot[bot]",
+          "date": "2026-11-12T08:00:00Z"
+        }
+      },
+      "author": {
+        "login": "dependabot[bot]"
+      },
+      "parents": [
+        {
+          "sha": "4976c1242211b550981bfbc6a44dbd7413d672b4"
+        }
+      ]
+    },
+    {
+      "sha": "c7897f486ceb8c28d628107feddeaf49fc45ce70",
+      "html_url": "https://github.com/example-test/comptoir/commit/c7897f486ceb8c28d628107feddeaf49fc45ce70",
+      "commit": {
+        "message": "Revert \"Add due_date to invoice.issued (#58)\"\n\nnotifications rejected every invoice.issued event: due_date was required.",
+        "author": {
+          "name": "cmartin",
+          "date": "2026-11-11T16:00:00Z"
+        },
+        "committer": {
+          "name": "cmartin",
+          "date": "2026-11-11T16:00:00Z"
+        }
+      },
+      "author": {
+        "login": "cmartin"
+      },
+      "parents": [
+        {
+          "sha": "79b6c4e654e2ac64ed5b73f721eb8f40d2c5fa8b"
+        }
+      ]
+    },
+    {
+      "sha": "86932f342ec672fbd9c7da28246db81b90f3454d",
+      "html_url": "https://github.com/example-test/comptoir/commit/86932f342ec672fbd9c7da28246db81b90f3454d",
+      "commit": {
+        "message": "docs: say who may replay the broker",
+        "author": {
+          "name": "ndubois",
+          "date": "2026-11-11T11:00:00Z"
+        },
+        "committer": {
+          "name": "ndubois",
+          "date": "2026-11-11T11:00:00Z"
+        }
+      },
+      "author": {
+        "login": "ndubois"
+      },
+      "parents": [
+        {
+          "sha": "2bf35ab21104399c1b9b866e4a7a8dbfcc91bbfc"
+        }
+      ]
+    },
+    {
+      "sha": "ba1d5ceae5ca627328129d95e68bb721e2ec7faa",
+      "html_url": "https://github.com/example-test/comptoir/commit/ba1d5ceae5ca627328129d95e68bb721e2ec7faa",
+      "commit": {
+        "message": "refactor: name the billing logger (#57)",
+        "author": {
+          "name": "cmartin",
+          "date": "2026-11-11T09:00:00Z"
+        },
+        "committer": {
+          "name": "cmartin",
+          "date": "2026-11-11T09:00:00Z"
+        }
+      },
+      "author": {
+        "login": "cmartin"
+      },
+      "parents": [
+        {
+          "sha": "7fea8cadee94e74368ab22b69e9822f752585db8"
+        }
+      ]
+    },
+    {
+      "sha": "6f75d65a085ad7a835b41ee505628e7729cf9372",
+      "html_url": "https://github.com/example-test/comptoir/commit/6f75d65a085ad7a835b41ee505628e7729cf9372",
+      "commit": {
+        "message": "Add due_date to invoice.issued (#58)",
+        "author": {
+          "name": "ndubois",
+          "date": "2026-11-10T14:00:00Z"
+        },
+        "committer": {
+          "name": "ndubois",
+          "date": "2026-11-10T14:00:00Z"
+        }
+      },
+      "author": {
+        "login": "ndubois"
+      },
+      "parents": [
+        {
+          "sha": "78113e90dc2edc079424c27b418738e3efc9e1f7"
+        }
+      ]
+    }
+  ]
+}

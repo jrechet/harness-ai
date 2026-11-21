@@ -1,0 +1,15 @@
+{
+  "call": "repos/example-test/ledger/pulls/42/reviews?per_page=100&page=1",
+  "answer": [
+    {
+      "id": 4204,
+      "html_url": "https://github.com/example-test/ledger/pull/42#pullrequestreview-4204",
+      "user": {
+        "login": "mlefevre"
+      },
+      "state": "CHANGES_REQUESTED",
+      "submitted_at": "2026-11-03T15:00:00Z",
+      "body": "Pagination first, the rest reads well."
+    }
+  ]
+}

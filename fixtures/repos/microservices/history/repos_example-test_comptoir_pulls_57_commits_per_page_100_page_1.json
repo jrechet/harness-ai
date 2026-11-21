@@ -1,0 +1,28 @@
+{
+  "call": "repos/example-test/comptoir/pulls/57/commits?per_page=100&page=1",
+  "answer": [
+    {
+      "sha": "361ea4a04a0454bebc20b51706314d0868ceb6c1",
+      "html_url": "https://github.com/example-test/comptoir/commit/361ea4a04a0454bebc20b51706314d0868ceb6c1",
+      "commit": {
+        "message": "refactor: name the billing logger",
+        "author": {
+          "name": "cmartin",
+          "date": "2026-11-10T15:55:00Z"
+        },
+        "committer": {
+          "name": "cmartin",
+          "date": "2026-11-10T15:55:00Z"
+        }
+      },
+      "author": {
+        "login": "cmartin"
+      },
+      "parents": [
+        {
+          "sha": "c9a9c292dbd1a13db5e58ab07c782d7fb106c0bb"
+        }
+      ]
+    }
+  ]
+}

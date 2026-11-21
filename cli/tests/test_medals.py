@@ -7,13 +7,15 @@ import io
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import harness  # noqa: E402
-from harnesslib import medals  # noqa: E402
+from harnesslib import facts, maturity, medals  # noqa: E402
 
 AGENTS = """# demo — instructions for agents
 
@@ -219,6 +221,94 @@ class NoSourceTests(RepoCase):
         self.assertTrue(by_id["B.targets"]["passed"])
 
 
+class TargetTests(RepoCase):
+    """A level is a place where one can stay: at the target, medals proposes nothing more and makes
+    the same one-line offer as the map (`status --map`)."""
+
+    def target(self, level: int) -> None:
+        self.write("AGENTS.md", AGENTS)
+        self.write(".harness/config.json", json.dumps({"target_level": level}))
+
+    def test_target_reached_gives_no_next_step_beyond_it(self):
+        self.target(1)
+        data = medals.build(medals.evaluate_repo(self.repo))
+        self.assertEqual(data["medal"]["id"], "bronze")
+        self.assertEqual(data["next"], [])
+        code, out = self.run_cli()
+        self.assertEqual(code, 0)
+        self.assertNotIn("## Next steps", out)
+        self.assertNotIn("harness-harvest", out)
+
+    def test_target_reached_makes_the_offer_of_the_map(self):
+        self.target(1)
+        data = medals.build(medals.evaluate_repo(self.repo))
+        self.assertIn("level 2 (Looped) would bring this", data["offer"])
+        self.assertIn("It is your choice.", data["offer"])
+        shown = maturity.render_map(maturity.evaluate(facts.collect(self.repo)))
+        self.assertIn(data["offer"][1:], shown)                 # the same sentence, capital apart
+        _, out = self.run_cli()
+        self.assertIn("## Target reached\n" + data["offer"], out)
+
+    def test_a_target_above_the_rank_keeps_the_steps_towards_it(self):
+        self.target(2)
+        data = medals.build(medals.evaluate_repo(self.repo))
+        self.assertIsNone(data["offer"])
+        self.assertTrue(data["next"])
+        self.assertTrue(all(s["id"].startswith("L2.") for s in data["next"]), data["next"])
+
+    def test_without_a_target_the_next_rank_is_still_proposed(self):
+        self.write("AGENTS.md", AGENTS)
+        data = medals.build(medals.evaluate_repo(self.repo))
+        self.assertIsNone(data["offer"])
+        self.assertTrue(data["next"])
+        self.assertIn("## Next steps", medals.render_md(data))
+
+    def test_a_marketplace_has_no_target_and_keeps_its_steps(self):
+        data = medals.build(medals.evaluate_marketplace(self.repo))
+        self.assertIsNone(data["offer"])
+        self.assertTrue(data["next"])
+
+
+class PlainWordsTests(RepoCase):
+    """The text speaks like the map: no check id, signal code or priority code; ids stay in the JSON."""
+
+    def test_the_next_steps_are_the_plain_phrases_of_the_map(self):
+        self.write("AGENTS.md", AGENTS)
+        data = medals.build(medals.evaluate_repo(self.repo))
+        self.assertTrue(data["next"])
+        for step in data["next"]:
+            with self.subTest(step=step["id"]):
+                plain = maturity.CHECK_PLAIN[step["id"]][1]
+                self.assertEqual(step["action"], plain[0].upper() + plain[1:] + ".")
+        self.assertTrue(any(s["waiting"] for s in data["next"]))
+
+    def test_every_missing_achievement_of_a_rank_says_its_step_in_plain_words(self):
+        self.write("AGENTS.md", AGENTS)
+        found = medals.evaluate_repo(self.repo)
+        missing = [s for s in found["successes"] if s["tier"] != "bonus" and not s["passed"]]
+        self.assertTrue(missing)
+        for s in missing:
+            with self.subTest(achievement=s["id"]):
+                self.assertNotRegex(s["next"], r"\bL\d\b|\bS\d\b|\bP\d")
+                self.assertIn(maturity.CHECK_PLAIN[s["id"]][1][1:], s["next"])
+
+    def test_no_id_or_code_reaches_the_text(self):
+        for name, files in (("no file", {}), ("level 1", {"AGENTS.md": AGENTS})):
+            with self.subTest(repo=name):
+                for rel, text in files.items():
+                    self.write(rel, text)
+                code, out = self.run_cli()
+                self.assertEqual(code, 0)
+                self.assertNotRegex(out, r"\bL\d\.|\bL\d\b|\bS\d\b|\bP\d\b")
+
+    def test_the_ids_stay_in_the_json(self):
+        self.write("AGENTS.md", AGENTS)
+        _, out = self.run_cli("--format", "json")
+        data = json.loads(out)
+        self.assertIn("L2.signal", [s["id"] for s in data["successes"]])
+        self.assertIn("L2.signal", [s["id"] for s in data["next"]])
+
+
 class MarketplaceTests(RepoCase):
     def plugin(self, description: str) -> None:
         self.write(".claude-plugin/marketplace.json", json.dumps({"name": "demo", "plugins": [{"name": "p", "source": "./p"}]}))
@@ -307,6 +397,67 @@ class PageTests(RepoCase):
     def test_the_same_data_gives_the_same_page(self):
         data = medals.build(evaluated({"A1": True, "B1": False}))
         self.assertEqual(medals.render_html(data), medals.render_html(json.loads(json.dumps(data))))
+
+
+# A stand-in for the browser, just enough for the page's script: it lays the page out, then prints its text.
+PAGE_DOM = r"""
+const make = (tag) => ({ tag, kids: [], dataset: {}, textContent: "", style: { setProperty() {} },
+  setAttribute() {}, addEventListener() {}, querySelectorAll() { return []; },
+  append(...kids) { this.kids.push(...kids); }, replaceChildren(...kids) { this.kids = kids; } });
+const byId = { "medals-data": { textContent: process.argv[2] }, app: make("main"), detail: make("dialog") };
+globalThis.document = { documentElement: make("html"), createElement: make, getElementById: (id) => byId[id] };
+const text = (node) => (typeof node === "string" ? node : [node.textContent, ...node.kids.map(text)].join("\n"));
+eval(process.argv[1]);
+console.log(text(byId.app));
+"""
+
+
+class PageTargetTests(RepoCase):
+    """The page says what the text says: at the target, the offer of the map, and no step towards a rank."""
+
+    def shown(self, data: dict) -> str:
+        script = re.findall(r"<script>(.*?)</script>", medals.render_html(data), re.DOTALL)[-1]
+        # No way out: without node these tests fail, they never pass by not looking at the page.
+        self.assertIsNotNone(shutil.which("node"), "node is needed to run the page's script: these tests do not hide")
+        done = subprocess.run(["node", "-e", PAGE_DOM, "--", script, json.dumps(data)],
+                              capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return done.stdout
+
+    def reached(self) -> dict:
+        self.write("AGENTS.md", AGENTS)
+        self.write(".harness/config.json", json.dumps({"target_level": 1}))
+        return medals.build(medals.evaluate_repo(self.repo))
+
+    def test_the_template_reads_the_offer(self):
+        with open(medals.TEMPLATE_FILE, encoding="utf-8") as fh:
+            template = fh.read()
+        self.assertTrue("data.offer" in template, "the page's script never reads the offer")
+        self.assertTrue("Target reached" in template, "the page's script never says the target is reached")
+
+    def test_target_reached_shows_the_offer_and_no_next_rank(self):
+        data = self.reached()
+        shown = self.shown(data)
+        self.assertIn("Target reached", shown)
+        self.assertIn(data["offer"], shown)
+        self.assertNotIn("Towards silver", shown)
+        self.assertNotIn("Nothing to do for the next rank.", shown)
+        self.assertNotIn("before the next rank", shown)
+
+    def test_without_a_target_the_page_keeps_the_steps_towards_the_next_rank(self):
+        self.write("AGENTS.md", AGENTS)
+        data = medals.build(medals.evaluate_repo(self.repo))
+        shown = self.shown(data)
+        self.assertIn("Towards silver", shown)
+        self.assertIn("before the next rank", shown)
+        self.assertIn(data["next"][0]["action"], shown)
+        self.assertNotIn("Target reached", shown)
+
+    def test_a_medals_file_written_before_the_offer_still_shows(self):
+        self.write("AGENTS.md", AGENTS)
+        data = medals.build(medals.evaluate_repo(self.repo))
+        del data["offer"]
+        self.assertIn("Towards silver", self.shown(data))
 
 
 if __name__ == "__main__":

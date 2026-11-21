@@ -1,0 +1,32 @@
+{
+  "call": "repos/example-test/ledger/commits/1494a72a1942ed260e9996ce5fba2c1455f2b201",
+  "answer": {
+    "sha": "1494a72a1942ed260e9996ce5fba2c1455f2b201",
+    "html_url": "https://github.com/example-test/ledger/commit/1494a72a1942ed260e9996ce5fba2c1455f2b201",
+    "commit": {
+      "message": "docs: add ADR 0004 on pagination",
+      "author": {
+        "name": "sdiallo",
+        "date": "2026-11-05T08:00:00Z"
+      },
+      "committer": {
+        "name": "sdiallo",
+        "date": "2026-11-05T08:00:00Z"
+      }
+    },
+    "author": {
+      "login": "sdiallo"
+    },
+    "parents": [
+      {
+        "sha": "17c8dad1aac39574585b55cf8e8972f063a88df7"
+      }
+    ],
+    "files": [
+      {
+        "filename": "docs/adr/0004-pagination.md",
+        "status": "modified"
+      }
+    ]
+  }
+}

@@ -12,6 +12,7 @@ The gap between the arms is the proof that the harness helps, or that a line no 
   bench init <fixture>                    plays step 1 with a neutral agent, with the owner's answers
   bench selftest <fixture>                is the task well posed? solution green, temptation red
   bench record … / bench report           the results registry, by skill, arm and model
+  bench report --facts                    the fact written nowhere else: its check by project and arm, exclusions named
 
 Only `play` and `init` start an agent, and always the same one: a separate process, confined to its working
 copy, that receives only the statement and loads only the repository's instructions. The rest prepares,
@@ -714,6 +715,107 @@ def render_report(rows: list[dict[str, Any]]) -> str:
     return "\n".join(out) + "\n"
 
 
+NOTE_LINE = re.compile(r"^- \[(x| )\] ([\w.-]+):", re.M)
+
+
+def _fact_check(fixture_dir: str, task_id: str) -> tuple[dict[str, Any] | None, list[str], str]:
+    """The check of a task that exercises the fact written nowhere else (the first one marked
+    `exercises`), the ids of its other hidden-test checks, and why there is none."""
+    try:
+        task = load_task(fixture_dir, task_id)
+    except (OSError, ValueError):
+        return None, [], f"no readable task.json for task `{task_id}` today"
+    marked = [c for c in task.get("checks", []) if c.get("exercises")]
+    if not marked:
+        return None, [], f"task `{task_id}` has no check that exercises a fact (`exercises`)"
+    return marked[0], [c["id"] for c in task["checks"] if c.get("acceptance") and c["id"] != marked[0]["id"]], ""
+
+
+def _arm_carries(fixture_dir: str, arm: str, fact_id: str) -> bool | None:
+    """Whether an arm hands the fact to the agent. `bare` has no instructions; `harness` lays the
+    harness meant to carry it; `asis` carries it only if the repository's own instructions write it.
+    None when that cannot be told (no words for the fact in expected.json)."""
+    if arm != "asis":
+        return arm == "harness"
+    expected = facts.load_json(os.path.join(fixture_dir, "expected.json")) or {}
+    words = [w.lower() for f in expected.get("init", {}).get("must_surface", [])
+             if f.get("id") == fact_id for w in f.get("only_in_instructions") or []]
+    if not words:
+        return None
+    corpus = "\n".join(facts.instruction_corpus(os.path.join(fixture_dir, "repo")).values()).lower()
+    return any(w in corpus for w in words)
+
+
+def _fact_outcome(row: dict[str, Any], root: str) -> dict[str, Any]:
+    """One task run seen through its fact check: `passed` True or False when it counts, else `reason`.
+    Reads the run's note.md, the grade as it was filed; never the registry's score, never rewritten."""
+    base = {"date": row.get("date"), "fixture": row["fixture"], "task": row.get("task"), "arm": row.get("arm"), "run": row.get("run")}
+    if not row.get("blind", True):
+        return {**base, "reason": "author run: a regression baseline, not a measurement"}
+    spec, hidden, why = _fact_check(resolve(row["fixture"]), row.get("task") or "")
+    if spec is None:
+        return {**base, "reason": why}
+    base = {**base, "check": spec["id"], "fact": spec["exercises"]}
+    if not row.get("run"):
+        return {**base, "reason": "no run folder recorded in the registry"}
+    note = facts._read(os.path.join(root, row["run"], "note.md"))
+    if note is None:
+        return {**base, "reason": "no note.md in the run folder"}
+    marks = {cid: mark == "x" for mark, cid in NOTE_LINE.findall(note)}
+    if spec["id"] not in marks:
+        return {**base, "reason": f"note.md has no line for `{spec['id']}`: played before this check, or its fact, existed"}
+    broken = [cid for cid in hidden if marks.get(cid) is False]
+    if not marks[spec["id"]] and broken:
+        return {**base, "reason": f"the work itself failed ({', '.join(broken)}): `{spec['id']}` fails with it "
+                                  "and tells nothing about the fact"}
+    return {**base, "passed": marks[spec["id"]]}
+
+
+def fact_view(rows: list[dict[str, Any]], root: str | None = None) -> dict[str, Any]:
+    """The central proof, from the registry: for each project and arm, how the check that exercises
+    the fact written nowhere else came out, over the task runs; the runs left out, each with its
+    reason; and the totals for the arms that carry the fact and those that do not."""
+    root = root or repo_root()
+    outcomes = [_fact_outcome(r, root) for r in rows if r.get("kind") == "task"]
+    cells: dict[tuple, dict[str, Any]] = {}
+    for o in outcomes:
+        if "passed" not in o:
+            continue
+        key = (o["fixture"], o["task"], ARMS.index(o["arm"]) if o["arm"] in ARMS else len(ARMS), o["arm"] or "")
+        if key not in cells:
+            cells[key] = {"fixture": o["fixture"], "task": o["task"], "check": o["check"], "fact": o["fact"],
+                          "arm": o["arm"], "carries": _arm_carries(resolve(o["fixture"]), o["arm"], o["fact"]),
+                          "passed": 0, "failed": 0, "runs": []}
+        cells[key]["passed" if o["passed"] else "failed"] += 1
+        cells[key]["runs"].append({"date": o["date"], "run": o["run"], "passed": o["passed"]})
+    ordered = [cells[k] for k in sorted(cells)]
+    totals = {side: {"passed": sum(c["passed"] for c in ordered if c["carries"] is flag),
+                     "failed": sum(c["failed"] for c in ordered if c["carries"] is flag)}
+              for side, flag in (("without", False), ("with", True))}
+    return {"task_runs": len(outcomes), "cells": ordered, "totals": totals,
+            "excluded": [o for o in outcomes if "passed" not in o]}
+
+
+def render_facts(view: dict[str, Any]) -> str:
+    counted = sum(c["passed"] + c["failed"] for c in view["cells"])
+    out = ["# The fact written nowhere else, by project and arm", "",
+           f"{view['task_runs']} task runs in the registry, {counted} counted, {len(view['excluded'])} excluded. "
+           "Read in each run's note.md: the check its task marks `exercises`. An arm carries the fact when it hands it "
+           "to the agent: `bare` never, `harness` by the harness it lays, `asis` when the repository's own instructions write it.", "",
+           "| Project | Task | Check | Fact | Arm | Carries the fact | Passed | Failed |", "|---|---|---|---|---|---|---|---|"]
+    said = {True: "yes", False: "no", None: "unknown"}
+    for c in view["cells"]:
+        out.append(f"| {c['fixture']} | {c['task']} | {c['check']} | {c['fact']} | {c['arm']} | {said[c['carries']]} | "
+                   f"{c['passed']} | {c['failed']} |")
+    without, with_ = view["totals"]["without"], view["totals"]["with"]
+    out += ["", f"Arms that do not carry the fact: {without['failed']} failed of {without['passed'] + without['failed']}.",
+            f"Arms that carry it: {with_['passed']} passed of {with_['passed'] + with_['failed']}.", "", "## Counted runs", ""]
+    out += [f"- {'passed' if r['passed'] else 'failed'} · {c['arm']} · {r['run']}" for c in view["cells"] for r in c["runs"]] or ["None."]
+    out += ["", "## Excluded runs", ""]
+    out += [f"- {e['arm']} · {e['run'] or e['fixture'] + ' ' + str(e['date'])}: {e['reason']}" for e in view["excluded"]] or ["None."]
+    return "\n".join(out) + "\n"
+
+
 def _thousands(n: int) -> str:
     return f"{n:,}"
 
@@ -795,6 +897,8 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     rp = sub.add_parser("report", help="the results registry")
     rp.add_argument("--format", choices=["md", "json"], default="md")
     rp.add_argument("--results", default=RESULTS)
+    rp.add_argument("--facts", action="store_true",
+                    help="per project and arm, the check that exercises the fact written nowhere else, and the runs left out")
     return p
 
 
@@ -880,6 +984,14 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
         return 0
     if cmd == "report":
         rows = load_results(args.results)
+        if args.facts:
+            view = fact_view(rows)
+            if args.format == "json":
+                json.dump(view, sys.stdout, ensure_ascii=False, indent=2)
+                sys.stdout.write("\n")
+            else:
+                sys.stdout.write(render_facts(view))
+            return 0
         if args.format == "json":
             json.dump(rows, sys.stdout, ensure_ascii=False, indent=2)
             sys.stdout.write("\n")

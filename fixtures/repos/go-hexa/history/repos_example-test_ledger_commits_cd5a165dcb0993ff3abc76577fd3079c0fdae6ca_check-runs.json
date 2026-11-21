@@ -1,0 +1,26 @@
+{
+  "call": "repos/example-test/ledger/commits/cd5a165dcb0993ff3abc76577fd3079c0fdae6ca/check-runs",
+  "answer": {
+    "total_count": 3,
+    "check_runs": [
+      {
+        "name": "test",
+        "conclusion": "success",
+        "completed_at": "2026-11-03T15:26:00Z",
+        "html_url": "https://github.com/example-test/ledger/actions/runs/4210"
+      },
+      {
+        "name": "arch",
+        "conclusion": "success",
+        "completed_at": "2026-11-03T15:23:00Z",
+        "html_url": "https://github.com/example-test/ledger/actions/runs/4211"
+      },
+      {
+        "name": "lint",
+        "conclusion": "failure",
+        "completed_at": "2026-11-03T15:24:00Z",
+        "html_url": "https://github.com/example-test/ledger/actions/runs/4212"
+      }
+    ]
+  }
+}

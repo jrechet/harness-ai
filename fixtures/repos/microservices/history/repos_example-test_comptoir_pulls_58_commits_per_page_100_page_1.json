@@ -1,0 +1,74 @@
+{
+  "call": "repos/example-test/comptoir/pulls/58/commits?per_page=100&page=1",
+  "answer": [
+    {
+      "sha": "3b3a536d44c36cac444f8b548cb64770f1b7b263",
+      "html_url": "https://github.com/example-test/comptoir/commit/3b3a536d44c36cac444f8b548cb64770f1b7b263",
+      "commit": {
+        "message": "Add due_date to the invoice.issued contract\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+        "author": {
+          "name": "ndubois",
+          "date": "2026-11-09T09:50:00Z"
+        },
+        "committer": {
+          "name": "ndubois",
+          "date": "2026-11-09T09:50:00Z"
+        }
+      },
+      "author": {
+        "login": "ndubois"
+      },
+      "parents": [
+        {
+          "sha": "75bd9c38ee9a0390b49847f31e1094540be2724e"
+        }
+      ]
+    },
+    {
+      "sha": "c2dea851c4ef1a0abd158cb206c09b4be8b2e46e",
+      "html_url": "https://github.com/example-test/comptoir/commit/c2dea851c4ef1a0abd158cb206c09b4be8b2e46e",
+      "commit": {
+        "message": "Publish due_date from billing\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+        "author": {
+          "name": "ndubois",
+          "date": "2026-11-09T09:55:00Z"
+        },
+        "committer": {
+          "name": "ndubois",
+          "date": "2026-11-09T09:55:00Z"
+        }
+      },
+      "author": {
+        "login": "ndubois"
+      },
+      "parents": [
+        {
+          "sha": "588aa67d74e90ee64c6d66e84003a51a0b7eccb6"
+        }
+      ]
+    },
+    {
+      "sha": "d9511a70b6f22328f13e7859c4b418259a946579",
+      "html_url": "https://github.com/example-test/comptoir/commit/d9511a70b6f22328f13e7859c4b418259a946579",
+      "commit": {
+        "message": "Cover the missing due date in the contract test\n\nCo-Authored-By: Claude <noreply@anthropic.com>",
+        "author": {
+          "name": "ndubois",
+          "date": "2026-11-10T11:00:00Z"
+        },
+        "committer": {
+          "name": "ndubois",
+          "date": "2026-11-10T11:00:00Z"
+        }
+      },
+      "author": {
+        "login": "ndubois"
+      },
+      "parents": [
+        {
+          "sha": "37fa1076f1b2de3bc84c45aaa05796ab9fd68715"
+        }
+      ]
+    }
+  ]
+}

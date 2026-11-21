@@ -190,6 +190,29 @@ class TargetLevelTests(TempRepo):
         self.assertEqual(s["waiting"], ["L2.signal"])
         self.assertEqual(s["next_actions"], [])
 
+    def test_the_waiting_section_speaks_in_plain_words_and_shows_no_check_id(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1 + "\n## Maintaining this file\n"
+              "- A review comment that starts with `rule:` is a candidate rule.\n"
+              f"<!-- harvest: last={TODAY.isoformat()} ref=init -->\n")
+        write(self.repo, ".github/workflows/ci.yml", "on: push\njobs:\n  test:\n    runs-on: x\n    steps:\n      - run: make test\n")
+        write(self.repo, ".harness/config.json", json.dumps({"target_level": 3}))
+        s = self.state()
+        self.assertEqual(s["waiting"], ["L2.signal"])            # the id stays in the JSON
+        md = maturity.render_markdown(s)
+        waiting = md.split("## Waiting\n")[1].split("\n## ")[0]
+        self.assertIn(maturity.CHECK_PLAIN["L2.signal"][0], waiting)
+        self.assertIn("only time", waiting.lower())
+        self.assertNotRegex(md, r"\bL\d\.\w")
+        self.assertNotRegex(md, r"\bS\d\b|\bP\d")
+
+    def test_no_next_action_or_label_carries_a_layer_or_signal_code(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        s = self.state()
+        for level in s["levels"]:
+            for c in level["checks"]:
+                with self.subTest(check=c["id"]):
+                    self.assertNotRegex(f"{c['label']} {c['next_action'] or ''}", r"\bL\d\b|\bS\d\b|\bP\d")
+
     def test_invalid_target_is_ignored(self):
         write(self.repo, ".harness/config.json", json.dumps({"target_level": 9}))
         self.assertIsNone(self.state()["target"]["level"])

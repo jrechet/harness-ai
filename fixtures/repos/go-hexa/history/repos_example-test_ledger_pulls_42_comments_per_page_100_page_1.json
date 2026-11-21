@@ -1,0 +1,25 @@
+{
+  "call": "repos/example-test/ledger/pulls/42/comments?per_page=100&page=1",
+  "answer": [
+    {
+      "id": 4201,
+      "html_url": "https://github.com/example-test/ledger/pull/42#discussion_r4201",
+      "user": {
+        "login": "mlefevre"
+      },
+      "path": "internal/adapters/httpapi/server.go",
+      "created_at": "2026-11-03T14:40:00Z",
+      "body": "rule: a list endpoint is paginated with `limit` and `cursor`; it never returns a whole table.\n\nThis one answers every transfer of the account in one response."
+    },
+    {
+      "id": 4202,
+      "html_url": "https://github.com/example-test/ledger/pull/42#discussion_r4202",
+      "user": {
+        "login": "mlefevre"
+      },
+      "path": "internal/adapters/httpapi/server.go",
+      "created_at": "2026-11-03T14:42:00Z",
+      "body": "Nit: `h` could be named `handler` here."
+    }
+  ]
+}
