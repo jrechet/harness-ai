@@ -13,6 +13,11 @@ Transport: `gh api` (already authenticated on a dev machine and in
 Claude Code sessions). Errors go to stderr; the exit code is 2 if at
 least one source could not be read, 0 otherwise.
 
+Offline: `--record <dir>` writes each answer of `gh` to its own JSON file,
+`--from <dir>` reads them back instead of calling `gh`, with the same
+options. The window is recorded too (`_window.json`): a replay without
+`--since` takes it, whatever the day; a replay with another `--since` is refused.
+
 Example:
   python3 cli/harness.py harvest github --repo owner/repo --since 2026-10-08 \
       --agent-login claude --agent-branch-prefix claude/ --agents-md AGENTS.md
@@ -20,7 +25,9 @@ Example:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -37,18 +44,115 @@ class GhError(RuntimeError):
     pass
 
 
+class GhMissing(GhError):
+    """`gh` itself cannot be run: no call will ever answer, so nothing is harvested."""
+
+
+GH_MISSING = "gh is not installed or not on PATH"
+
+
+def call_url(path: str, params: dict[str, Any] | None = None) -> str:
+    """One call as `gh api` receives it: the path and its query."""
+    query = "&".join(f"{k}={v}" for k, v in (params or {}).items())
+    return f"{path}?{query}" if query else path
+
+
 def gh_api(path: str, params: dict[str, Any] | None = None) -> Any:
     """One `gh api` call, without pagination. Raises GhError if gh fails."""
-    query = "&".join(f"{k}={v}" for k, v in (params or {}).items())
-    url = f"{path}?{query}" if query else path
-    proc = subprocess.run(
-        ["gh", "api", "-H", "Accept: application/vnd.github+json", url],
-        capture_output=True,
-        text=True,
-    )
+    url = call_url(path, params)
+    try:
+        proc = subprocess.run(
+            ["gh", "api", "-H", "Accept: application/vnd.github+json", url],
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as exc:
+        raise GhMissing(GH_MISSING) from exc
     if proc.returncode != 0:
         raise GhError(proc.stderr.strip() or f"gh api {url} failed")
     return json.loads(proc.stdout or "null")
+
+
+RECORD_NAME_MAX = 150   # characters of the call kept in a file name, before the digest
+
+
+def record_name(url: str) -> str:
+    """The file that holds the answer to one call: the call itself, made a plain file name.
+    A call too long for a file name is cut and told apart by a digest."""
+    name = re.sub(r"[^A-Za-z0-9.-]+", "_", url).strip("_")
+    if len(name) > RECORD_NAME_MAX:
+        name = f"{name[:RECORD_NAME_MAX]}-{hashlib.sha256(url.encode('utf-8')).hexdigest()[:12]}"
+    return f"{name}.json"
+
+
+def recording(fetch: Fetcher, folder: str) -> Fetcher:
+    """Wraps `fetch`: each answer is also written to `folder`, one file per call, as
+    {"call": <path?query>, "answer": <what gh returned>}. A call that fails is not written."""
+    def fetch_and_record(path: str, params: dict[str, Any] | None = None) -> Any:
+        answer = fetch(path, params)
+        url = call_url(path, params)
+        with open(os.path.join(folder, record_name(url)), "w", encoding="utf-8") as fh:
+            json.dump({"call": url, "answer": answer}, fh, ensure_ascii=False, indent=2)
+            fh.write("\n")
+        return answer
+    return fetch_and_record
+
+
+def replaying(folder: str) -> Fetcher:
+    """A fetcher that never calls gh: it reads the files `recording` wrote. A call with no file,
+    or a file that answers another call, is an error: an answer that was not recorded is not empty."""
+    def fetch_recorded(path: str, params: dict[str, Any] | None = None) -> Any:
+        url = call_url(path, params)
+        name = record_name(url)
+        try:
+            with open(os.path.join(folder, name), encoding="utf-8") as fh:
+                recorded = json.load(fh)
+        except FileNotFoundError as exc:
+            raise GhError(f"no recorded answer in {folder} (expected {name})") from exc
+        except (OSError, ValueError) as exc:
+            raise GhError(f"{name} cannot be read: {exc}") from exc
+        if not isinstance(recorded, dict) or "answer" not in recorded or recorded.get("call") != url:
+            found = recorded.get("call") if isinstance(recorded, dict) else None
+            raise GhError(f"{name} does not answer this call (it holds {found!r})")
+        return recorded["answer"]
+    return fetch_recorded
+
+
+WINDOW_FILE = "_window.json"   # record_name never starts a name with "_": no call can take this one
+
+
+def write_window(folder: str, since: datetime) -> None:
+    """Keeps the start of the window next to the recorded answers: it shapes the calls and sorts
+    what they return, and by default it depends on the day of the recording."""
+    with open(os.path.join(folder, WINDOW_FILE), "w", encoding="utf-8") as fh:
+        json.dump({"since": since.strftime(ISO)}, fh, indent=2)
+        fh.write("\n")
+
+
+def read_window(folder: str) -> datetime | None:
+    """The start of the window `folder` was recorded with; None if the folder does not say.
+    A file that is there and cannot be understood is an error, not a missing one."""
+    try:
+        with open(os.path.join(folder, WINDOW_FILE), encoding="utf-8") as fh:
+            recorded = json.load(fh)
+        return datetime.strptime(recorded["since"], ISO).replace(tzinfo=timezone.utc)
+    except FileNotFoundError:
+        return None
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        raise GhError(f"{WINDOW_FILE} cannot be read: {exc!r}") from exc
+
+
+def replay_window(folder: str, asked: datetime | None) -> datetime:
+    """The window of a replay: the one of the recording. `asked` (--since) stands in for a
+    recording that kept none, and must agree with one that did."""
+    recorded = read_window(folder)
+    if recorded is None and asked is None:
+        raise GhError(f"{folder} does not say which window it was recorded with (no {WINDOW_FILE}): "
+                      "repeat the --since of the recording")
+    if recorded is not None and asked is not None and recorded != asked:
+        raise GhError(f"{folder} was recorded with --since {recorded.strftime(ISO)}, "
+                      f"not {asked.strftime(ISO)}: drop --since to replay it")
+    return recorded if recorded is not None else asked
 
 
 def paginate(fetch: Fetcher, path: str, params: dict[str, Any] | None = None,
@@ -259,6 +363,8 @@ class Harvester:
             if paginated:
                 return paginate(self.fetch, path, params, stop=stop)
             return self.fetch(path, params)
+        except GhMissing:
+            raise  # no source at all: an empty harvest would read as "nothing happened"
         except Exception as exc:  # noqa: BLE001 — we want to go on with what we have
             self.errors.append(f"{path}: {exc}")
             return default
@@ -363,6 +469,8 @@ class Harvester:
             when = parse_ts(((c.get("commit") or {}).get("committer") or {}).get("date"))
             if not when or msg.startswith("Merge pull request") or c.get("sha") in merged_shas:
                 continue
+            if is_merge_commit(c):
+                continue  # it brings in work done elsewhere: it corrects nothing by itself
             if self.markers.login_is_agent(author) or self.markers.message_is_agent(msg):
                 continue
             # revert ?
@@ -568,6 +676,18 @@ class Harvester:
         }
 
 
+# What git writes for a merge: of a branch, a remote-tracking branch, a commit, a tag.
+MERGE_MESSAGE = re.compile(r"^Merge (?:branch|branches|remote-tracking branch|commit|tag|pull request) ")
+
+
+def is_merge_commit(commit: dict) -> bool:
+    """True for a merge commit: two parents or more, or git's merge message when the answer
+    carries no parents."""
+    if len(commit.get("parents") or []) > 1:
+        return True
+    return bool(MERGE_MESSAGE.match((commit.get("commit") or {}).get("message") or ""))
+
+
 # Sections that hold no rule, in French and in English.
 NON_RULE_HEADINGS = re.compile(r"^#{1,6}\s+(maintenance|maintaining|t[âa]ches|tasks|delegated tasks|ce que fait|what this|"
                                r"installation|commandes|commands|processus|working process|workflow|"
@@ -678,6 +798,14 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     p.add_argument("--burst-minutes", type=int, default=60)
     p.add_argument("--max-prs", type=int, default=200)
     p.add_argument("--summary", action="store_true", help="prints the counters on stderr")
+    offline = p.add_mutually_exclusive_group()
+    offline.add_argument("--from", dest="replay_from", metavar="DIR",
+                         help="reads the recorded answers of gh in DIR (one JSON file per call) "
+                              "instead of calling gh; same options as the recording, "
+                              "except --since, which the recording remembers")
+    offline.add_argument("--record", metavar="DIR",
+                         help="also writes each answer of gh to DIR, one JSON file per call, "
+                              "and the window, for --from")
     return p
 
 
@@ -685,12 +813,38 @@ def main(argv: list[str] | None = None, fetch: Fetcher = gh_api,
          args: argparse.Namespace | None = None) -> int:
     if args is None:
         args = build_parser().parse_args(argv)
-    since_s = args.since or read_marker(args.agents_md)
-    if since_s:
-        since = datetime.strptime(since_s, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-    else:
-        since = datetime.now(timezone.utc) - timedelta(days=30)
+    replay_from, record = getattr(args, "replay_from", None), getattr(args, "record", None)
+    asked = datetime.strptime(args.since, "%Y-%m-%d").replace(tzinfo=timezone.utc) if args.since else None
+    since = None
+    if replay_from:
+        if not os.path.isdir(replay_from):
+            print(f"harness harvest github: --from {replay_from} is not a directory", file=sys.stderr)
+            return 2
+        try:
+            since = replay_window(replay_from, asked)
+        except GhError as exc:
+            print(f"harness harvest github: --from {exc}", file=sys.stderr)
+            return 2
+        fetch = replaying(replay_from)
+    elif record:
+        try:
+            os.makedirs(record, exist_ok=True)
+        except OSError as exc:
+            print(f"harness harvest github: --record {record} cannot be created: {exc}", file=sys.stderr)
+            return 2
+        fetch = recording(fetch, record)
+    marker = None if since or asked else read_marker(args.agents_md)
+    if since is None and (asked or marker):
+        since = asked or datetime.strptime(marker, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+    elif since is None:
+        since = (datetime.now(timezone.utc) - timedelta(days=30)).replace(microsecond=0)
         print("no --since and no earlier harvest marker (a ref=init marker does not count): 30-day window", file=sys.stderr)
+    if record:
+        try:
+            write_window(record, since)
+        except OSError as exc:
+            print(f"harness harvest github: --record {record} cannot be written: {exc}", file=sys.stderr)
+            return 2
     markers = AgentMarkers(
         logins=args.agent_login or ["claude", "github-actions[bot]"],
         branch_prefixes=args.agent_branch_prefix or ["claude/"],
@@ -702,7 +856,12 @@ def main(argv: list[str] | None = None, fetch: Fetcher = gh_api,
                   fix_window_hours=args.fix_window_hours, min_recurrence=args.min_recurrence,
                   min_task_count=args.min_task_count, burst_commits=args.burst_commits,
                   burst_minutes=args.burst_minutes, max_prs=args.max_prs, agents_md=args.agents_md)
-    result = h.run()
+    try:
+        result = h.run()
+    except GhMissing:
+        print(f"harness harvest github: {GH_MISSING}; nothing was harvested "
+              "(install gh, or replay recorded answers with --from <dir>)", file=sys.stderr)
+        return 2
     json.dump(result, sys.stdout, ensure_ascii=False, indent=2)
     sys.stdout.write("\n")
     if args.summary or result["errors"]:

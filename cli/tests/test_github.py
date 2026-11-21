@@ -6,9 +6,11 @@ from __future__ import annotations
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from contextlib import redirect_stderr, redirect_stdout
 from datetime import datetime, timezone
 
@@ -391,6 +393,280 @@ class CliTests(unittest.TestCase):
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             code = g.main(["--repo", REPO, "--since", "2026-10-01"], fetch=fake)
         self.assertEqual(code, 2)
+
+
+def build_tiny():
+    """The smallest repo that says three things: one `rule:` comment on a human PR, one fix after
+    the merge of an agent PR, and one merge commit on the same files that is not a fix."""
+    base = f"repos/{REPO}"
+    data = {base: {"default_branch": "main"}}
+    data[f"{base}/pulls"] = [
+        pr(1, "Add payment webhook", "alice", merged="2026-10-05T12:00:00Z"),
+        pr(2, "Add export endpoint", "claude", branch="claude/export", merged="2026-10-10T10:00:00Z", merge_sha="m2"),
+    ]
+    data[f"{base}/pulls/1/files"] = [{"filename": "src/payments/webhook.ts"}]
+    data[f"{base}/pulls/2/files"] = [{"filename": "src/api/export.ts"}]
+    data[f"{base}/pulls/1/comments"] = [comment(10, "rule: outgoing HTTP calls go through the client in src/http",
+                                                "alice", path="src/payments/webhook.ts")]
+    fix = commit("f1", "fix: export escapes commas", "bob", "2026-10-10T15:00:00Z")
+    merge = commit("g1", "Merge branch 'feat/import' into feat/all", "bob", "2026-10-10T16:00:00Z")
+    merge["parents"] = [{"sha": "p1"}, {"sha": "p2"}]
+    data[f"{base}/commits"] = [commit("m2", "Merge pull request #2", "claude", "2026-10-10T10:00:00Z"), fix, merge]
+    data[f"{base}/commits/f1"] = {**fix, "files": [{"filename": "src/api/export.ts"}]}
+    data[f"{base}/commits/g1"] = {**merge, "files": [{"filename": "src/api/export.ts"}]}
+    return data
+
+
+class MergeCommitTests(unittest.TestCase):
+    def fixes(self, data):
+        result, fake = run_harvester(data)
+        return [e for e in by_signal(result, "S2") if e["text"].startswith("Fix ")], fake
+
+    def test_a_merge_commit_is_not_an_after_the_fact_fix(self):
+        fixes, fake = self.fixes(build_tiny())
+        self.assertEqual([e["url"] for e in fixes], ["https://gh/commit/f1"])
+        self.assertNotIn(f"repos/{REPO}/commits/g1", fake.calls)   # not even read
+
+    def test_a_commit_with_two_parents_is_a_merge_whatever_its_message(self):
+        data = build_tiny()
+        data[f"repos/{REPO}/commits"][2]["commit"]["message"] = "Bring the import work in"
+        fixes, _ = self.fixes(data)
+        self.assertEqual([e["url"] for e in fixes], ["https://gh/commit/f1"])
+
+    def test_a_merge_message_is_a_merge_even_without_the_parents(self):
+        for message in ("Merge branch 'feat/import' into feat/all", "Merge remote-tracking branch 'origin/main'",
+                        "Merge commit 'abc1234'", "Merge tag 'v1.2'"):
+            with self.subTest(message=message):
+                data = build_tiny()
+                del data[f"repos/{REPO}/commits"][2]["parents"]
+                data[f"repos/{REPO}/commits"][2]["commit"]["message"] = message
+                fixes, _ = self.fixes(data)
+                self.assertEqual([e["url"] for e in fixes], ["https://gh/commit/f1"])
+
+    def test_a_fix_that_talks_about_a_merge_still_counts(self):
+        data = build_tiny()
+        data[f"repos/{REPO}/commits"][1]["commit"]["message"] = "fix: merge the two export paths"
+        fixes, _ = self.fixes(data)
+        self.assertEqual([e["url"] for e in fixes], ["https://gh/commit/f1"])
+
+
+class RecordReplayTests(unittest.TestCase):
+    ARGS = ["--repo", REPO, "--since", "2026-10-01", "--agent-login", "claude"]
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.dir.cleanup)
+        self.folder = os.path.join(self.dir.name, "recorded")
+
+    def run_main(self, argv, **kw):
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = g.main(argv, **kw)
+        return code, out.getvalue(), err.getvalue()
+
+    def record(self):
+        return self.run_main(self.ARGS + ["--record", self.folder], fetch=FakeGitHub(build_tiny()))
+
+    def test_record_writes_one_json_file_per_call(self):
+        fake = FakeGitHub(build_tiny())
+        code, _, _ = self.run_main(self.ARGS + ["--record", self.folder], fetch=fake)
+        self.assertEqual(code, 0)
+        self.assertIn(g.WINDOW_FILE, os.listdir(self.folder))   # the window is not a call: counted apart
+        names = sorted(n for n in os.listdir(self.folder) if n != g.WINDOW_FILE)
+        self.assertEqual(len(names), len(fake.calls))
+        self.assertTrue(all(n.endswith(".json") for n in names), names)
+        with open(os.path.join(self.folder, "repos_acme_app.json"), encoding="utf-8") as fh:
+            self.assertEqual(json.load(fh), {"call": "repos/acme/app", "answer": {"default_branch": "main"}})
+
+    def test_replay_gives_the_harvest_that_was_recorded_without_calling_gh(self):
+        code, recorded, _ = self.record()
+        self.assertEqual(code, 0)
+
+        def no_gh(path, params=None):
+            raise AssertionError(f"gh called for {path}")
+
+        code, replayed, err = self.run_main(self.ARGS + ["--from", self.folder], fetch=no_gh)
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(replayed), json.loads(recorded))
+
+    def test_the_tiny_recorded_folder_says_one_rule_one_fix_and_no_merge(self):
+        self.record()
+        code, out, err = self.run_main(self.ARGS + ["--from", self.folder])
+        self.assertEqual(code, 0, err)
+        result = json.loads(out)
+        self.assertEqual(result["errors"], [])
+        self.assertEqual(result["counts"], {"S1": 1, "S2": 1})
+        self.assertEqual(by_signal(result, "S2")[0]["url"], "https://gh/commit/f1")
+        self.assertFalse(any("Merge branch" in e["text"] for e in result["evidence"]))
+
+    def test_replay_works_without_gh_on_path(self):
+        self.record()
+        old = os.environ.get("PATH", "")
+        os.environ["PATH"] = self.dir.name
+        try:
+            code, out, err = self.run_main(self.ARGS + ["--from", self.folder])
+        finally:
+            os.environ["PATH"] = old
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(out)["counts"], {"S1": 1, "S2": 1})
+
+    def test_a_call_that_was_not_recorded_is_an_error_not_an_empty_answer(self):
+        self.record()
+        os.unlink(os.path.join(self.folder, g.record_name(f"repos/{REPO}/pulls/1/comments?per_page=100&page=1")))
+        code, out, err = self.run_main(self.ARGS + ["--from", self.folder])
+        self.assertEqual(code, 2)
+        self.assertIn("no recorded answer", err)
+        self.assertIn("pulls/1/comments", err)
+        self.assertEqual(json.loads(out)["counts"], {"S2": 1})
+
+    def test_a_file_that_answers_another_call_is_refused(self):
+        self.record()
+        with open(os.path.join(self.folder, "repos_acme_app.json"), "w", encoding="utf-8") as fh:
+            json.dump({"call": "repos/other/app", "answer": {"default_branch": "trunk"}}, fh)
+        code, out, err = self.run_main(self.ARGS + ["--from", self.folder])
+        self.assertEqual(code, 2)
+        self.assertIn("repos/other/app", err)
+        self.assertEqual(json.loads(out)["default_branch"], "main")
+
+    def test_an_unreadable_recorded_file_is_an_error(self):
+        self.record()
+        with open(os.path.join(self.folder, "repos_acme_app.json"), "w", encoding="utf-8") as fh:
+            fh.write("{not json")
+        code, _, err = self.run_main(self.ARGS + ["--from", self.folder])
+        self.assertEqual(code, 2)
+        self.assertIn("repos_acme_app.json", err)
+
+    def test_from_a_folder_that_does_not_exist_prints_no_harvest(self):
+        code, out, err = self.run_main(self.ARGS + ["--from", os.path.join(self.dir.name, "nope")])
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertIn("is not a directory", err)
+
+    def test_from_and_record_together_are_refused(self):
+        err = io.StringIO()
+        with redirect_stderr(err), self.assertRaises(SystemExit) as ctx:
+            g.main(self.ARGS + ["--from", self.folder, "--record", self.folder])
+        self.assertEqual(ctx.exception.code, 2)
+        self.assertIn("not allowed with", err.getvalue())
+
+    def test_a_failed_call_is_not_recorded(self):
+        failing = f"repos/{REPO}/pulls/1/comments"
+        fake = FakeGitHub(build_tiny(), failing={failing})
+        code, _, _ = self.run_main(self.ARGS + ["--record", self.folder], fetch=fake)
+        self.assertEqual(code, 2)
+        self.assertNotIn(g.record_name(f"{failing}?per_page=100&page=1"), os.listdir(self.folder))
+
+    NO_SINCE = ["--repo", REPO, "--agent-login", "claude"]
+
+    def test_replay_without_since_takes_the_window_of_the_recording(self):
+        code, recorded, _ = self.record()
+        self.assertEqual(code, 0)
+        code, replayed, err = self.run_main(self.NO_SINCE + ["--from", self.folder])
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(replayed), json.loads(recorded))
+        self.assertEqual(json.loads(replayed)["since"], "2026-10-01")
+        self.assertNotIn("30-day window", err)
+
+    def test_record_writes_its_window_next_to_the_answers(self):
+        self.record()
+        with open(os.path.join(self.folder, g.WINDOW_FILE), encoding="utf-8") as fh:
+            self.assertEqual(json.load(fh), {"since": "2026-10-01T00:00:00Z"})
+        stem = g.WINDOW_FILE[:-len(".json")]
+        self.assertNotEqual(g.record_name(stem), g.WINDOW_FILE)   # no call can be named like it
+
+    def test_a_default_window_is_replayed_to_the_second(self):
+        fake = FakeGitHub(build_tiny())
+        code, _, _ = self.run_main(self.NO_SINCE + ["--record", self.folder], fetch=fake)
+        self.assertEqual(code, 0)
+        with open(os.path.join(self.folder, g.WINDOW_FILE), encoding="utf-8") as fh:
+            self.assertRegex(json.load(fh)["since"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+        with open(os.path.join(self.folder, g.WINDOW_FILE), "w", encoding="utf-8") as fh:
+            json.dump({"since": "2026-09-20T08:09:10Z"}, fh)   # as if recorded another day
+        seen = []
+
+        def spy(path, params=None):
+            seen.append((params or {}).get("since"))
+            return fake(path, params)
+
+        with mock.patch.object(g, "replaying", lambda folder: spy):
+            code, _, err = self.run_main(self.NO_SINCE + ["--from", self.folder])
+        self.assertEqual(code, 0, err)
+        self.assertIn("2026-09-20T08:09:10Z", seen)
+
+    def test_the_window_of_the_recording_wins_over_the_marker_of_agents_md(self):
+        self.record()
+        agents_md = os.path.join(self.dir.name, "AGENTS.md")
+        with open(agents_md, "w", encoding="utf-8") as fh:
+            fh.write("# Rules\n<!-- harvest: last=2026-10-09 ref=abc -->\n")
+        code, out, err = self.run_main(self.NO_SINCE + ["--agents-md", agents_md, "--from", self.folder])
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(out)["since"], "2026-10-01")
+
+    def test_replay_with_another_since_than_the_recording_is_refused(self):
+        self.record()
+        code, out, err = self.run_main(self.NO_SINCE + ["--since", "2026-10-02", "--from", self.folder])
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertIn("2026-10-01", err)
+        self.assertIn("2026-10-02", err)
+
+    def test_a_recording_without_its_window_still_replays_with_since(self):
+        self.record()
+        os.unlink(os.path.join(self.folder, g.WINDOW_FILE))
+        code, out, err = self.run_main(self.ARGS + ["--from", self.folder])
+        self.assertEqual(code, 0, err)
+        self.assertEqual(json.loads(out)["counts"], {"S1": 1, "S2": 1})
+
+    def test_a_recording_without_its_window_and_without_since_says_what_to_do(self):
+        self.record()
+        os.unlink(os.path.join(self.folder, g.WINDOW_FILE))
+        code, out, err = self.run_main(self.NO_SINCE + ["--from", self.folder])
+        self.assertEqual(code, 2)
+        self.assertEqual(out, "")
+        self.assertIn("--since", err)
+
+    def test_an_unreadable_window_file_is_an_error(self):
+        self.record()
+        for content in ("{not json", '{"since": "yesterday"}', "[]"):
+            with self.subTest(content=content):
+                with open(os.path.join(self.folder, g.WINDOW_FILE), "w", encoding="utf-8") as fh:
+                    fh.write(content)
+                code, out, err = self.run_main(self.NO_SINCE + ["--from", self.folder])
+                self.assertEqual(code, 2)
+                self.assertEqual(out, "")
+                self.assertIn(g.WINDOW_FILE, err)
+
+    def test_record_names_are_distinct_and_plain(self):
+        a = g.record_name("repos/acme/app/pulls?state=all&per_page=100&page=1")
+        b = g.record_name("repos/acme/app/pulls?state=all&per_page=100&page=2")
+        self.assertNotEqual(a, b)
+        self.assertRegex(a, r"^[A-Za-z0-9._-]+\.json$")
+        long = g.record_name("repos/acme/app/commits/" + "x" * 400)
+        self.assertLessEqual(len(long), 200)
+        self.assertNotEqual(long, g.record_name("repos/acme/app/commits/" + "x" * 399 + "y"))
+
+
+class GhMissingTests(unittest.TestCase):
+    def test_without_gh_the_command_says_so_and_prints_no_harvest(self):
+        with tempfile.TemporaryDirectory() as empty:
+            old = os.environ.get("PATH", "")
+            os.environ["PATH"] = empty
+            out, err = io.StringIO(), io.StringIO()
+            try:
+                with redirect_stdout(out), redirect_stderr(err):
+                    code = g.main(["--repo", REPO, "--since", "2026-10-01"])
+            finally:
+                os.environ["PATH"] = old
+        self.assertEqual(code, 2)
+        self.assertEqual(out.getvalue(), "")
+        self.assertEqual(err.getvalue().count("gh is not installed or not on PATH"), 1)
+
+    def test_the_harness_command_offers_from_and_record(self):
+        cli = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "harness.py")
+        proc = subprocess.run([sys.executable, cli, "harvest", "github", "--help"], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("--from", proc.stdout)
+        self.assertIn("--record", proc.stdout)
 
 
 if __name__ == "__main__":
