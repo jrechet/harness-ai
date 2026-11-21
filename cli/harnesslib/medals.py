@@ -35,6 +35,7 @@ LEGACY_IDS = {"aucune": "none", "argent": "silver", "or": "gold", "platine": "pl
 KINDS = ("repo", "marketplace")
 TEMPLATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "medals_template.html")
 MAX_SKILL_LINES = 500
+NOT_MEASURED = "not measured: no instruction file"
 # A skill description is written by its author, in French or in English: both are read.
 _TRIGGER = re.compile(r"(?<!ne pas )(?<!pas )\butiliser (?:dès|quand|pour|si|lorsque)|\bà utiliser\b|"
                       r"(?<!not )(?<!n't )\buse (?:(?:this|it|the skill) )?(?:when|for|whenever)\b", re.IGNORECASE)
@@ -66,7 +67,8 @@ def evaluate_repo(repo: str, today: date | None = None) -> dict[str, Any]:
     for level in state["levels"][1:]:
         medal = MEDALS[level["level"]]
         tiers.append({"id": medal["id"], "name": medal["name"], "title": level["name"], "promise": level["summary"]})
-        successes += [_success(c["id"], medal["id"], c["label"], c["passed"], _short(c.get("value")),
+        successes += [_success(c["id"], medal["id"], c["label"], c["passed"],
+                               maturity.WITH_FILE if c.get("follows") else _short(c.get("value")),
                                c.get("next_action"), c.get("waits", False)) for c in level["checks"]]
     source = state["facts"]["instructions"]["source"]
     total = source.get("rules_total") or 0
@@ -96,6 +98,9 @@ def evaluate_repo(repo: str, today: date | None = None) -> dict[str, Any]:
         ("B.target", "The target level is reached", bool(target.get("reached")),
          f"target: {target.get('name') or 'none'}", "Say where you stop with `harness target <level>`, then reach it."),
     ]
+    if not source.get("path"):      # nothing to read: not measured, rather than measured and failed
+        create = next(c["next_action"] for c in state["levels"][1]["checks"] if c["id"] == maturity.FOLLOWS_SOURCE)
+        bonus = [row if row[0] == "B.target" else (row[0], row[1], False, NOT_MEASURED, create) for row in bonus]
     successes += [_success(i, "bonus", t, p, e, a) for i, t, p, e, a in bonus]
     return {"kind": "repo", "name": os.path.basename(os.path.abspath(repo)), "date": state["date"],
             "rank": state["level"]["reached"], "tiers": tiers, "successes": successes}
@@ -290,13 +295,14 @@ def build(evaluated: dict[str, Any], previous: Any = None) -> dict[str, Any]:
         mine = [s for s in successes if s["tier"] == tier["id"]]
         tiers.append({**tier, "done": sum(bool(s["unlocked"]) for s in mine), "total": len(mine), "earned": index <= rank})
     upcoming = evaluated["tiers"][rank]["id"] if rank < len(evaluated["tiers"]) else None
-    steps = [{"id": s["id"], "title": s["title"], "action": s["next"], "waiting": s["waiting"]}
-             for s in successes if s["tier"] == upcoming and not s["unlocked"]]
+    missing = [s for s in successes if s["tier"] == upcoming and not s["unlocked"]]
+    # An achievement that comes with another one (no action of its own) is missing, but is not a step.
+    steps = [{"id": s["id"], "title": s["title"], "action": s["next"], "waiting": s["waiting"]} for s in missing if s["next"]]
     if rank and tiers:
         why = f"{medal['name']}: the {tiers[rank - 1]['total']} achievements of the \"{tiers[rank - 1]['title']}\" rank are unlocked"
-        why += f", and {len(steps)} missing for {MEDALS[rank + 1]['name'].lower()}." if upcoming else ". It is the last rank."
+        why += f", and {len(missing)} missing for {MEDALS[rank + 1]['name'].lower()}." if upcoming else ". It is the last rank."
     else:
-        why = f"No medal yet: {len(steps)} achievement(s) missing for bronze."
+        why = f"No medal yet: {len(missing)} achievement(s) missing for bronze."
     past = previous.get("history") if same else None
     history = [{"date": h["date"], "medal": LEGACY_IDS.get(h["medal"], h["medal"])} for h in (past if isinstance(past, list) else [])
                if isinstance(h, dict) and day(h.get("date")) and isinstance(h.get("medal"), str)]

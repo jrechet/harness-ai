@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -459,6 +460,67 @@ class BilingualTests(TempRepo):
         write(self.repo, "AGENTS.md", "# x\n\n## Maintaining this file\n- A comment `rule:` is a candidate.\n\n"
                                       "## Delegated tasks\n- `bump` — bump a dependency.\n")
         self.assertEqual(self.state()["facts"]["instructions"]["source"]["rules_total"], 0)
+
+
+class NoSourceTests(TempRepo):
+    """No instruction file at all: one thing is missing, the file. What the file would carry is not
+    reported as failed for a reason that is not true."""
+    WITH_FILE = {"L1.mode", "L1.short", "L1.single_source", "L1.forbidden"}
+
+    def test_only_the_file_is_missing_and_the_four_others_come_with_it(self):
+        s = self.state()
+        level1 = s["levels"][1]
+        self.assertEqual((s["level"]["reached"], level1["achieved"], level1["passed_checks"], level1["total_checks"]),
+                         (0, False, 0, 5))                              # the level computed does not move
+        self.assertIsNone(self.check(s, "L1.source").get("follows"))
+        self.assertIn("harness-init", self.check(s, "L1.source")["next_action"])
+        for cid in self.WITH_FILE:
+            with self.subTest(check=cid):
+                c = self.check(s, cid)
+                self.assertEqual((c["passed"], c["follows"], c["next_action"]), (False, "L1.source", None))
+
+    def test_there_is_one_next_action_and_it_is_the_file(self):
+        s = self.state()
+        self.assertEqual(len(s["next_actions"]), 1)
+        self.assertIn("harness-init", s["next_actions"][0])
+
+    def test_status_says_comes_with_the_file_and_no_false_reason(self):
+        md = maturity.render_markdown(self.state())
+        self.assertIn("- [ ] An instruction file exists (AGENTS.md) → Run harness-init", md)
+        self.assertIn("- [ ] CLAUDE.md is an @AGENTS.md stub (or absent) → comes with the instruction file", md)
+        self.assertEqual(md.count("→ comes with the instruction file"), 4)
+        for false_reason in ("Reduce CLAUDE.md", "Move the reference material", "Add the mode line", "Add the Forbidden section"):
+            self.assertNotIn(false_reason, md)
+        actions = md.split("## Next actions\n")[1].strip().splitlines()
+        self.assertEqual(len(actions), 1, actions)
+
+    def test_the_map_lists_one_missing_thing(self):
+        m = maturity.render_map(self.state())
+        needs = m.split("What level 1 still needs:\n")[1].split("Next step:")[0].strip().splitlines()
+        self.assertEqual(needs, ["- there is no instruction file (AGENTS.md) for the agent"])
+        self.assertNotIn("longer than", m)
+        self.assertNotIn("CLAUDE.md carries", m)
+        self.assertIn("Next step: write a short AGENTS.md", m)
+
+    def test_a_real_project_without_instruction_file_reads_the_same(self):
+        fixture = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "fixtures", "repos", "go-hexa", "repo")
+        shutil.copytree(fixture, self.repo, dirs_exist_ok=True)
+        s = self.state()
+        self.assertIsNone(s["facts"]["instructions"]["source"].get("path"))
+        self.assertEqual(len(s["next_actions"]), 1)
+        self.assertEqual(maturity.render_map(s).count("\n- "), 1)
+
+    def test_with_a_file_each_failed_check_keeps_its_own_reason(self):
+        write(self.repo, "AGENTS.md", "# x\n\n" + "\n".join(f"- line {i}" for i in range(80)))
+        s = self.state()
+        for cid in ("L1.mode", "L1.short", "L1.forbidden"):
+            with self.subTest(check=cid):
+                c = self.check(s, cid)
+                self.assertFalse(c["passed"])
+                self.assertIsNone(c.get("follows"))
+                self.assertTrue(c["next_action"])
+        self.assertIn("longer than", maturity.render_map(s))
+        self.assertEqual(len(s["next_actions"]), 3)
 
 
 class MapTests(TempRepo):

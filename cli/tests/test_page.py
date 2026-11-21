@@ -68,6 +68,34 @@ class DataTests(Case):
         self.assertEqual(data["steps"][0]["touch"], {"layer": "instructions", "path": "AGENTS.md", "effect": "add"})
         self.assertEqual([s["level"] for s in data["steps"]], sorted(s["level"] for s in data["steps"]))
 
+    def test_without_an_instruction_file_level_1_is_the_single_init_step(self):
+        data = self.build()
+        level1 = [s for s in data["steps"] if s["level"] == 1]
+        shown = [s for s in level1 if not s["follows"]]
+        self.assertEqual(len(shown), 1)
+        self.assertIn("write a short AGENTS.md", shown[0]["action"])
+        folded = [s for s in level1 if s["follows"]]
+        self.assertEqual(len(folded), 4)
+        for step in folded:
+            self.assertEqual((step["missing"], step["action"], step["touch"]),
+                             ("nothing to measure yet: there is no instruction file", "comes with the instruction file", None))
+        text = json.dumps(data["steps"])
+        for false_step in ("merge CLAUDE.md", "move reference material", "longer than"):
+            self.assertNotIn(false_step, text)
+        self.assertTrue(all(not s["follows"] for s in data["steps"] if s["level"] > 1))
+
+    def test_the_page_walks_only_the_steps_that_are_not_folded_into_another(self):
+        with open(page.TEMPLATE_FILE, encoding="utf-8") as fh:
+            script = fh.read()
+        self.assertIn("data.steps.filter((s) => !s.follows)", script)
+        self.assertNotRegex(script, r"data\.steps\.filter\(\(s\) => !?s\.in_scope\)")   # every walk starts from the unfolded steps
+
+    def test_with_an_instruction_file_no_step_is_folded(self):
+        write(self.repo, "AGENTS.md", "# demo\n")
+        data = self.build()
+        self.assertTrue(all(not s["follows"] for s in data["steps"]))
+        self.assertEqual(len([s for s in data["steps"] if s["level"] == 1]), 2)
+
     def test_the_files_found_are_shown_in_their_layer_and_a_stub_is_a_pointer(self):
         write(self.repo, "AGENTS.md", AGENTS)
         write(self.repo, "CLAUDE.md", "@AGENTS.md\n")
