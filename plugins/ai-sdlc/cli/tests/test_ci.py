@@ -277,5 +277,245 @@ class CliAndRepoTests(Case):
         self.assertTrue(run_lines and all("${{" not in line for line in run_lines))   # a branch name does not enter a shell line
 
 
+TICKET = "## Need\n" + "word " * 20 + "\n\n## Acceptance criteria\n1. Doubling 2 gives 4.\n2. Doubling 0 gives 0.\n"
+TESTS = ("import unittest\nfrom app.calc import double\n\n\nclass T(unittest.TestCase):\n"
+         "    def test_double(self):\n        self.assertEqual(double(2), 4)\n\n"
+         "    def test_double_of_zero(self):\n        self.assertEqual(double(0), 0)\n")
+TRACE = {"criteria": [{"criterion": 1, "tests": ["tests/test_calc.py::test_double"]},
+                      {"criterion": 2, "tests": ["tests/test_calc.py::test_double_of_zero"]}], "not_covered": []}
+
+
+def call(*argv: str) -> tuple[int, str, str]:
+    out, err = io.StringIO(), io.StringIO()
+    with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+        code = ai_sdlc.main(list(argv))
+    return code, out.getvalue(), err.getvalue()
+
+
+class CriteriaTests(Case):
+    """"One test per criterion" in the pipeline, from the two files /qa leaves: the accepted ticket and the trace."""
+
+    def setUp(self):
+        super().setUp()
+        self.write("tests/test_calc.py", TESTS)
+        self.commit()
+        self.ticket = self.outside("ticket.md", TICKET)
+        os.environ.pop("GITHUB_STEP_SUMMARY", None)   # never the summary of the job that runs this test
+
+    def outside(self, name: str, text: str) -> str:
+        path = os.path.join(self.tmp.name, name)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return path
+
+    def pr(self, *extra: str) -> tuple[int, str, str]:
+        return call("ci", "pr", self.repo, "--base", "main", *extra)
+
+    def test_the_criteria_gate_passes_from_the_ticket_and_trace_files(self):
+        code, out, _ = self.pr("--ticket", self.ticket, "--trace", self.outside("trace.json", json.dumps(TRACE)))
+        self.assertEqual(code, 0)
+        self.assertIn(f"**{qa.OK}** — Each acceptance criterion has its test (2 criteria out of 2)", out)
+        self.assertNotIn("neither the review", out)        # the criteria gate ran: only the review is left unclaimed
+        self.assertIn("do not run the review", out)
+
+    def test_the_criteria_gate_fails_from_files_and_blocks_the_merge(self):
+        cases = {"criterion 2 without a test": {"criteria": TRACE["criteria"][:1], "not_covered": []},
+                 "test_invented not found": {"criteria": [TRACE["criteria"][0], {"criterion": 2, "tests": ["tests/test_calc.py::test_invented"]}],
+                                             "not_covered": []}}
+        for said, trace in cases.items():
+            with self.subTest(said=said):
+                code, out, _ = self.pr("--ticket", self.ticket, "--trace", self.outside("trace.json", json.dumps(trace)))
+                self.assertEqual(code, 1)
+                self.assertIn(said, out)
+                self.assertIn("The merge is blocked", out)
+
+    def test_a_criterion_left_to_a_human_is_unmeasured_and_blocks_only_under_strict(self):
+        trace = {"criteria": TRACE["criteria"][:1], "not_covered": [{"criterion": 2, "reason": "checked by hand during acceptance testing"}]}
+        files = ("--ticket", self.ticket, "--trace", self.outside("trace.json", json.dumps(trace)))
+        result = ci.run(self.table, self.repo, "main", ticket_text=TICKET, mapping=trace)
+        self.assertIn("criteria", result["unknown"])
+        self.assertEqual(self.pr(*files)[0], 0)
+        self.assertEqual(self.pr(*files, "--strict")[0], 1)
+
+    def test_without_the_files_the_gate_is_not_run_and_the_summary_says_how_to_run_it(self):
+        result = ci.run(self.table, self.repo, "main")
+        self.assertNotIn("criteria", [g["id"] for g in result["gates"]])
+        text = ci.render_md(result)
+        self.assertIn("neither the review", text)
+        self.assertIn("--ticket", text)
+        self.assertIn("--trace", text)
+
+    def test_one_file_without_the_other_or_an_unreadable_one_is_refused(self):
+        trace = self.outside("trace.json", json.dumps(TRACE))
+        for extra in (("--ticket", self.ticket), ("--trace", trace),
+                      ("--ticket", self.ticket, "--trace", self.outside("broken.json", "{")),
+                      ("--ticket", os.path.join(self.tmp.name, "absent.md"), "--trace", trace),
+                      ("--ticket", self.ticket, "--trace", self.outside("list.json", "[]"))):
+            with self.subTest(extra=[os.path.basename(e) for e in extra]):
+                code, out, err = self.pr(*extra)
+                self.assertEqual(code, 2)
+                self.assertEqual(out, "")
+                self.assertIn("ai-sdlc:", err)
+
+    def test_a_ticket_inside_the_checked_out_repository_is_refused(self):
+        # a file of the checkout is a file the pull request can rewrite: it is not the accepted ticket
+        trace = self.outside("trace.json", json.dumps(TRACE))
+        self.write("docs/ticket.md", TICKET)
+        untracked = os.path.join(self.repo, "docs", "ticket.md")
+        self.write("tickets/118.md", TICKET)
+        git(self.repo, "add", "tickets/118.md")
+        git(self.repo, "commit", "-q", "-m", "the ticket, carried by the pull request")
+        link = os.path.join(self.tmp.name, "link.md")       # outside by its name, inside by what it points to
+        os.symlink(untracked, link)
+        door = os.path.join(self.repo, "door.md")           # inside by its name, outside by what it points to
+        os.symlink(self.ticket, door)
+        for said, path in {"untracked": untracked, "committed": os.path.join(self.repo, "tickets", "118.md"),
+                           "a link into the repository": link, "a link out of the repository": door,
+                           "dotted": os.path.join(self.repo, "app", "..", "docs", "ticket.md")}.items():
+            with self.subTest(said=said):
+                code, out, err = self.pr("--ticket", path, "--trace", trace)
+                self.assertEqual(code, 2)
+                self.assertEqual(out, "")
+                self.assertIn("ai-sdlc: --ticket", err)
+                self.assertIn("inside the checked-out repository", err)
+
+    def test_the_repository_is_the_whole_checkout_even_when_a_subfolder_is_given(self):
+        self.write("ticket.md", TICKET)
+        code, out, err = call("ci", "pr", os.path.join(self.repo, "app"), "--base", "main", "--ticket", os.path.join(self.repo, "ticket.md"),
+                              "--trace", self.outside("trace.json", json.dumps(TRACE)))
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("inside the checked-out repository", err)
+
+    def test_a_relative_ticket_path_is_judged_from_where_the_command_runs(self):
+        self.write("ticket.md", TICKET)
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.repo)
+        code, _, err = call("ci", "pr", ".", "--base", "main", "--ticket", "ticket.md", "--trace", self.outside("trace.json", json.dumps(TRACE)))
+        self.assertEqual(code, 2)
+        self.assertIn("inside the checked-out repository", err)
+
+    def test_the_summary_says_the_ticket_came_from_outside_the_checkout_and_no_more(self):
+        _, out, _ = self.pr("--ticket", self.ticket, "--trace", self.outside("trace.json", json.dumps(TRACE)))
+        self.assertIn("outside the checked-out repository", out)
+        self.assertIn("the pipeline's to guarantee", out)   # outside the checkout is not yet "the accepted one"
+
+
+class MainTests(unittest.TestCase):
+    """`ci main`: the prerequisites of a delivery, said on each push to the delivery branch."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.repo, remote = os.path.join(self.tmp.name, "repo"), os.path.join(self.tmp.name, "remote.git")
+        os.makedirs(self.repo)
+        git(self.tmp.name, "init", "-q", "--bare", "-b", "main", remote)
+        git(self.repo, "init", "-q", "-b", "main")
+        git(self.repo, "remote", "add", "origin", remote)
+        self.commit("app/a.py", "a = 1\n", "feat: first version")
+        git(self.repo, "tag", "v1.2.3")
+        self.commit("app/b.py", "b = 1\n", "fix: a rounding error")
+        git(self.repo, "push", "-q", "origin", "main")
+        git(self.repo, "fetch", "-q", "origin")
+        os.environ.pop("GITHUB_STEP_SUMMARY", None)   # never the summary of the job that runs this test
+
+    def write(self, rel: str, text: str) -> None:
+        path = os.path.join(self.repo, rel)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    def commit(self, rel: str, text: str, message: str) -> None:
+        self.write(rel, text)
+        git(self.repo, "add", "-A")
+        git(self.repo, "commit", "-q", "-m", message)
+
+    def checks(self, conclusion: str = "success") -> str:
+        path = os.path.join(self.tmp.name, f"{conclusion}.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump([{"name": "tests", "status": "completed", "conclusion": conclusion, "headSha": git(self.repo, "rev-parse", "HEAD")}], fh)
+        return path
+
+    def main(self, *extra: str) -> tuple[int, str, str]:
+        return call("ci", "main", self.repo, "--base", "origin/main", *extra)
+
+    def test_exit_codes_follow_the_prerequisites_of_ship_check(self):
+        code, out, _ = self.main("--checks", self.checks())
+        self.assertEqual(code, 0)
+        self.assertIn("### Delivery: the four prerequisites pass", out)
+        self.assertIn("Proposed version: v1.2.4", out)
+        self.assertIn("Nothing was tagged, pushed or deployed", out)
+        code, out, _ = self.main()                      # no CI report: unmeasured, said, not blocking
+        self.assertEqual(code, 0)
+        self.assertIn("1 prerequisite(s) for a human to clear", out)
+        code, out, _ = self.main("--strict")            # the repository requires every prerequisite cleared
+        self.assertEqual(code, 1)
+        self.assertIn("requires them cleared", out)
+        self.assertEqual(self.main("--checks", self.checks(), "--strict")[0], 0)
+        self.commit("app/c.py", "c = 1\n", "fix: not pushed")   # HEAD is no longer the head of the delivery branch
+        code, out, _ = self.main()
+        self.assertEqual(code, 1)
+        self.assertIn("Do not deliver", out)
+
+    def test_a_failed_check_of_the_commit_fails_the_job(self):
+        self.assertEqual(self.main("--checks", self.checks("failure"))[0], 1)
+
+    def test_the_pipeline_tools_left_beside_the_code_are_not_an_uncommitted_change(self):
+        self.write(".ai-sdlc/tool.py", "x = 1\n")       # the plugin fetched by the pipeline, untracked
+        self.assertEqual(self.main("--checks", self.checks())[0], 0)
+        self.assertEqual(call("ship", "check", self.repo, "--base", "origin/main", "--checks", self.checks())[0], 1)   # in a session it still counts
+        self.write("app/a.py", "a = 2\n")               # a tracked file changed by the job is not what was pushed
+        code, out, _ = self.main("--checks", self.checks())
+        self.assertEqual(code, 1)
+        self.assertIn("uncommitted", out)
+
+    def test_a_push_that_carries_nothing_since_the_last_version_passes_and_says_so(self):
+        git(self.repo, "tag", "v1.2.4")
+        code, out, _ = self.main()
+        self.assertEqual(code, 0)
+        self.assertIn("nothing to deliver", out)
+        self.assertEqual(self.main("--strict")[0], 0)
+        self.assertEqual(call("ship", "check", self.repo, "--base", "origin/main")[0], 2)   # `ship check` still refuses
+
+    def test_a_refusal_exits_2_and_the_summary_receives_the_report(self):
+        self.assertEqual(self.main("--since", "v9.9.9")[0], 2)
+        self.assertEqual(self.main("--checks", os.path.join(self.tmp.name, "absent.json"))[0], 2)
+        summary = os.path.join(self.tmp.name, "summary.md")
+        os.environ["GITHUB_STEP_SUMMARY"] = summary
+        self.addCleanup(os.environ.pop, "GITHUB_STEP_SUMMARY", None)
+        self.main("--checks", self.checks())
+        with open(summary, encoding="utf-8") as fh:
+            self.assertIn("### Delivery", fh.read())
+
+
+class TemplateTests(unittest.TestCase):
+    def setUp(self):
+        with open(os.path.join(ROOT, "plugins", "ai-sdlc", "ci", "gates.yml"), encoding="utf-8") as fh:
+            self.template = fh.read()
+
+    def test_the_template_says_what_stays_unmeasured_and_how_to_require_it(self):
+        strict = [line for line in self.template.splitlines() if "--strict" in line and "ai_sdlc.py ci pr" in line]
+        self.assertTrue(strict and all(line.lstrip().startswith("#") for line in strict))   # offered, commented: off as shipped
+        self.assertIn("no test is replayed", self.template)       # step 4 says what happens without a test command
+        self.assertIn("unmeasured", self.template)
+        self.assertIn("--ticket", self.template)
+        self.assertIn("--trace", self.template)
+
+    def test_the_ticket_example_fetches_the_ticket_outside_the_checkout_before_it_reads_it(self):
+        lines = self.template.splitlines()
+        fetch = [i for i, line in enumerate(lines) if '> "$RUNNER_TEMP/ticket.md"' in line]
+        read = [i for i, line in enumerate(lines) if '--ticket "$RUNNER_TEMP/ticket.md"' in line]
+        self.assertTrue(fetch and read)                      # the example shows where the file comes from, not only its path
+        self.assertTrue(all(lines[i].lstrip().startswith("#") for i in fetch + read))   # offered, commented: off as shipped
+        self.assertLess(fetch[0], read[0])
+        self.assertTrue(all("${{" not in lines[i] for i in fetch))   # no pull request text enters the shell line
+        self.assertIn("inside the checked-out repository is refused", self.template)
+
+    def test_the_template_runs_ci_main_on_a_push_and_no_branch_name_enters_a_shell_line(self):
+        self.assertIn("push:", self.template)
+        lines = [line for line in self.template.splitlines() if "ai_sdlc.py ci " in line]
+        self.assertTrue(any("ci main" in line and not line.lstrip().startswith("#") for line in lines))
+        self.assertTrue(all("${{" not in line for line in lines))
+
+
 if __name__ == "__main__":
     unittest.main()

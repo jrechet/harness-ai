@@ -15,7 +15,8 @@
   ai_sdlc.py ship render <proposal.json> [repo] [--base REF] [--checks checks.json]   the delivery proposal, if it holds
   ai_sdlc.py run changes [repo] --since REF [--until REF]   what shipped between two versions
   ai_sdlc.py run render <investigation.json> [repo] [--base REF] [--evidence file…]   the investigation of an incident, rendered as a ticket
-  ai_sdlc.py ci pr [repo] [--base REF] [--coverage F] [--report SARIF…] [--strict]   the gates of a pull request, for a pipeline
+  ai_sdlc.py ci pr [repo] [--base REF] [--coverage F] [--report SARIF…] [--ticket F --trace F] [--strict]   the gates of a pull request, for a pipeline
+  ai_sdlc.py ci main [repo] [--base REF] [--since REF] [--checks checks.json] [--strict]   the prerequisites of a delivery, on a push to the delivery branch
   ai_sdlc.py guard check <command>   says whether a shell command delivers (tag, publish, deploy): 0 no, 1 yes
   ai_sdlc.py guard hook   the same check, as the plugin's PreToolUse hook (cli/guard_hook.py) does it: 2 refuses
   ai_sdlc.py fixture init <fixture> <dest>         mounts a fixture as a git repository: its base, and its trapped PR if it has one
@@ -33,7 +34,9 @@ invalid override in its table: it describes, it does not act as a gate. Its Lock
 whether the forge protects the base branch, requires a review and requires a check: read with `gh`, read-only,
 "unmeasured" when `gh` is missing or the forge is not GitHub. `review render`: 0 rendered, 2 refused
 (incomplete form, finding outside the diff). `ticket check`: 0 ready, 1 not ready, 2 unreadable. `ticket render`: 0 rendered, 2 refused. `qa gate`: 0 the four
-gates pass, 1 a gate failed, 3 nothing failed but a gate is unmeasured, 2 refused; `secu gate` and `ship check` follow the same codes. `fixture grade`: 0 compliant, 1 not compliant, 2 unreadable file.
+gates pass, 1 a gate failed, 3 nothing failed but a gate is unmeasured, 2 refused; `secu gate` and `ship check` follow the same codes.
+`ci pr` and `ci main`: 0 nothing failed (an unmeasured gate is said, and passes), 1 a gate failed, or is unmeasured under `--strict`,
+2 refused. `ci main` exits 0 when the push carries nothing since the last version. `fixture grade`: 0 compliant, 1 not compliant, 2 unreadable file.
 
 Python 3.10+, standard library only."""
 from __future__ import annotations
@@ -106,12 +109,19 @@ def build_parser() -> argparse.ArgumentParser:
     rnr = rn.add_parser("render", help="validates the investigation and renders it as a ticket")
     rnr.add_argument("file", help="the investigation in JSON")
     rnr.add_argument("--evidence", nargs="+", default=[], metavar="EVIDENCE", help="the quoted logs and exports, outside the repository")
-    cip = sub.add_parser("ci", help="the gates run by a pipeline").add_subparsers(dest="action", required=True)
-    cip = cip.add_parser("pr", help="security and tests of a pull request; 1 blocks the merge")
+    cis = sub.add_parser("ci", help="the gates run by a pipeline").add_subparsers(dest="action", required=True)
+    cip = cis.add_parser("pr", help="security and tests of a pull request; 1 blocks the merge")
     cip.add_argument("--coverage", metavar="FILE", help="an lcov or Cobertura report produced by the pipeline")
     cip.add_argument("--report", nargs="+", metavar="SARIF", default=[], help="the reports of the scanners run by the pipeline")
+    cip.add_argument("--ticket", metavar="FILE", help="the accepted ticket (or the text of the ticket), for \"one test per criterion\"; "
+                                                      "a file outside the checked-out repository; goes with --trace")
+    cip.add_argument("--trace", metavar="FILE", help="the criteria → tests mapping /qa leaves, in JSON; goes with --ticket")
     cip.add_argument("--strict", action="store_true", help="an unmeasured gate blocks too")
-    for sp in (ctx, status, render, sized, body, tck, opinion, gate, sgate, shp, shr, rnc, rnr, cip):
+    cim = cis.add_parser("main", help="the prerequisites of a delivery (ship check) on a push to the delivery branch; 1 fails the job")
+    cim.add_argument("--since", metavar="REF", help="the previous version (default: the highest merged X.Y.Z tag)")
+    cim.add_argument("--checks", metavar="FILE", help="the CI checks of the commit, in JSON (gh run list --commit … --json …)")
+    cim.add_argument("--strict", action="store_true", help="a prerequisite left to a human fails the job too")
+    for sp in (ctx, status, render, sized, body, tck, opinion, gate, sgate, shp, shr, rnc, rnr, cip, cim):
         sp.add_argument("repo", nargs="?", default=".")
         sp.add_argument("--base", default="origin/HEAD", help="base branch (default: origin/HEAD)")
         sp.add_argument("--format", choices=["md", "json"], default="md")
@@ -222,8 +232,15 @@ def main(argv: list[str] | None = None) -> int:
             data = qa.run_gates(table, args.repo, args.base, args.run, args.runs, args.coverage, ticket_text,
                                 review.load(args.trace) if args.trace else None)
             text, code = qa.render_md(data), 1 if data["failed"] else (3 if data["unknown"] else 0)
+        elif args.command == "ci" and args.action == "main":
+            data = ci.main(table, args.repo, args.base, args.since, review.load(args.checks) if args.checks else None, args.strict)
+            text, code = ci.render_main(data), 0 if data["pass"] else 1
+            ci.publish(text, dict(os.environ))
         elif args.command == "ci":
-            data = ci.run(table, args.repo, args.base, args.coverage, args.report, args.strict)
+            if (args.ticket is None) != (args.trace is None):
+                raise context.Refused("--ticket and --trace go together: the accepted ticket, and the criteria → tests mapping /qa leaves")
+            data = ci.run(table, args.repo, args.base, args.coverage, args.report, args.strict,
+                          ci.read_ticket(args.repo, args.ticket) if args.ticket else None, review.load(args.trace) if args.trace else None)
             text, code = ci.render_md(data), 0 if data["pass"] else 1
             ci.publish(text, dict(os.environ))
         elif args.command == "run":
