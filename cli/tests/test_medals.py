@@ -410,7 +410,6 @@ const text = (node) => (typeof node === "string" ? node : [node.textContent, ...
 eval(process.argv[1]);
 console.log(text(byId.app));
 """
-NEEDS_NODE = unittest.skipUnless(shutil.which("node"), "node is not installed: the page's script cannot be run")
 
 
 class PageTargetTests(RepoCase):
@@ -418,6 +417,8 @@ class PageTargetTests(RepoCase):
 
     def shown(self, data: dict) -> str:
         script = re.findall(r"<script>(.*?)</script>", medals.render_html(data), re.DOTALL)[-1]
+        # No way out: without node these tests fail, they never pass by not looking at the page.
+        self.assertIsNotNone(shutil.which("node"), "node is needed to run the page's script: these tests do not hide")
         done = subprocess.run(["node", "-e", PAGE_DOM, "--", script, json.dumps(data)],
                               capture_output=True, text=True, timeout=60)
         self.assertEqual(done.returncode, 0, done.stderr)
@@ -434,7 +435,6 @@ class PageTargetTests(RepoCase):
         self.assertTrue("data.offer" in template, "the page's script never reads the offer")
         self.assertTrue("Target reached" in template, "the page's script never says the target is reached")
 
-    @NEEDS_NODE
     def test_target_reached_shows_the_offer_and_no_next_rank(self):
         data = self.reached()
         shown = self.shown(data)
@@ -444,7 +444,6 @@ class PageTargetTests(RepoCase):
         self.assertNotIn("Nothing to do for the next rank.", shown)
         self.assertNotIn("before the next rank", shown)
 
-    @NEEDS_NODE
     def test_without_a_target_the_page_keeps_the_steps_towards_the_next_rank(self):
         self.write("AGENTS.md", AGENTS)
         data = medals.build(medals.evaluate_repo(self.repo))
@@ -454,7 +453,6 @@ class PageTargetTests(RepoCase):
         self.assertIn(data["next"][0]["action"], shown)
         self.assertNotIn("Target reached", shown)
 
-    @NEEDS_NODE
     def test_a_medals_file_written_before_the_offer_still_shows(self):
         self.write("AGENTS.md", AGENTS)
         data = medals.build(medals.evaluate_repo(self.repo))

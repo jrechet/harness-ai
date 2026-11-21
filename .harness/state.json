@@ -112,7 +112,7 @@
         },
         {
           "id": "L2.signal",
-          "label": "The last harvest found at least one real signal (S1–S4)",
+          "label": "The last harvest found at least one real signal: a review remark or a fixed agent change",
           "passed": false,
           "value": null,
           "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.",
@@ -144,7 +144,7 @@
           "label": "At least 50% of the rules are \"Enforced by\" a tool",
           "passed": false,
           "value": 0.12,
-          "next_action": "Push the narrated rules down to L3: custom lint, architecture test, PR check.",
+          "next_action": "Push the narrated rules down to a tool: custom lint, architecture test, PR check.",
           "waits": false
         },
         {
@@ -157,10 +157,10 @@
         },
         {
           "id": "L3.audit",
-          "label": "A harness-audit exists and has no open P1",
+          "label": "A harness-audit exists and has no urgent finding open",
           "passed": false,
           "value": null,
-          "next_action": "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s.",
+          "next_action": "Run harness-audit, write its JSON to .harness/audit.json, handle its urgent findings.",
           "waits": false
         }
       ],
@@ -203,7 +203,7 @@
           "label": "The last harvest sees agent PRs with no after-the-fact correction",
           "passed": false,
           "value": null,
-          "next_action": "Each after-the-fact correction (S2) is a missing rule or guardrail: handle them.",
+          "next_action": "Each after-the-fact correction on an agent PR is a missing rule or guardrail: handle them.",
           "waits": true
         },
         {
@@ -211,7 +211,7 @@
           "label": "The audit's \"cut the agent\" test passes",
           "passed": false,
           "value": null,
-          "next_action": "Push down to L3/L4 the steps that exist only in prompts.",
+          "next_action": "Move into scripts or CI the steps that exist only in prompts.",
           "waits": false
         }
       ],
@@ -242,8 +242,8 @@
     "hint": "Run harness-audit for a measured layer view."
   },
   "next_actions": [
-    "Push the narrated rules down to L3: custom lint, architecture test, PR check.",
-    "Run harness-audit, write its JSON to .harness/audit.json, handle the P1s."
+    "Push the narrated rules down to a tool: custom lint, architecture test, PR check.",
+    "Run harness-audit, write its JSON to .harness/audit.json, handle its urgent findings."
   ],
   "waiting": [
     "L2.signal"
