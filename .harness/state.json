@@ -104,7 +104,7 @@
         },
         {
           "id": "L2.marker_fresh",
-          "label": "A harvest ran less than 45 days ago",
+          "label": "The harvest marker is less than 45 days old",
           "passed": true,
           "value": 12,
           "next_action": null,
@@ -115,7 +115,7 @@
           "label": "The last harvest found at least one real signal: a review remark or a fixed agent change",
           "passed": false,
           "value": null,
-          "next_action": "Mark incidents in review with `rule:`; without a signal, the loop is not running yet.",
+          "next_action": "No harvest has run yet: run harness-harvest once, it says whether a signal is already there.",
           "waits": true
         }
       ],
