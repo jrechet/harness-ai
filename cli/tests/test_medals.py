@@ -7,6 +7,8 @@ import io
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -395,6 +397,69 @@ class PageTests(RepoCase):
     def test_the_same_data_gives_the_same_page(self):
         data = medals.build(evaluated({"A1": True, "B1": False}))
         self.assertEqual(medals.render_html(data), medals.render_html(json.loads(json.dumps(data))))
+
+
+# A stand-in for the browser, just enough for the page's script: it lays the page out, then prints its text.
+PAGE_DOM = r"""
+const make = (tag) => ({ tag, kids: [], dataset: {}, textContent: "", style: { setProperty() {} },
+  setAttribute() {}, addEventListener() {}, querySelectorAll() { return []; },
+  append(...kids) { this.kids.push(...kids); }, replaceChildren(...kids) { this.kids = kids; } });
+const byId = { "medals-data": { textContent: process.argv[2] }, app: make("main"), detail: make("dialog") };
+globalThis.document = { documentElement: make("html"), createElement: make, getElementById: (id) => byId[id] };
+const text = (node) => (typeof node === "string" ? node : [node.textContent, ...node.kids.map(text)].join("\n"));
+eval(process.argv[1]);
+console.log(text(byId.app));
+"""
+NEEDS_NODE = unittest.skipUnless(shutil.which("node"), "node is not installed: the page's script cannot be run")
+
+
+class PageTargetTests(RepoCase):
+    """The page says what the text says: at the target, the offer of the map, and no step towards a rank."""
+
+    def shown(self, data: dict) -> str:
+        script = re.findall(r"<script>(.*?)</script>", medals.render_html(data), re.DOTALL)[-1]
+        done = subprocess.run(["node", "-e", PAGE_DOM, "--", script, json.dumps(data)],
+                              capture_output=True, text=True, timeout=60)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        return done.stdout
+
+    def reached(self) -> dict:
+        self.write("AGENTS.md", AGENTS)
+        self.write(".harness/config.json", json.dumps({"target_level": 1}))
+        return medals.build(medals.evaluate_repo(self.repo))
+
+    def test_the_template_reads_the_offer(self):
+        with open(medals.TEMPLATE_FILE, encoding="utf-8") as fh:
+            template = fh.read()
+        self.assertTrue("data.offer" in template, "the page's script never reads the offer")
+        self.assertTrue("Target reached" in template, "the page's script never says the target is reached")
+
+    @NEEDS_NODE
+    def test_target_reached_shows_the_offer_and_no_next_rank(self):
+        data = self.reached()
+        shown = self.shown(data)
+        self.assertIn("Target reached", shown)
+        self.assertIn(data["offer"], shown)
+        self.assertNotIn("Towards silver", shown)
+        self.assertNotIn("Nothing to do for the next rank.", shown)
+        self.assertNotIn("before the next rank", shown)
+
+    @NEEDS_NODE
+    def test_without_a_target_the_page_keeps_the_steps_towards_the_next_rank(self):
+        self.write("AGENTS.md", AGENTS)
+        data = medals.build(medals.evaluate_repo(self.repo))
+        shown = self.shown(data)
+        self.assertIn("Towards silver", shown)
+        self.assertIn("before the next rank", shown)
+        self.assertIn(data["next"][0]["action"], shown)
+        self.assertNotIn("Target reached", shown)
+
+    @NEEDS_NODE
+    def test_a_medals_file_written_before_the_offer_still_shows(self):
+        self.write("AGENTS.md", AGENTS)
+        data = medals.build(medals.evaluate_repo(self.repo))
+        del data["offer"]
+        self.assertIn("Towards silver", self.shown(data))
 
 
 if __name__ == "__main__":
