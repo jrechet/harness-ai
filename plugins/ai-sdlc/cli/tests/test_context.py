@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import ai_sdlc  # noqa: E402
@@ -335,6 +336,9 @@ NOT_PROTECTED = (1, {"message": "Branch not protected", "status": "404"})
 FORBIDDEN = (1, {"message": "Not Found", "status": "404"})
 
 
+TOKENS = {"GH_TOKEN": "t-gh", "GITHUB_TOKEN": "t-github", "GH_ENTERPRISE_TOKEN": "t-ghe", "GITHUB_ENTERPRISE_TOKEN": "t-githube"}
+
+
 class LocksTests(RepoCase):
     """The forge locks the skills rely on, read through a fake `gh` that answers from canned files."""
 
@@ -474,6 +478,44 @@ class LocksTests(RepoCase):
         self.assertEqual(code, 0)
         self.assertIsInstance(json.loads(out), list)
         self.assertFalse(os.path.exists(self.calls))
+
+
+    # The host and the repository path come from .git/config, which a cloned repository controls.
+
+    def env_seen_by_gh(self) -> dict:
+        """Run `locks` against a `gh` that only records its environment, with every token variable set."""
+        seen = os.path.join(self.bin.name, "env")
+        path = os.path.join(self.bin.name, "gh")
+        write(self.bin.name, "gh", f'#!/bin/sh\nenv > "{seen}"\nexit 1\n')
+        os.chmod(path, 0o755)
+        context.GH = path
+        with unittest.mock.patch.dict(os.environ, TOKENS):
+            context.locks(self.repo, "main")
+        with open(seen, encoding="utf-8") as fh:
+            return dict(line.split("=", 1) for line in fh.read().splitlines() if "=" in line)
+
+    def test_no_token_of_the_environment_is_handed_to_gh_for_a_host_that_is_not_github_com(self):
+        for url in ("https://evil.example/x/y", "git@github.com.evil.example:x/y.git", "https://tenant.ghe.com/x/y"):
+            with self.subTest(url=url):
+                git(self.repo, "remote", "set-url", "origin", url)
+                env = self.env_seen_by_gh()
+                self.assertEqual([name for name in TOKENS if name in env], [])
+                self.assertEqual(env.get("GH_PROMPT_DISABLED"), "1")
+
+    def test_github_com_keeps_its_own_token_and_never_gets_the_enterprise_ones(self):
+        env = self.env_seen_by_gh()
+        self.assertEqual(sorted(name for name in TOKENS if name in env), ["GH_TOKEN", "GITHUB_TOKEN"])
+
+    def test_an_owner_or_a_name_made_of_dots_is_unmeasured_and_gh_is_not_called(self):
+        self.fake_gh(branch=BRANCH_PROTECTED, protection=PROTECTION, rules=[])
+        for url in ("https://github.com/../app.git", "https://github.com/acme/..", "git@github.com:./app.git",
+                    "https://github.com/acme/..git"):
+            with self.subTest(url=url):
+                git(self.repo, "remote", "set-url", "origin", url)
+                locks = context.locks(self.repo, "main")
+                self.assertFalse(locks["measured"])
+                self.assertIn("remote", locks["reason"])
+                self.assertFalse(os.path.exists(self.calls))
 
 
 if __name__ == "__main__":

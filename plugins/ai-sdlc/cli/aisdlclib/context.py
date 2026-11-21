@@ -231,13 +231,25 @@ GH = "gh"          # the GitHub CLI; a test points it at a fake
 GH_TIMEOUT = 20    # seconds per request: a description must not hang on a slow network
 REMOTE_URL = re.compile(r"^(?:[a-z+]+://)?(?:[^@/]+@)?(?P<host>[A-Za-z0-9.-]+)(?::\d+)?[:/]"
                         r"(?P<owner>[A-Za-z0-9_.-]+)/(?P<name>[A-Za-z0-9_.-]+?)(?:\.git)?/?$")
+GITHUB_COM_TOKENS = ("GH_TOKEN", "GITHUB_TOKEN")
+TOKEN_VARIABLES = (*GITHUB_COM_TOKENS, "GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN")
 BRANCH_NAME = re.compile(r"[A-Za-z0-9_./-]+")   # what goes into the request path: no query, no escape
+
+
+def _gh_env(host: str) -> dict[str, str]:
+    """The environment `gh` runs in. The host comes from .git/config, which a cloned repository controls,
+    and `gh` sends a token of the environment to whatever host it is given: GH_ENTERPRISE_TOKEN to any host
+    that is not github.com. So a token of the environment only goes to github.com; any other host is read
+    with the credentials `gh auth login` stored for that very host, or not at all."""
+    kept = GITHUB_COM_TOKENS if host.lower() == "github.com" else ()
+    env = {key: value for key, value in os.environ.items() if key not in TOKEN_VARIABLES or key in kept}
+    return {**env, "GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1"}
 
 
 def _gh_get(host: str, path: str) -> tuple[int, Any]:
     """One GET on the forge's API: the exit code of `gh` and the JSON it printed (None if it is not JSON).
     OSError if `gh` is not installed."""
-    env = {**os.environ, "GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1"}
+    env = _gh_env(host)
     try:
         out = subprocess.run([GH, "api", "--method", "GET", "--hostname", host, path],
                              capture_output=True, timeout=GH_TIMEOUT, env=env, stdin=subprocess.DEVNULL)
@@ -322,7 +334,8 @@ def locks(repo: str, base: str) -> dict[str, Any]:
     except Refused as exc:
         return {**result, "reason": str(exc)}
     url = REMOTE_URL.match(out.decode("utf-8", "replace").strip()) if code == 0 else None
-    if not url or not BRANCH_NAME.fullmatch(branch):
+    # An owner or a name made of dots would walk the request path somewhere else on the API.
+    if not url or {url["owner"], url["name"]} & {".", ".."} or not BRANCH_NAME.fullmatch(branch):
         return {**result, "reason": f"the remote {remote} or the branch name cannot be turned into a forge request"}
     host, slug = url["host"], f"{url['owner']}/{url['name']}"
     result = {**result, "branch": branch, "repository": f"{host}/{slug}"}
