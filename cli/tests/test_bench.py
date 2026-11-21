@@ -665,6 +665,154 @@ class EvidencePathTests(unittest.TestCase):
         self.assertEqual(self.missing(text), [])
 
 
+class FactReportTests(BenchCase):
+    """`bench report --facts`: the check that exercises the fact written nowhere else, read in each
+    task run's note.md, counted by project and by arm, with every left-out run named."""
+    FACT_TASK = {"id": "hdr", "statement": "task.md", "checks": [
+        {"id": "tests", "what": "the tests pass", "run": "true"},
+        {"id": "acceptance", "what": "the endpoint answers", "run": "true", "acceptance": True},
+        {"id": "header", "what": "the header is set", "run": "true", "acceptance": True, "exercises": "I1"},
+        {"id": "own_test", "what": "a test written", "require_added": {"paths": "x", "pattern": "x"}}]}
+
+    def setUp(self):
+        super().setUp()
+        write(self.fx, "tasks/hdr/task.json", json.dumps(self.FACT_TASK))
+        write(self.fx, "expected.json", json.dumps({"fixture": "demo", "status": {}, "init": {"must_surface": [
+            {"id": "I1", "only_in_instructions": ["X-Secret-Header"]}]}}))
+        self.rows = []
+
+    def run_row(self, name, arm, marks, task="hdr", note=True, **extra):
+        """One registry row and its note.md; `marks` maps a check id to passed, in the note's format."""
+        rel = f"repos/demo/runs/{name}"
+        if note:
+            lines = [f"# Task demo/{task}: 0/0"]
+            for cid, passed in marks.items():
+                lines.append(f"- [{'x' if passed else ' '}] {cid}: what it checks" + ("" if passed else "\n      FAIL detail"))
+            write(self.tmp.name, f"{rel}/note.md", "\n".join(lines) + "\n")
+        row = {"date": name[:10], "kind": "task", "fixture": "demo", "task": task, "arm": arm, "score": "0/0",
+               "ok": False, "blind": True, "run": rel, "note": None, **extra}
+        self.rows.append(row)
+        return row
+
+    def view(self):
+        with mock.patch.object(fixtures, "FIXTURES_ROOT", self.root):
+            return bench.fact_view(self.rows, root=self.tmp.name)
+
+    ALL = {"tests": True, "acceptance": True, "header": True, "own_test": True}
+
+    def test_the_fact_check_is_counted_by_project_and_arm(self):
+        self.run_row("2026-01-02-bare", "bare", {**self.ALL, "header": False})
+        self.run_row("2026-01-03-bare", "bare", {**self.ALL, "header": False})
+        self.run_row("2026-01-02-harness", "harness", self.ALL)
+        view = self.view()
+        self.assertEqual(view["excluded"], [])
+        cells = {(c["fixture"], c["arm"]): c for c in view["cells"]}
+        self.assertEqual((cells[("demo", "bare")]["passed"], cells[("demo", "bare")]["failed"]), (0, 2))
+        self.assertEqual((cells[("demo", "harness")]["passed"], cells[("demo", "harness")]["failed"]), (1, 0))
+        self.assertEqual(cells[("demo", "bare")]["check"], "header")
+        self.assertEqual(cells[("demo", "bare")]["fact"], "I1")
+        self.assertFalse(cells[("demo", "bare")]["carries"])
+        self.assertTrue(cells[("demo", "harness")]["carries"])
+        self.assertEqual(view["totals"], {"without": {"passed": 0, "failed": 2}, "with": {"passed": 1, "failed": 0}})
+
+    def test_the_asis_arm_carries_the_fact_only_when_the_repository_instructions_write_it(self):
+        self.run_row("2026-01-02-asis", "asis", {**self.ALL, "header": False})
+        self.assertFalse(self.view()["cells"][0]["carries"])
+        write(self.fx, "repo/CLAUDE.md", "# notes\n- Replayed answers set x-secret-header.\n")
+        self.assertTrue(self.view()["cells"][0]["carries"])
+
+    def test_a_run_played_before_the_check_existed_is_excluded_and_named(self):
+        self.run_row("2026-01-01-bare", "bare", {"tests": True, "acceptance": True, "own_test": True})
+        view = self.view()
+        self.assertEqual(view["cells"], [])
+        self.assertEqual([(e["run"], e["arm"]) for e in view["excluded"]], [("repos/demo/runs/2026-01-01-bare", "bare")])
+        self.assertIn("header", view["excluded"][0]["reason"])
+        self.assertIn("before", view["excluded"][0]["reason"])
+
+    def test_a_run_whose_work_failed_is_excluded_the_fact_was_not_what_was_missing(self):
+        self.run_row("2026-01-04-harness", "harness", {**self.ALL, "acceptance": False, "header": False})
+        view = self.view()
+        self.assertEqual(view["cells"], [])
+        self.assertIn("acceptance", view["excluded"][0]["reason"])
+
+    def test_a_passed_fact_check_counts_even_when_another_check_failed(self):
+        self.run_row("2026-01-04-harness", "harness", {**self.ALL, "acceptance": False})
+        self.run_row("2026-01-05-bare", "bare", {**self.ALL, "header": False, "own_test": False})
+        view = self.view()
+        self.assertEqual(view["excluded"], [])
+        self.assertEqual(view["totals"], {"without": {"passed": 0, "failed": 1}, "with": {"passed": 1, "failed": 0}})
+
+    def test_runs_that_cannot_be_read_are_excluded_with_their_reason(self):
+        self.run_row("2026-01-02-bare", "bare", {}, note=False)
+        self.run_row("2026-01-03-bare", "bare", self.ALL, run=None)
+        self.run_row("2026-01-04-bare", "bare", self.ALL, blind=False)
+        self.run_row("2026-01-05-bare", "bare", self.ALL, task="sub")
+        self.run_row("2026-01-06-bare", "bare", self.ALL, task="gone")
+        self.rows.append({"date": "2026-01-07", "kind": "init", "fixture": "demo", "score": "1/1", "ok": True, "blind": True})
+        view = self.view()
+        self.assertEqual(view["cells"], [])
+        reasons = [e["reason"] for e in view["excluded"]]
+        self.assertEqual(len(reasons), 5, "an init row is not a task run: it is not even listed")
+        self.assertIn("note.md", reasons[0])
+        self.assertIn("no run folder", reasons[1])
+        self.assertIn("author", reasons[2])
+        self.assertIn("exercises", reasons[3])
+        self.assertIn("task.json", reasons[4])
+
+    def test_the_view_is_rendered_with_counts_totals_and_exclusions(self):
+        self.run_row("2026-01-02-bare", "bare", {**self.ALL, "header": False})
+        self.run_row("2026-01-02-harness", "harness", self.ALL)
+        self.run_row("2026-01-01-bare", "bare", {"tests": True})
+        text = bench.render_facts(self.view())
+        self.assertIn("| demo | hdr | header | I1 | bare | no | 0 | 1 |", text)
+        self.assertIn("| demo | hdr | header | I1 | harness | yes | 1 | 0 |", text)
+        self.assertIn("Arms that do not carry the fact: 1 failed of 1.", text)
+        self.assertIn("Arms that carry it: 1 passed of 1.", text)
+        self.assertIn("3 task runs in the registry, 2 counted, 1 excluded", text)
+        self.assertIn("repos/demo/runs/2026-01-01-bare", text)
+
+    def test_no_recorded_score_is_touched_and_the_rows_are_not_mutated(self):
+        self.run_row("2026-01-02-bare", "bare", {**self.ALL, "header": False})
+        before = json.dumps(self.rows, sort_keys=True)
+        self.view()
+        self.assertEqual(json.dumps(self.rows, sort_keys=True), before)
+
+    def test_the_command_prints_the_view_in_both_formats(self):
+        import contextlib
+        import io
+        self.run_row("2026-01-02-bare", "bare", {**self.ALL, "header": False})
+        path = os.path.join(self.tmp.name, "results.jsonl")
+        for row in self.rows:
+            bench.record(row, path)
+        for fmt, expected in (("md", "| demo | hdr | header | I1 | bare | no | 0 | 1 |"), ("json", '"totals"')):
+            out = io.StringIO()
+            with mock.patch.object(fixtures, "FIXTURES_ROOT", self.root), \
+                    mock.patch.object(bench, "repo_root", lambda: self.tmp.name), contextlib.redirect_stdout(out):
+                self.assertEqual(bench.main(["report", "--facts", "--results", path, "--format", fmt]), 0)
+            self.assertIn(expected, out.getvalue())
+
+    def test_the_real_registry_is_read_without_error_and_every_task_run_is_accounted_for(self):
+        rows = bench.load_results()
+        view = bench.fact_view(rows)
+        tasks = [r for r in rows if r["kind"] == "task"]
+        self.assertTrue(tasks)
+        counted = sum(c["passed"] + c["failed"] for c in view["cells"])
+        self.assertEqual(counted + len(view["excluded"]), len(tasks))
+        self.assertTrue(bench.render_facts(view))
+
+    def test_the_requirements_cite_the_numbers_the_command_prints(self):
+        view = bench.fact_view(bench.load_results())
+        without, with_ = view["totals"]["without"], view["totals"]["with"]
+        counted = sum(c["passed"] + c["failed"] for c in view["cells"])
+        with open(os.path.join(bench.repo_root(), "docs", "requirements.md"), encoding="utf-8") as handle:
+            text = handle.read()
+        self.assertIn("bench report --facts", text)
+        for sentence in (f"{view['task_runs']} task runs, a single model; {counted} counted, {len(view['excluded'])} excluded",
+                         f"fail the fact check {without['failed']} times out of {without['passed'] + without['failed']}",
+                         f"pass it {with_['passed']} times out of {with_['passed'] + with_['failed']}"):
+            self.assertIn(sentence, text)
+
+
 @unittest.skipUnless(os.environ.get("HARNESS_SELFTEST"), "HARNESS_SELFTEST=1: replays the tasks of the real fixtures (go, npm)")
 class RealFixtureTaskTests(unittest.TestCase):
     def test_every_task_of_every_fixture_is_well_posed(self):
