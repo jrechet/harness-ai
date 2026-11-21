@@ -67,7 +67,7 @@ The base is the remote branch (`origin/main`), not the local branch: comparing `
 - **Zones**: for each file cited, the question is "how do we roll back?". Look for the answer in the repository (a plan in `docs/plans/`, a rollback script, a reverse migration). If it is not there, it is a question for a human, not something to invent.
 - **Breaking**: a commit without a readable type announces nothing. Read the diff of those, and write in `pending` what you saw there: it is an opinion to confirm, the prerequisite stays for a human to clear.
 
-The previous version is the highest `X.Y.Z` tag already in the history. If the team versions differently, give it with `--since <ref>`: the command will say so in its output, and will propose no number. It does not check that the commit arrived through a reviewed PR: the forge's branch protection enforces that.
+The previous version is the highest `X.Y.Z` tag already in the history. If the team versions differently, give it with `--since <ref>`: the command will say so in its output, and will propose no number. It does not check that the commit arrived through a reviewed PR: only the forge can enforce that, and whether it does is in the Locks section of `python3 "${CLAUDE_PLUGIN_ROOT}/cli/ai_sdlc.py" status . --base <remote delivery branch>`.
 
 ### 4. The release notes
 The command proposes notes sorted by type, drawn from the commit titles. They are material, not notes: rewrite them for someone who uses the product. What changes for them first, internal maintenance in one line or not at all. Breaking changes are not repeated in the notes: they have their own list, rendered just before. Add nothing that no commit carries.

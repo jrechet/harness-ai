@@ -325,5 +325,156 @@ class CliTests(RepoCase):
         self.assertEqual(len(json.loads(out)), len(points.load()["points"]))
 
 
+BRANCH_PROTECTED = {"name": "main", "protected": True, "protection": {
+    "enabled": True, "required_status_checks": {"enforcement_level": "non_admins", "contexts": ["ci"], "checks": []}}}
+BRANCH_OPEN = {"name": "main", "protected": False, "protection": {
+    "enabled": False, "required_status_checks": {"enforcement_level": "off", "contexts": [], "checks": []}}}
+PROTECTION = {"required_pull_request_reviews": {"required_approving_review_count": 1},
+              "required_status_checks": {"strict": True, "contexts": ["ci"], "checks": [{"context": "ci"}]}}
+NOT_PROTECTED = (1, {"message": "Branch not protected", "status": "404"})
+FORBIDDEN = (1, {"message": "Not Found", "status": "404"})
+
+
+class LocksTests(RepoCase):
+    """The forge locks the skills rely on, read through a fake `gh` that answers from canned files."""
+
+    def setUp(self):
+        super().setUp()
+        git(self.repo, "remote", "add", "origin", "https://github.com/acme/app.git")
+        self.bin = tempfile.TemporaryDirectory()
+        self.addCleanup(self.bin.cleanup)
+        self.calls = os.path.join(self.bin.name, "calls")
+        previous = context.GH
+        self.addCleanup(lambda: setattr(context, "GH", previous))
+
+    def fake_gh(self, branch=FORBIDDEN, protection=FORBIDDEN, rules=FORBIDDEN) -> None:
+        """A `gh` that answers the three endpoints the command reads: (exit code, JSON body) each."""
+        cases = []
+        for name, pattern, answer in (("protection", "*/protection", protection), ("rules", "*/rules/branches/*", rules),
+                                      ("branch", "*/branches/*", branch)):
+            code, body = answer if isinstance(answer, tuple) else (0, answer)
+            write(self.bin.name, f"{name}.json", json.dumps(body))
+            cases.append(f'  {pattern}) cat "$here/{name}.json"; exit {code};;')
+        script = "\n".join(['#!/bin/sh', 'here=$(dirname "$0")', 'echo "$*" >> "$here/calls"', 'for last; do :; done',
+                            'case "$last" in', *cases, '  *) echo "gh: unexpected $last" >&2; exit 1;;', 'esac', ''])
+        path = os.path.join(self.bin.name, "gh")
+        write(self.bin.name, "gh", script)
+        os.chmod(path, 0o755)
+        context.GH = path
+
+    def test_a_protected_branch_says_protected_review_required_and_check_required(self):
+        self.fake_gh(branch=BRANCH_PROTECTED, protection=PROTECTION, rules=[])
+        locks = context.locks(self.repo, "main")
+        self.assertEqual((locks["measured"], locks["branch"], locks["repository"]), (True, "main", "github.com/acme/app"))
+        self.assertEqual((locks["protected"], locks["requires_review"], locks["requires_check"]), (True, True, True))
+
+    def test_a_branch_without_protection_says_so_for_each_lock(self):
+        self.fake_gh(branch=BRANCH_OPEN, protection=NOT_PROTECTED, rules=[])
+        locks = context.locks(self.repo, "main")
+        self.assertTrue(locks["measured"])
+        self.assertEqual((locks["protected"], locks["requires_review"], locks["requires_check"]), (False, False, False))
+        text = context.render_locks_md(locks)
+        self.assertIn("## Locks", text)
+        self.assertIn("| Base branch protected | no |", text)
+        self.assertIn("| A review is required before merging | no |", text)
+        self.assertIn("| A check is required before merging | no |", text)
+
+    def test_without_gh_the_locks_are_unmeasured_not_absent(self):
+        context.GH = os.path.join(self.bin.name, "no-such-gh")
+        locks = context.locks(self.repo, "main")
+        self.assertFalse(locks["measured"])
+        self.assertIn("gh", locks["reason"])
+        self.assertEqual((locks["protected"], locks["requires_review"], locks["requires_check"]), (None, None, None))
+        text = context.render_locks_md(locks)
+        self.assertIn("## Locks", text)
+        self.assertIn("unmeasured", text)
+        self.assertNotIn("| no |", text)
+
+    def test_a_repository_without_remote_is_unmeasured_and_gh_is_not_called(self):
+        self.fake_gh(branch=BRANCH_PROTECTED, protection=PROTECTION, rules=[])
+        git(self.repo, "remote", "remove", "origin")
+        locks = context.locks(self.repo, "main")
+        self.assertFalse(locks["measured"])
+        self.assertIn("remote", locks["reason"])
+        self.assertFalse(os.path.exists(self.calls))
+
+    def test_a_forge_gh_cannot_read_is_unmeasured(self):
+        git(self.repo, "remote", "set-url", "origin", "git@gitlab.example.com:acme/app.git")
+        self.fake_gh()
+        locks = context.locks(self.repo, "main")
+        self.assertFalse(locks["measured"])
+        self.assertIn("gitlab.example.com/acme/app", locks["reason"])
+        with open(self.calls, encoding="utf-8") as fh:
+            self.assertIn("--hostname gitlab.example.com", fh.read())
+
+    def test_locks_set_by_a_ruleset_count_like_classic_protection(self):
+        rules = [{"type": "deletion"}, {"type": "pull_request", "parameters": {"required_approving_review_count": 2}},
+                 {"type": "required_status_checks", "parameters": {"required_status_checks": [{"context": "ci"}]}}]
+        self.fake_gh(branch=BRANCH_OPEN, protection=NOT_PROTECTED, rules=rules)
+        locks = context.locks(self.repo, "main")
+        self.assertEqual((locks["protected"], locks["requires_review"], locks["requires_check"]), (True, True, True))
+
+    def test_a_pull_request_rule_without_approval_does_not_count_as_a_required_review(self):
+        rules = [{"type": "pull_request", "parameters": {"required_approving_review_count": 0}}]
+        self.fake_gh(branch=BRANCH_OPEN, protection=NOT_PROTECTED, rules=rules)
+        locks = context.locks(self.repo, "main")
+        self.assertEqual((locks["protected"], locks["requires_review"], locks["requires_check"]), (True, False, False))
+
+    def test_protection_details_out_of_reach_leave_the_review_unmeasured_not_denied(self):
+        self.fake_gh(branch=BRANCH_PROTECTED, protection=FORBIDDEN, rules=[])
+        locks = context.locks(self.repo, "main")
+        self.assertEqual((locks["protected"], locks["requires_review"], locks["requires_check"]), (True, None, True))
+        self.assertIn("| A review is required before merging | unmeasured", context.render_locks_md(locks))
+
+    def test_an_answer_that_is_not_the_expected_json_is_unmeasured(self):
+        self.fake_gh(branch=["not", "an", "object"], protection=PROTECTION, rules=[])
+        self.assertFalse(context.locks(self.repo, "main")["measured"])
+
+    def test_a_remote_tracking_base_asks_about_the_branch_on_its_remote(self):
+        git(self.repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+        self.fake_gh(branch=BRANCH_PROTECTED, protection=PROTECTION, rules=[])
+        locks = context.locks(self.repo, "origin/main")
+        self.assertEqual((locks["measured"], locks["branch"]), (True, "main"))
+        with open(self.calls, encoding="utf-8") as fh:
+            calls = fh.read()
+        self.assertIn("repos/acme/app/branches/main", calls)
+        self.assertNotIn("origin", calls)
+
+    def test_a_base_that_is_not_a_branch_is_unmeasured(self):
+        self.fake_gh(branch=BRANCH_PROTECTED, protection=PROTECTION, rules=[])
+        locks = context.locks(self.repo, git(self.repo, "rev-parse", "HEAD"))
+        self.assertFalse(locks["measured"])
+        self.assertIn("branch", locks["reason"])
+
+    def test_only_read_requests_are_sent(self):
+        self.fake_gh(branch=BRANCH_PROTECTED, protection=PROTECTION, rules=[])
+        context.locks(self.repo, "main")
+        with open(self.calls, encoding="utf-8") as fh:
+            for call in fh.read().splitlines():
+                self.assertTrue(call.startswith("api --method GET "), call)
+
+    def test_status_shows_the_locks_section_after_the_points(self):
+        self.fake_gh(branch=BRANCH_OPEN, protection=NOT_PROTECTED, rules=[])
+        code, out = run_cli("status", self.repo, "--base", "main")
+        self.assertEqual(code, 0)
+        self.assertIn("| `review` |", out)
+        self.assertLess(out.index("| `review` |"), out.index("## Locks"))
+        self.assertIn("| Base branch protected | no |", out)
+
+    def test_status_without_gh_still_exits_0_and_says_unmeasured(self):
+        context.GH = os.path.join(self.bin.name, "no-such-gh")
+        code, out = run_cli("status", self.repo, "--base", "main")
+        self.assertEqual(code, 0)
+        self.assertIn("## Locks", out)
+        self.assertIn("unmeasured", out)
+
+    def test_status_in_json_keeps_the_list_of_points_and_does_not_call_gh(self):
+        self.fake_gh(branch=BRANCH_PROTECTED, protection=PROTECTION, rules=[])
+        code, out = run_cli("status", self.repo, "--base", "main", "--format", "json")
+        self.assertEqual(code, 0)
+        self.assertIsInstance(json.loads(out), list)
+        self.assertFalse(os.path.exists(self.calls))
+
+
 if __name__ == "__main__":
     unittest.main()
