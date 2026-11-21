@@ -6,8 +6,8 @@
   ai_sdlc.py review render <review.json> [repo] [--base REF]   the rendered review, if each finding quotes the diff
   ai_sdlc.py size [repo] [--base REF] [--paths P…]  the size of the change and the path it imposes
   ai_sdlc.py dev body <body.json> [repo] [--base REF]         the PR body, if it is complete for its size
-  ai_sdlc.py ticket check <ticket.md> [repo] [--base REF]     is the ticket ready to hand to an agent
-  ai_sdlc.py ticket render <opinion.json> [repo] --ticket <ticket.md> [--base REF]   the skill's opinion, if well formed
+  ai_sdlc.py ticket check <ticket> [repo] [--base REF] [--comments FILE]     is the ticket ready to hand to an agent
+  ai_sdlc.py ticket render <opinion.json> [repo] --ticket <ticket> [--base REF] [--comments FILE]   the skill's opinion, if well formed
   ai_sdlc.py qa gate [repo] [--base REF] [--run CMD] [--coverage F] [--ticket F --trace F]   the gates of /qa
   ai_sdlc.py secu gate [repo] [--base REF] [--report SARIF…]   the gates of /secu
   ai_sdlc.py ship check [repo] [--base REF] [--since REF] [--checks checks.json]   the prerequisites of a delivery
@@ -17,7 +17,7 @@
   ai_sdlc.py ci pr [repo] [--base REF] [--coverage F] [--report SARIF…] [--strict]   the gates of a pull request, for a pipeline
   ai_sdlc.py guard check <command>   says whether a shell command delivers (tag, publish, deploy): 0 no, 1 yes
   ai_sdlc.py guard hook   the same check, as the plugin's PreToolUse hook (cli/guard_hook.py) does it: 2 refuses
-  ai_sdlc.py fixture init <fixture> <dest>         mounts a trapped PR of fixtures/review as a git repository
+  ai_sdlc.py fixture init <fixture> <dest>         mounts a fixture as a git repository: its base, and its trapped PR if it has one
   ai_sdlc.py fixture grade <review.json> --expected <expected.json>   grades a review against its answer key
   ai_sdlc.py fixture grade-dev <repo> --task <ticket folder> [--body body.json]   grades a /dev run
   ai_sdlc.py fixture grade-ticket <opinion.json> --task <folder> --repo <repo> --ticket <copy>   grades a /ticket opinion
@@ -66,9 +66,12 @@ def build_parser() -> argparse.ArgumentParser:
     tck = sub.add_parser("ticket", help="what /ticket measures").add_subparsers(dest="action", required=True)
     opinion = tck.add_parser("render", help="validates the skill's opinion and renders it, measured verdict first")
     opinion.add_argument("file", help="the opinion in JSON: gaps, criteria, split, questions, instructions")
-    opinion.add_argument("--ticket", required=True, metavar="FILE", help="the text of the ticket")
+    opinion.add_argument("--ticket", required=True, metavar="FILE", help="the ticket, as given to `ticket check`")
     tck = tck.add_parser("check", help="is the ticket ready to hand to an agent")
-    tck.add_argument("file", help="the text of the ticket, in Markdown or plain text")
+    tck.add_argument("file", help="the text of the ticket, in Markdown or plain text, or the JSON of `gh issue view --json body,comments`")
+    for sp in (opinion, tck):
+        sp.add_argument("--comments", metavar="FILE", help="the comments, fetched apart from the ticket: text, or the JSON of "
+                                                           "`gh issue view --json comments`. Counted and quotable, never measured")
     gate = sub.add_parser("qa", help="what /qa guarantees").add_subparsers(dest="action", required=True)
     gate = gate.add_parser("gate", help="the four gates: disabled, repeated, coverage, criteria")
     gate.add_argument("--run", metavar="CMD", help="the repository's test command, run several times from its root")
@@ -108,7 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     gchk.add_argument("words", nargs="+", metavar="COMMAND", help="the command, as a single quoted argument")
     gchk.add_argument("--repo", default=".", help="the repository whose delivery procedure is read")
     grd.add_parser("hook", help="the PreToolUse hook: reads the tool call in JSON on standard input")
-    fix = sub.add_parser("fixture", help="measure the review skill").add_subparsers(dest="action", required=True)
+    fix = sub.add_parser("fixture", help="mount a fixture, grade a run of a skill against its answer key").add_subparsers(dest="action", required=True)
     init = fix.add_parser("init", help="mounts the fixture as a git repository")
     init.add_argument("fixture")
     init.add_argument("dest")
@@ -234,12 +237,14 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "ticket":
             source = args.ticket if args.action == "render" else args.file
             text = ticket.read(source)
+            comments = ticket.read(args.comments) if args.comments else ""
             zones, warning = ticket.zones_for(table, args.repo, args.base)
-            data = {**ticket.check(text, zones), "warning": warning}
+            data = {**ticket.check(text, zones, comments), "warning": warning}
             if args.action == "render":
                 opinion = review.load(args.file)
                 commit = context.resolve_base(args.repo, args.base)
-                errors = ticket.check_opinion(opinion, text, lambda rel: context.is_file_at(args.repo, commit, rel))
+                errors = ticket.check_opinion(opinion, ticket.quotable(text, comments),
+                                              lambda rel: context.is_file_at(args.repo, commit, rel))
                 if errors:
                     raise context.Refused("opinion refused:\n- " + "\n- ".join(errors))
                 data, text = {"opinion": opinion, "check": data}, ticket.render_opinion(opinion, data, warning)
