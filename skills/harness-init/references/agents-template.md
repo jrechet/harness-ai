@@ -24,7 +24,7 @@ Mode: **delegation**. An agent can receive a whole task and open a PR without in
 | <area> | `<confirmed command>` | <job that blocks, or "nothing"> |
 
 ## Rules
-- <Rule in one sentence.> Why: <incident or reason, or "no known incident">. Enforced by: <path of the guardrail that blocks> | (unverified) [<YYYY-MM>]
+- <Rule in one sentence.> Why: <incident or reason, or "no known incident">. Enforced by: `<path of the guardrail that blocks>` | (unverified) [<YYYY-MM>]
 
 ## Forbidden
 - <What an agent never does, even if the task seems to ask for it.> Why: <…> [<YYYY-MM>]

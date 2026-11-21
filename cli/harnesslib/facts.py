@@ -245,17 +245,52 @@ def dangling_facts(repo: str, source_text: str | None) -> list[dict[str, Any]]:
         for job in re.findall(r"\bjobs?\s+`([\w.-]+)`", claim, flags=re.I):
             if jobs is not None and job not in jobs:
                 dangling.append({"kind": "job", "ref": job, "line": number})
-        for token in re.findall(r"`([^`\s]+)`", claim):
-            token = token.rstrip(".,;:").lstrip("./")
-            has_ext = bool(re.search(r"\.\w{1,5}$", token))
-            rooted = "/" in token and _exists(repo, token.split("/", 1)[0])
-            if not (has_ext or rooted) or _exists(repo, token):
+        for token in cited_paths(repo, claim):
+            if _exists(repo, token):
                 continue
             if files is None:
                 files = _repo_files(repo)
             if not cited_path_exists(repo, token, files):
                 dangling.append({"kind": "guard", "ref": token, "line": number})
     return dangling
+
+
+def _clean_token(token: str) -> str:
+    """A cited token without the punctuation of its sentence and without a leading "./" (the dot of a
+    dotfile such as `.golangci.yml` stays)."""
+    token = token.strip("()[]<>\"'").rstrip(".,;:")
+    return token[2:] if token.startswith("./") else token
+
+
+def _is_path_like(repo: str, token: str) -> bool:
+    """A token with an extension, or a path whose first segment exists at the root."""
+    has_ext = bool(re.search(r"\.\w{1,5}$", token))
+    rooted = "/" in token and _exists(repo, token.split("/", 1)[0])
+    return has_ext or rooted
+
+
+def _is_bare_path_like(repo: str, token: str) -> bool:
+    """Outside backticks a token sits in prose: a URL, a version (`3.12`, `v9.x`), an abbreviation
+    (`e.g.`) or a product name (`Node.js`, `ASP.NET`) is not a path. Only a token with a directory or
+    the leading dot of a dotfile is judged, and its extension must hold a letter; a bare file name is
+    judged when it is written in backticks."""
+    if "://" in token or not _is_path_like(repo, token):
+        return False
+    _, dot, ext = token.rpartition("/")[-1].rpartition(".")
+    if dot and not re.search(r"[A-Za-z]", ext):
+        return False
+    return "/" in token or token.startswith(".")
+
+
+def cited_paths(repo: str, claim: str) -> list[str]:
+    """The paths a claim ("Enforced by: …") cites: every back-ticked token that looks like a path, and
+    the first path-like token written without backticks. Words that are not paths ("Stop hook",
+    "branch protection", a linter rule name) are not returned."""
+    ticked = [_clean_token(t) for t in re.findall(r"`([^`\s]+)`", claim)]
+    paths = [t for t in ticked if _is_path_like(repo, t)]
+    bare = (_clean_token(t) for t in re.sub(r"`[^`]*`", " ", claim).split())
+    first = next((t for t in bare if _is_bare_path_like(repo, t)), None)
+    return paths + [first] if first and first not in paths else paths
 
 
 def cited_path_exists(repo: str, token: str, files: list[str] | None = None) -> bool:
