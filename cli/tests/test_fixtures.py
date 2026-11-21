@@ -5,7 +5,9 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
+import tempfile
 import unittest
 from datetime import date
 
@@ -595,3 +597,45 @@ class OralFactTests(unittest.TestCase):
         self.task["tempted"] = [{"patch": "tempted/other.patch", "fails": ["acceptance"]}]
         self.save_task()
         self.assertTrue(any("nothing proves that the check separates" in p for p in self.problems()))
+
+
+class CleanErrorTests(unittest.TestCase):
+    """A typo on the command line ends in one sentence and exit code 2, never in a traceback."""
+
+    HARNESS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "harness.py")
+
+    def run_cli(self, *args):
+        return subprocess.run([sys.executable, self.HARNESS, *args], capture_output=True, text=True, timeout=60)
+
+    def assert_one_sentence(self, result):
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(len(result.stderr.strip().splitlines()), 1, result.stderr)
+
+    def test_an_unknown_fixture_lists_the_known_names(self):
+        result = self.run_cli("fixture", "check", "nope-unknown")
+        self.assert_one_sentence(result)
+        self.assertIn("nope-unknown", result.stderr)
+        self.assertIn("java-back", result.stderr)
+
+    def test_an_unknown_fixture_for_a_bare_copy_lists_the_known_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.run_cli("fixture", "bare", "nope-unknown", os.path.join(tmp, "dest"))
+            self.assert_one_sentence(result)
+            self.assertIn("java-back", result.stderr)
+            self.assertFalse(os.path.exists(os.path.join(tmp, "dest")))
+
+    def test_a_folder_without_expected_json_is_not_a_fixture(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            result = self.run_cli("fixture", "check", tmp)
+            self.assert_one_sentence(result)
+            self.assertIn("expected.json", result.stderr)
+
+    def test_a_missing_audit_file_says_where_it_comes_from(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            missing = os.path.join(tmp, "audit.json")
+            result = self.run_cli("fixture", "check", "java-back", "--audit", missing)
+            self.assert_one_sentence(result)
+            self.assertIn(missing, result.stderr)
+            self.assertIn("harness-audit", result.stderr)
+
