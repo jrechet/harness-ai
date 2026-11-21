@@ -8,7 +8,7 @@ import unittest
 from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from harnesslib import github, rules  # noqa: E402
+from harnesslib import facts, github, maturity, rules  # noqa: E402
 
 TODAY = date(2026, 11, 21)
 
@@ -174,6 +174,40 @@ class RulesCommandTests(unittest.TestCase):
         write(self.repo, "apps/web/CLAUDE.md", "# Web\n- Everything goes through `escapeHtml`. Why: pentest.\n")
         kinds = {r["file"]: r["kind"] for r in rules.collect(self.repo, TODAY, blame=False)}
         self.assertEqual(kinds, {"AGENTS.md": "rule", "apps/web/CLAUDE.md": "line"})
+
+
+class ProjectRulesHeadingTests(unittest.TestCase):
+    """The reading taken for a file that has a rules heading next to other sections of constraints,
+    on the django-mvc sample project: "## Project rules" makes the file strict, so the bullets of
+    "Compatibility" and "Style" are no longer counted. The totals move, the level boxes do not."""
+    REPO = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                        "fixtures", "repos", "django-mvc", "repo")
+
+    def setUp(self):
+        with open(os.path.join(self.REPO, "AGENTS.md"), encoding="utf-8") as fh:
+            self.text = fh.read()
+
+    def test_only_the_bullets_under_project_rules_are_counted(self):
+        self.assertTrue(github.has_rule_headings(self.text))
+        found = github.iter_rules(self.text)
+        self.assertEqual(len(found), 7)
+        lines = self.text.splitlines()
+        start = lines.index("## Project rules") + 1
+        end = lines.index("## Git") + 1
+        for number, _ in found:
+            self.assertTrue(start < number < end, f"line {number} is outside Project rules")
+
+    def test_the_compatibility_and_style_bullets_are_left_out(self):
+        found = github.parse_rules(self.text)
+        self.assertFalse([r for r in found if "Python 3.8" in r or "Django 4.2" in r or "PEP 8" in r])
+
+    def test_the_level_boxes_fed_by_the_ratios_stay_unticked(self):
+        collected = facts.collect(self.REPO, today=TODAY)
+        source = collected["instructions"]["source"]
+        self.assertEqual((source["rules_total"], source["rules_guarded"]), (7, 1))
+        boxes = {c["id"]: c["passed"] for c in maturity.level3(collected)}
+        self.assertFalse(boxes["L3.guarded"])
+        self.assertFalse(boxes["L3.justified"])
 
 
 if __name__ == "__main__":
