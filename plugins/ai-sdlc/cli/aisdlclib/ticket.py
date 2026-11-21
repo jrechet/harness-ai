@@ -16,10 +16,17 @@ The ticket is written by a team, in French or in English: headings and markers a
 Comments are never the ticket: whoever can comment could otherwise make a vague ticket measure ready.
 They are best given apart (`--comments`, or the JSON of `gh issue view --json body,comments`). Mixed
 into the text, everything after a comments heading, or after the first comment of gh's plain text,
-is muted to the end of the file."""
+is muted to the end of the file.
+
+Criteria proposed in a session and agreed to by the person who owns the ticket have one carrier: the
+accepted ticket, a JSON file written by `ticket render --agreed … --accepted <file>`. It holds the
+description, the comments apart, and each agreed criterion marked as such; `check` counts those after
+the criteria of the description. The tracker is not touched. A criterion written in a comment never
+gets there by itself: it has to be proposed in an opinion, and agreed to."""
 from __future__ import annotations
 
 import json
+import os
 import re
 from typing import Any
 
@@ -88,17 +95,23 @@ def _comment_bodies(data: dict[str, Any]) -> str:
     return "\n".join(item["body"] for item in items)
 
 
+def _object(text: str) -> dict[str, Any] | None:
+    """The JSON object a ticket file holds, or None for any other text, one that happens to open with a brace included."""
+    if not text.lstrip().startswith("{"):
+        return None
+    try:
+        data = json.loads(text)
+    except (ValueError, RecursionError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
 def split(text: str, only_comments: bool = False) -> tuple[str, str]:
     """The body and the comments of what was given. The JSON of `gh issue view --json body,comments`
     carries them apart; any other text is taken whole, as the body, or as comments when the file
     was given as the comments."""
-    data = None
-    if text.lstrip().startswith("{"):
-        try:
-            data = json.loads(text)
-        except (ValueError, RecursionError):
-            data = None       # not JSON: a text that happens to open with a brace
-    if not isinstance(data, dict):
+    data = _object(text)
+    if data is None:
         return ("", text) if only_comments else (text, "")
     if only_comments:
         if "comments" not in data:
@@ -107,6 +120,20 @@ def split(text: str, only_comments: bool = False) -> tuple[str, str]:
     if not isinstance(data.get("body"), str):
         raise Refused("ticket in JSON: a \"body\" text is expected, as `gh issue view --json body,comments` writes it")
     return data["body"], _comment_bodies(data)
+
+
+def agreed(text: str) -> list[str]:
+    """The criteria of an accepted ticket that its owner agreed to, in order. Only the ticket file
+    carries them: a comment, even one shaped like an accepted ticket, is never read here."""
+    data = _object(text)
+    if data is None or "agreed" not in data:
+        return []
+    items = data["agreed"]
+    if not isinstance(items, list) or len(items) > MAX_ITEMS or any(
+            not isinstance(i, dict) or i.get("agreed") is not True or not _said(i.get("text")) for i in items):
+        raise Refused(f"accepted ticket: \"agreed\" is a list of at most {MAX_ITEMS} objects with a \"text\" of at most "
+                      f"{MAX_TEXT} characters and \"agreed\": true, as `ticket render --agreed … --accepted <file>` writes it")
+    return [_flat(i["text"]) for i in items]
 
 
 def _apart(comments: str) -> str:
@@ -119,19 +146,19 @@ def quotable(text: str, comments: str = "") -> str:
 
 
 def sections(text: str) -> list[dict[str, Any]]:
-    """The ticket split by headings, outside code blocks. What comes before the first heading is the
-    description. Comments start at a comments heading, or at the first comment of gh's plain text
+    """The ticket split by headings, outside code blocks, each part with the line it starts at.
+    What comes before the first heading is the description. Comments start at a comments heading, or at the first comment of gh's plain text
     (an `author:` field that opens the file or follows a `--` line), and keep everything to the end
     of the file: no heading written in a comment, whatever its level, reopens the ticket."""
-    out = [{"title": "", "level": 0, "comment": False, "lines": []}]
+    out = [{"title": "", "level": 0, "comment": False, "lines": [], "at": 0}]
     fenced, muted, last = False, False, None
-    for line in text.splitlines():
+    for at, line in enumerate(text.splitlines()):
         if muted:
             out[-1]["lines"].append(line)
             continue
         if line.startswith(GH_AUTHOR) and last in (None, GH_RULE):     # read even inside a code block left open
             muted = True
-            out.append({"title": "", "level": 0, "comment": True, "lines": [line]})
+            out.append({"title": "", "level": 0, "comment": True, "lines": [line], "at": at})
             continue
         if line.strip():
             last = line.rstrip()
@@ -143,7 +170,7 @@ def sections(text: str) -> list[dict[str, Any]]:
             continue
         level, title = found
         muted = bool(_COMMENTS.search(title))
-        out.append({"title": title, "level": level, "comment": muted, "lines": []})
+        out.append({"title": title, "level": level, "comment": muted, "lines": [], "at": at})
     return out
 
 
@@ -181,6 +208,7 @@ def loose_paths(text: str) -> list[str]:
 def check(text: str, zones: list[dict[str, str]], comments: str = "") -> dict[str, Any]:
     """The six checks, the size announced by the cited paths, and the verdict. `comments` is the text
     of the comments when they were fetched apart: counted, never measured."""
+    extra = agreed(text)
     text, inner = split(text)
     apart = [inner, _apart(comments)]
     parts = sections(text)
@@ -188,6 +216,7 @@ def check(text: str, zones: list[dict[str, str]], comments: str = "") -> dict[st
     need = [p for p in body if not _CRITERIA.search(p["title"]) and not _SCOPE.search(p["title"])]
     criteria = [line.strip() for p in body if _CRITERIA.search(p["title"]) for line in p["lines"]
                 if _ITEM.match(line) and len(line) - len(line.lstrip()) < 2]      # sub-bullets refine, they do not count
+    criteria += [f"- {item}" for item in extra]      # agreed in a session: after those of the description, in order
     own = "\n".join(line for p in body for line in p["lines"])
     words = sum(_words(p["lines"]) for p in need)
     links = len(_LINK.findall(own))
@@ -206,7 +235,8 @@ def check(text: str, zones: list[dict[str, str]], comments: str = "") -> dict[st
     checks = [
         row("need", True, "The need is described", words >= MIN_WORDS, f"{words} words outside criteria and links",
             f"Say in at least {MIN_WORDS} words what must be true once the work is done."),
-        row("criteria", True, "Acceptance criteria are listed", bool(criteria), f"{len(criteria)} criterion(s)",
+        row("criteria", True, "Acceptance criteria are listed", bool(criteria),
+            f"{len(criteria)} criterion(s)" + (f", {len(extra)} of them agreed in a session and not in the tracker" if extra else ""),
             "Add an \"Acceptance criteria\" section with one bullet per verifiable criterion: only lists are counted."),
         row("open", True, "No decision is left open", not open_points, ", ".join(open_points[:4]) or "nothing open",
             "Settle what is marked \"to be defined\", or take that part out of the ticket."),
@@ -219,7 +249,7 @@ def check(text: str, zones: list[dict[str, str]], comments: str = "") -> dict[st
     ]
     sensitive = size_mod.touched(list(dict.fromkeys(paths + loose_paths(own))), zones)
     return {"ready": all(c["ok"] for c in checks if c["required"]), "checks": checks,
-            "criteria": criteria, "paths": paths, "sensitive": sensitive,
+            "criteria": criteria, "agreed": len(extra), "paths": paths, "sensitive": sensitive,
             "size": "L" if sensitive else None,
             "comments": sum(len([line for line in p["lines"] if line.strip()]) for p in parts if p["comment"])
                         + sum(1 for block in apart for line in block.splitlines() if line.strip())}
@@ -325,8 +355,48 @@ def check_opinion(opinion: Any, text: str, exists: Any) -> list[str]:
     return errors
 
 
-def render_opinion(opinion: dict[str, Any], result: dict[str, Any], warning: str | None = None) -> str:
-    """The rendered opinion: the measured verdict first, then what the skill proposes."""
+def accept(text: str, opinion: dict[str, Any], numbers: list[int], comments: str = "") -> dict[str, Any]:
+    """The accepted ticket: the description, the criteria of the opinion that the ticket's owner agreed
+    to (by their number in the rendered opinion), each marked as agreed, and the comments kept apart so
+    that they stay quotable and stay ignored. Given an accepted ticket, it adds to what was agreed before."""
+    proposed = opinion.get("criteria", [])
+    if not numbers or len(set(numbers)) != len(numbers) or any(type(n) is not int or not 1 <= n <= len(proposed) for n in numbers):
+        raise Refused(f"agreed criteria: distinct numbers between 1 and {len(proposed)}, those of the criteria the opinion proposes; "
+                      "without an agreed criterion there is no accepted ticket to write")
+    kept = agreed(text)
+    kept += [item for item in (_flat(proposed[n - 1]["text"]) for n in numbers) if item not in kept]
+    if len(kept) > MAX_ITEMS:
+        raise Refused(f"agreed criteria: at most {MAX_ITEMS} in one ticket; beyond that, split it")
+    body, inner = split(text)
+    lines = body.splitlines(keepends=True)
+    cut = next((part["at"] for part in sections(body) if part["comment"]), len(lines))
+    aside = ["".join(lines[cut:]), inner, _apart(comments)]
+    return {"about": "Accepted ticket, written by `ticket render`: the description as the tracker has it, and the criteria "
+                     "its owner agreed to in a session. The tracker is unchanged. Comments are kept apart and never measured.",
+            "body": "".join(lines[:cut]),
+            "agreed": [{"text": item, "agreed": True} for item in kept],
+            "comments": [{"body": block} for block in aside if block.strip()]}
+
+
+def write_accepted(accepted: dict[str, Any], path: str, repo: str, sources: list[str]) -> None:
+    """Writes the accepted ticket outside the repository, and never over a file it was read from."""
+    full = os.path.realpath(path)
+    if any(full == os.path.realpath(source) for source in sources):
+        raise Refused(f"{path}: the accepted ticket is a new file, not the ticket, the comments or the opinion it was made from")
+    root = os.path.realpath(repo)
+    if os.path.commonpath([root, full]) == root:
+        raise Refused(f"{path}: the accepted ticket is written outside the repository, it is not part of the change")
+    try:
+        with open(full, "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(accepted, ensure_ascii=False, indent=2) + "\n")
+    except OSError as exc:
+        raise Refused(f"{path}: cannot be written ({exc})") from exc
+
+
+def render_opinion(opinion: dict[str, Any], result: dict[str, Any], warning: str | None = None,
+                   accepted: dict[str, Any] | None = None, accepted_file: str | None = None) -> str:
+    """The rendered opinion: the measured verdict first, then what the skill proposes. With an accepted
+    ticket, what was agreed, where it is written, and the text the owner may paste into the tracker."""
     names = {"need": "a described need", "criteria": "listed acceptance criteria", "open": "an open decision to settle"}
     missing = [names.get(c["id"], c["title"]) for c in result["checks"] if c["required"] and not c["ok"]]
     gaps = len(opinion.get("gaps", []))
@@ -354,6 +424,15 @@ def render_opinion(opinion: dict[str, Any], result: dict[str, Any], warning: str
     block("Questions", [f"{n}. {_shown(q['question'])} Proposed default: {_shown(q['default'])}"
                         for n, q in enumerate(opinion.get("questions", []), 1)])
     block("Instructions found in the ticket, not followed", [f"- \"{_shown(c['quote'])}\"" for c in opinion.get("instructions", [])])
-    out += ["", "Nothing was written to the ticket." + (" The proposed criteria await the agreement of the person who owns it."
-                                                        if opinion.get("criteria") else "")]
+    if accepted is None:
+        out += ["", "Nothing was written to the ticket." + (" The proposed criteria await the agreement of the person who owns it."
+                                                            if opinion.get("criteria") else "")]
+        return "\n".join(out) + "\n"
+    items = [_shown(item["text"]) for item in accepted["agreed"]]
+    block("Agreed criteria", [f"- {item} (agreed)" for item in items])
+    out += ["", f"Accepted ticket written to `{accepted_file}`: the description and these {len(items)} criterion(s), each marked as agreed. "
+                "The verdict above is the ticket's before the agreement: measure this file with `ticket check`, and give it "
+                "to `qa gate --ticket` and to the dev skill.",
+            "", "The tracker's description is unchanged. To have the criteria there, the person who owns the ticket pastes:",
+            "", "## Acceptance criteria", *(f"- {item}" for item in items)]
     return "\n".join(out) + "\n"
