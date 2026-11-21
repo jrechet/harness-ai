@@ -122,5 +122,31 @@ class HttpTests(unittest.TestCase):
             self.fail("404 expected")
 
 
+class TakenPortTests(unittest.TestCase):
+    """A port already in use ends in one sentence and exit code 2, never in a traceback."""
+
+    def setUp(self):
+        self.dir = tempfile.TemporaryDirectory()
+        write(self.dir.name, "AGENTS.md", "# r\n\nMode : **assistance**.\n")
+        self.server, self.thread = serve.serve_in_thread(self.dir.name, today=TODAY)
+        self.port = self.server.server_address[1]
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.dir.cleanup()
+
+    def test_a_taken_port_says_so_and_how_to_pick_another(self):
+        harness = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "harness.py")
+        result = subprocess.run([sys.executable, harness, "serve", self.dir.name, "--port", str(self.port)],
+                                capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(result.stderr.strip(), f"harness serve: port {self.port} is taken: give --port <n>")
+
+    def test_main_returns_2_on_a_taken_port(self):
+        self.assertEqual(serve.main([self.dir.name, "--port", str(self.port)]), 2)
+
+
 if __name__ == "__main__":
     unittest.main()
