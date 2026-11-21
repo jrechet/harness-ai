@@ -348,6 +348,17 @@ class MarketplaceTests(RepoCase):
                 got = {s["id"]: s["passed"] for s in medals.evaluate_marketplace(self.repo)["successes"]}
                 self.assertEqual((got["M2.when"], got["M2.when-not"]), (when, when_not))
 
+    def test_use_as_soon_as_is_a_trigger_and_its_negation_is_not(self):
+        for description, when in (
+                ("Audits X. Use as soon as the user wants to audit. Do not use for Y.", True),
+                ("Use it as soon as someone asks for X. Do not use for Y.", True),
+                ("Do not use as soon as the user asks for Y.", False),
+                ("Is of use as soonest. Do not use for Y.", False)):
+            with self.subTest(description=description):
+                self.plugin(description)
+                got = {s["id"]: s["passed"] for s in medals.evaluate_marketplace(self.repo)["successes"]}
+                self.assertEqual((got["M2.when"], got["M2.when-not"]), (when, True))
+
     def test_a_folder_named_like_a_url_is_a_source_and_a_link_out_of_the_repo_is_not(self):
         self.plugin("x")
         os.rename(os.path.join(self.repo, "p"), os.path.join(self.repo, "http-tools"))
