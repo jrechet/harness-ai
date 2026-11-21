@@ -26,7 +26,14 @@ LAYERS = (
     ("checks", "Local checks", "tools that refuse a broken rule on the machine"),
     ("pipeline", "Pipeline", "what runs on every change, away from the agent"),
 )
-SOURCE = "AGENTS.md"
+SOURCE = maturity.DEFAULT_SOURCE                # in TOUCHES, stands for the instruction file actually found
+CLAUDE = maturity.CLAUDE_SOURCE
+# CLAUDE.md alone is an accepted source: it is then shown as the source, and AGENTS.md as a choice.
+CLAUDE_AS_SOURCE = {
+    SOURCE: "Not needed here: CLAUDE.md is the source. Moving the instructions there, with a one-line pointer "
+            "left in CLAUDE.md, lets other tools read them too.",
+    CLAUDE: "The source of instructions here, loaded by Claude Code: the mode, the rules with their reason, what is forbidden.",
+}
 PURPOSE = {
     "AGENTS.md": "The single source of instructions: the mode, the rules with their reason, what is forbidden.",
     "CLAUDE.md": "What Claude Code loads. It should only point to AGENTS.md, so there is one source.",
@@ -72,16 +79,21 @@ def _item(path: str, state: str, purpose: str, detail: str = "") -> dict[str, An
 
 
 def _instructions(instr: dict[str, Any]) -> list[dict[str, Any]]:
+    claude_is_source = instr["source"].get("path") == CLAUDE
+    purposes = {**PURPOSE, **CLAUDE_AS_SOURCE} if claude_is_source else PURPOSE
+    optional = OPTIONAL | {SOURCE} if claude_is_source else OPTIONAL
     out = []
     for path, info in instr["files"].items():
         if not info.get("exists"):
-            out.append(_item(path, "optional" if path in OPTIONAL else "missing", PURPOSE.get(path, "")))
+            out.append(_item(path, "optional" if path in optional else "missing", purposes.get(path, "")))
         elif info.get("is_stub"):
-            out.append(_item(path, "pointer", PURPOSE.get(path, ""), "points to the single source"))
+            out.append(_item(path, "pointer", purposes.get(path, ""), "points to the single source"))
         else:
             lines = info.get("lines")
             detail = f"{lines} lines" if lines is not None else f"{len(info.get('files') or [])} file(s)"
-            out.append(_item(path, "present", PURPOSE.get(path, ""), detail))
+            if claude_is_source and path == CLAUDE:
+                detail += " · the source"
+            out.append(_item(path, "present", purposes.get(path, ""), detail))
     return out
 
 
@@ -103,7 +115,9 @@ def _layers(f: dict[str, Any]) -> list[dict[str, Any]]:
 def _steps(state: dict[str, Any]) -> list[dict[str, Any]]:
     """Every check that does not hold yet, in the order of the ladder: one step each. A step beyond
     the target level is kept, marked out of scope. With no instruction file, what the file would carry
-    is marked `follows`: the page folds it into the step that creates the file, and does not show it."""
+    is marked `follows`: the page folds it into the step that creates the file, and does not show it.
+    A step on the instruction file names the file found: CLAUDE.md when it is the source."""
+    source = maturity.source_name(state["facts"])
     out = []
     for level in state["levels"]:
         for check in level["checks"]:
@@ -115,7 +129,8 @@ def _steps(state: dict[str, Any]) -> list[dict[str, Any]]:
             out.append({"level": level["level"], "missing": missing, "action": action, "waits": bool(check.get("waits")),
                         "follows": follows,
                         "in_scope": bool(level.get("in_scope", True)),
-                        "touch": None if touch is None else {"layer": touch[0], "path": touch[1], "effect": touch[2]}})
+                        "touch": None if touch is None else {"layer": touch[0], "path": source if touch[1] == SOURCE else touch[1],
+                                                         "effect": touch[2]}})
     return out
 
 

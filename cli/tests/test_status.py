@@ -523,6 +523,62 @@ class NoSourceTests(TempRepo):
         self.assertEqual(len(s["next_actions"]), 3)
 
 
+class ClaudeSourceTests(TempRepo):
+    """CLAUDE.md alone is accepted as the source: every line then names CLAUDE.md, the file found, and
+    none says that an AGENTS.md exists or that CLAUDE.md points to one."""
+    CLAUDE_LEVEL1 = AGENTS_LEVEL1.replace("AGENTS.md", "CLAUDE.md")
+    SOURCE_LINE = "CLAUDE.md is the source: fine, or move it to AGENTS.md and leave a pointer"
+
+    def vibe_app(self):
+        fixture = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "fixtures", "repos", "vibe-app", "repo")
+        shutil.copytree(fixture, self.repo, dirs_exist_ok=True)
+        s = self.state()
+        self.assertEqual(s["facts"]["instructions"]["source"]["path"], "CLAUDE.md")
+        self.assertFalse(s["facts"]["instructions"]["files"]["AGENTS.md"]["exists"])
+        return s
+
+    def test_the_labels_name_the_file_found(self):
+        s = self.vibe_app()
+        self.assertEqual(self.check(s, "L1.source")["label"], "An instruction file exists (CLAUDE.md)")
+        single = self.check(s, "L1.single_source")
+        self.assertEqual(single["label"], self.SOURCE_LINE)
+        self.assertTrue(single["passed"])                       # CLAUDE.md alone can stay at level 1
+
+    def test_no_status_line_names_agents_md_as_existing(self):
+        md = maturity.render_markdown(self.vibe_app())
+        self.assertIn("- [x] An instruction file exists (CLAUDE.md)", md)
+        self.assertIn(f"- [x] {self.SOURCE_LINE}", md)
+        self.assertNotIn("@AGENTS.md stub", md)
+        naming = [line for line in md.splitlines() if "AGENTS.md" in line]
+        self.assertEqual(naming, [f"- [x] {self.SOURCE_LINE}"])  # the only mention is the offer to move there
+
+    def test_the_next_actions_touch_the_file_found(self):
+        s = self.vibe_app()
+        self.assertIn("Add the mode line at the top of CLAUDE.md", s["next_actions"][0])
+        self.assertNotIn("AGENTS.md", " ".join(s["next_actions"]))
+
+    def test_the_map_does_not_name_agents_md(self):
+        self.assertNotIn("AGENTS.md", maturity.render_map(self.vibe_app()))
+
+    def test_a_short_claude_md_alone_reaches_level_1_and_later_actions_cite_it(self):
+        write(self.repo, "CLAUDE.md", self.CLAUDE_LEVEL1)
+        s = self.state()
+        self.assertEqual(s["level"]["reached"], 1)
+        actions = [c["next_action"] for l in s["levels"] for c in l["checks"] if c["next_action"]]
+        self.assertTrue(actions)
+        self.assertNotIn("AGENTS.md", " ".join(actions))
+        self.assertIn("cite it in CLAUDE.md", self.check(s, "L4.contracts")["next_action"])
+
+    def test_with_agents_md_the_labels_still_name_it(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL1)
+        write(self.repo, "CLAUDE.md", "# Guide\n\n" + "\n".join(f"- line {i}" for i in range(10)))
+        s = self.state()
+        self.assertEqual(self.check(s, "L1.source")["label"], "An instruction file exists (AGENTS.md)")
+        single = self.check(s, "L1.single_source")
+        self.assertEqual((single["label"], single["passed"]), ("CLAUDE.md is an @AGENTS.md stub (or absent)", False))
+        self.assertIn("into AGENTS.md", single["next_action"])
+
+
 class MapTests(TempRepo):
     """`status --map`: the few plain lines the skills show before doing or asking anything."""
 

@@ -108,6 +108,22 @@ class DataTests(Case):
         self.assertIn(".github/workflows/ci.yml", by_layer["pipeline"])
         self.assertEqual(data["level"]["reached"], 1)
 
+    def test_with_claude_md_as_the_source_the_steps_touch_claude_md(self):
+        write(self.repo, "CLAUDE.md", "# Guide\n\n" + "\n".join(f"- line {i}" for i in range(80)))
+        data = self.build()
+        touched = {s["touch"]["path"] for s in data["steps"] if s["touch"] and s["touch"]["layer"] == "instructions"}
+        self.assertEqual(touched, {"CLAUDE.md"})
+        self.assertGreater(len([s for s in data["steps"] if s["touch"] and s["touch"]["path"] == "CLAUDE.md"]), 3)
+
+    def test_with_claude_md_as_the_source_agents_md_is_not_shown_as_missing(self):
+        write(self.repo, "CLAUDE.md", "# Guide\n\n" + "\n".join(f"- line {i}" for i in range(80)))
+        files = {i["path"]: i for i in self.build()["layers"][0]["items"]}
+        self.assertEqual(files["CLAUDE.md"]["state"], "present")
+        self.assertIn("the source", files["CLAUDE.md"]["detail"])
+        self.assertNotIn("should only point to AGENTS.md", files["CLAUDE.md"]["purpose"])
+        self.assertEqual(files["AGENTS.md"]["state"], "optional")
+        self.assertIn("CLAUDE.md is the source", files["AGENTS.md"]["purpose"])
+
     def test_steps_beyond_the_target_are_kept_but_out_of_scope(self):
         write(self.repo, "AGENTS.md", AGENTS)
         write(self.repo, ".harness/config.json", json.dumps({"target_level": 2}))
