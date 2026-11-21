@@ -660,6 +660,21 @@ def tag_names(repo: str) -> set[str]:
     return set(_git_out(repo, "tag", "--list").split("\n")[:5000]) - {""}
 
 
+def _command(payload: Any) -> str | None:
+    """The shell command a tool call carries, as one string, or None: a call that is not a tool call, an edit of
+    a file, or a tool without a `command` that is a string or a list of words."""
+    if not isinstance(payload, dict) or payload.get("tool_name") in FILE_TOOLS:
+        return None
+    tool_input = payload.get("tool_input")
+    if not isinstance(tool_input, dict):
+        return None
+    # any other tool that carries a command runs it: Bash, a terminal of another server, a shell to come
+    command = tool_input.get("command")
+    if isinstance(command, list) and command and all(isinstance(word, str) for word in command):
+        command = shlex.join(command)
+    return command if isinstance(command, str) else None
+
+
 def hook(payload: Any, team: list[str] | None = None, tags: set[str] | None = None) -> tuple[int, str]:
     """The answer to a PreToolUse hook call: (exit code, message). 2 refuses the call, 0 lets it through."""
     if not isinstance(payload, dict):
@@ -670,11 +685,8 @@ def hook(payload: Any, team: list[str] | None = None, tags: set[str] | None = No
     if payload.get("tool_name") in FILE_TOOLS:
         found = settings_edit(tool_input, payload.get("cwd") or ".")
         return (2, render_edit(found)) if found else (0, "")
-    # any other tool that carries a command runs it: Bash, a terminal of another server, a shell to come
-    command = tool_input.get("command")
-    if isinstance(command, list) and command and all(isinstance(word, str) for word in command):
-        command = shlex.join(command)
-    if not isinstance(command, str):
+    command = _command(payload)
+    if command is None:
         return 0, ""
     found = reasons(command, team, tags)
     return (2, render(found)) if found else (0, "")
@@ -697,8 +709,9 @@ def run_hook(raw: str, environ: dict[str, str]) -> tuple[int, str]:
         return fallback
     try:
         repo = environ.get("CLAUDE_PROJECT_DIR") or (payload.get("cwd") if isinstance(payload, dict) else None) or "."
-        is_edit = isinstance(payload, dict) and payload.get("tool_name") in FILE_TOOLS   # an edit needs neither the procedure nor the tags
-        known = not is_edit and isinstance(repo, str) and "\0" not in repo and os.path.isdir(repo)
+        # the hook fires on every tool of every server: only a call that carries a command pays for the git
+        # reads of the procedure and of the tags; an edit, or a tool without a command, needs neither
+        known = _command(payload) is not None and isinstance(repo, str) and "\0" not in repo and os.path.isdir(repo)
         return hook(payload, team_lines(repo) if known else None, tag_names(repo) if known else None)
     except Exception:   # noqa: BLE001 — a guardrail that crashes would let everything through: fall back, do not raise
         return fallback

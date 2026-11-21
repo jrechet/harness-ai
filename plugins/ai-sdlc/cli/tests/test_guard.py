@@ -410,6 +410,32 @@ class OtherToolsTests(unittest.TestCase):
         self.assertEqual(self.call("mcp__shell__exec", {"command": ["git", 3]}), 0)
         self.assertEqual(self.call("Write", {"file_path": "notes.md", "content": "git tag v1.0.0", "command": "git tag v1.0.0"}), 0)
 
+    def test_a_call_without_a_command_does_not_read_the_repository(self):
+        """The hook fires on every tool of every MCP server: only a call that carries a command pays for git."""
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as tmp:
+            def git_calls(payload) -> int:
+                with mock.patch.object(guard, "_git_out", return_value="") as git:
+                    guard.run_hook(json.dumps(payload), {"CLAUDE_PROJECT_DIR": tmp})
+                return git.call_count
+            for tool, tool_input in (("mcp__docs__search", {"query": "git tag v1.0.0"}),
+                                     ("mcp__docs__search", {}),
+                                     ("mcp__shell__exec", {"command": {"git": "tag"}}),
+                                     ("mcp__shell__exec", {"command": ["git", 3]}),
+                                     ("mcp__shell__exec", {"command": []}),
+                                     ("mcp__shell__exec", {"command": None}),
+                                     ("Read", {"file_path": "a.md"}),
+                                     ("Write", {"file_path": "a.md", "content": "x", "command": "git tag v1.0.0"})):
+                with self.subTest(tool=tool, tool_input=tool_input):
+                    self.assertEqual(git_calls({"tool_name": tool, "tool_input": tool_input, "cwd": tmp}), 0)
+            for payload in ([], "text", {"tool_name": "mcp__docs__search"}, {"tool_name": "mcp__docs__search", "tool_input": "x"}):
+                with self.subTest(payload=payload):
+                    self.assertEqual(git_calls(payload), 0)
+            # a call that carries a command still reads the procedure and the tags
+            for tool, command in (("Bash", "git status"), ("mcp__shell__exec", "git status"), ("mcp__shell__exec", ["git", "status"])):
+                with self.subTest(tool=tool, command=command):
+                    self.assertGreater(git_calls({"tool_name": tool, "tool_input": {"command": command}, "cwd": tmp}), 0)
+
     def test_the_hook_entry_point_refuses_the_cases_of_the_issue(self):
         hook = os.path.join(PLUGIN, "cli", "guard_hook.py")
         env = {k: v for k, v in os.environ.items() if k not in guard.ALLOW_ENV_ALIASES and k != "CLAUDE_PROJECT_DIR"}
