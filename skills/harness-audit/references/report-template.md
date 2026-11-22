@@ -136,3 +136,5 @@ Missing files, unreadable workflows, tests that could not run, assumptions made.
   "unverified": ["<text>"]
 }
 ```
+
+`harness audit check <file>` refuses this block when `audit.date` is not a day, when `elements` is empty, when an element lacks its `path`, its `verdict` or its `priority` (written `null`, not left out, for a KEEP), when `process_leaks` is not a list, or when `cut_the_agent_test.passed` is `true` while `process_leaks` is not empty: the test cannot pass while a mandatory step lives only in a prompt. `harness status` does not count a file the check refuses.

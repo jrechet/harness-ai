@@ -8,11 +8,12 @@ import shutil
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from datetime import date
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from harnesslib import facts, maturity, rules, status  # noqa: E402
+import harness  # noqa: E402
+from harnesslib import facts, maturity, rules, shape, status  # noqa: E402
 
 TODAY = date(2026, 11, 9)
 
@@ -87,13 +88,13 @@ def write(repo: str, rel: str, content: str) -> None:
 
 def harvest_json(real: int, agent_prs: int = 2, s2: int = 0) -> str:
     ev = [{"signal": "S1"} for _ in range(real)] + [{"signal": "S2"} for _ in range(s2)] + [{"signal": "S5"}]
-    return json.dumps({"since": "2026-10-01", "prs_scanned": 5, "agent_prs": agent_prs, "errors": [], "evidence": ev})
+    return json.dumps({"source": "github", "since": "2026-10-01", "prs_scanned": 5, "agent_prs": agent_prs, "errors": [], "evidence": ev})
 
 
 def audit_json(p1: int = 0, passed: bool = True) -> str:
-    elements = [{"actual_layer": "L2", "verdict": "KEEP", "priority": None},
-                {"actual_layer": "L3", "verdict": "PUSH_DOWN", "priority": "P2"}]
-    elements += [{"actual_layer": "L2", "verdict": "BLOCK", "priority": "P1"} for _ in range(p1)]
+    elements = [{"path": "AGENTS.md", "actual_layer": "L2", "verdict": "KEEP", "priority": None},
+                {"path": "scripts/check.sh", "actual_layer": "L3", "verdict": "PUSH_DOWN", "priority": "P2"}]
+    elements += [{"path": f"docs/p{i}.md", "actual_layer": "L2", "verdict": "BLOCK", "priority": "P1"} for i in range(p1)]
     return json.dumps({"audit": {"date": "2026-11-05", "health_score": 70,
                                  "cut_the_agent_test": {"passed": passed, "leaked_steps": 0 if passed else 2}},
                        "elements": elements, "process_leaks": [], "guarded_rules": [{"rule": "x"}]})
@@ -753,6 +754,242 @@ class CliTests(TempRepo):
             status.main([self.repo, "--format", "json", "--no-write", "--today", "2026-11-09"])
         self.assertEqual(json.loads(out.getvalue())["level"]["reached"], 0)
         self.assertFalse(os.path.exists(os.path.join(self.repo, ".harness")))
+
+
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+FIXTURE_REPOS = os.path.join(REPO_ROOT, "fixtures", "repos")
+# The two files of issue 90: written by hand, they used to tick three boxes and reach level 2.
+HAND_AUDIT = '{"audit":{"cut_the_agent_test":{"passed":true}}}'
+HAND_HARVEST = '{"evidence":[{"signal":"S1"}],"agent_prs":1}'
+
+
+def run_cli(*argv: str) -> tuple[int, str, str]:
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        code = harness.main(list(argv))
+    return code, out.getvalue(), err.getvalue()
+
+
+class AuditShapeTests(unittest.TestCase):
+    def audit(self, **changes):
+        return {**json.loads(audit_json()), **changes}
+
+    def test_a_full_audit_has_no_problem(self):
+        self.assertEqual(shape.check_audit(json.loads(audit_json())), [])
+        self.assertEqual(shape.check_audit(json.loads(audit_json(p1=1, passed=False))), [])
+
+    def test_the_hand_written_audit_is_refused_for_its_date_and_its_missing_elements(self):
+        problems = " | ".join(shape.check_audit(json.loads(HAND_AUDIT)))
+        self.assertIn("audit.date", problems)
+        self.assertIn("elements", problems)
+
+    def test_what_is_not_an_object_is_refused(self):
+        for data in ([], "text", 3, None, {}):
+            self.assertTrue(shape.check_audit(data), data)
+            self.assertTrue(shape.check_harvest(data), data)
+
+    def test_the_date_must_be_a_real_day(self):
+        for bad in (None, "", "yesterday", "2026-13-40", 20261105):
+            audit = self.audit(audit={"date": bad, "cut_the_agent_test": {"passed": True}})
+            self.assertIn("audit.date", " | ".join(shape.check_audit(audit)), bad)
+
+    def test_an_audit_needs_at_least_one_element(self):
+        for bad in ([], None, "none", {}):
+            self.assertIn("elements", " | ".join(shape.check_audit(self.audit(elements=bad))), bad)
+
+    def test_each_element_needs_a_path_a_verdict_and_a_priority(self):
+        good = {"path": "AGENTS.md", "verdict": "KEEP", "priority": None}
+        for bad, word in (({**good, "path": ""}, "path"), ({k: v for k, v in good.items() if k != "path"}, "path"),
+                          ({**good, "verdict": "FINE"}, "verdict"), ({k: v for k, v in good.items() if k != "verdict"}, "verdict"),
+                          ({**good, "priority": "P9"}, "priority"), ({k: v for k, v in good.items() if k != "priority"}, "priority"),
+                          ("not a row", "object")):
+            problems = shape.check_audit(self.audit(elements=[good, bad]))
+            self.assertEqual(len(problems), 1, bad)
+            self.assertIn("elements[1]", problems[0])
+            self.assertIn(word, problems[0])
+
+    def test_the_cut_the_agent_test_cannot_pass_with_a_process_leak(self):
+        leaking = self.audit(process_leaks=[{"rule": "run the migration by hand", "told_in": "AGENTS.md:12"}])
+        problems = shape.check_audit(leaking)
+        self.assertEqual(len(problems), 1)
+        self.assertIn("process_leaks", problems[0])
+        self.assertIn("passed", problems[0])
+        leaking["audit"]["cut_the_agent_test"]["passed"] = False
+        self.assertEqual(shape.check_audit(leaking), [])
+
+    def test_the_cut_the_agent_test_says_yes_or_no(self):
+        for bad in ({"date": "2026-11-05"}, {"date": "2026-11-05", "cut_the_agent_test": {"passed": "yes"}},
+                    {"date": "2026-11-05", "cut_the_agent_test": True}):
+            self.assertIn("cut_the_agent_test.passed", " | ".join(shape.check_audit(self.audit(audit=bad))), bad)
+
+    def test_process_leaks_is_a_list(self):
+        self.assertIn("process_leaks", " | ".join(shape.check_audit(self.audit(process_leaks=5))))
+
+    def test_the_recorded_audits_of_the_fixtures_still_load(self):
+        checked, refused = 0, []
+        for root, _, names in os.walk(FIXTURE_REPOS):
+            if "runs" not in root.split(os.sep):
+                continue
+            for name in names:
+                if not (name.endswith(".json") and "audit" in name):
+                    continue
+                path = os.path.join(root, name)
+                data, problem = shape.load(path)
+                if problem is None and not (isinstance(data, dict) and "elements" in data):
+                    continue                                    # not an audit report: a grade, a note
+                checked += 1
+                problems = [problem] if problem else shape.check_audit(data)
+                if problems:
+                    refused.append(f"{os.path.relpath(path, FIXTURE_REPOS)}: {problems[0]}")
+        self.assertGreater(checked, 10)
+        self.assertEqual(refused, [])
+
+
+class HarvestShapeTests(unittest.TestCase):
+    def test_a_full_harvest_has_no_problem(self):
+        self.assertEqual(shape.check_harvest(json.loads(harvest_json(real=1))), [])
+
+    def test_the_hand_written_harvest_is_refused_for_what_it_lacks(self):
+        problems = " | ".join(shape.check_harvest(json.loads(HAND_HARVEST)))
+        for word in ("source", "since", "prs_scanned"):
+            self.assertIn(word, problems)
+
+    def test_each_field_is_checked(self):
+        good = json.loads(harvest_json(real=1))
+        for key, bad in (("source", ""), ("source", 3), ("since", "last month"), ("since", None),
+                         ("prs_scanned", "5"), ("prs_scanned", -1), ("prs_scanned", True),
+                         ("evidence", "none"), ("evidence", ["text"])):
+            problems = shape.check_harvest({**good, key: bad})
+            self.assertEqual(len(problems), 1, (key, bad))
+            self.assertIn(key, problems[0])
+
+    def test_the_harvest_of_the_python_cli_fixture_still_loads(self):
+        data, problem = shape.load(os.path.join(FIXTURE_REPOS, "python-cli", "repo", ".harness", "harvest.json"))
+        self.assertIsNone(problem)
+        self.assertEqual(shape.check_harvest(data), [])
+
+
+class UnreadableFilesTests(TempRepo):
+    """A file that fails the check counts for nothing, and status says why in one line."""
+
+    def guarded_level4(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL4.replace("(unverified)", "Enforced by: `archunit/NoRawSql`")
+              .replace("- Never force push.", "- Never force push. Why: incident #7. Enforced by: branch protection")
+              .replace("- `bump-dependency` — bump", "- `bump-dependency` — Enforced by: CI. Why: #3. bump"))
+        write(self.repo, ".github/workflows/ci.yml", "name: ci\n")
+        write(self.repo, ".claude/skills/bump-dependency/SKILL.md", "---\nname: bump-dependency\n---\n")
+
+    def status_output(self, *args):
+        code, out, _ = run_cli("status", self.repo, "--no-write", "--today", "2026-11-09", *args)
+        self.assertEqual(code, 0)
+        return out
+
+    def test_the_hand_written_audit_ticks_nothing_and_is_not_the_layer_view(self):
+        self.guarded_level4()
+        write(self.repo, ".harness/harvest.json", harvest_json(real=1))
+        write(self.repo, ".harness/audit.json", HAND_AUDIT)
+        s = self.state()
+        self.assertIsNone(s["facts"]["audit"])
+        self.assertFalse(self.check(s, "L3.audit")["passed"])
+        self.assertFalse(self.check(s, "L4.cut_the_agent")["passed"])
+        self.assertEqual(s["level"]["reached"], 2)
+        self.assertEqual(s["layers"]["source"], "estimate")
+        out = self.status_output()
+        self.assertNotIn("audit of None", out)
+        self.assertRegex(out, r"(?m)^audit\.json unreadable: .+$")
+
+    def test_the_hand_written_harvest_does_not_reach_level_2(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
+        write(self.repo, ".harness/harvest.json", HAND_HARVEST)
+        s = self.state()
+        self.assertIsNone(s["facts"]["harvest"])
+        self.assertFalse(self.check(s, "L2.signal")["passed"])
+        self.assertEqual(s["level"]["reached"], 1)
+        out = self.status_output()
+        self.assertIn("**Level reached**: 1", out)
+        self.assertRegex(out, r"(?m)^harvest\.json unreadable: .+$")
+
+    def test_a_passing_cut_the_agent_test_beside_process_leaks_does_not_count(self):
+        self.guarded_level4()
+        write(self.repo, ".harness/harvest.json", harvest_json(real=1))
+        audit = json.loads(audit_json())
+        audit["process_leaks"] = [{"rule": "run the migration by hand"}]
+        write(self.repo, ".harness/audit.json", json.dumps(audit))
+        s = self.state()
+        self.assertFalse(self.check(s, "L4.cut_the_agent")["passed"])
+        self.assertLess(s["level"]["reached"], 3)
+        self.assertIn("process_leaks", s["facts"]["unreadable"][0])
+
+    def test_a_file_that_is_not_json_is_said_and_not_ignored_without_a_word(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
+        write(self.repo, ".harness/audit.json", "{not json")
+        write(self.repo, ".harness/harvest.json", "{not json")
+        s = self.state()
+        self.assertEqual([line.split(":")[0] for line in s["facts"]["unreadable"]],
+                         ["audit.json unreadable", "harvest.json unreadable"])
+        self.assertTrue(all("not JSON" in line and "\n" not in line for line in s["facts"]["unreadable"]))
+        out = self.status_output()
+        self.assertIn("audit.json unreadable: ", out)
+        self.assertIn("harvest.json unreadable: ", out)
+
+    def test_the_map_says_it_too(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
+        write(self.repo, ".harness/harvest.json", HAND_HARVEST)
+        self.assertRegex(self.status_output("--map"), r"(?m)^harvest\.json unreadable: .+$")
+
+    def test_a_file_given_by_option_is_named_by_its_own_name(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
+        write(self.repo, "elsewhere/last-audit.json", HAND_AUDIT)
+        out = self.status_output("--audit", os.path.join(self.repo, "elsewhere", "last-audit.json"))
+        self.assertIn("last-audit.json unreadable: ", out)
+
+    def test_no_file_and_sound_files_say_nothing(self):
+        write(self.repo, "AGENTS.md", AGENTS_LEVEL2)
+        self.assertEqual(self.state()["facts"]["unreadable"], [])
+        self.assertNotIn("unreadable", self.status_output())
+        write(self.repo, ".harness/audit.json", audit_json())
+        write(self.repo, ".harness/harvest.json", harvest_json(real=1))
+        self.assertEqual(self.state()["facts"]["unreadable"], [])
+        out = self.status_output()
+        self.assertNotIn("unreadable", out)
+        self.assertIn("audit of 2026-11-05", out)
+
+
+class CheckCommandTests(TempRepo):
+    def path(self, name, content):
+        write(self.repo, name, content)
+        return os.path.join(self.repo, name)
+
+    def test_audit_check_accepts_a_full_audit(self):
+        code, out, _ = run_cli("audit", "check", self.path("audit.json", audit_json()))
+        self.assertEqual(code, 0)
+        self.assertIn("2 element(s)", out)
+
+    def test_audit_check_refuses_the_hand_written_file_and_lists_every_problem(self):
+        code, _, err = run_cli("audit", "check", self.path("audit.json", HAND_AUDIT))
+        self.assertEqual(code, 1)
+        self.assertIn("audit.date", err)
+        self.assertIn("elements", err)
+
+    def test_audit_check_refuses_what_is_not_json_and_a_missing_file(self):
+        code, _, err = run_cli("audit", "check", self.path("audit.json", "{not json"))
+        self.assertEqual(code, 1)
+        self.assertIn("not JSON", err)
+        code, _, err = run_cli("audit", "check", os.path.join(self.repo, "nowhere.json"))
+        self.assertEqual(code, 2)
+        self.assertIn("nowhere.json", err)
+
+    def test_harvest_check_accepts_a_full_harvest_and_refuses_the_hand_written_one(self):
+        code, out, _ = run_cli("harvest", "check", self.path("harvest.json", harvest_json(real=1)))
+        self.assertEqual(code, 0)
+        self.assertIn("5 PR(s) scanned", out)
+        code, _, err = run_cli("harvest", "check", self.path("harvest.json", HAND_HARVEST))
+        self.assertEqual(code, 1)
+        self.assertIn("prs_scanned", err)
+
+    def test_the_audit_skill_calls_the_check_before_it_finishes(self):
+        with open(os.path.join(REPO_ROOT, "skills", "harness-audit", "SKILL.md"), encoding="utf-8") as fh:
+            self.assertIn('harness.py" audit check', fh.read())
 
 
 if __name__ == "__main__":

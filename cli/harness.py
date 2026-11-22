@@ -5,6 +5,8 @@
   harness target <level> [repo]      declares the target level: beyond it, status proposes nothing
   harness rules [repo]               the rules, their date, their guardrail, their justification
   harness harvest github --repo …    GitHub evidence for harness-harvest
+  harness harvest check <file>       a harvest file has what `status` needs to count it
+  harness audit check <file>         an audit file has what `status` needs to count it
   harness fixture check <name>       compares a fixture with its expected.json
   harness bench …                    the before-and-after bench: plan, prepare, check, selftest, record, report
   harness serve [repo]               local tracking app (http://127.0.0.1:8787)
@@ -28,7 +30,7 @@ if sys.version_info < (3, 10):  # before any import: the rest of the CLI does no
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harnesslib import bench, commands, fixtures, fresh, github, keys, medals, place, progress, report, rules, serve, status  # noqa: E402
+from harnesslib import bench, commands, fixtures, fresh, github, keys, medals, place, progress, report, rules, serve, shape, status  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -41,6 +43,10 @@ def main(argv: list[str] | None = None) -> int:
     harvest = sub.add_parser("harvest", help="evidence collection for harness-harvest")
     hsub = harvest.add_subparsers(dest="source", required=True)
     github.build_parser(hsub.add_parser("github", help="GitHub adapter"))
+    shape.build_parser(hsub.add_parser("check", help="a harvest file has what status needs to count it"), "harvest")
+    audit = sub.add_parser("audit", help="checks on what harness-audit writes")
+    asub = audit.add_subparsers(dest="action", required=True)
+    shape.build_parser(asub.add_parser("check", help="an audit file has what status needs to count it"), "audit")
     fixtures.build_parser(sub.add_parser("fixture", help="fixture checks"))
     bench.build_parser(sub.add_parser("bench", help="the before-and-after task bench"))
     serve.build_parser(sub.add_parser("serve", help="local tracking app"))
@@ -64,6 +70,8 @@ def main(argv: list[str] | None = None) -> int:
         return rules.main(args=args)
     if args.command == "harvest" and args.source == "github":
         return github.main(args=args)
+    if args.command in ("audit", "harvest"):
+        return shape.main(args)
     if args.command == "fixture":
         return fixtures.main(args=args)
     if args.command == "bench":
