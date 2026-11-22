@@ -69,6 +69,18 @@ class DisabledTests(Case):
                 self.commit("tests/test_app.py", TEST + marker + "\n")
                 self.assertEqual(self.gates()["disabled"]["status"], qa.FAIL)
 
+    def test_a_method_or_a_function_named_fit_is_not_a_focused_test(self):
+        for line in ("        document = flow_fit.fit(answers())", "def fit(answers):", "    model.xtest(1)"):
+            with self.subTest(line=line):
+                git(self.repo, "checkout", "-q", "-B", "attempt", "main")
+                self.commit("tests/test_app.py", TEST + line + "\n")
+                self.assertEqual(self.gates()["disabled"]["status"], qa.OK)
+        for marker in ("fit('x', () => {})", "  fdescribe('x')", "xtest('x')"):
+            with self.subTest(marker=marker):
+                git(self.repo, "checkout", "-q", "-B", "attempt", "main")
+                self.commit("tests/test_app.py", TEST + marker + "\n")
+                self.assertEqual(self.gates()["disabled"]["status"], qa.FAIL)
+
     def test_a_changed_test_configuration_is_not_measured_and_a_word_in_the_docs_is_not_a_skip(self):
         self.commit("pytest.ini", "[pytest]\ntestpaths = nowhere\n")
         gate = self.gates()["disabled"]
