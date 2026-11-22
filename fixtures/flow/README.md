@@ -9,10 +9,13 @@ fixtures/flow/
 ├── definitions/         # flows written by hand: the two templates, and one for what they do not hold
 ├── sequences/<name>.json   # one ticket's run: the events received, in order, and the expected state after each
 ├── cases/<name>.json    # one definition, often a template with one thing changed: what check, place and status must answer
-└── place/<name>/
-    ├── definition.json  # only when the flow is not a template
-    ├── traps.md         # only in trapped/: what was planted and why
-    └── expected.json    # where each step must land, and the verdict
+├── place/<name>/
+│   ├── definition.json  # only when the flow is not a template
+│   ├── traps.md         # only in trapped/: what was planted and why
+│   └── expected.json    # where each step must land, and the verdict
+└── fit/<name>/
+    ├── answers.json     # what a team recorded before any definition exists; `flow fit` reads it as it is
+    └── expected.json    # the verdict, or the keys the refusal names
 ```
 
 ## How it is graded
@@ -135,6 +138,23 @@ One file is one definition and what the three commands that replay nothing must 
 | `stop-point-is-a-step-name` | bug, `stop_at` set to the step `fix` | No stop point: a stop point is a name a transition reaches, not a step |
 | `unknown-type` | bug, one step of type "person" | `flow check` says it once; `flow place` leaves the step open and asks for `type` |
 | `several-problems-in-order` | bug, five things removed | The problems come in the order of the contract's table, then in file order |
+
+## The answers to `flow fit`
+
+`flow fit` is run before any definition exists: a team records what it builds, how many tickets a week go through the path, whether a person starts each phase, and eight symptoms, each a number or "not measured" (the contract's section 11). `expected.json` gives the exit code, the verdict (`by_hand`, `ticket_state_and_ci`, `tool`, `symptom`, or null when the answers are refused), the tool named, the symptoms that fired, the numbers listed without deciding (`not_deciding`), the symptoms not measured, and the keys a refusal names, each list in order. `cli/tests/test_flow_fit.py` runs each file through the command line. These six were written by the session that wrote the code: they hold a regression in place, they are not an independent measure.
+
+```bash
+python3 -m unittest discover -s cli/tests -p test_flow_fit.py -v
+```
+
+| Folder | What the team says | What it shows |
+|---|---|---|
+| `by-hand` | A ticket workflow, no ticket in a week, a person starts each phase | "By hand with the ai-sdlc skills may be enough: no ticket goes through this path yet" |
+| `ticket-state-and-ci` | Fifteen tickets a week, chained by hand; one run in ten paid twice | "Ticket state and CI are enough": a value on the threshold is not above it. The one symptom not measured is listed, and the four steps with their own retry rule are listed without deciding |
+| `own-agent-app` | Its own agent application, with seven double runs written down | The tool the report's table names for that case; the symptoms describe a ticket workflow and decide nothing here |
+| `symptom-fired` | Thirty tickets a week, two double runs, three looping agents, eight runs in a hundred paid twice | Two symptoms named in table order, one an engine removes and one it does not; the share under its written threshold is not named |
+| `nothing-measured` | Twenty-five tickets a week, every symptom "not measured" | The verdict is still "ticket state and CI", and all eight symptoms are listed as not measured, none counted as fine |
+| `refused` | One key absent, one symptom written "none", one symptom key misspelt | No verdict, exit 1: each key is named, the misspelt one twice (the right key is missing, the wrong one is unknown) |
 
 ## Changing an answer
 

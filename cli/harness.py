@@ -17,7 +17,7 @@
   harness progress check|remind      the progress plan in docs/capabilities.md follows every change
   harness keys check [--base REF]    an answer key or a grader does not change with a skill or a run
   harness report build|from-place …  a one-page HTML assessment, always in the same format
-  harness flow new|check|next|place|status …   a team's workflow from a ticket to production, checked on paper
+  harness flow fit|new|check|next|place|status …   a team's workflow from a ticket to production, checked on paper
 
 Python 3.10+, standard library only."""
 from __future__ import annotations

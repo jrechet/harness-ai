@@ -534,7 +534,7 @@ Before its first heading the guide gives the six steps of the work in order, wit
 
 ## 10. Out of this slice
 
-- The other commands of the proposal: `flow fit`, `render`, `exits`, `drill`, `scope`, and the run side `claim`, `run-step`, `report`, `sweep`.
+- The other commands of the proposal: `render`, `exits`, `drill`, `scope`, and the run side `claim`, `run-step`, `report`, `sweep`.
 - The plugin `plugins/harness-flow/` and its seven skills; every doc of proposal section 6 except `decide.md`.
 - Any pipeline file, forge or tracker call, agent call, key, account.
 - The mapping from states to ticket labels (`flow:ready`…), the run record written on a ticket, the hash of the definition and the agent's version in the run. Until the run carries that hash, changing a definition while runs are alive (a state renamed, a cap lowered) stops them as `inconsistent` at their next event.
@@ -543,6 +543,91 @@ Before its first heading the guide gives the six steps of the work in order, wit
 - Levels 2 to 4 of the ladder, the target of a flow, any state file written under `.harness/`.
 - Conditions on payload values, counters that reset, sub-flows, one ticket across several repositories.
 - Blind runs of any skill; a Rust implementation.
+
+## 11. `flow fit`
+
+Added after the first slice (section 10 listed it as left out). `flow fit` is run **before any definition exists**. A person, or the skill `flow-why`, records a few answers about what the team builds; the program gives the verdict. Nothing is measured here: the numbers are the team's own, typed in. Rules and sentences are data, in `cli/harnesslib/flow_fit.json`; the code is `cli/harnesslib/flow_fit.py`.
+
+```
+flow fit <answers.json>     the verdict; "-" reads the answers on standard input
+flow fit --questions        the questions and the allowed values, so that a skill never invents them
+```
+
+Both take `--format md|json`. Exit codes as in section 4: **0** a verdict (or the questions), **1** refused answers, **2** wrong usage (no file and no `--questions`) or an input that is missing or is not JSON. `NaN` and `Infinity` are read, then refused as values (exit 1).
+
+**The answers file** is one JSON object with exactly these four keys:
+
+| Key | Allowed values |
+|---|---|
+| `building` | What is being built, one row of report §8: `"ticket_workflow"` (a ticket workflow for a team, driving a coding agent), `"own_agent_app"` (the team's own agent application in Python or TypeScript, with a known graph and pauses in the process), `"agent_product"` (an agent product for users, with sessions that resume mid-run), `"many_repositories"` (the same change across hundreds of repositories, the report's word: it gives no lower bound), `"long_lived_orchestrator"` (a long-lived orchestrator, a tool server or a binary for many teams) |
+| `tickets_per_week` | A number, 0 or more: the tickets that go through this path in a week. It is an average, so 0.5 is allowed |
+| `chained_by_hand` | `"yes"` (a person starts each phase) or `"no"` (something already starts the next phase) |
+| `symptoms` | An object with exactly the eight keys below, each a number or the string `"not measured"`. The first is a share from 0 to 1; the seven others are counts, so whole numbers (3 or 3.0, never 0.5), of any size |
+
+A **symptom** is a row of the last table of report §7, copied in decide.md section 3. A symptom **fires** when its value is a number above its threshold. Only one threshold is written in the report ("more than about one run in ten"). Where none is written, the rule is: **any measured occurrence above zero is named**. One row is the exception: the report says "many steps" and gives no number, and one step is not many. That row **never fires**: a number above zero is listed for the person to judge. The answers are not checked against each other: 3 double runs on a path with 0 tickets a week is read as written.
+
+| Key in `symptoms` | The number is | Fires above | An engine removes it |
+|---|---|---|---|
+| `runs_paid_twice` | the share of runs that died far in and were paid twice, from 0 to 1 | 0.1, written in the report | yes |
+| `double_runs` | the number of tickets that had two runs at once | 0 | yes |
+| `silent_events` | the number of events that were accepted and then lost without a word | 0 | yes |
+| `agent_loops` | the number of runs where the agent looped until something outside stopped it | 0 | no: "an engine retries it faithfully" |
+| `waits_inside_computation` | the number of waits that must resume inside an expensive multi-step computation | 0 | yes |
+| `steps_with_own_retry_rule` | the number of steps that need a retry or timeout rule of their own | never: no number in the report | yes, if the person judges them many |
+| `order_breaks` | the number of events from several systems that were handled out of order | 0 | yes |
+| `tickets_without_cost` | the number of tickets whose cost nobody can give | 0 | no: any runtime with a run record gives it |
+
+**The rules**, in order; the first that applies decides:
+
+| # | When | Verdict (`verdict.code`) | Source printed |
+|---|---|---|---|
+| 0 | The file is not an object; a key is missing; a value is not allowed (a boolean and a negative number are not numbers here, a share is at most 1, a count is whole); a key is not one of the above; a key is written twice, at top level or under `symptoms` (the last one is not taken) | Refused, exit 1: one line per answer to fix, each naming the key. Never a guess | - |
+| 1 | `building` is not `ticket_workflow` | `tool`: the choice of that row of report §8 (`own_agent_app` "LangGraph, or an agent SDK plus an engine"; `agent_product` "A durable engine under a plain loop"; `many_repositories` "A script and a CI matrix, one PR per repository"; `long_lived_orchestrator` "Rust is reasonable"). The symptoms describe a ticket workflow: here they are checked, and each one above its threshold is listed in `not_deciding`; they do not decide | report §8, that row; §2.7, §5.2, §7 or §4.5 |
+| 2 | At least one symptom fires | `symptom`: every symptom that fired, in table order, with its number, its threshold, its smallest fix and what removes it by design. An engine is named only as what comes next if the symptom stays after its fix, and only when it removes one of them | report §7, last table; §8, second row; decide.md §3 |
+| 3 | `chained_by_hand` is `yes` and `tickets_per_week` is 0 | `by_hand`: "By hand with the ai-sdlc skills may be enough: no ticket goes through this path yet." | decide.md §7, quoted: "Chaining the steps by hand may be enough" |
+| 4 | Otherwise | `ticket_state_and_ci`: "Ticket state and CI are enough." | report §8, first row; §7, last table |
+
+Rule 3 uses zero as this command's own rule, and prints that it is: neither the guide nor the report gives a number of tickets a week under which chaining by hand is enough, and the guide says only "may be enough". `"not measured"` never fires and is never counted as fine: every verdict lists those symptoms.
+
+**The output.** `fit(answers)` of `flow_fit.py` returns the `fit` document, which `--format json` prints: `{"passed", "problems", "verdict": {"code", "sentence"}, "building", "tool", "why", "fired", "not_deciding", "not_measured", "would_change", "source"}`. `tool` is the choice of rule 1, otherwise null. An entry of `fired` is `{"key", "symptom", "value", "above", "written", "smallest_fix", "removed_by", "engine"}`; `written` is the report's own words for the threshold, or null when the zero rule applies. An entry of `not_deciding` is an entry of `fired` plus `"reason"`: `not_a_ticket_workflow` (rule 1: a number above its threshold, or above zero for the row with none), or `no_threshold` (`steps_with_own_retry_rule` above zero on a ticket workflow; its `above` is null). So an empty `fired` never hides a number. An entry of `not_measured` is `{"key", "symptom"}`. `would_change` is the measurable fact that would change the answer. Refused answers give `{"passed": false, "problems": [{"code", "key", "message"}], "verdict": null}`, with `code` one of `not_an_object`, `missing`, `unknown_value`, `unknown_key`, `duplicate_key` and `key` dotted (`symptoms.double_runs`); problems come in the order of the keys above, then the unknown keys, then the keys written twice. A message shows a key or a value as JSON would write it, on one line, control characters escaped. A key written twice can only be seen in the text: `parse(text)` of `flow_fit.py` keeps it for `fit`, and the command reads its input with it.
+
+For a person: "Verdict: ‹sentence›", "Why: ‹why›", one line per symptom that fired, one line per entry of `not_deciding` ("‹key› is ‹value›: listed, it did not decide."), "What would change this answer: ‹would_change›", "Source: ‹source›.", then the symptoms not measured. One note on stderr with `--format md`: after `ticket_state_and_ci`, "Next: flow new feature or flow new bug writes a starting definition."; after a refusal, "The questions and the allowed values: flow fit --questions".
+
+`flow fit --questions` prints each key with its question and allowed values, each symptom with what its number counts and its threshold, and an example file; with `--format json`, `{"facts_date", "not_measured", "questions", "symptoms", "example"}`, where a symptom's `above` is null for the row that never fires. The example is a complete answers file.
+
+**Three examples.** In each, the symptoms not shown are 0.
+
+1. `{"building": "ticket_workflow", "tickets_per_week": 12, "chained_by_hand": "yes", "symptoms": {"runs_paid_twice": "not measured", "agent_loops": "not measured", "tickets_without_cost": "not measured", …}}`, exit 0:
+
+```
+Verdict: Ticket state and CI are enough.
+Why: 12 tickets a week go through this path and the phases are chained by hand. The ticket or the pull request holds the state, and a short CI job runs each step. No measured symptom is above its threshold.
+What would change this answer: One symptom measured above its threshold on your own runs: runs_paid_twice above 0.1, any other above 0, except steps_with_own_retry_rule, which has no threshold and is yours to judge.
+Source: report §8, first row; report §7, last table.
+Not measured, so not counted as fine: runs_paid_twice (Runs die far in and pay their tokens twice); agent_loops (An agent loops and burns tokens); tickets_without_cost (You cannot say what a ticket cost).
+```
+
+2. `{"building": "ticket_workflow", "tickets_per_week": 40, "chained_by_hand": "no", "symptoms": {"runs_paid_twice": 0.05, "double_runs": 3, …}}`, exit 0:
+
+```
+Verdict: A symptom is measured above its threshold: double_runs is 3, above 0.
+Why: On a ticket workflow, a measured symptom is the only thing that calls for more than ticket state and CI. Try the smallest fix first; move on only when the symptom is still there.
+- double_runs is 3, above 0: the report writes no threshold, so any measured occurrence above zero is named. Two runs on one ticket. First try: One run at a time per ticket; keys derived from the ticket, never random. What removes it by design: An engine with one workflow per ticket.
+What would change this answer: Each symptom named above back at or under its threshold after its smallest fix: then ticket state and CI are enough. If one stays, the report's choice is a managed engine (Temporal Cloud), one workflow per ticket; the worker can be Rust.
+Source: report §7, last table; report §8, second row; decide.md §3.
+Not measured: nothing. Every symptom has a number.
+```
+
+3. `{"building": "chatbot", "chained_by_hand": "yes", "symptoms": {…}}` where `tickets_per_week` and `symptoms.double_runs` are absent, exit 1:
+
+```
+Refused: 3 answers to fix. No verdict is given on a guess.
+- "building" is "chatbot": write "ticket_workflow", "own_agent_app", "agent_product", "many_repositories" or "long_lived_orchestrator".
+- Add "tickets_per_week": a number, 0 or more.
+- Add "double_runs" under "symptoms": a whole number, 0 or more, or "not measured".
+```
+
+`fixtures/flow/fit/<name>/` holds `answers.json`, a file the command reads as it is, and `expected.json`: `{"about", "exit", "verdict", "tool", "fired", "not_deciding", "not_measured", "refused"}`, where `verdict` is the code or null, `fired`, `not_deciding` and `not_measured` are lists of symptom keys, and `refused` is the list of keys the refusal names. `cli/tests/test_flow_fit.py` runs each through the command line.
 
 ## Choices made here
 
