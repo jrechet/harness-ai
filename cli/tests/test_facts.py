@@ -6,6 +6,7 @@ import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from harnesslib import facts, maturity  # noqa: E402
@@ -122,9 +123,8 @@ REAL_CONTRACT = ("---\nname: bump\ndescription: Bump a dependency and prove noth
                  "# Bump a dependency\n\n## Done when\n- The tests pass.\n")
 
 
-class TaskContractTest(unittest.TestCase):
-    """A task contract counts for level 4 when its front matter says what it is; whether it says when
-    the task is done is measured beside it."""
+class ContractRepo(unittest.TestCase):
+    """A temporary repository with one task contract, `bump`, cited by its source file."""
 
     def setUp(self) -> None:
         tmp = tempfile.TemporaryDirectory()
@@ -143,6 +143,11 @@ class TaskContractTest(unittest.TestCase):
             handle.write(SOURCE_WITH_TASK)
         checks = maturity.level4(facts.collect(self.repo))
         return next(c for c in checks if c["id"] == "L4.contracts")
+
+
+class TaskContractTest(ContractRepo):
+    """A task contract counts for level 4 when its front matter says what it is; whether it says when
+    the task is done is measured beside it."""
 
     def test_an_empty_contract_is_not_complete(self) -> None:
         item = self.contract("")
@@ -241,6 +246,59 @@ class TaskContractTest(unittest.TestCase):
 
         self.assertEqual([(i["name"], i["complete"], i["done_criterion"]) for i in items],
                          [("add-endpoint", True, True)])
+
+
+NO_DONE_CONTRACT = "---\nname: bump\ndescription: Bump a dependency.\n---\n# Bump\n\n## Steps\n1. Bump.\n"
+
+
+class DoneCriterionRequiredTest(ContractRepo):
+    """Issue #91 asks for a done criterion too. It is not required yet (`REQUIRE_DONE_CRITERION` is
+    off, see facts.py); these tests hold the rule ready for the day the owner switches it on."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        patch = mock.patch.object(facts, "REQUIRE_DONE_CRITERION", True)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_a_contract_without_a_done_criterion_is_not_complete(self) -> None:
+        item = self.contract(NO_DONE_CONTRACT)
+
+        self.assertFalse(item["complete"])
+        self.assertEqual(item["missing"], ["done criterion"])
+
+    def test_a_contract_without_a_done_criterion_fails_the_level_4_check(self) -> None:
+        self.contract(NO_DONE_CONTRACT)
+
+        check = self.level4_check()
+
+        self.assertFalse(check["passed"])
+        self.assertIn("it lacks done criterion", check["next_action"])
+
+    def test_an_empty_contract_lacks_all_three(self) -> None:
+        item = self.contract("")
+
+        self.assertEqual(item["missing"], ["front matter name", "front matter description", "done criterion"])
+
+    def test_done_when_in_the_description_does_not_complete_the_contract(self) -> None:
+        item = self.contract("---\nname: bump\ndescription: Says the task is done when CI is green.\n---\n# Bump\n")
+
+        self.assertEqual(item["missing"], ["done criterion"])
+
+    def test_the_go_hexa_level_4_overlay_still_passes_the_check(self) -> None:
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        overlay = os.path.join(root, "fixtures/repos/go-hexa/runs/2026-11-14-step-target4-step2-after/overlay")
+
+        items = facts.contract_facts(overlay, "- `add-endpoint`")["items"]
+
+        self.assertEqual([(i["name"], i["complete"], i["missing"]) for i in items], [("add-endpoint", True, [])])
+
+
+class DoneCriterionSwitchTest(unittest.TestCase):
+    def test_the_done_criterion_is_named_only_when_required(self) -> None:
+        self.assertEqual(facts.contract_missing(NO_DONE_CONTRACT), [])
+        self.assertEqual(facts.contract_missing(NO_DONE_CONTRACT, require_done=True), ["done criterion"])
+        self.assertEqual(facts.contract_missing(REAL_CONTRACT, require_done=True), [])
 
 
 if __name__ == "__main__":

@@ -60,8 +60,11 @@ PROCESS_HEADING_RE = re.compile(r"processus de travail|working process|working a
 RULE_DATE_RE = re.compile(r"\[(\d{4}-\d{2}(?:-\d{2})?)\]")
 DELEGATED_HEADING_RE = re.compile(r"t[âa]ches d[ée]l[ée]gu[ée]es|delegated tasks", re.I)
 # A task contract says what it is (front matter with `name` and `description`) and when the task is done.
-# Only the front matter is required today: three sample projects expect a contract without a done
-# criterion to pass level 4, so the criterion is measured (`done_criterion`) and not yet required.
+# Issue #91 asks for both. Only the front matter is required today: the contracts of the java-back,
+# node-front and python-cli sample projects have no done criterion and their expected.json expects
+# L4.contracts to pass, so the criterion is measured (`done_criterion`) and required only once the owner
+# has settled those three. That day, set REQUIRE_DONE_CRITERION to True: the rule and its tests are ready.
+REQUIRE_DONE_CRITERION = False
 FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.S)
 # "## Done when", "**Done when:** …", "Definition of done", "Fini quand", "Terminé quand".
 DONE_CRITERION_RE = re.compile(r"\bdone when\b|\bdefinition of done\b|\bdone criteri(?:on|a)\b|\bfinished when\b"
@@ -324,12 +327,16 @@ def _front_matter_value(block: str, key: str) -> bool:
     return False
 
 
-def contract_missing(text: str | None) -> list[str]:
-    """What a task contract lacks to be one: a 0-byte SKILL.md cited by the source file is not a contract."""
+def contract_missing(text: str | None, require_done: bool | None = None) -> list[str]:
+    """What a task contract lacks to be one: a 0-byte SKILL.md cited by the source file is not a contract.
+    `require_done` also asks for a done criterion; left out, REQUIRE_DONE_CRITERION decides."""
     text = text or ""
     front = FRONT_MATTER_RE.match(text)
     block = front.group(1) if front else ""
-    return [f"front matter {key}" for key in ("name", "description") if not _front_matter_value(block, key)]
+    missing = [f"front matter {key}" for key in ("name", "description") if not _front_matter_value(block, key)]
+    if (REQUIRE_DONE_CRITERION if require_done is None else require_done) and not contract_done_criterion(text):
+        missing.append("done criterion")
+    return missing
 
 
 def contract_done_criterion(text: str | None) -> bool:
