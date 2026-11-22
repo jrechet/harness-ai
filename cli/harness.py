@@ -17,6 +17,7 @@
   harness progress check|remind      the progress plan in docs/capabilities.md follows every change
   harness keys check [--base REF]    an answer key or a grader does not change with a skill or a run
   harness report build|from-place …  a one-page HTML assessment, always in the same format
+  harness flow new|check|next|place|status …   a team's workflow from a ticket to production, checked on paper
 
 Python 3.10+, standard library only."""
 from __future__ import annotations
@@ -30,7 +31,7 @@ if sys.version_info < (3, 10):  # before any import: the rest of the CLI does no
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harnesslib import bench, commands, fixtures, fresh, github, keys, medals, place, progress, report, rules, serve, shape, status  # noqa: E402
+from harnesslib import bench, commands, fixtures, flow, fresh, github, keys, medals, place, progress, report, rules, serve, shape, status  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -57,6 +58,7 @@ def main(argv: list[str] | None = None) -> int:
     keys.build_parser(sub.add_parser("keys", help="the answer keys do not change with what they grade"))
     medals.build_parser(sub.add_parser("medals", help="medals and achievements: the maturity level and why"))
     fresh.build_parser(sub.add_parser("fresh", help="what has aged: skills, agents, rules"))
+    flow.build_parser(sub.add_parser("flow", help="a team's workflow from a ticket to production, checked on paper"))
     args = parser.parse_args(argv)
     target = getattr(args, "repo", None)
     if args.command in ("status", "target", "rules", "serve") and isinstance(target, str) and not os.path.isdir(target):
@@ -92,6 +94,8 @@ def main(argv: list[str] | None = None) -> int:
         return medals.main(args=args)
     if args.command == "fresh":
         return fresh.main(args=args)
+    if args.command == "flow":
+        return flow.main(args=args)
     parser.error("unknown command")
     return 2
 
