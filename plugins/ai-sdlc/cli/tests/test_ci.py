@@ -6,6 +6,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -275,6 +276,25 @@ class CliAndRepoTests(Case):
             template = fh.read()
         run_lines = [line for line in template.splitlines() if "ai_sdlc.py ci pr" in line]
         self.assertTrue(run_lines and all("${{" not in line for line in run_lines))   # a branch name does not enter a shell line
+
+    def test_the_verify_job_is_never_skipped_it_fails_first_on_a_fork(self):
+        # A job skipped by a job-level `if` reports success to a required check: nothing may skip `verify`.
+        for workflow in (".github/workflows/ci.yml", ".forgejo/workflows/ci.yml"):
+            with open(os.path.join(ROOT, workflow), encoding="utf-8") as fh:
+                text = fh.read()
+            lines = text.splitlines()
+            code = "\n".join(line for line in lines if not line.lstrip().startswith("#"))
+            self.assertEqual([line for line in lines if re.match(r" {4}if:", line)], [], workflow)   # no job-level condition
+            self.assertNotIn("vars.", code, workflow)                # no repository variable turns the check into a no-op
+            self.assertNotIn("CI_RUNNER", text, workflow)            # nor a comment that still says it does
+            self.assertNotIn("continue-on-error", code, workflow)
+            steps = code[code.index("    steps:"):]
+            first, _, rest = steps.partition("\n      - ")[2].partition("\n      - ")
+            self.assertIn("head.repo.full_name == github.repository", first, workflow)   # the fork test is the first step
+            self.assertIn("exit 1", first, workflow)                 # and it fails, it does not skip
+            self.assertNotIn("uses:", first, workflow)               # before any code is fetched
+            self.assertNotIn("\n        if:", first, workflow)       # itself unconditional
+            self.assertIn("actions/checkout", rest, workflow)
 
 
 TICKET = "## Need\n" + "word " * 20 + "\n\n## Acceptance criteria\n1. Doubling 2 gives 4.\n2. Doubling 0 gives 0.\n"
