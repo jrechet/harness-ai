@@ -6,6 +6,7 @@ Nothing here runs an agent, a pipeline or a clock. The commands read the file an
 
 ## The order of work
 
+0. Before any file: `python3 cli/harness.py flow fit --questions`, then `flow fit <answers.json>`, says whether you need a workflow at all, and which tool.
 1. `python3 cli/harness.py flow new feature` (or `bug`) writes `.harness/flow/feature.json`, a starting definition.
 2. Edit that file: this page.
 3. `flow check <file>` refuses a flow that could loop, wait or spend without end. Each problem ends with the key to write.

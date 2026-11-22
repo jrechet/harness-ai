@@ -10,7 +10,7 @@
     {
       "name": "harness-ai",
       "source": "./",
-      "description": "Claude Code skills to set up, audit and evolve a repository's AI instrumentation, one step at a time."
+      "description": "Claude Code skills to set up, audit and evolve a repository's AI instrumentation, one step at a time, and to write a team's path from ticket to production down and check it on paper."
     },
     {
       "name": "ai-sdlc",

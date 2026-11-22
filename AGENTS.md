@@ -3,7 +3,7 @@
 Mode: **delegation**. The agent is the tech lead and the guarantor of this repository: it makes the technical choices, has every change reviewed by an independent agent (unverified), merges what is green and answers for the state of `main`. The owner sets the direction, can take anything back, and alone decides what commits beyond the repository: making it public, rewriting its history, starting a costly campaign. [2026-11]
 
 ## What this repo does
-Goal: help a team set up its repository's AI harness one step at a time, seeing at each step what has progressed. The marketplace ships two plugins: `harness-ai`, at the root (skills in `skills/`, deterministic CLI in `cli/`), installs, audits and evolves a repository's AI instrumentation; `ai-sdlc` (`plugins/ai-sdlc/`, with its own skills and CLI) takes a ticket to production. `fixtures/` holds the sample projects and their answer keys, `app/` the progress page. The need is in `docs/requirements.md`, the plan and its state in `docs/capabilities.md`, the levels in `docs/maturity.md`, the ai-sdlc design in `docs/ai-sdlc/proposal.md`.
+Goal: help a team set up its repository's AI harness one step at a time, seeing at each step what has progressed. The marketplace ships two plugins: `harness-ai`, at the root (skills in `skills/`, deterministic CLI in `cli/`), installs, audits and evolves a repository's AI instrumentation, and writes a team's ticket workflow down and checks it on paper (`harness flow`, skills `flow-why`, `flow-map`, `flow-place`, pages in `docs/workflow-harness/`); `ai-sdlc` (`plugins/ai-sdlc/`, with its own skills and CLI) takes a ticket to production. `fixtures/` holds the sample projects and their answer keys, `app/` the progress page. The need is in `docs/requirements.md`, the plan and its state in `docs/capabilities.md`, the levels in `docs/maturity.md`, the ai-sdlc design in `docs/ai-sdlc/proposal.md`.
 
 ## What changes → what to run
 | If you touch… | Run… | Enforced in CI by |
@@ -14,7 +14,7 @@ Goal: help a team set up its repository's AI harness one step at a time, seeing 
 | the placement grid or a fixture of `fixtures/design/` | `python3 cli/harness.py place check <plan> --expected <fixture>/expected.json` | `cli/tests/test_place.py`, in the suite above |
 | `plugins/ai-sdlc/` or a fixture of `fixtures/review/`, `dev/`, `ticket/`, `qa/`, `secu/`, `ship/` or `run/` | `python3 -m unittest discover -s plugins/ai-sdlc/cli/tests` | `scripts/ci/verify.sh`, required on `main` |
 | the CI or `docs/agents/gates.json` | `BASE_REF=origin/main sh scripts/ci/verify.sh` from a branch | the CI itself |
-| a SKILL.md | the suite of its plugin; on the owner's request, a blind run on a fixture, graded by `fixture check --audit` or `--init` | `cli/tests/test_own_rules.py` for its CLI calls; nothing for what the text makes an agent do |
+| a SKILL.md | the suite of its plugin; on the owner's request, a blind run on a fixture, graded by `fixture check --audit` or `--init` | `cli/tests/test_own_rules.py` for its CLI calls; `cli/tests/test_flow_skills.py` for the shape of the three flow skills and the pages they name; nothing for what the text makes an agent do |
 
 ## Rules
 - Everything that must be **guaranteed** goes into a CLI (`cli/`, `plugins/ai-sdlc/cli/`), not into the text of a skill; the skills call their CLI. Why: the L1–L4 grid applied to ourselves. Enforced by: `cli/tests/test_own_rules.py` for the calls (through the plugin root, to subcommands that exist); what deserves a guarantee stays a review judgement. [2026-11]

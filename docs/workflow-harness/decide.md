@@ -6,6 +6,7 @@ You are a tech lead. Your team wants a ticket to go from "ready" to a pull reque
 
 **Where this page sits in the work.** All commands are `python3 cli/harness.py flow …`, in this order:
 
+0. `flow fit <answers.json>`, before any definition, says whether a flow is needed at all and which tool; `flow fit --questions` lists the answers to record.
 1. `flow new feature` or `flow new bug` writes a starting definition.
 2. You edit it. Every key, and one step of each type ready to paste, are in [flow-format.md](flow-format.md).
 3. `flow check <file>` refuses a flow that could loop, wait or spend without end.
