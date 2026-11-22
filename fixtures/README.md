@@ -16,6 +16,7 @@ One folder per family. Each command below is completed on the family's page:
 | `ship/` | What the `ship` skill proposes before a delivery, and that it ships nothing | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-ship` | [ship/README.md](ship/README.md) |
 | `run/` | What the `run` skill makes of an incident: quoted facts, a cause that stays a hypothesis, nothing done in production | `python3 plugins/ai-sdlc/cli/ai_sdlc.py fixture grade-run` | [run/README.md](run/README.md) |
 | `guard/` | Which commands the guardrail "an agent does not deliver" refuses, on 150 commands written without reading its code: deliveries, ordinary work that looks like one, known pass-throughs. No agent is run | `python3 plugins/ai-sdlc/cli/ai_sdlc.py guard check` on each command, by the unit test `plugins/ai-sdlc/cli/tests/test_guard_corpus.py` | [guard/commands.json](guard/commands.json) |
+| `flow/` | Whether `harness flow` gives, on recorded cases, the answers worked out by hand from its contract: the state of a ticket's run after each event, on nineteen sequences, and the place of each step of three flows, one of them trapped. No agent is run | the unit test, `python3 -m unittest discover -s cli/tests -p test_flow_fixtures.py -v` | [flow/README.md](flow/README.md) |
 
 The rest of this page is about `repos/`: synthetic repositories with AI instrumentation traps.
 

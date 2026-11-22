@@ -1,0 +1,13 @@
+{"about": "The twin of bug-low-confidence: the root cause is confident, and the bug flow ends on purpose at its default stop point, the root cause, before any fix.",
+ "definition": "template:bug",
+ "start": "new",
+ "events": [
+  {"event": {"id": "e1", "type": "ticket_ready", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "premise", "spent": {"dollars": 0, "minutes": 1}}},
+  {"event": {"id": "e2", "type": "still_fails", "payload": {"dollars": 1, "minutes": 8}},
+   "expect": {"outcome": "moved", "reason": null, "state": "root_cause", "visits": {"root_cause": 1}, "spent": {"dollars": 1, "minutes": 9}}},
+  {"event": {"id": "e3", "type": "cause_written", "payload": {"dollars": 2, "minutes": 15}},
+   "expect": {"outcome": "moved", "reason": null, "state": "notify", "spent": {"dollars": 3, "minutes": 24}}},
+  {"note": "Rule 11: the transition reaches 'root_cause', where this flow stops. repro is not entered.",
+   "event": {"id": "e4", "type": "confident", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "done", "reason": "stop_point", "state": "done", "visits": {"notify": 1, "repro": 0}, "spent": {"dollars": 3, "minutes": 25}, "remaining": {"dollars": 7, "minutes": 95}, "over_budget": false}}]}

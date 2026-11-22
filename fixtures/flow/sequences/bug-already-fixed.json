@@ -1,0 +1,10 @@
+{"about": "With a budget of 1 dollar and 10 minutes: the premise check finds the bug already fixed, at a cost above the budget. The run still ends as done, and says it went over; no root cause is attempted.",
+ "definition": "template:bug",
+ "override": {"budget": {"dollars": 1, "minutes": 10}},
+ "start": "new",
+ "events": [
+  {"event": {"id": "e1", "type": "ticket_ready", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "premise", "visits": {"triage": 1, "premise": 1}, "spent": {"dollars": 0, "minutes": 1}, "remaining": {"dollars": 1, "minutes": 9}, "over_budget": false}},
+  {"note": "Rule 10 comes before rule 12: work that finished is not recorded as stopped. over_budget says the rest.",
+   "event": {"id": "e2", "type": "already_fixed", "payload": {"dollars": 1.5, "minutes": 8}},
+   "expect": {"outcome": "done", "reason": "already_fixed", "state": "done", "visits": {"premise": 1, "root_cause": 0}, "spent": {"dollars": 1.5, "minutes": 9}, "remaining": {"dollars": 0, "minutes": 1}, "over_budget": true}}]}

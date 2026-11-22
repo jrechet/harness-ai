@@ -1,0 +1,16 @@
+{"about": "A person stops the run while the agent is coding: the stop is taken whatever the event says about state and cost, and the agent's later answer finds the run ended.",
+ "definition": "template:feature",
+ "start": "new",
+ "events": [
+  {"event": {"id": "e1", "type": "claimed", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "planning", "visits": {"ready": 1, "planning": 1}, "spent": {"dollars": 0, "minutes": 1}}},
+  {"event": {"id": "e2", "type": "plan_written", "payload": {"dollars": 0.5, "minutes": 4}},
+   "expect": {"outcome": "moved", "reason": null, "state": "plan_size", "spent": {"dollars": 0.5, "minutes": 5}}},
+  {"event": {"id": "e3", "type": "plan_small", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "coding", "visits": {"coding": 1, "plan_review": 0}, "spent": {"dollars": 0.5, "minutes": 6}}},
+  {"note": "Rule 5: a human stop wins over the budget (its cost passes it and is still counted) and over 'at' (which names another state).",
+   "event": {"id": "e4", "type": "human_stop", "at": {"state": "planning", "visit": 1}, "payload": {"dollars": 25, "minutes": 10}},
+   "expect": {"outcome": "stopped", "reason": "human_stop", "state": "stopped", "visits": {"coding": 1}, "spent": {"dollars": 25.5, "minutes": 16}, "remaining": {"dollars": 0, "minutes": 224}, "over_budget": true}},
+  {"note": "Stopping ends the run record, not the step in progress: its event is refused and costs nothing here.",
+   "event": {"id": "e5", "type": "code_written", "at": {"state": "coding", "visit": 1}, "payload": {"dollars": 2, "minutes": 20}},
+   "expect": {"outcome": "refused", "reason": "run_ended", "state": "stopped", "spent": {"dollars": 25.5, "minutes": 16}}}]}
