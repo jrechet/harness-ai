@@ -35,7 +35,7 @@ echo "${{HARNESS_SELFTEST-unset}}|$*" >> "$CALLS"
 LOOPBACK = "127.0.0.1"
 
 
-@unittest.skipUnless(os.path.isfile(SHELL), "needs a POSIX shell at /bin/sh")
+# No way out: the CI script is a POSIX shell script; without /bin/sh these tests fail, they do not pass by not running.
 class SelftestInVerifyScriptTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -118,7 +118,7 @@ def _closed_port() -> int:
         return sock.getsockname()[1]
 
 
-@unittest.skipUnless(os.path.isfile(SHELL), "needs a POSIX shell at /bin/sh")
+# No way out: the CI script is a POSIX shell script; without /bin/sh these tests fail, they do not pass by not running.
 class SelftestNeedsMoreThanGoAndNpmTests(unittest.TestCase):
     """go and npm on the PATH are not enough: the tasks build a venv and install from the network.
     The probes of the script are run for real, against servers of this test."""
