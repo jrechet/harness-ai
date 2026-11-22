@@ -1,0 +1,13 @@
+{"about": "The root cause comes with a low confidence: the run stops there, with that reason, and no fix is attempted.",
+ "definition": "template:bug",
+ "start": "new",
+ "events": [
+  {"event": {"id": "e1", "type": "ticket_ready", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "premise", "spent": {"dollars": 0, "minutes": 1}}},
+  {"event": {"id": "e2", "type": "still_fails", "payload": {"dollars": 1, "minutes": 8}},
+   "expect": {"outcome": "moved", "reason": null, "state": "root_cause", "visits": {"root_cause": 1}, "spent": {"dollars": 1, "minutes": 9}}},
+  {"event": {"id": "e3", "type": "cause_written", "payload": {"dollars": 2, "minutes": 15}},
+   "expect": {"outcome": "moved", "reason": null, "state": "notify", "spent": {"dollars": 3, "minutes": 24}}},
+  {"note": "Rule 9: the type of the event says what happened; no payload value is read.",
+   "event": {"id": "e4", "type": "low_confidence", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "stopped", "reason": "low_confidence", "state": "stopped", "visits": {"notify": 1, "repro": 0}, "spent": {"dollars": 3, "minutes": 25}, "remaining": {"dollars": 7, "minutes": 95}, "over_budget": false}}]}

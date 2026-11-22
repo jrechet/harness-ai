@@ -1,0 +1,11 @@
+{"about": "A bug run that comes back in the human review, past the default stop point: a person merges, the run waits some days, and the closure check finds the signal has stopped.",
+ "definition": "template:bug",
+ "start": {"state": "human_review", "visits": {"triage": 1, "premise": 1, "root_cause": 1, "notify": 1, "repro": 1, "fix": 1, "verify": 1, "draft_pr": 1, "ci_wait": 1, "ci_check": 1, "human_review": 1}, "spent": {"dollars": 4, "minutes": 50}, "seen": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10"], "reason": null},
+ "events": [
+  {"note": "The transition reaches merged; stop_at is root_cause, so the run goes on (rule 11 does not apply).",
+   "event": {"id": "b1", "type": "merged_by_human", "at": {"state": "human_review", "visit": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "closure_wait", "visits": {"closure_wait": 1}, "spent": {"dollars": 4, "minutes": 50}}},
+  {"event": {"id": "b2", "type": "closure_due"},
+   "expect": {"outcome": "moved", "reason": null, "state": "closure_check", "visits": {"closure_check": 1}, "spent": {"dollars": 4, "minutes": 50}}},
+  {"event": {"id": "b3", "type": "signal_stopped", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "done", "reason": "fixed", "state": "done", "spent": {"dollars": 4, "minutes": 51}, "remaining": {"dollars": 6, "minutes": 69}, "over_budget": false}}]}

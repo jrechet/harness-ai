@@ -1,0 +1,17 @@
+{"about": "On the definition every-case: an agent step that declares step_failed back to itself is started again, each failure paid, until its cap; a failure reported for an earlier round is refused.",
+ "definition": "definitions/every-case.json",
+ "start": "new",
+ "events": [
+  {"event": {"id": "e1", "type": "accepted", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "drafting", "visits": {"drafting": 1}, "spent": {"dollars": 0, "minutes": 1}}},
+  {"note": "A declared step_failed is a transition like any other: the run enters drafting a second time.",
+   "event": {"id": "e2", "type": "step_failed", "at": {"state": "drafting", "visit": 1}, "payload": {"dollars": 0.5, "minutes": 5}},
+   "expect": {"outcome": "moved", "reason": null, "state": "drafting", "visits": {"drafting": 2}, "spent": {"dollars": 0.5, "minutes": 6}}},
+  {"note": "Rule 7: a second failure report for visit 1, under another id, while the run is in visit 2.",
+   "event": {"id": "e3", "type": "step_failed", "at": {"state": "drafting", "visit": 1}, "payload": {"dollars": 0.5, "minutes": 5}},
+   "expect": {"outcome": "refused", "reason": "stale_event", "state": "drafting", "visits": {"drafting": 2}, "spent": {"dollars": 0.5, "minutes": 6}}},
+  {"event": {"id": "e4", "type": "step_failed", "at": {"state": "drafting", "visit": 2}, "payload": {"dollars": 0.5, "minutes": 5}},
+   "expect": {"outcome": "moved", "reason": null, "state": "drafting", "visits": {"drafting": 3}, "spent": {"dollars": 1, "minutes": 11}}},
+  {"note": "Rule 13: drafting has a cap of 3. The reason is cap_reached, not step_failed: the failure had a declared way out, and the cap closed it.",
+   "event": {"id": "e5", "type": "step_failed", "at": {"state": "drafting", "visit": 3}, "payload": {"dollars": 0.5, "minutes": 5}},
+   "expect": {"outcome": "stopped", "reason": "cap_reached", "state": "stopped", "visits": {"drafting": 3}, "spent": {"dollars": 1.5, "minutes": 16}, "remaining": {"dollars": 6.5, "minutes": 74}, "over_budget": false}}]}

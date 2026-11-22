@@ -1,0 +1,6 @@
+{"about": "The definition every-case, placed: a step a person does by hand is held by the ticket, like a wait; the gate that takes over when the first judge is silent is a human gate too. Its stop point sits on the transition to done, so no step lies behind it.",
+ "definition": "definitions/every-case.json",
+ "check": [],
+ "not_run": [],
+ "place": {"steps": {"intake": "code", "drafting": "skill", "save_draft": "code", "sign_off": "human_gate", "escalation": "human_gate", "hand_work": "ticket_state", "confirm": "code"}, "engine": [], "refused_gates": [], "open": [], "verdict": "no_engine", "passed": true},
+ "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}

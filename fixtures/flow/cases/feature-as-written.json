@@ -1,0 +1,6 @@
+{"about": "The feature template as flow new writes it: it holds, every step has a place, it is at level 1. A run stops on purpose after mark_ready, so the six steps behind the stop point are described and not run.",
+ "definition": "template:feature",
+ "check": [],
+ "not_run": ["human_review", "rework", "merge_auth", "merging", "delivery", "closing"],
+ "place": {"steps": {}, "engine": [], "refused_gates": [], "open": [], "verdict": "no_engine", "passed": true},
+ "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}

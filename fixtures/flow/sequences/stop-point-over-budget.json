@@ -1,0 +1,13 @@
+{"about": "The twin of reason-over-budget: the run reaches its stop point with a cost that passes the budget. It is done, not stopped: rule 11 comes before rule 12.",
+ "definition": "template:bug",
+ "override": {"budget": {"dollars": 1, "minutes": 10}},
+ "start": "new",
+ "events": [
+  {"event": {"id": "e1", "type": "ticket_ready", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "premise", "spent": {"dollars": 0, "minutes": 1}}},
+  {"event": {"id": "e2", "type": "still_fails", "payload": {"dollars": 0.5, "minutes": 4}},
+   "expect": {"outcome": "moved", "reason": null, "state": "root_cause", "spent": {"dollars": 0.5, "minutes": 5}}},
+  {"event": {"id": "e3", "type": "cause_written", "payload": {"dollars": 0.25, "minutes": 3}},
+   "expect": {"outcome": "moved", "reason": null, "state": "notify", "spent": {"dollars": 0.75, "minutes": 8}, "remaining": {"dollars": 0.25, "minutes": 2}}},
+  {"event": {"id": "e4", "type": "confident", "payload": {"dollars": 0.5, "minutes": 4}},
+   "expect": {"outcome": "done", "reason": "stop_point", "state": "done", "visits": {"repro": 0}, "spent": {"dollars": 1.25, "minutes": 12}, "remaining": {"dollars": 0, "minutes": 0}, "over_budget": true}}]}

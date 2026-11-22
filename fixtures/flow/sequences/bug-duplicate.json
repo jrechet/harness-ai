@@ -1,0 +1,7 @@
+{"about": "Triage finds the ticket is a duplicate: the run is done with that reason before any agent runs.",
+ "definition": "template:bug",
+ "start": "new",
+ "events": [
+  {"note": "Rule 10: a transition to done with a reason of its own.",
+   "event": {"id": "e1", "type": "duplicate_found", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "done", "reason": "duplicate", "state": "done", "visits": {"premise": 0}, "spent": {"dollars": 0, "minutes": 1}, "remaining": {"dollars": 10, "minutes": 119}, "over_budget": false}}]}

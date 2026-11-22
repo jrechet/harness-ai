@@ -1,0 +1,8 @@
+{"about": "The merge itself fails: the run stops with the reason the definition gives, not with step_failed.",
+ "definition": "template:feature",
+ "start": {"state": "merging", "visits": {"ready": 1, "planning": 1, "plan_size": 1, "coding": 1, "checks": 1, "draft_pr": 1, "ci_wait": 1, "ci_check": 1, "review_checks": 1, "mark_ready": 1, "human_review": 1, "merge_auth": 1, "merging": 1}, "spent": {"dollars": 6, "minutes": 70}, "seen": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10", "a1", "a2"], "reason": null},
+ "events": [
+  {"event": {"id": "a3", "type": "merge_failed", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "stopped", "reason": "merge_failed", "state": "stopped", "visits": {"delivery": 0}, "spent": {"dollars": 6, "minutes": 71}}},
+  {"event": {"id": "a4", "type": "merged", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "refused", "reason": "run_ended", "state": "stopped", "spent": {"dollars": 6, "minutes": 71}}}]}

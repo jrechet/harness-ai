@@ -1,0 +1,12 @@
+{"about": "A human stop whose id was already used by another event still stops the run: a person's stop is never dropped as a duplicate.",
+ "definition": "template:feature",
+ "start": "new",
+ "events": [
+  {"event": {"id": "e1", "type": "claimed", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "planning", "spent": {"dollars": 0, "minutes": 1}}},
+  {"note": "Rule 4 leaves human_stop aside; rule 5 stops the run. The id is in seen once.",
+   "event": {"id": "e1", "type": "human_stop"},
+   "expect": {"outcome": "stopped", "reason": "human_stop", "state": "stopped", "spent": {"dollars": 0, "minutes": 1}, "seen": ["e1"]}},
+  {"note": "Delivered again, the stop finds the run ended (rule 2).",
+   "event": {"id": "e1", "type": "human_stop"},
+   "expect": {"outcome": "refused", "reason": "run_ended", "state": "stopped", "spent": {"dollars": 0, "minutes": 1}, "seen": ["e1"]}}]}

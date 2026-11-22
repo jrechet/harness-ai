@@ -1,0 +1,7 @@
+{"about": "Three steps cannot be placed: a gate that does not say whether its judge can judge, an agent step whose answer is written 'Yes' where the grid reads 'yes', a program step with no survives. The definition holds all the same: these keys are read by flow place only.",
+ "definition": "template:feature",
+ "set": {"states.coding.weak_model": "Yes"},
+ "remove": ["states.plan_review.can_judge", "states.checks.survives"],
+ "check": [],
+ "place": {"steps": {"plan_review": null, "coding": null, "checks": null, "planning": "skill"}, "engine": [], "refused_gates": [], "open": ["plan_review", "coding", "checks"], "verdict": "open", "passed": false, "missing": {"plan_review": "can_judge", "coding": "weak_model", "checks": "survives"}},
+ "status": {"level": 0, "passed": {"definition_holds": true, "steps_placed": false, "stop_and_budget": true}}}

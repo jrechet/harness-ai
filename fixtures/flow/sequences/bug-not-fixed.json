@@ -1,0 +1,6 @@
+{"about": "Days after the merge the signal goes on: the run stops and says the bug is not fixed.",
+ "definition": "template:bug",
+ "start": {"state": "closure_check", "visits": {"triage": 1, "premise": 1, "root_cause": 1, "notify": 1, "repro": 1, "fix": 1, "verify": 1, "draft_pr": 1, "ci_wait": 1, "ci_check": 1, "human_review": 1, "closure_wait": 1, "closure_check": 1}, "spent": {"dollars": 4, "minutes": 50}, "seen": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10", "b1", "b2"], "reason": null},
+ "events": [
+  {"event": {"id": "b3", "type": "signal_continues", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "stopped", "reason": "not_fixed", "state": "stopped", "spent": {"dollars": 4, "minutes": 51}}}]}

@@ -1,0 +1,7 @@
+{"about": "The maintainer closes the pull request with a reason instead of merging: the run is done, as rejected.",
+ "definition": "template:bug",
+ "start": {"state": "human_review", "visits": {"triage": 1, "premise": 1, "root_cause": 1, "notify": 1, "repro": 1, "fix": 1, "verify": 1, "draft_pr": 1, "ci_wait": 1, "ci_check": 1, "human_review": 1}, "spent": {"dollars": 4, "minutes": 50}, "seen": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10"], "reason": null},
+ "events": [
+  {"note": "Rule 10: done, with the transition's reason. A refusal by a person is an end, not a failure.",
+   "event": {"id": "b1", "type": "closed_with_reason", "at": {"state": "human_review", "visit": 1}},
+   "expect": {"outcome": "done", "reason": "rejected", "state": "done", "visits": {"closure_wait": 0}, "spent": {"dollars": 4, "minutes": 50}}}]}

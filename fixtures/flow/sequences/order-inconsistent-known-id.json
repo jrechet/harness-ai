@@ -1,0 +1,8 @@
+{"about": "A run in a state nobody defined is stopped as inconsistent even when the event's id was already seen: rule 3 comes before rule 4, and the id is not recorded twice.",
+ "definition": "template:feature",
+ "start": {"state": "in_review", "visits": {"ready": 1}, "spent": {"dollars": 1, "minutes": 5}, "seen": ["e1"], "reason": null},
+ "events": [
+  {"event": {"id": "e1", "type": "claimed", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "stopped", "reason": "inconsistent", "state": "stopped", "spent": {"dollars": 1, "minutes": 5}, "seen": ["e1"]}},
+  {"event": {"id": "e1", "type": "claimed", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "refused", "reason": "run_ended", "state": "stopped", "spent": {"dollars": 1, "minutes": 5}, "seen": ["e1"]}}]}

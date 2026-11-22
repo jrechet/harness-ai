@@ -1,0 +1,6 @@
+{"about": "While the run waits for the delivery, the deploy fails: the run stops with that reason, and a wait reports no cost.",
+ "definition": "template:feature",
+ "start": {"state": "delivery", "visits": {"ready": 1, "planning": 1, "plan_size": 1, "coding": 1, "checks": 1, "draft_pr": 1, "ci_wait": 1, "ci_check": 1, "review_checks": 1, "mark_ready": 1, "human_review": 1, "merge_auth": 1, "merging": 1, "delivery": 1}, "spent": {"dollars": 6, "minutes": 72}, "seen": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10", "a1", "a2", "a3"], "reason": null},
+ "events": [
+  {"event": {"id": "a4", "type": "deploy_failed"},
+   "expect": {"outcome": "stopped", "reason": "deploy_failed", "state": "stopped", "visits": {"closing": 0}, "spent": {"dollars": 6, "minutes": 72}}}]}

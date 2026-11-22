@@ -1,0 +1,5 @@
+{"about": "After the wait for CI, the step that reads the result no longer checks it is for the current commit.",
+ "definition": "template:feature",
+ "remove": ["states.ci_check.checks_premise"],
+ "check": [{"code": "wait_without_premise_check", "where": "states.ci_wait.on.ci_finished"}],
+ "status": {"level": 0, "passed": {"definition_holds": false, "steps_placed": true, "stop_and_budget": true}}}
