@@ -1,0 +1,5 @@
+{"about": "A step was added and no event leads to it: one problem, at that step.",
+ "definition": "template:bug",
+ "set": {"states.sec_review": {"type": "agent", "does": "Reviews the fix for security", "survives": "restart", "units": "one", "repositories": "one", "weak_model": "no", "on": {"reviewed": {"to": "draft_pr"}}}},
+ "check": [{"code": "malformed", "where": "states.sec_review"}],
+ "status": {"level": 0, "passed": {"definition_holds": false, "steps_placed": false, "stop_and_budget": false}}}

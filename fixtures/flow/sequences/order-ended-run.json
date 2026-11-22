@@ -1,0 +1,13 @@
+{"about": "An ended run answers nothing but an ill-formed event differently: rule 1 comes before rule 2, and rule 2 before the rules on a known id and on a human stop.",
+ "definition": "template:feature",
+ "start": {"state": "stopped", "visits": {"ready": 1, "planning": 1}, "spent": {"dollars": 0.5, "minutes": 5}, "seen": ["e1", "e2"], "reason": "human_stop"},
+ "events": [
+  {"note": "Rule 1 before rule 2: the event has no type.",
+   "event": {"id": "e1"},
+   "expect": {"outcome": "refused", "reason": "malformed_event", "state": "stopped", "spent": {"dollars": 0.5, "minutes": 5}}},
+  {"note": "Rule 2 before rule 4: e1 is in seen, and the answer is still run_ended, not duplicate.",
+   "event": {"id": "e1", "type": "claimed", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "refused", "reason": "run_ended", "state": "stopped", "spent": {"dollars": 0.5, "minutes": 5}, "seen": ["e1", "e2"]}},
+  {"note": "Rule 2 before rule 5: a human stop does not stop a run twice.",
+   "event": {"id": "e9", "type": "human_stop"},
+   "expect": {"outcome": "refused", "reason": "run_ended", "state": "stopped", "spent": {"dollars": 0.5, "minutes": 5}, "seen": ["e1", "e2"]}}]}

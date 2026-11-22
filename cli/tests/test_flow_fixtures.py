@@ -165,6 +165,8 @@ class SequenceTests(OutputShape):
             self.assertEqual(out["remaining"], expect["remaining"])
         if "over_budget" in expect:
             self.assertIs(out["over_budget"], expect["over_budget"])
+        if "seen" in expect:
+            self.assertEqual(returned["seen"], expect["seen"], "the events the run has taken into account")
 
 
 def graded_definitions() -> dict[str, dict]:

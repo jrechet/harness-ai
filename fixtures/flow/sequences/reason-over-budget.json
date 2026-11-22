@@ -1,0 +1,14 @@
+{"about": "A transition that stops the run keeps its own reason even when its cost passes the budget: rule 9 comes before rule 12.",
+ "definition": "template:bug",
+ "override": {"budget": {"dollars": 1, "minutes": 10}},
+ "start": "new",
+ "events": [
+  {"event": {"id": "e1", "type": "ticket_ready", "payload": {"dollars": 0, "minutes": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "premise", "spent": {"dollars": 0, "minutes": 1}}},
+  {"event": {"id": "e2", "type": "still_fails", "payload": {"dollars": 0.5, "minutes": 4}},
+   "expect": {"outcome": "moved", "reason": null, "state": "root_cause", "spent": {"dollars": 0.5, "minutes": 5}}},
+  {"event": {"id": "e3", "type": "cause_written", "payload": {"dollars": 0.25, "minutes": 3}},
+   "expect": {"outcome": "moved", "reason": null, "state": "notify", "spent": {"dollars": 0.75, "minutes": 8}, "remaining": {"dollars": 0.25, "minutes": 2}}},
+  {"note": "Rule 9 before rule 12: the reason is low_confidence, not budget_exceeded; over_budget says the rest.",
+   "event": {"id": "e4", "type": "low_confidence", "payload": {"dollars": 0.5, "minutes": 4}},
+   "expect": {"outcome": "stopped", "reason": "low_confidence", "state": "stopped", "spent": {"dollars": 1.25, "minutes": 12}, "remaining": {"dollars": 0, "minutes": 0}, "over_budget": true}}]}

@@ -1,0 +1,7 @@
+{"about": "The checks fail while the agent has used its six rounds and the cost passes the budget: the reason is the budget. Rule 12 comes before rule 13.",
+ "definition": "template:feature",
+ "override": {"budget": {"dollars": 5, "minutes": 240}},
+ "start": {"state": "checks", "visits": {"ready": 1, "planning": 1, "plan_size": 1, "coding": 6, "checks": 6}, "spent": {"dollars": 4.5, "minutes": 90}, "seen": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10"], "reason": null},
+ "events": [
+  {"event": {"id": "c1", "type": "checks_failed", "payload": {"dollars": 1, "minutes": 5}},
+   "expect": {"outcome": "stopped", "reason": "budget_exceeded", "state": "stopped", "visits": {"coding": 6}, "spent": {"dollars": 5.5, "minutes": 95}, "remaining": {"dollars": 0, "minutes": 145}, "over_budget": true}}]}

@@ -1,0 +1,11 @@
+{"format": 1, "name": "retry_on_deadline", "kind": "import",
+ "start": "fetch", "stop_at": "imported", "budget": {"dollars": 3, "minutes": 30},
+ "states": {
+  "fetch": {"type": "agent", "does": "Fetches the export and converts it; when it takes more than an hour it is started again, three times at most", "cap": 3, "deadline_hours": 1,
+            "survives": "restart", "units": "one", "repositories": "one", "weak_model": "no",
+            "on": {"converted": {"to": "store"},
+                   "deadline_passed": {"to": "fetch"}}},
+  "store": {"type": "code", "does": "Stores the converted export under the ticket",
+            "survives": "restart", "units": "one", "repositories": "one",
+            "writes": [{"what": "the import", "key": "import-{ticket}"}],
+            "on": {"stored": {"to": "done", "reaches": "imported"}}}}}

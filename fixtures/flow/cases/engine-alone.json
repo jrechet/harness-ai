@@ -1,0 +1,6 @@
+{"about": "One step must go on from its middle, and no gate is refused: the verdict names an engine and the placement passes. Needing an engine is an answer, not a failure.",
+ "definition": "template:bug",
+ "set": {"states.closure_check.survives": "midway"},
+ "check": [],
+ "place": {"steps": {"closure_check": "durable_engine"}, "engine": ["closure_check"], "refused_gates": [], "open": [], "verdict": "engine", "passed": true},
+ "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}

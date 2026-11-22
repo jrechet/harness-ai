@@ -1,0 +1,7 @@
+{"about": "stop_at names the step fix. A stop point is a name a transition reaches, not a step: no transition reaches 'fix', so the flow has no stop point.",
+ "definition": "template:bug",
+ "set": {"stop_at": "fix"},
+ "check": [{"code": "no_stop_point", "where": "stop_at"}],
+ "not_run": [],
+ "place": {"steps": {}, "engine": [], "refused_gates": [], "open": [], "verdict": "no_engine", "passed": true},
+ "status": {"level": 0, "passed": {"definition_holds": false, "steps_placed": true, "stop_and_budget": false}}}

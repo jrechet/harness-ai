@@ -21,7 +21,8 @@ NEEDS_AT = ("deadline_passed", "step_failed")
 UNKNOWN_EVENT = "nobody_declares_this"
 UNKNOWN_STATE = "nobody_defined_this"
 
-# The sequences the contract lists (section 8): fifteen, and the two twins.
+# The sequences of the contract's first list (section 8): fifteen, and the two twins. The others
+# of `sequences/` are graded like them; the page of the family names each.
 CONTRACT_SEQUENCES = (
     "feature-to-ready-pr", "event-twice", "events-out-of-order", "lost-event", "step-failed",
     "stale-answer", "cap-reached", "budget-exceeded", "human-stop", "unknown-label",

@@ -20,7 +20,7 @@ WAITS = ("wait", "human")
 OUTCOMES = ("moved", "done", "stopped", "duplicate", "refused")
 UNCHANGED = ("duplicate", "refused")
 EXPECT_REQUIRED = {"outcome", "reason", "state"}
-EXPECT_OPTIONAL = {"visits", "spent", "remaining", "over_budget"}
+EXPECT_OPTIONAL = {"visits", "spent", "remaining", "over_budget", "seen"}
 STEP_KEYS = {"event", "expect", "note"}
 SEQUENCE_KEYS = {"about", "definition", "override", "start", "events"}
 OVERRIDABLE = {"stop_at", "budget"}
@@ -291,6 +291,9 @@ class SequenceFormatTests(unittest.TestCase):
         for key in ("spent", "remaining"):
             self.assertTrue(key not in expect or is_amount(expect[key]), f"{label}: {key}")
         self.assertIsInstance(expect.get("over_budget", False), bool, label)
+        seen = expect.get("seen", [])
+        self.assertTrue(isinstance(seen, list) and all(isinstance(ident, str) and ident for ident in seen),
+                        f"{label}: seen is not a list of event identifiers")
 
     def test_every_expected_answer_is_one_the_definition_allows(self):
         """Not the rules of `flow next`, only what follows from them whatever the code: a move

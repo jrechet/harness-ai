@@ -1,0 +1,10 @@
+{"about": "With the stop point moved to the merge, the run ends on purpose when the merge is done: the delivery is not waited for.",
+ "definition": "template:feature",
+ "override": {"stop_at": "merged"},
+ "start": {"state": "merge_auth", "visits": {"ready": 1, "planning": 1, "plan_size": 1, "coding": 1, "checks": 1, "draft_pr": 1, "ci_wait": 1, "ci_check": 1, "review_checks": 1, "mark_ready": 1, "human_review": 1, "merge_auth": 1}, "spent": {"dollars": 6, "minutes": 70}, "seen": ["e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9", "e10", "a1"], "reason": null},
+ "events": [
+  {"event": {"id": "a2", "type": "merge_authorised", "at": {"state": "merge_auth", "visit": 1}},
+   "expect": {"outcome": "moved", "reason": null, "state": "merging", "visits": {"merging": 1}, "spent": {"dollars": 6, "minutes": 70}}},
+  {"note": "Rule 11: the transition reaches merged, which is stop_at. The target, delivery, is not entered.",
+   "event": {"id": "a3", "type": "merged", "payload": {"dollars": 0.25, "minutes": 2}},
+   "expect": {"outcome": "done", "reason": "stop_point", "state": "done", "visits": {"merging": 1, "delivery": 0}, "spent": {"dollars": 6.25, "minutes": 72}, "remaining": {"dollars": 13.75, "minutes": 168}, "over_budget": false}}]}

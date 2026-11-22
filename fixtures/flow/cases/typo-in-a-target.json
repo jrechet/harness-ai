@@ -1,0 +1,6 @@
+{"about": "One event leads to a step whose name is mistyped. That is one problem, at that event: the steps behind it are not reported one by one as steps no path leads to. A file that cannot be read as a flow fails the three checks of level 1.",
+ "definition": "template:feature",
+ "set": {"states.checks.on.checks_passed.to": "draft_prr"},
+ "check": [{"code": "malformed", "where": "states.checks.on.checks_passed"}],
+ "not_run": [],
+ "status": {"level": 0, "passed": {"definition_holds": false, "steps_placed": false, "stop_and_budget": false}}}
