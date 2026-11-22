@@ -1,0 +1,9 @@
+{"about": "A run comes back with a state nobody defined, as when someone put a label of their own on the ticket: the first event stops it as inconsistent instead of guessing, and the next finds it ended.",
+ "definition": "template:feature",
+ "start": {"state": "awaiting_qa", "visits": {"ready": 1, "planning": 1, "plan_size": 1, "coding": 1}, "spent": {"dollars": 0.5, "minutes": 6}, "seen": ["e1", "e2", "e3"], "reason": null},
+ "events": [
+  {"note": "Rule 3: the state is not a declared one. What was well formed is kept, and the event's cost is not added.",
+   "event": {"id": "e4", "type": "code_written", "payload": {"dollars": 2, "minutes": 20}},
+   "expect": {"outcome": "stopped", "reason": "inconsistent", "state": "stopped", "visits": {"coding": 1}, "spent": {"dollars": 0.5, "minutes": 6}, "remaining": {"dollars": 19.5, "minutes": 234}, "over_budget": false}},
+  {"event": {"id": "e5", "type": "checks_passed", "payload": {"dollars": 0, "minutes": 5}},
+   "expect": {"outcome": "refused", "reason": "run_ended", "state": "stopped", "spent": {"dollars": 0.5, "minutes": 6}}}]}
