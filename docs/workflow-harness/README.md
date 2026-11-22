@@ -1,6 +1,6 @@
 # Workflow harness: the study
 
-A study made on 2026-11-21, at the owner's request, on the next direction of this project: going from one repository instrumented for agents to a team that builds and runs its own workflow, for example a feature ticket or a bug ticket handled end to end. One slice is built, the first of `harness-flow` (issue #143): `harness.py flow new`, `check`, `next`, `place` and `status --map`, which check a workflow on paper and run nothing. The rest is not built. The two epics that come out of the study are tracked as GitHub issues.
+A study made on 2026-11-21, at the owner's request, on the next direction of this project: going from one repository instrumented for agents to a team that builds and runs its own workflow, for example a feature ticket or a bug ticket handled end to end. Two parts are built, and both work on paper only: they run nothing on a real ticket. The first slice of `harness-flow` (issue #143) is `harness.py flow new`, `check`, `next`, `place` and `status --map`, which check a workflow written as a file. The second (issue #144) is `harness.py flow fit`, which says before any workflow is written whether one is needed and which tool; the seven pages below that explain its verdicts; and three skills shipped in the `harness-ai` plugin (`skills/`): `flow-why` asks the questions of `flow fit` and explains its verdict, `flow-map` writes a team's workflow file and checks it, `flow-place` says where each step of that file belongs. The rest is not built: no command starts a step, an agent or a pipeline, and the plugin `harness-flow` of the proposal does not exist. The two epics that come out of the study are tracked as GitHub issues.
 
 | Document | What it answers |
 |---|---|
@@ -9,6 +9,13 @@ A study made on 2026-11-21, at the owner's request, on the next direction of thi
 | [decide.md](decide.md) | Where one step of a team workflow goes: the seven questions to ask in order, the nine places a step can land, the measurable symptoms that mean an engine, and the two reference flows placed step by step. The default is the ticket's state plus CI. |
 | [flow-format.md](flow-format.md) | How to write and edit a flow definition: the order of work, every key with its allowed values, one step of each type ready to paste, a whole small flow, and the event files `flow next` takes. |
 | [flow-spec.md](flow-spec.md) | The contract of that first slice: the definition format, the two templates, the twelve refusals of `flow check`, the fourteen rules of `flow next`, the grid of `flow place`, the fixture family. |
+| [langchain.md](langchain.md) | Whether a team should use LangChain for its ticket workflow (no, when it drives an existing coding agent), what LangChain was for, and the one case where what is left of it is useful. |
+| [langgraph.md](langgraph.md) | Whether you need LangGraph: the one case it fits, and its four ideas (run identity, checkpoint, interrupt, replay) worth applying on whatever runs your flow. |
+| [engines.md](engines.md) | What a workflow engine such as Temporal gives (a run that crashes or waits continues where it stopped), what it does not give, who uses one and what it costs. |
+| [ci-as-engine.md](ci-as-engine.md) | How a team flow runs on what the team already owns: the ticket holds the state and each event starts one short CI job, with the protections that replace an engine, and its limits. This is the default. |
+| [rust.md](rust.md) | Where Rust is a real option for a team workflow (the compiled program around the agent) and where nothing exists in Rust (the agent itself). |
+| [flows.md](flows.md) | The two reference flows, a feature ticket and a bug ticket, step by step: who performs each step, where a run can stop on purpose, and where the templates of `flow new` differ from the report. |
+| [costs.md](costs.md) | What a ticket costs when an agent works on it: about one dollar per agent pass, why nobody publishes the cost of a whole ticket, and what multiplies the bill. |
 | [team-assessment.md](team-assessment.md) | Whether today's skills can assess an AI SDLC a team already built (partly), and the design of a skill that does, `harness-team`, with its levels, its achievements and its limits. |
 | [research_notes/](research_notes/) | The eleven notes the report rests on, each with its sources and its list of what was not found. |
 

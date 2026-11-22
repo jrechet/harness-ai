@@ -135,6 +135,7 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Know where a piece of a skill or agent belongs: AGENTS.md, CLI, hook, permission, CI… | `harness.py place grid`, `place one`, `place plan <pieces.json>` | tooled |
 | Write an assessment as a one-page HTML report | `harness.py report build <report.json> -o <page.html>` | tooled |
 | Follow progress in a local page | `harness.py serve <repo>` | tooled, rendering not reviewed |
+| Know, before writing any workflow, whether you need one at all and which tool (LangChain, LangGraph, a workflow engine, Rust, or only the ticket's state and CI), from answers you record yourself ([the pages that explain each verdict](docs/workflow-harness/README.md)) | `harness.py flow fit --questions`, then `harness.py flow fit <answers.json>` | tooled, not measured with a user |
 | Start a team workflow from a ticket to production, written as a small table of steps: a feature or a bug template to edit ([every key](docs/workflow-harness/flow-format.md)) | `harness.py flow new <feature\|bug>` | tooled, not measured with a user |
 | Have a program refuse a workflow that could loop, wait or spend without end, before anything runs | `harness.py flow check <flow.json>` | tooled, not measured with a user |
 | Ask what one ticket does on one event: the next step, or why it stops, and what is left of its budget | `harness.py flow next <flow.json> --event <event.json> --new --save-run <run.json>`, then `--run <run.json> --save-run <run.json>` | tooled, not measured with a user |
@@ -153,6 +154,9 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Create or review a skill, an agent, a rule, putting each piece in its place | `harness-design` | measured: 12 traps of 12 on a held-out case |
 | Ask "why this level?" | `harness-medals` | tooled |
 | Draw rules from what happened in your PRs | `harness-harvest` | tooled, never played |
+| Ask "do I need LangChain, LangGraph, a workflow engine or Rust for this?" before building anything | `flow-why` | tooled, never played |
+| Write your team's path from a ticket to production as one file a program has checked; nothing runs | `flow-map` | tooled, never played |
+| Know where each step of that workflow belongs, and whether any step needs a workflow engine | `flow-place` | tooled, never played |
 | Know whether a ticket is ready, and what it lacks | `ticket` (plugin `ai-sdlc`) | measured once: three tickets compliant |
 | Have the tests that come from the ticket's criteria written, and have a program say whether they hold | `qa` (plugin `ai-sdlc`) | measured once: seven planted defects of seven caught by the written tests |
 | Look at a change from the security angle: secrets, scanners, sensitive places to reread | `secu` (plugin `ai-sdlc`) | measured once: four planted defects of four, two healthy places left alone |
@@ -289,7 +293,7 @@ Both suites pass on a fresh clone, from Python 3.10 to 3.14. The repository's ru
 | Folder | Content |
 |---|---|
 | `cli/` | The `harness.py` CLI and its tests |
-| `skills/` | The six skills of the `harness-ai` plugin |
+| `skills/` | The nine skills of the `harness-ai` plugin: six for one repository's harness, three (`flow-why`, `flow-map`, `flow-place`) for a team's ticket workflow |
 | `plugins/ai-sdlc/` | The second plugin: skills `ticket`, `dev`, `qa`, `secu`, `review`, `ship` and `run`, and its CLI |
 | `fixtures/` | Sample projects, trapped cases, answer keys, recorded runs |
 | `app/` | The progress page served by `harness serve` |

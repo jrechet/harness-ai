@@ -145,7 +145,7 @@ class SkillsCallTheCliTests(unittest.TestCase):
     def test_every_shipped_skill_is_found(self):
         folders = {os.path.dirname(os.path.dirname(path)) for path, _ in skill_files()}
         self.assertEqual(folders, set(SKILL_ROOTS))
-        self.assertGreaterEqual(len(skill_files()), 13)
+        self.assertGreaterEqual(len(skill_files()), 16)
 
     def test_every_skill_calls_its_cli_through_the_plugin_root(self):
         for path, script in skill_files():
