@@ -137,6 +137,14 @@ def level3(f: dict) -> list[Check]:
     ]
 
 
+def _contract_action(f: dict) -> str:
+    """What to do about the task contract: complete the one that is cited, or write the first."""
+    hollow = next((c for c in f["contracts"]["items"] if c["referenced"] and not c["complete"]), None)
+    if hollow:
+        return f"Complete {hollow['path']}: it lacks {', '.join(hollow['missing'])}."
+    return f"Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in {source_name(f)}."
+
+
 def level4(f: dict) -> list[Check]:
     src = _src(f)
     h = f["harvest"]
@@ -148,8 +156,8 @@ def level4(f: dict) -> list[Check]:
                bool(src.get("has_process_section")), src.get("has_process_section"),
                "Add: when to stop and ask, definition of done, red CI, flaky test."),
         _check("L4.contracts", "At least one task contract exists and is referenced",
-               any(c["referenced"] for c in f["contracts"]["items"]), f["contracts"]["count"],
-               f"Create .claude/skills/<task>/SKILL.md for the first delegated task and cite it in {source_name(f)}."),
+               any(c["referenced"] and c["complete"] for c in f["contracts"]["items"]), f["contracts"]["count"],
+               _contract_action(f)),
         _check("L4.clean_prs", "The last harvest sees agent PRs with no after-the-fact correction",
                bool(h and (h["agent_prs"] or 0) > 0 and h["corrections_on_agent_prs"] == 0),
                {"agent_prs": h["agent_prs"], "S2": h["corrections_on_agent_prs"]} if h else None,
