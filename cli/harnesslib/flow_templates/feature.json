@@ -1,0 +1,338 @@
+{
+  "format": 1,
+  "name": "feature",
+  "kind": "feature",
+  "start": "ready",
+  "stop_at": "ready_pr",
+  "budget": {
+    "dollars": 20,
+    "minutes": 240
+  },
+  "states": {
+    "ready": {
+      "type": "code",
+      "does": "Checks the ticket is eligible, refuses a second run on it and opens the run record",
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "writes": [
+        {
+          "what": "the run record",
+          "key": "run-{ticket}"
+        }
+      ],
+      "on": {
+        "claimed": {
+          "to": "planning"
+        },
+        "not_eligible": {
+          "to": "stopped",
+          "reason": "not_eligible"
+        }
+      }
+    },
+    "planning": {
+      "type": "agent",
+      "does": "Writes a short plan that restates the acceptance criteria and lists its assumptions",
+      "cap": 3,
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "weak_model": "no",
+      "on": {
+        "plan_written": {
+          "to": "plan_size"
+        }
+      }
+    },
+    "plan_size": {
+      "type": "code",
+      "does": "Decides from the size and the paths of the plan whether a person must review it, and posts the plan on the ticket",
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "writes": [
+        {
+          "what": "the plan",
+          "key": "plan-{ticket}"
+        }
+      ],
+      "on": {
+        "plan_small": {
+          "to": "coding",
+          "reaches": "plan"
+        },
+        "plan_large": {
+          "to": "plan_review",
+          "reaches": "plan"
+        }
+      }
+    },
+    "plan_review": {
+      "type": "gate",
+      "does": "A maintainer reads the plan and approves it or sends it back",
+      "judge": "a maintainer of the repository",
+      "shows": "the plan",
+      "deadline_hours": 72,
+      "can_judge": "yes",
+      "on": {
+        "plan_approved": {
+          "to": "coding"
+        },
+        "plan_rejected": {
+          "to": "planning"
+        }
+      }
+    },
+    "coding": {
+      "type": "agent",
+      "does": "Implements the ticket and its tests",
+      "cap": 6,
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "weak_model": "no",
+      "on": {
+        "code_written": {
+          "to": "checks"
+        }
+      }
+    },
+    "checks": {
+      "type": "code",
+      "does": "Runs format, lint, build and the selected tests",
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "on": {
+        "checks_passed": {
+          "to": "draft_pr"
+        },
+        "checks_failed": {
+          "to": "coding"
+        }
+      }
+    },
+    "draft_pr": {
+      "type": "code",
+      "does": "Pushes the branch and opens a draft pull request linked to the ticket, with the plan, the assumptions, the results and the cost",
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "writes": [
+        {
+          "what": "the branch",
+          "key": "flow/{ticket}"
+        },
+        {
+          "what": "the pull request",
+          "key": "pr-{ticket}"
+        }
+      ],
+      "on": {
+        "pr_opened": {
+          "to": "ci_wait",
+          "reaches": "draft_pr"
+        }
+      }
+    },
+    "ci_wait": {
+      "type": "wait",
+      "does": "Waits for CI on the pushed commit",
+      "cap": 8,
+      "deadline_hours": 6,
+      "on": {
+        "ci_finished": {
+          "to": "ci_check"
+        }
+      }
+    },
+    "ci_check": {
+      "type": "code",
+      "does": "Checks the CI result is for the current commit and reads it",
+      "checks_premise": true,
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "on": {
+        "ci_green": {
+          "to": "review_checks"
+        },
+        "ci_red": {
+          "to": "ci_fix"
+        },
+        "ci_stale": {
+          "to": "ci_wait"
+        }
+      }
+    },
+    "ci_fix": {
+      "type": "agent",
+      "does": "Fixes the CI failures and pushes the fix",
+      "cap": 2,
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "weak_model": "no",
+      "writes": [
+        {
+          "what": "the branch",
+          "key": "flow/{ticket}"
+        }
+      ],
+      "on": {
+        "fix_pushed": {
+          "to": "ci_wait"
+        }
+      }
+    },
+    "review_checks": {
+      "type": "agent",
+      "does": "Reviews the change in a separate context: the code, the tests and the security",
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "weak_model": "no",
+      "on": {
+        "review_done": {
+          "to": "mark_ready"
+        },
+        "review_failed": {
+          "to": "coding"
+        }
+      }
+    },
+    "mark_ready": {
+      "type": "code",
+      "does": "Computes the risk from the paths and the size, marks the pull request ready and assigns reviewers",
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "writes": [
+        {
+          "what": "the pull request",
+          "key": "pr-{ticket}"
+        }
+      ],
+      "on": {
+        "marked_ready": {
+          "to": "human_review",
+          "reaches": "ready_pr"
+        }
+      }
+    },
+    "human_review": {
+      "type": "gate",
+      "does": "A reviewer reads the pull request and approves it or asks for changes",
+      "judge": "a reviewer who did not request the change",
+      "shows": "the pull request",
+      "deadline_hours": 72,
+      "can_judge": "yes",
+      "on": {
+        "approved": {
+          "to": "merge_auth"
+        },
+        "changes_requested": {
+          "to": "rework"
+        }
+      }
+    },
+    "rework": {
+      "type": "code",
+      "does": "Collects the review comments and hands them to the next coding round",
+      "cap": 2,
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "on": {
+        "comments_collected": {
+          "to": "coding"
+        }
+      }
+    },
+    "merge_auth": {
+      "type": "gate",
+      "does": "A maintainer says in so many words whether the pull request may be merged",
+      "judge": "a maintainer who is not the requester",
+      "shows": "the pull request",
+      "deadline_hours": 72,
+      "can_judge": "yes",
+      "on": {
+        "merge_authorised": {
+          "to": "merging"
+        },
+        "merge_refused": {
+          "to": "stopped",
+          "reason": "merge_refused"
+        }
+      }
+    },
+    "merging": {
+      "type": "code",
+      "does": "Checks the pull request is still the one approved, then puts it in the merge queue",
+      "checks_premise": true,
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "writes": [
+        {
+          "what": "the merge",
+          "key": "merge-{ticket}"
+        }
+      ],
+      "on": {
+        "merged": {
+          "to": "delivery",
+          "reaches": "merged"
+        },
+        "head_moved": {
+          "to": "stopped",
+          "reason": "head_moved"
+        },
+        "merge_failed": {
+          "to": "stopped",
+          "reason": "merge_failed"
+        }
+      }
+    },
+    "delivery": {
+      "type": "wait",
+      "does": "Waits for the team's normal delivery pipeline, behind its protected environment",
+      "deadline_hours": 168,
+      "on": {
+        "deployed": {
+          "to": "closing",
+          "reaches": "deployed"
+        },
+        "deploy_failed": {
+          "to": "stopped",
+          "reason": "deploy_failed"
+        }
+      }
+    },
+    "closing": {
+      "type": "code",
+      "does": "Checks that what was deployed is this ticket's change, then closes the ticket and records the outcome and the cost",
+      "checks_premise": true,
+      "survives": "restart",
+      "units": "one",
+      "repositories": "one",
+      "writes": [
+        {
+          "what": "the closing note",
+          "key": "close-{ticket}"
+        }
+      ],
+      "on": {
+        "closed": {
+          "to": "done",
+          "reason": "delivered"
+        },
+        "premise_failed": {
+          "to": "stopped",
+          "reason": "premise_failed"
+        }
+      }
+    }
+  }
+}
