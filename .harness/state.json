@@ -50,7 +50,7 @@
           "id": "L1.short",
           "label": "The loaded file is at most 60 lines",
           "passed": true,
-          "value": 48,
+          "value": 49,
           "next_action": null,
           "waits": false
         },
@@ -61,7 +61,7 @@
           "value": {
             "exists": true,
             "lines": 1,
-            "loaded_lines": 48,
+            "loaded_lines": 49,
             "is_stub": true
           },
           "next_action": null,
@@ -142,16 +142,16 @@
         {
           "id": "L3.guarded",
           "label": "At least 50% of the rules are \"Enforced by\" a tool",
-          "passed": false,
-          "value": 0.12,
-          "next_action": "Push the narrated rules down to a tool: custom lint, architecture test, PR check.",
+          "passed": true,
+          "value": 0.56,
+          "next_action": null,
           "waits": false
         },
         {
           "id": "L3.justified",
           "label": "At least 50% of the rules say why",
           "passed": true,
-          "value": 0.62,
+          "value": 0.67,
           "next_action": null,
           "waits": false
         },
@@ -164,7 +164,7 @@
           "waits": false
         }
       ],
-      "passed_checks": 2,
+      "passed_checks": 3,
       "total_checks": 4
     },
     {
@@ -242,7 +242,6 @@
     "hint": "Run harness-audit for a measured layer view."
   },
   "next_actions": [
-    "Push the narrated rules down to a tool: custom lint, architecture test, PR check.",
     "Run harness-audit, write its JSON to .harness/audit.json, handle its urgent findings."
   ],
   "waiting": [
@@ -256,14 +255,14 @@
       "files": {
         "AGENTS.md": {
           "exists": true,
-          "lines": 48,
-          "loaded_lines": 48,
+          "lines": 49,
+          "loaded_lines": 49,
           "is_stub": false
         },
         "CLAUDE.md": {
           "exists": true,
           "lines": 1,
-          "loaded_lines": 48,
+          "loaded_lines": 49,
           "is_stub": true
         },
         ".github/copilot-instructions.md": {
@@ -277,12 +276,12 @@
       "source": {
         "path": "AGENTS.md",
         "mode": "delegation",
-        "lines": 48,
-        "rules_total": 8,
-        "rules_guarded": 1,
-        "rules_unguarded_marked": 3,
-        "rules_justified": 5,
-        "rules_dated": 8,
+        "lines": 49,
+        "rules_total": 9,
+        "rules_guarded": 5,
+        "rules_unguarded_marked": 4,
+        "rules_justified": 6,
+        "rules_dated": 9,
         "oldest_rule_date": "2026-11",
         "has_maintenance_section": true,
         "has_process_section": true,
@@ -300,7 +299,10 @@
         {
           "name": "harness-stress",
           "path": ".claude/skills/harness-stress/SKILL.md",
-          "referenced": true
+          "referenced": true,
+          "complete": true,
+          "missing": [],
+          "done_criterion": false
         }
       ]
     },
