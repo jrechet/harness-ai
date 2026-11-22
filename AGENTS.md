@@ -10,7 +10,7 @@ Goal: help a team set up its repository's AI harness one step at a time, seeing 
 |---|---|---|
 | `cli/` | `python3 -m unittest discover -s cli/tests` | `scripts/ci/verify.sh`, required on `main` |
 | a fixture of `fixtures/repos/` or its `expected.json` | `python3 cli/harness.py fixture check <name>` | `cli/tests/test_fixtures.py`, in the suite above; `harness keys check` when an answer key changes with what it grades |
-| a fixture task (`tasks/`) | `python3 cli/harness.py bench selftest <name>` | nothing: `cli/tests/test_bench.py` replays the real tasks only with `HARNESS_SELFTEST=1` |
+| a fixture task (`tasks/`) | `python3 cli/harness.py bench selftest <name>` | `scripts/ci/verify.sh`, when the runner has `go`, `npm`, python3 venv and reaches the package registries (it prints `selftest skipped:` and what is missing otherwise; `HARNESS_SELFTEST=0` turns it off) |
 | the placement grid or a fixture of `fixtures/design/` | `python3 cli/harness.py place check <plan> --expected <fixture>/expected.json` | `cli/tests/test_place.py`, in the suite above |
 | `plugins/ai-sdlc/` or a fixture of `fixtures/review/`, `dev/`, `ticket/`, `qa/`, `secu/`, `ship/` or `run/` | `python3 -m unittest discover -s plugins/ai-sdlc/cli/tests` | `scripts/ci/verify.sh`, required on `main` |
 | the CI or `docs/agents/gates.json` | `BASE_REF=origin/main sh scripts/ci/verify.sh` from a branch | the CI itself |
