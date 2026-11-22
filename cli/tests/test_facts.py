@@ -1,4 +1,5 @@
-"""Tests of the facts read from a source file: the paths cited after "Enforced by:"."""
+"""Tests of the facts read from a source file: the paths cited after "Enforced by:", and the task
+contracts cited under "Delegated tasks"."""
 from __future__ import annotations
 
 import os
@@ -7,7 +8,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from harnesslib import facts  # noqa: E402
+from harnesslib import facts, maturity  # noqa: E402
 
 
 def agents_md(*rules: str) -> str:
@@ -114,6 +115,132 @@ class EnforcedByPathTest(unittest.TestCase):
         refs = self.guards("No raw SQL. Enforced by: `tools/nonexistent.go`")
 
         self.assertEqual(refs, ["tools/nonexistent.go"])
+
+
+SOURCE_WITH_TASK = "# demo\n\n## Delegated tasks\n- `bump` — bump a dependency.\n"
+REAL_CONTRACT = ("---\nname: bump\ndescription: Bump a dependency and prove nothing breaks.\n---\n"
+                 "# Bump a dependency\n\n## Done when\n- The tests pass.\n")
+
+
+class TaskContractTest(unittest.TestCase):
+    """A task contract counts for level 4 when its front matter says what it is; whether it says when
+    the task is done is measured beside it."""
+
+    def setUp(self) -> None:
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.repo = tmp.name
+
+    def contract(self, text: str, base: str = ".claude/skills") -> dict:
+        path = os.path.join(self.repo, base, "bump", "SKILL.md")
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        return facts.contract_facts(self.repo, SOURCE_WITH_TASK)["items"][0]
+
+    def level4_check(self) -> dict:
+        with open(os.path.join(self.repo, "AGENTS.md"), "w", encoding="utf-8") as handle:
+            handle.write(SOURCE_WITH_TASK)
+        checks = maturity.level4(facts.collect(self.repo))
+        return next(c for c in checks if c["id"] == "L4.contracts")
+
+    def test_an_empty_contract_is_not_complete(self) -> None:
+        item = self.contract("")
+
+        self.assertTrue(item["referenced"])
+        self.assertFalse(item["complete"])
+        self.assertEqual(item["missing"], ["front matter name", "front matter description"])
+        self.assertFalse(item["done_criterion"])
+
+    def test_a_minimal_real_contract_is_complete(self) -> None:
+        item = self.contract(REAL_CONTRACT)
+
+        self.assertTrue(item["complete"])
+        self.assertEqual(item["missing"], [])
+        self.assertTrue(item["done_criterion"])
+
+    def test_an_empty_contract_fails_the_level_4_check(self) -> None:
+        self.contract("")
+
+        check = self.level4_check()
+
+        self.assertFalse(check["passed"])
+        self.assertIn(".claude/skills/bump/SKILL.md", check["next_action"])
+        self.assertIn("front matter name, front matter description", check["next_action"])
+
+    def test_a_minimal_real_contract_passes_the_level_4_check(self) -> None:
+        self.contract(REAL_CONTRACT)
+
+        self.assertTrue(self.level4_check()["passed"])
+
+    def test_a_complete_contract_that_is_not_cited_fails_the_level_4_check(self) -> None:
+        self.contract(REAL_CONTRACT.replace("name: bump", "name: other"))
+        os.rename(os.path.join(self.repo, ".claude/skills/bump"), os.path.join(self.repo, ".claude/skills/other"))
+
+        self.assertFalse(self.level4_check()["passed"])
+
+    def test_an_incomplete_contract_still_counts_as_a_file(self) -> None:
+        self.contract("# Bump\n")
+
+        self.assertEqual(facts.contract_facts(self.repo, SOURCE_WITH_TASK)["count"], 1)
+
+    def test_a_contract_without_front_matter_lacks_name_and_description(self) -> None:
+        item = self.contract("# Bump\n\n## Done when\n- The tests pass.\n")
+
+        self.assertEqual(item["missing"], ["front matter name", "front matter description"])
+        self.assertTrue(item["done_criterion"])
+
+    def test_an_empty_description_is_missing(self) -> None:
+        item = self.contract(REAL_CONTRACT.replace("description: Bump a dependency and prove nothing breaks.",
+                                                   "description:"))
+
+        self.assertEqual(item["missing"], ["front matter description"])
+
+    def test_a_folded_description_counts(self) -> None:
+        item = self.contract(REAL_CONTRACT.replace("description: Bump a dependency and prove nothing breaks.",
+                                                   "description: >\n  Bump a dependency\n  and prove nothing breaks."))
+
+        self.assertEqual(item["missing"], [])
+
+    def test_an_unclosed_front_matter_is_not_a_front_matter(self) -> None:
+        item = self.contract("---\nname: bump\ndescription: Bump.\n\n## Done when\n- The tests pass.\n")
+
+        self.assertEqual(item["missing"], ["front matter name", "front matter description"])
+
+    def test_a_contract_without_a_done_criterion_is_measured_as_such(self) -> None:
+        item = self.contract("---\nname: bump\ndescription: Bump a dependency.\n---\n# Bump\n\n## Steps\n1. Bump.\n")
+
+        self.assertFalse(item["done_criterion"])
+
+    def test_done_when_in_the_description_is_not_a_done_criterion(self) -> None:
+        item = self.contract("---\nname: bump\ndescription: Says the task is done when CI is green.\n---\n# Bump\n")
+
+        self.assertFalse(item["done_criterion"])
+
+    def test_a_done_criterion_can_be_a_line_or_a_french_heading(self) -> None:
+        head = "---\nname: bump\ndescription: Bump a dependency.\n---\n# Bump\n\n"
+        for body in ("**Done when:** the tests pass.\n", "- Done when the CI is green.\n",
+                     "## Definition of done\n- CI green.\n", "## Fini quand\n- La CI est verte.\n",
+                     "## Terminé quand\n- La CI est verte.\n"):
+            with self.subTest(body):
+                self.assertTrue(self.contract(head + body)["done_criterion"])
+
+    def test_a_contract_under_agents_skills_is_judged_the_same(self) -> None:
+        path = os.path.join(self.repo, ".agents/skills/bump/SKILL.md")
+        os.makedirs(os.path.dirname(path))
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(REAL_CONTRACT)
+
+        self.assertTrue(self.level4_check()["passed"])
+
+    def test_the_go_hexa_level_4_overlay_contract_is_complete(self) -> None:
+        root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        overlay = os.path.join(root, "fixtures/repos/go-hexa/runs/2026-11-14-step-target4-step2-after/overlay")
+
+        items = facts.contract_facts(overlay, "- `add-endpoint`")["items"]
+
+        self.assertEqual([(i["name"], i["complete"], i["done_criterion"]) for i in items],
+                         [("add-endpoint", True, True)])
 
 
 if __name__ == "__main__":

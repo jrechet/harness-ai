@@ -59,6 +59,13 @@ PROCESS_HEADING_RE = re.compile(r"processus de travail|working process|working a
 # six months" cannot be computed and nothing says for which generation of models the rule was written.
 RULE_DATE_RE = re.compile(r"\[(\d{4}-\d{2}(?:-\d{2})?)\]")
 DELEGATED_HEADING_RE = re.compile(r"t[âa]ches d[ée]l[ée]gu[ée]es|delegated tasks", re.I)
+# A task contract says what it is (front matter with `name` and `description`) and when the task is done.
+# Only the front matter is required today: three sample projects expect a contract without a done
+# criterion to pass level 4, so the criterion is measured (`done_criterion`) and not yet required.
+FRONT_MATTER_RE = re.compile(r"\A---[ \t]*\r?\n(.*?)\r?\n---[ \t]*(?:\r?\n|\Z)", re.S)
+# "## Done when", "**Done when:** …", "Definition of done", "Fini quand", "Terminé quand".
+DONE_CRITERION_RE = re.compile(r"\bdone when\b|\bdefinition of done\b|\bdone criteri(?:on|a)\b|\bfinished when\b"
+                               r"|\bfinie? quand\b|\btermin[ée]e? quand\b", re.I)
 # Test data sometimes carries fake instruction files: they are not the repository's own.
 SKIP_DIRS = {".git", "node_modules", "vendor", "dist", "build", ".harness", "runs", "__pycache__", ".venv",
              "fixtures", "testdata"}
@@ -302,6 +309,36 @@ def cited_path_exists(repo: str, token: str, files: list[str] | None = None) -> 
     return any(f == token or f.endswith("/" + token) or f.startswith(token.rstrip("/") + "/") for f in files)
 
 
+def _front_matter_value(block: str, key: str) -> bool:
+    """True if the front matter gives `key` a value, on its line or as an indented block (`>`, `|`)."""
+    lines = block.splitlines()
+    for number, line in enumerate(lines):
+        found = re.match(rf"^{re.escape(key)}:[ \t]*(.*)$", line)
+        if not found:
+            continue
+        value = found.group(1).strip()
+        if not value or re.fullmatch(r"[>|][+-]?\d?", value):
+            following = lines[number + 1:number + 2]
+            return bool(following and re.match(r"^[ \t]+\S", following[0]))
+        return bool(value.strip("'\""))
+    return False
+
+
+def contract_missing(text: str | None) -> list[str]:
+    """What a task contract lacks to be one: a 0-byte SKILL.md cited by the source file is not a contract."""
+    text = text or ""
+    front = FRONT_MATTER_RE.match(text)
+    block = front.group(1) if front else ""
+    return [f"front matter {key}" for key in ("name", "description") if not _front_matter_value(block, key)]
+
+
+def contract_done_criterion(text: str | None) -> bool:
+    """True if the body of the contract, front matter aside, says when the task is done."""
+    text = text or ""
+    front = FRONT_MATTER_RE.match(text)
+    return bool(DONE_CRITERION_RE.search(text[front.end():] if front else text))
+
+
 def contract_facts(repo: str, source_text: str | None) -> dict[str, Any]:
     contracts = []
     for d in CONTRACT_DIRS:
@@ -310,8 +347,12 @@ def contract_facts(repo: str, source_text: str | None) -> dict[str, Any]:
             continue
         for name in sorted(os.listdir(base)):
             if os.path.isfile(os.path.join(base, name, "SKILL.md")):
+                text = _read(os.path.join(base, name, "SKILL.md"))
+                missing = contract_missing(text)
                 contracts.append({"name": name, "path": f"{d}/{name}/SKILL.md",
-                                  "referenced": bool(source_text and name in source_text)})
+                                  "referenced": bool(source_text and name in source_text),
+                                  "complete": not missing, "missing": missing,
+                                  "done_criterion": contract_done_criterion(text)})
     return {"count": len(contracts), "items": contracts}
 
 
