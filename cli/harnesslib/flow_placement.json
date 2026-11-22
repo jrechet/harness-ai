@@ -1,0 +1,180 @@
+{
+  "root": "who",
+  "questions": {
+    "who": {
+      "text": "Who performs this step?",
+      "from": {"key": "type", "map": {"code": "code", "agent": "agent", "human": "human", "wait": "wait", "gate": "gate"}},
+      "options": {
+        "code": {
+          "label": "A program, with no model call.",
+          "ask": "survive"
+        },
+        "agent": {
+          "label": "A coding agent.",
+          "ask": "survive"
+        },
+        "human": {
+          "label": "A person who does work: nothing runs while they do it.",
+          "place": "ticket_state"
+        },
+        "wait": {
+          "label": "Nobody: the run waits for something outside (CI, a deployment, a date).",
+          "place": "ticket_state"
+        },
+        "gate": {
+          "label": "A person who decides: they approve or refuse what a step produced.",
+          "ask": "judge"
+        }
+      }
+    },
+    "judge": {
+      "text": "Can the person who approves really judge what they approve?",
+      "from": {"key": "can_judge", "map": {"yes": "yes", "no": "no"}},
+      "options": {
+        "yes": {
+          "label": "Yes: they are shown something they can read and refuse.",
+          "place": "human_gate"
+        },
+        "no": {
+          "label": "No: nobody could tell a good one from a bad one.",
+          "place": "no_gate"
+        }
+      }
+    },
+    "survive": {
+      "text": "How long does it live, and what must survive?",
+      "from": {"key": "survives", "map": {"restart": "restart", "midway": "midway"}},
+      "options": {
+        "restart": {
+          "label": "Minutes to a few hours; starting again from its beginning is acceptable.",
+          "ask": "spread"
+        },
+        "midway": {
+          "label": "Days inside one computation, or it must not run twice, or every run must be replayable step by step.",
+          "place": "durable_engine"
+        }
+      }
+    },
+    "spread": {
+      "text": "Does the work split into many independent units?",
+      "from": {"key": "units", "map": {"one": "one", "many": "many"}},
+      "options": {
+        "one": {
+          "label": "No: one unit of work, or a few parts that one writer handles.",
+          "ask": "repos"
+        },
+        "many": {
+          "label": "Yes: tens or hundreds of units that do not depend on each other.",
+          "place": "campaign"
+        }
+      }
+    },
+    "repos": {
+      "text": "How many repositories need this step?",
+      "from": {"key": "repositories", "map": {"one": "one", "several": "several"}},
+      "options": {
+        "one": {
+          "label": "One: the step lives in a file of that repository.",
+          "ask": "determined"
+        },
+        "several": {
+          "label": "Several: the same step, kept the same everywhere.",
+          "place": "reusable_workflow"
+        }
+      }
+    },
+    "determined": {
+      "text": "Is the right output determined by the inputs?",
+      "from": {"key": "type", "map": {"code": "yes", "agent": "no"}},
+      "options": {
+        "yes": {
+          "label": "Yes: the same inputs always give the same right output. The step is a program.",
+          "place": "code"
+        },
+        "no": {
+          "label": "No: it needs interpretation. The step is an agent.",
+          "ask": "weakness"
+        }
+      }
+    },
+    "weakness": {
+      "text": "Is this step here because today's model is weak?",
+      "from": {"key": "weak_model", "map": {"yes": "yes", "no": "no"}},
+      "options": {
+        "yes": {
+          "label": "Yes: a better model would make the step useless.",
+          "place": "dated_skill"
+        },
+        "no": {
+          "label": "No: the step would still be needed with a better model.",
+          "place": "skill"
+        }
+      }
+    }
+  },
+  "destinations": {
+    "code": {
+      "name": "Plain code",
+      "says": "this is code",
+      "layer": "L3",
+      "where": "A tested command of the repository, started by a short CI job.",
+      "why": "The right output is determined by the inputs: a program gives it every time, a prompt only most of the time."
+    },
+    "skill": {
+      "name": "A skill",
+      "says": "a skill is enough",
+      "layer": "L2",
+      "where": "A skill of the repository, read by the agent inside this one step.",
+      "why": "The step needs interpretation, lives a few hours at most and may start again: an agent guided by a skill does it, and nothing has to hold it between two jobs."
+    },
+    "dated_skill": {
+      "name": "A skill with its date",
+      "says": "a skill is enough, with its date",
+      "layer": "L2",
+      "where": "A skill of the repository, with the model and the date written beside it.",
+      "why": "The step is here because today's model is weak: keep it in the cheapest layer, test it again at each model release, and delete it when it changes nothing."
+    },
+    "ticket_state": {
+      "name": "A state on the ticket",
+      "says": "the ticket holds this",
+      "layer": "L4",
+      "where": "A state on the ticket or the pull request; the next event starts a short job.",
+      "why": "Nothing runs while a person works or while the run waits: the ticket holds the state for hours or days at no cost, and each step after it is safe to do again."
+    },
+    "human_gate": {
+      "name": "A human gate",
+      "says": "this is a human gate",
+      "layer": "L4",
+      "where": "A state of the ticket or the pull request that only a human account may set.",
+      "why": "A person decides on something they can read and refuse: the forge records who approved, and no program can set the state in their place."
+    },
+    "no_gate": {
+      "name": "No gate",
+      "says": "no gate here",
+      "layer": "-",
+      "where": "Nowhere: remove the gate, or give its judge something they can read and refuse.",
+      "why": "The person could not tell a good result from a bad one: an approval they cannot judge protects nothing and only adds a wait."
+    },
+    "reusable_workflow": {
+      "name": "A shared CI workflow",
+      "says": "this is a shared CI workflow",
+      "layer": "L4",
+      "where": "A versioned plugin and a reusable CI workflow, with a named owner.",
+      "why": "Several repositories need the same step: one versioned copy with an owner stays the same everywhere, where copies drift apart."
+    },
+    "campaign": {
+      "name": "A fan-out by script",
+      "says": "this is a fan-out by script",
+      "layer": "L4",
+      "where": "A script that fans out, for example a CI matrix, with one writer per unit.",
+      "why": "The work splits into many independent units: a script starts one writer for each and counts the results. Never a swarm of agents that share the work."
+    },
+    "durable_engine": {
+      "name": "A workflow engine",
+      "says": "this would need an engine",
+      "layer": "L4",
+      "where": "A workflow engine that holds the step, outside this repository's CI.",
+      "why": "The step lives for days inside one computation, must not run twice, or must be replayable step by step: a CI job and a ticket state cannot promise that."
+    }
+  }
+}
