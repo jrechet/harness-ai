@@ -17,6 +17,7 @@
   ai_sdlc.py run render <investigation.json> [repo] [--base REF] [--evidence file…]   the investigation of an incident, rendered as a ticket
   ai_sdlc.py ci pr [repo] [--base REF] [--coverage F] [--report SARIF…] [--ticket F --trace F] [--strict]   the gates of a pull request, for a pipeline
   ai_sdlc.py ci main [repo] [--base REF] [--since REF] [--checks checks.json] [--strict]   the prerequisites of a delivery, on a push to the delivery branch
+  ai_sdlc.py measure [repo] --since DATE [--until DATE] [--window N] [--from DIR] [--agent-trailer TEXT…]   a team's pull-request signals over a period, by kind of author
   ai_sdlc.py guard check <command>   says whether a shell command delivers (tag, publish, deploy): 0 no, 1 yes
   ai_sdlc.py guard hook   the same check, as the plugin's PreToolUse hook (cli/guard_hook.py) does it: 2 refuses
   ai_sdlc.py fixture init <fixture> <dest>         mounts a fixture as a git repository: its base, and its trapped PR if it has one
@@ -36,7 +37,9 @@ whether the forge protects the base branch, requires a review and requires a che
 (incomplete form, finding outside the diff). `ticket check`: 0 ready, 1 not ready, 2 unreadable. `ticket render`: 0 rendered, 2 refused. `qa gate`: 0 the four
 gates pass, 1 a gate failed, 3 nothing failed but a gate is unmeasured, 2 refused; `secu gate` and `ship check` follow the same codes.
 `ci pr` and `ci main`: 0 nothing failed (an unmeasured gate is said, and passes), 1 a gate failed, or is unmeasured under `--strict`,
-2 refused. `ci main` exits 0 when the push carries nothing since the last version. `fixture grade`: 0 compliant, 1 not compliant, 2 unreadable file.
+2 refused. `ci main` exits 0 when the push carries nothing since the last version. `measure`: 0 measured, 2 refused (a date
+that is not one, `gh` missing or not answering, an unreadable recording); it only reads, with `gh pr list` or from the prs.json of `--from`,
+and says the cost "unmeasured". `fixture grade`: 0 compliant, 1 not compliant, 2 unreadable file.
 
 Python 3.10+, standard library only."""
 from __future__ import annotations
@@ -48,7 +51,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from aisdlclib import ci, context, dev, devgrade, guard, points, qa, qagrade, review, run, rungrade, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
+from aisdlclib import ci, context, dev, devgrade, guard, measure, points, qa, qagrade, review, run, rungrade, secu, secugrade, ship, shipgrade, size, ticket, ticketgrade  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -125,6 +128,19 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("repo", nargs="?", default=".")
         sp.add_argument("--base", default="origin/HEAD", help="base branch (default: origin/HEAD)")
         sp.add_argument("--format", choices=["md", "json"], default="md")
+    msr = sub.add_parser("measure", help="a team's pull-request signals over a period: read-only")
+    msr.add_argument("repo", nargs="?", default=".")
+    msr.add_argument("--since", required=True, metavar="DATE", help="first day of the period, YYYY-MM-DD: pull requests merged from that day")
+    msr.add_argument("--until", metavar="DATE", help="the day the period stops, excluded (default: no end); "
+                                                     "a \"before\" and an \"after\" are two runs")
+    msr.add_argument("--window", type=int, metavar="N", help=f"days after its merge in which a fix or a revert counts (default: {measure.DEFAULT_WINDOW})")
+    msr.add_argument("--from", dest="recorded", metavar="DIR",
+                     help="a folder of recorded answers instead of the forge: prs.json, the output of "
+                          f"`gh pr list --state merged --limit {measure.PAGE} --json {','.join(measure.FIELDS)}`")
+    msr.add_argument("--agent-trailer", nargs="+", metavar="TEXT",
+                     help="what a Co-Authored-By trailer contains when the co-author is an agent "
+                          f"(default: {', '.join(measure.DEFAULT_MARKERS)})")
+    msr.add_argument("--format", choices=["md", "json"], default="md")
     grd = sub.add_parser("guard", help="an agent does not deliver").add_subparsers(dest="action", required=True)
     gchk = grd.add_parser("check", help="says whether a shell command tags, publishes or deploys")
     gchk.add_argument("words", nargs="+", metavar="COMMAND", help="the command, as a single quoted argument")
@@ -225,6 +241,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "fixture":
             data, text, code = _fixture(args, table)
+        elif args.command == "measure":
+            data = measure.run(args.repo, args.since, args.until, args.window, args.agent_trailer, args.recorded)
+            text = measure.render_md(data)
         elif args.command == "qa":
             if args.runs is not None and not 1 <= args.runs <= 20:
                 raise context.Refused("--runs: between 1 and 20")
