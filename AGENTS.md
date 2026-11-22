@@ -10,7 +10,7 @@ Claude Code skills (`skills/`), deterministic CLI (`cli/`), evaluation fixtures 
 |---|---|---|
 | `cli/` | `python3 -m unittest discover -s cli/tests` | `scripts/ci/verify.sh`, required on `main` |
 | a fixture or its `expected.json` | `python3 cli/harness.py fixture check <name>` | nothing |
-| a fixture task (`tasks/`) | `python3 cli/harness.py bench selftest <name>` | nothing |
+| a fixture task (`tasks/`) | `python3 cli/harness.py bench selftest <name>` | `scripts/ci/verify.sh`, when `go` and `npm` are on the runner (it prints `selftest skipped` otherwise) |
 | the placement grid or a fixture of `fixtures/design/` | `python3 cli/harness.py place check <plan> --expected <fixture>/expected.json` | nothing |
 | `plugins/ai-sdlc/` or a fixture of `fixtures/review/`, `dev/`, `ticket/`, `qa/`, `secu/`, `ship/` or `run/` | `python3 -m unittest discover -s plugins/ai-sdlc/cli/tests` | `scripts/ci/verify.sh`, required on `main` |
 | the CI or `docs/agents/gates.json` | `BASE_REF=origin/main sh scripts/ci/verify.sh` from a branch | the CI itself |
