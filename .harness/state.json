@@ -1,7 +1,7 @@
 {
   "schema": "harness-state/1",
   "repo": ".",
-  "date": "2026-11-21",
+  "date": "2026-11-22",
   "level": {
     "reached": 1,
     "name": "Framed",
@@ -106,7 +106,7 @@
           "id": "L2.marker_fresh",
           "label": "The harvest marker is less than 45 days old",
           "passed": true,
-          "value": 12,
+          "value": 13,
           "next_action": null,
           "waits": false
         },
@@ -251,7 +251,7 @@
   "dangling": [],
   "facts": {
     "repo": ".",
-    "date": "2026-11-21",
+    "date": "2026-11-22",
     "instructions": {
       "files": {
         "AGENTS.md": {
@@ -313,7 +313,8 @@
     },
     "audit": null,
     "harvest": null,
-    "harvest_marker_age_days": 12,
+    "unreadable": [],
+    "harvest_marker_age_days": 13,
     "config": {
       "target_level": null
     },

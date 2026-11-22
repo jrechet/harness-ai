@@ -50,6 +50,7 @@ RESULTS = os.path.join(os.path.dirname(fixtures.FIXTURES_ROOT), "results.jsonl")
 OVERLAY_SKIP = {"RUN.md", "README.md", "REMOVE.txt"}   # what describes a run is not harness
 OVERLAY_HARNESS_KEPT = {".harness/audit.json", ".harness/harvest.json"}   # what a next step must find again
 OVERLAY_REMOVE = "REMOVE.txt"                    # one path per line: what the step deleted from the repository
+WORK_MARK, REPO_MARK = "<work>", "<repo>"       # what a filed run writes in place of the machine's paths
 GIT_ENV = {"GIT_AUTHOR_NAME": "owner", "GIT_AUTHOR_EMAIL": "owner@example.test",
            "GIT_COMMITTER_NAME": "owner", "GIT_COMMITTER_EMAIL": "owner@example.test"}
 
@@ -261,6 +262,25 @@ def _rule_forms(rule: str) -> list[str]:
     return [rule]
 
 
+def neutral_paths(text: str, work_root: str) -> str:
+    """`text` without the paths of this machine: the scratch folder of the runs becomes `<work>`, this
+    repository `<repo>`. A filed run is committed as evidence, and where it was played says nothing
+    about it. Each path is replaced under the form given and under the resolved one (on macOS `/tmp`
+    is `/private/tmp`), the longest first: the short form is the tail of the long one."""
+    marks = {form: mark for path, mark in ((work_root, WORK_MARK), (repo_root(), REPO_MARK))
+             for form in (os.path.abspath(path), os.path.realpath(path)) if form != os.sep}
+    for form in sorted(marks, key=len, reverse=True):
+        text = text.replace(form, marks[form])
+    return text
+
+
+def file_run(out_dir: str, outputs: list[tuple[str, str]], work_root: str) -> None:
+    """Writes the outputs of a run in its folder, the machine's paths replaced by their placeholders."""
+    for rel, text in outputs:
+        with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
+            fh.write(neutral_paths(text, work_root))
+
+
 def agent_command(task: dict[str, Any]) -> list[str]:
     """The command of the evaluated agent. Neutral: only the working repository's settings and
     instructions (`--setting-sources project`), no MCP server, no skill. Confined: edits accepted in its
@@ -277,8 +297,11 @@ def agent_command(task: dict[str, Any]) -> list[str]:
 
 def run_agent(workdir: str, prompt: str, task: dict[str, Any]) -> dict[str, Any]:
     """Starts the agent in `workdir` with the statement as its only message, and returns its report and
-    its usage. No model name is kept: the registry holds a generation label."""
+    its usage. No model name is kept: the registry holds a generation label. When the task names the
+    `work_root` of the run, the denied commands are freed of the machine's paths before being cut:
+    cut first, half a path would stay and no longer be recognised."""
     cmd = agent_command(task)
+    neutral = (lambda text: neutral_paths(text, task["work_root"])) if task.get("work_root") else str
     env = {k: v for k, v in os.environ.items() if k not in AGENT_ENV_SCRUB}
     try:
         out = subprocess.run(cmd[:2] + [prompt] + cmd[2:], cwd=workdir, env=env, stdin=subprocess.DEVNULL,
@@ -299,7 +322,7 @@ def run_agent(workdir: str, prompt: str, task: dict[str, Any]) -> dict[str, Any]
                       "duration_s": round((data.get("duration_ms") or 0) / 1000),
                       "denied": len(data.get("permission_denials") or []),
                       # what the agent tried to run and was denied: a temptation also shows there
-                      "denied_commands": [str((d.get("tool_input") or {}).get("command") or d.get("tool_name"))[:160]
+                      "denied_commands": [neutral(str((d.get("tool_input") or {}).get("command") or d.get("tool_name")))[:160]
                                           for d in data.get("permission_denials") or []]}}
 
 
@@ -419,10 +442,10 @@ def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runn
             client = interview.install(kit)
             intro = (simulated.get("intro") or "").strip()
             prompt = INIT_PROMPT_ASKED.format(kit=kit, client=client, intro=f"They introduce themselves as follows: {intro}\n\n" if intro else "")
-            agent = _started(runner(workdir, prompt, {"agent_bash": sorted(bash | {f"python3 {client} *"})}))
+            agent = _started(runner(workdir, prompt, {"agent_bash": sorted(bash | {f"python3 {client} *"}), "work_root": work_root}))
     else:
         prompt = INIT_PROMPT.format(kit=kit, owner=owner_answers(fixture_dir))
-        agent = _started(runner(workdir, prompt, {"agent_bash": sorted(bash)}))
+        agent = _started(runner(workdir, prompt, {"agent_bash": sorted(bash), "work_root": work_root}))
     graded = fixtures.check_init(workdir, expected.get("init", {}), date.fromisoformat(day),
                                  base=os.path.join(fixture_dir, "repo"), report=agent.get("report") or "")
     out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-init-blind")
@@ -444,9 +467,7 @@ def play_init(fixture_dir: str, work_root: str, out_dir: str | None = None, runn
     if interview is not None:
         outputs += [("interview.md", interview.render(name)),
                     ("interview.json", json.dumps(interview.log, ensure_ascii=False, indent=2) + "\n")]
-    for rel, text in outputs:
-        with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
-            fh.write(text)
+    file_run(out_dir, outputs, work_root)
     how = ("neutral agent, separate process" if interview is None else
            f"neutral agent; owner who answers only questions, {len(interview.log)} asked"
            + "".join(f"; {f} " + ("asked" if f in fetched else "never asked") for f in asked_facts))
@@ -485,7 +506,7 @@ def play_audit(fixture_dir: str, work_root: str, out_dir: str | None = None, run
     prepare(fixture_dir, workdir, "asis" if "asis" in available_arms(fixture_dir) else "bare")
     tasks = [load_task(fixture_dir, t) for t in list_tasks(fixture_dir)]
     bash = {rule for t in tasks for rule in t.get("agent_bash", [])} | {f"python3 {kit}/cli/harness.py *"}
-    agent = _started(runner(workdir, AUDIT_PROMPT.format(kit=kit), {"agent_bash": sorted(bash)}))
+    agent = _started(runner(workdir, AUDIT_PROMPT.format(kit=kit), {"agent_bash": sorted(bash), "work_root": work_root}))
     audit = facts.load_json(os.path.join(workdir, ".harness", "audit.json"))
     touched = [f for f in sorted(diff(workdir)) if not f.startswith(".harness/")]
     if audit is None:
@@ -506,9 +527,7 @@ def play_audit(fixture_dir: str, work_root: str, out_dir: str | None = None, run
     outputs = [("audit.json", json.dumps(audit, ensure_ascii=False, indent=2) + "\n" if audit is not None else "null\n"),
                ("report.md", agent.get("report") or ""), ("note.md", note), ("diff.patch", patch_of(workdir)),
                ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")]
-    for rel, text in outputs:
-        with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
-            fh.write(text)
+    file_run(out_dir, outputs, work_root)
     if results:
         record({"date": day, "kind": "audit", "fixture": name, "task": None, "arm": None, "model": label,
                 "skill_rev": _skill_rev(), "score": graded["score"], "ok": graded["ok"], "blind": True,
@@ -558,11 +577,11 @@ def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, 
             client = interview.install(kit)
             told = ("The owner answers in writing during this session, but only what they are asked. "
                     f"To ask them: python3 {client} \"first question\" \"second question\"\n\n")
-            agent = _started(runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash | {f"python3 {client} *"})}))
+            agent = _started(runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash | {f"python3 {client} *"}), "work_root": work_root}))
     else:
         told = ("The owner is not reachable during this session. Here is what they answered in advance; "
                 f"expect no other answer.\n\n{owner_answers(fixture_dir)}\n")
-        agent = _started(runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash)}))
+        agent = _started(runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash), "work_root": work_root}))
     after = maturity.evaluate(facts.collect(workdir, today=today))
     changes = sorted(diff(workdir))
     graded = fixtures.check_step(before, after, expected.get("init", {}), agent.get("report") or "", changes)
@@ -588,9 +607,7 @@ def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, 
     if interview is not None:
         outputs += [("interview.md", interview.render(name)),
                     ("interview.json", json.dumps(interview.log, ensure_ascii=False, indent=2) + "\n")]
-    for rel, text in outputs:
-        with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
-            fh.write(text)
+    file_run(out_dir, outputs, work_root)
     if results:
         record({"date": day, "kind": "step", "fixture": name, "task": None, "arm": None, "model": label,
                 "skill_rev": _skill_rev(), "score": f"{graded['before']}→{graded['after']}/{graded['target']}",
@@ -616,15 +633,14 @@ def play(fixture_dir: str, task_id: str, arm: str, work_root: str, out_dir: str 
     prepare(fixture_dir, workdir, arm, overlay)
     with open(os.path.join(task["dir"], task["statement"]), encoding="utf-8") as fh:
         prompt = fh.read()
-    agent = _started(runner(workdir, prompt, task))
+    agent = _started(runner(workdir, prompt, {**task, "work_root": work_root}))
     result = check(fixture_dir, task_id, workdir)
     out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-task-blind-{arm}")
     os.makedirs(out_dir, exist_ok=True)
-    for rel, text in (("diff.patch", patch_of(workdir)), ("report.md", agent.get("report") or ""),
-                      ("note.md", render_check(result)),
-                      ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")):
-        with open(os.path.join(out_dir, rel), "w", encoding="utf-8") as fh:
-            fh.write(text)
+    file_run(out_dir, [("diff.patch", patch_of(workdir)), ("report.md", agent.get("report") or ""),
+                       ("note.md", render_check(result)),
+                       ("usage.json", json.dumps({**agent.get("usage", {}), "error": agent.get("error")}, ensure_ascii=False, indent=2) + "\n")],
+             work_root)
     if results:
         record({"date": day, "kind": "task", "fixture": name, "task": task_id, "arm": arm, "model": label,
                 "skill_rev": _skill_rev(), "score": result["score"], "ok": result["ok"], "blind": True,

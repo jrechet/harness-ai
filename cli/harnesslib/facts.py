@@ -16,6 +16,7 @@ import re
 from datetime import date, datetime
 from typing import Any
 
+from . import shape
 from .github import iter_rules, parse_rules
 
 INSTRUCTION_FILES = ["AGENTS.md", "CLAUDE.md", ".github/copilot-instructions.md"]
@@ -408,8 +409,9 @@ def collect(repo: str, harness_dir: str = ".harness", audit_path: str | None = N
     today = today or date.today()
     repo = os.path.abspath(repo)
     hdir = os.path.join(repo, harness_dir)
-    audit = load_json(audit_path or os.path.join(hdir, "audit.json"))
-    harvest = load_json(harvest_path or os.path.join(hdir, "harvest.json"))
+    # A file that fails its shape check counts for nothing: it is left aside and said in one line.
+    audit, audit_problem = shape.counted(audit_path or os.path.join(hdir, "audit.json"), shape.check_audit)
+    harvest, harvest_problem = shape.counted(harvest_path or os.path.join(hdir, "harvest.json"), shape.check_harvest)
     instr = instruction_facts(repo)
     source_text = _read(os.path.join(repo, instr["source"]["path"])) if instr["source"]["path"] else None
     marker = (instr["source"].get("harvest_marker") or {}).get("date") if instr["source"]["path"] else None
@@ -421,6 +423,7 @@ def collect(repo: str, harness_dir: str = ".harness", audit_path: str | None = N
         "guardrails": guardrail_facts(repo),
         "audit": audit_facts(audit),
         "harvest": harvest_facts(harvest),
+        "unreadable": [said for said in (audit_problem, harvest_problem) if said],
         "harvest_marker_age_days": days_since(marker, today),
         "config": config_facts(hdir),
         "dangling": dangling_facts(repo, source_text),

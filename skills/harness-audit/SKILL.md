@@ -98,6 +98,8 @@ In the report, each finding cites its path and, if possible, the line. A finding
 
 Also write the JSON block alone to `.harness/audit.json` in the audited repository: that is what `harness status` reads for the layer view and level 3. If the user wants no file in their repo, say so and give the JSON in the answer.
 
+Before finishing, run `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" audit check <repo>/.harness/audit.json` and fix the file until it passes: `harness status` leaves aside a file that fails this check and says why.
+
 ## What is not a defect
 
 - A long skill because it describes many abort cases: that is procedure, it is its place.

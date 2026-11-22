@@ -280,6 +280,11 @@ def evaluate(f: dict) -> dict[str, Any]:
     }
 
 
+def unreadable(state: dict) -> list[str]:
+    """One line per audit or harvest file that failed its shape check and was left aside."""
+    return list((state.get("facts") or {}).get("unreadable") or [])
+
+
 def render_markdown(state: dict) -> str:
     lvl = state["level"]
     target = state.get("target") or {"level": None, "reached": False}
@@ -292,6 +297,8 @@ def render_markdown(state: dict) -> str:
     out = [f"# Harness state — {state['repo']}", "",
            f"**Level reached**: {lvl['reached']} · {lvl['name']} · {goal}",
            f"**Date**: {state['date']}", ""]
+    if unreadable(state):
+        out += [*unreadable(state), ""]
     for l in state["levels"]:
         if not l["level"]:
             continue
@@ -432,5 +439,6 @@ def render_map(state: dict) -> str:
     if state.get("dangling"):
         out.append(f"Broken references: the instruction file cites {len(state['dangling'])} thing(s) "
                    "that cannot be found.")
+    out.extend(unreadable(state))
     out.append("Next step: " + _next_step(state, target))
     return "\n".join(out) + "\n"
