@@ -30,7 +30,7 @@ RUN_BUDGET = 1800      # for all runs
 MAX_REPORT = 50_000_000
 MIN_REASON = 15
 _SKIP = re.compile(r"unittest\.skip|(?:^|\s)@skip\w*\b|\bfrom\s+(?:unittest|pytest)\b[^\n#]{0,40}\bimport\b[^\n#]{0,120}\bskip\w*\b|\bskipTest\b|\bSkipTest\b|pytest\.mark\.(?:skip|xfail)|pytest\.(?:skip|xfail)\(|importorskip|"
-                   r"expectedFailure|\b(?:it|test|describe|context)\.(?:skip|todo|only|fixme|fail)\b|\b[xf](?:it|describe|test)\(|"
+                   r"expectedFailure|\b(?:it|test|describe|context)\.(?:skip|todo|only|fixme|fail)\b|(?<![.\w])(?<!def )[xf](?:it|describe|test)\(|"
                    r"@Disabled\w*\b|@Ignore\b|\[Ignore\b|Skip\s*=|enabled\s*=\s*false|assumeTrue\(false\)|"
                    r"\bt\.Skip(?:f|Now)?\(|#\[ignore\b|\bpending\(|__test__\s*=\s*False|collect_ignore|--deselect")
 _TEST_PATH = re.compile(r"(?:^|/)(?:tests?|__tests__|__mocks__|specs?|e2e|cypress)/|(?:^|/)tests?\.py$|(?:^|/)test_[^/]+\.\w+$|"
