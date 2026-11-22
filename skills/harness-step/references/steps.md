@@ -39,6 +39,8 @@ One rule at a time. Prefer the one that has an incident, then the one whose chec
 | `L3.justified` | Ask why for the rules that do not say it. Without an answer: "no known incident", or removal | Questions | Half the rules say why |
 | `L3.audit` | Run harness-audit, write its JSON to `.harness/audit.json`. If a P1 remains: the next step will be to handle it | An audit to review | An audit exists with no open P1 |
 
+Forbidden lines count in the `L3.guarded` ratio like the rules: a repository with few rules and many forbidden items does not pass on linters alone. When the `(unverified)` line taken is a **forbidden item**, a linter or a test is the wrong tool, because the action must be refused, not detected afterwards. `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place one nature=limit` asks who must not be able to override it, then names the destination: a permission deny in `.claude/settings.json` (with a PreToolUse hook if it depends on the content of the command) when only the agent is bound, a branch protection or ruleset on the forge when nobody in the repository may do it. Cost: one settings line or one forge setting, which only an owner can set: ask, do not assume. Done when the action has been **seen refused**, and the line ends with `Enforced by: <permission deny, PreToolUse hook, branch protection>` in place of `(unverified)`.
+
 Three things learned on real repositories:
 - A guardrail only counts if it **blocks**. A job in `continue-on-error`, a path filter that does not trigger it, or a local hook skipped with `--no-verify` guarantee nothing.
 - A scheduled or manually triggered workflow only runs from the **default branch**. A guardrail merged on a work branch alone is inert.

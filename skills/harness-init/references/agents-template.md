@@ -27,7 +27,7 @@ Mode: **delegation**. An agent can receive a whole task and open a PR without in
 - <Rule in one sentence.> Why: <incident or reason, or "no known incident">. Enforced by: `<path of the guardrail that blocks>` | (unverified) [<YYYY-MM>]
 
 ## Forbidden
-- <What an agent never does, even if the task seems to ask for it.> Why: <…> [<YYYY-MM>]
+- <What an agent never does, even if the task seems to ask for it.> Why: <…>. Enforced by: <permission deny, PreToolUse hook, branch protection> | (unverified) [<YYYY-MM>]
 ```
 
 Assistance variant, mode line: `Mode: **assistance**. A person drives and reviews every diff; this file avoids back-and-forth, it is not a guardrail.`

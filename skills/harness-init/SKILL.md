@@ -52,7 +52,7 @@ Test for each candidate sentence: *if I remove it, does the agent do anything di
 ### 3. Writing
 From `references/agents-template.md`, block "Step 1":
 - `AGENTS.md` at the root, **under 60 lines**, mode line at the top. Empty sections are removed rather than filled with generic text.
-- Each rule, and each forbidden item, carries three things: **why** (the incident, or "no known incident" rather than an invented reason), **what enforces it** (`Enforced by: <path>` only for a guardrail you saw block, otherwise `(unverified)`), and **since when** (`[YYYY-MM]`, the date of the incident or decision; failing that, today). A rule taken from an old file keeps its original date: it does not get younger because it is copied.
+- Each rule, and each forbidden item, carries three things: **why** (the incident, or "no known incident" rather than an invented reason), **what enforces it** (`Enforced by: <path>` only for a guardrail you saw block, otherwise `(unverified)`; a forbidden item is rarely enforced by a path: name the permission deny, the PreToolUse hook or the branch protection that refuses the action, seen in the settings or on the forge, otherwise `(unverified)`), and **since when** (`[YYYY-MM]`, the date of the incident or decision; failing that, today). A rule taken from an old file keeps its original date: it does not get younger because it is copied.
 - A rule the repository already breaks says so, with the file: the agent must not take the counter-example as a model.
 - Stubs: `CLAUDE.md` containing only `@AGENTS.md`; `.github/copilot-instructions.md` and `.cursor/rules/agents.mdc` according to the declared tools.
 - A harvest marker already present is kept as is. None is added.
