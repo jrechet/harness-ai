@@ -15,14 +15,16 @@ The same model serves the misleading code (`misleading`): code that looks dead a
 an agent would delete or ignore. Two signals, each one a question for the owner, never a finding:
 
 - `dead-name`: a folder whose name says it is dead (`legacy`, `old`, `deprecated`... as a whole word of
-  the name) holds code, and a file outside it still names it, in an import line or as a path in a
-  source or build file.
+  the name) holds code, and a file outside it still names it: in an import line, as a path in a build
+  file or a shell script, or as a path in a quoted string of a source file. A path outside a string
+  is not read in a source file: `new/old` there is a division.
 - `build-only`: a source file that no other source file names, and that a build script (Makefile,
   justfile, Dockerfile, manifest, CI workflow) names by its path. Shell scripts, entry points (`main`,
   `index`...) and the files of a `scripts/`, `bin/` or `tools/` folder are left out: the build runs them.
 
 Known false positives, the reason the output is a question: a same-named folder elsewhere, or a symbol
-that has the name of the folder (`import { old } from "./x"`); an exclusion list written over several
+that has the name of the folder (`import { old } from "./x"`); a string that is not a file path and
+writes the name after a slash (a route `"/old"`, a date format); an exclusion list written over several
 lines (the single-line `exclude`, `ignore` and `omit` are skipped); a folder kept on purpose and
 already known to everyone. Known misses: a path built at run time, a path relative to a working
 directory, a file whose name is a common word (any source file that writes the word counts as naming
@@ -89,6 +91,8 @@ _IMPORT = re.compile(r"^\s*(?:import|from|use|mod|include|require|require_once|e
                      r"|\brequire\s*\(|\bimport\s*\(")
 _COMMENT = re.compile(r"^\s*(?:#(?!\s*include\b)|//|/\*|\*|<!--|--\s)")
 _EXCLUSION = re.compile(r"exclude|ignore|omit", re.IGNORECASE)
+_QUOTED = re.compile(r"\"([^\"]*)\"|'([^']*)'|`([^`]*)`")
+_SHELL_EXTENSIONS = (".sh", ".bash")
 _URL = re.compile(r"[A-Za-z][A-Za-z0-9+.-]*://\S+")
 _CODE_PATH = re.compile(r"(?<![\w/.@-])(?:\./)?((?:[\w.@-]+/)*[\w.@-]+\.(?:" + "|".join(CODE_EXTENSIONS) + r"))(?![\w.-])")
 
@@ -464,6 +468,8 @@ def _read_references(repo: str, dead: list[str], files: list[str]) -> tuple[dict
     words: dict[str, set[str]] = {}
     for rel in files:
         build, code = _is_build_file(rel), _is_code_file(rel)
+        # a build file and a shell script write their paths bare; elsewhere a bare slash is a division
+        bare_paths = build or rel.endswith(_SHELL_EXTENSIONS)
         mentioned: set[str] = set()
         for number, raw in enumerate(_text_lines(repo, rel), 1):
             if code:
@@ -472,8 +478,10 @@ def _read_references(repo: str, dead: list[str], files: list[str]) -> tuple[dict
                 continue
             line = _URL.sub(" ", raw)
             if not _EXCLUSION.search(line):
+                imported = bool(_IMPORT.search(line))
+                where = line if bare_paths or imported else " ".join("".join(q) for q in _QUOTED.findall(line))
                 for folder, (name, path) in patterns.items():
-                    if path.search(line) or (_IMPORT.search(line) and name.search(line)):
+                    if path.search(where) or (imported and name.search(line)):
                         seen[folder].append(f"{rel}:{number}")
             for target in (_CODE_PATH.findall(line) if build else []):
                 target = os.path.normpath(target).replace(os.sep, "/")

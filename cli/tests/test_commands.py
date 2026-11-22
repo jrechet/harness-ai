@@ -274,6 +274,22 @@ class MisleadingTests(RepoCase):
         self.write("pyproject.toml", "[tool.ruff]\nexclude = [\"legacy/\"]\n")
         self.assertEqual(commands.misleading(self.repo), [])
 
+    def test_a_division_by_a_name_is_not_a_path(self):
+        self.write("old/thing.py", "X = 1\n")
+        self.write("legacy/thing.js", "module.exports = 1\n")
+        self.write("stats.py", "def ratio(new, old):\n    return new/old\n\ndef share(old, total):\n    return old/total\n")
+        self.write("stats.js", "const rate = count/legacy\nconst part = legacy/count\n")
+        self.assertEqual(commands.misleading(self.repo), [])
+
+    def test_a_path_in_a_string_or_in_a_shell_script_is_still_a_reference(self):
+        self.write("old/thing.py", "X = 1\n")
+        self.write("legacy/run.py", "X = 1\n")
+        self.write("loader.py", "import runpy\nrunpy.run_path('old/thing.py')\n")
+        self.write("go.sh", "python legacy/run.py\n")
+        found = self.by_path()
+        self.assertEqual(found["old/"]["evidence"], ["loader.py:2"])
+        self.assertEqual(found["legacy/"]["evidence"], ["go.sh:1"])
+
     def test_a_dead_named_folder_without_code_is_not_a_candidate(self):
         self.write("archive/notes.md", "old notes\n")
         self.write("Makefile", "docs:\n\tcat archive/notes.md\n")
