@@ -123,10 +123,23 @@ def _malformed(where: str, what: str) -> dict[str, str]:
     return _problem("malformed", where, f"The file cannot be read as a flow: {what}.")
 
 
+def _leads_nowhere(states: dict) -> bool:
+    """True when a transition names a target that is not a step or an end: the path stops there."""
+    for state in states.values():
+        on = state.get("on") if isinstance(state, dict) else None
+        for transition in (on.values() if isinstance(on, dict) else ()):
+            to = transition.get("to") if isinstance(transition, dict) else None
+            if not (isinstance(to, str) and (to in states or to in ENDED)):
+                return True
+    return False
+
+
 def _reachable(start: Any, states: dict) -> set:
     """The states a path of transitions leads to from `start`."""
-    if not isinstance(start, str) or start not in states:
-        return set(states)  # no start to walk from: that is the problem reported, not every state
+    if not isinstance(start, str) or start not in states or _leads_nowhere(states):
+        # No start to walk from, or a broken path: that is the problem reported, not every state
+        # behind it. One mistyped target is one line; the steps no path leads to are told once it is fixed.
+        return set(states)
     seen, todo = {start}, [start]
     while todo:
         state = states[todo.pop()]
@@ -598,7 +611,7 @@ def next_state(definition: Any, run: Any, event: Any) -> dict[str, Any]:
 
 # ---------------------------------------------------------------- flow status
 
-def _placement_detail(placement: Any) -> list[str]:
+def _placement_detail(placement: Any, states: Any = None) -> list[str]:
     """One sentence per step that has no place yet and per gate nobody can judge."""
     if not isinstance(placement, dict):
         return ["the steps could not be placed"]
@@ -614,7 +627,9 @@ def _placement_detail(placement: Any) -> list[str]:
         if name not in told:
             out.append(f"The step {name} cannot be placed yet.")
     for name in placement.get("refused_gates") or []:
-        out.append(f"A gate nobody can judge: {name}. Remove it, or give its judge something they can read and refuse.")
+        gate = states.get(name) if isinstance(states, dict) and isinstance(name, str) else None
+        judge = gate.get("judge") if isinstance(gate, dict) and _is_text(gate.get("judge")) else "its judge"
+        out.append(f"A gate nobody can judge: {name}. Remove it, or give {judge} something they can read and refuse.")
     return out or ["a step has no place"]
 
 
@@ -634,7 +649,8 @@ def status(definition: Any, placement: Any = None) -> dict[str, Any]:
     results = [("definition_holds", not problems, "flow check", "the flow is written down and holds together",
                 [p["message"] for p in problems]),
                ("steps_placed", placed and not malformed, "flow place", "every step has a place",
-                [NOT_A_FLOW] if malformed else [] if placed else _placement_detail(placement)),
+                [NOT_A_FLOW] if malformed else [] if placed
+                else _placement_detail(placement, definition.get("states") if isinstance(definition, dict) else None)),
                ("stop_and_budget", not unset and not malformed, "the definition file",
                 "a stop point and a budget are set", [NOT_A_FLOW] if malformed else unset)]
     checks = [{"id": ident, "passed": passed, "origin": origin, "plain": plain, "detail": detail}
@@ -775,6 +791,9 @@ def _next_command(args: argparse.Namespace, definition: Any) -> int:
         _emit_check(args.format, args.file, definition, problems)
         return 2
     answer = next_state(definition, new_run(definition) if args.new else given, event)
+    if isinstance(given, dict) and "state" not in given and isinstance(given.get("run"), dict):
+        print(f'flow: {args.run} holds a whole answer of flow next, not a run: give back only its "run" part.',
+              file=sys.stderr)
     _emit(args.format, answer, _next_md(answer))
     return 1 if answer["outcome"] in ("refused", "stopped") else 0
 

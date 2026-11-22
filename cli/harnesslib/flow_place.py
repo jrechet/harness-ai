@@ -22,13 +22,11 @@ import sys
 from typing import Any
 
 from . import place as grid_walk
+from .flow import TYPE_WORDS, load_definition
 
 GRID_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "flow_placement.json")
 ENGINE = "durable_engine"
 REFUSED_GATE = "no_gate"
-# The words shown to a person for a step type: the ones of `flow.TYPE_WORDS` in the contract.
-TYPE_WORDS = {"code": "a program", "agent": "an agent", "human": "a person works",
-              "gate": "a person decides", "wait": "waits"}
 
 
 def load_grid(path: str = GRID_FILE) -> dict[str, Any]:
@@ -138,14 +136,6 @@ def render_md(result: dict[str, Any], judges: dict[str, str | None]) -> str:
 
 # --- CLI -------------------------------------------------------------------------------------------
 
-def _load(path: str) -> Any:
-    try:
-        with open(path, encoding="utf-8") as fh:
-            return json.load(fh)
-    except (OSError, ValueError) as exc:
-        raise ValueError(f"{path}: {exc}") from exc
-
-
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
     p = parser or argparse.ArgumentParser(prog="harness flow place", description=__doc__,
                                           formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -157,7 +147,7 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        definition = _load(args.file)
+        definition = load_definition(args.file)
         result = place(definition)
     except ValueError as exc:
         print(f"flow: {exc}", file=sys.stderr)

@@ -1,6 +1,6 @@
 # harness-flow, first slice: the contract
 
-Date: 2026-11-22, revised after two reviews. Issue #143. This page fixes what the first slice of [proposal.md](proposal.md) (sections 3 and 8.1) builds, exactly enough for four people to build it apart: the core module, the placement, the fixtures, the guide. Where this page and the proposal differ, this page wins for this slice; the differences are listed in "Choices made here".
+Date: 2026-11-22, revised after two reviews, then once more when the four parts were put together ("Settled while building", at the end). Issue #143. This page fixes what the first slice of [proposal.md](proposal.md) (sections 3 and 8.1) builds, exactly enough for four people to build it apart: the core module, the placement, the fixtures, the guide. Where this page and the proposal differ, this page wins for this slice; the differences are listed in "Choices made here".
 
 Nothing here calls an agent, a network, a clock or a key. Python 3.10, standard library only.
 
@@ -165,7 +165,7 @@ The `malformed` cases and their `where`:
 
 - `""`: the definition is not an object.
 - The key itself (`format`, `name`, `start`, `states`, `stop_at`): `format` is not the integer 1; `name`, `start` or `states` is missing or of the wrong type; `name` is not a name; `start` is not a declared state; `states` is empty; `stop_at` is present and not a name.
-- `states.‹state›`: the state's name is not a name, or is `done` or `stopped`; the state is not an object; `does` is missing or not a non-empty string; `on` is missing, not an object or empty; `cap` is not an integer above 0; `writes` is not a list of objects; `checks_premise` is not a boolean, or is true on a state that is not `code` or `agent`; no path of transitions leads from `start` to the state.
+- `states.‹state›`: the state's name is not a name, or is `done` or `stopped`; the state is not an object; `does` is missing or not a non-empty string; `on` is missing, not an object or empty; `cap` is not an integer above 0; `writes` is not a list of objects; `checks_premise` is not a boolean, or is true on a state that is not `code` or `agent`; no path of transitions leads from `start` to the state. This last case is not reported while `start` is not a declared state or some transition names a target that is not a declared state, `done` or `stopped`: the path is broken there, and one mistyped name must stay one line, not one per step behind it.
 - `states.‹state›.on.‹event›`: the event type is not a name; the transition is not an object with a `to`; `to` is not a declared state, `done` or `stopped`; `to` is `stopped` without a `reason`; `reason` or `reaches` is present and not a name; the event is `human_stop`; the event is `step_failed` on a state that is not `code` or `agent`.
 
 Exit codes of the command: 0 no problem, 1 at least one problem (a file that holds a JSON list or string is `malformed`, exit 1), 2 the file is missing or is not JSON.
@@ -272,7 +272,7 @@ Wherever a step type is shown to a person, these words are used (`flow.TYPE_WORD
 
 - `flow next` needs exactly one of `--run FILE` (the run returned by the call before) and `--new` (the first event of a ticket: the run is `new_run`); neither or both is exit 2. A run nobody passed back is never silently replaced by a fresh one.
 - `flow next` on a definition that does not pass `check` prints exactly what `flow check` prints for it (same words, or the same JSON document) on stdout, and exits 2.
-- An event or run file that is JSON but ill formed is not a usage error: `flow next` answers it by rules 1 to 3.
+- An event or run file that is JSON but ill formed is not a usage error: `flow next` answers it by rules 1 to 3. One slip is named besides: when the `--run` file holds a whole answer of `flow next` (an object with a `run` and no `state`), the answer is still rule 3, and one line on stderr says to give back only its `run` part.
 - `flow place` does not run `check`. When `place` raises `ValueError`, it prints `flow: ‹message›` on stderr and exits 2; otherwise it exits 0 or 1 from `passed`. `flow status` never refuses a file it could parse.
 
 ## 5. The Python interface
@@ -391,7 +391,7 @@ The ladder of proposal section 5. This slice measures level 1 only, from the fil
 ```
 
 - `definition_holds` passes when `check(definition) == []`; `detail` holds the problems' sentences.
-- `steps_placed` passes when the placement's `passed` is true (no open step, no gate nobody can judge); `detail` holds one sentence per open step or refused gate.
+- `steps_placed` passes when the placement's `passed` is true (no open step, no gate nobody can judge); `detail` holds one sentence per open step, "The step ‹state› has no answer to "‹question text›" (key ‹key›).", then one per refused gate, the line `flow place` prints for it, with the judge read from the definition ("its judge" when it names none).
 - `stop_and_budget` passes when `check` returns neither `no_stop_point` nor `no_budget`; `detail` holds those sentences.
 - When the definition is `malformed`, `steps_placed` and `stop_and_budget` both fail with the one detail "the file cannot be read as a flow", and `place` is not called.
 
@@ -534,3 +534,21 @@ One page a person reads before or after `flow place`, written from report.md sec
 - **Exit codes are 0, 1, 2 everywhere**; the 3 of `harness place` for a missing answer is not reused. `flow status` takes a file: a missing file is exit 2, not level 0; level 0 is a file that does not pass.
 - **Templates are data files** in `cli/harnesslib/flow_templates/`. The feature template starts at "ready for agent"; the readiness check before it stays the `ticket` skill of `ai-sdlc`.
 - **Fifteen sequences plus two twins**: the nine of the proposal, the full feature path, a gate deadline, the CI loop of the bug flow, and three for what the reviews added (a lost event, a failed step, a stale answer).
+
+## Settled while building
+
+The four parts were built apart, then put together; the fixtures, written without seeing the code, all agreed with it. What this page left open and the builders settled, so that the next reader does not have to guess:
+
+- **One fault, one `malformed` problem**, so several problems may share a `where`. A state whose `type` is unknown is also left out of the two `malformed` cases that depend on the type (`checks_premise` and `step_failed` on a state that is not `code` or `agent`): the person is told the type is wrong, once.
+- **`stop_at: null` and `writes: null` are present and of the wrong type**: `malformed`, not `no_stop_point`.
+- **A mistyped target is one line** (section 2): steps no path leads to are told only once every target is a step.
+- **A transition to `done` that also carries `reaches` equal to `stop_at` ends by rule 10**, with the transition's reason or `finished`: rule 10 comes before rule 11.
+- **In rule 3, `visits` is well formed when it is an object of integers at or above 0 keyed by declared states.** A count above its cap makes the run inconsistent, and the counts are kept as given.
+- **A state never entered** may be absent from `visits` or present with 0; the fixtures accept both.
+- **Under rules 1 and 2, `remaining` and `over_budget` are computed** whenever the run given has a well-formed `spent`.
+- **`flow new` on an existing file** prints nothing on stdout and one sentence on stderr that names `--force`.
+- **`flow status` without `--map`** begins with "This flow is at level ‹n› (‹name›)." At level 0, the map prints the block "What level 1 still needs:" in place of the line about levels 2 to 4, and the flow line says in words what is unreadable ("no stop point", "no budget for one ticket").
+- **`flow place`, lines this page did not fix**: an open step is printed "- ‹state› (‹type words›): cannot be placed yet. No answer to "‹question text›" (key ‹key›)."; the verdict line is "Verdict: " and the verdict sentence with its first letter lowered; several engine steps are joined by "; " and the reason is given once. A step value is matched exactly against `from.map`: "Yes" is no answer.
+- **The reference templates sit in `fixtures/flow/definitions/`** (`feature.json`, `bug.json`) beside `every-case.json`, and two sequences were added on `every-case.json` (`every-case-retry`, `every-case-finished`): nothing else records a declared `step_failed`, a declared `deadline_passed` or `finished`. A sequence entry may carry a `note` in plain words; no test reads it.
+- **The guide has two sections more than section 9 lists**, before its closing one: the two templates placed step by step, and what the guide does not decide. `test_flow_guide.py` also compares those two tables with what `flow place` answers on the templates.
+- **A file that holds `NaN` or `Infinity` is read** (Python's `json` accepts them); such a value is then not a number for `check` and `next_state`.

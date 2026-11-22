@@ -135,8 +135,13 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Know where a piece of a skill or agent belongs: AGENTS.md, CLI, hook, permission, CI… | `harness.py place grid`, `place one`, `place plan <pieces.json>` | tooled |
 | Write an assessment as a one-page HTML report | `harness.py report build <report.json> -o <page.html>` | tooled |
 | Follow progress in a local page | `harness.py serve <repo>` | tooled, rendering not reviewed |
+| Start a team workflow from a ticket to production, written as a small table of steps: a feature or a bug template to edit | `harness.py flow new <feature\|bug>` | tooled, not measured with a user |
+| Have a program refuse a workflow that could loop, wait or spend without end, before anything runs | `harness.py flow check <flow.json>` | tooled, not measured with a user |
+| Ask what one ticket does on one event: the next step, or why it stops, and what is left of its budget | `harness.py flow next <flow.json> --event <event.json> --new`, then `--run <run.json>` | tooled, not measured with a user |
+| Know where each step of the workflow belongs (code, a skill, the ticket's state, a human gate…) and whether one really needs a workflow engine ([guide](docs/workflow-harness/decide.md)) | `harness.py flow place <flow.json>` | tooled, not measured with a user |
+| Know where the workflow stands, level by level, in plain words | `harness.py flow status <flow.json> --map` | tooled, not measured with a user |
 
-`<repo>` is the path of your repository; without it, the current folder. Input examples are in [docs/examples/](docs/examples/): `report.json` for `report build`, `pieces.json` for `place plan` and `report from-place`.
+`<repo>` is the path of your repository; without it, the current folder. `<flow.json>` is the file `flow new` writes, `.harness/flow/<kind>.json`; the `flow` commands call no agent, no network and no key: nothing runs a ticket yet, the workflow is checked on paper. Input examples are in [docs/examples/](docs/examples/): `report.json` for `report build`, `pieces.json` for `place plan` and `report from-place`.
 
 ### With Claude Code
 
