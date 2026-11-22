@@ -1,0 +1,106 @@
+{
+  "not_measured": "not measured",
+  "facts_date": "2026-11-21",
+  "questions": {
+    "building": {"text": "What are you building?", "kind": "choice"},
+    "tickets_per_week": {"text": "How many tickets a week go through this path?", "kind": "number"},
+    "chained_by_hand": {"text": "Are the phases chained by hand today?", "kind": "choice",
+                        "values": {"yes": "a person starts each phase", "no": "something already starts the next phase"}},
+    "symptoms": {"text": "What did you measure on your own runs?", "kind": "symptoms"}
+  },
+  "cases": {
+    "ticket_workflow": {
+      "label": "a ticket workflow for a team, driving a coding agent"
+    },
+    "own_agent_app": {
+      "label": "your own agent application in Python or TypeScript, with a known graph and pauses in the process",
+      "choice": "LangGraph, or an agent SDK plus an engine",
+      "why": "You write the agent application yourself, the graph is known, and a run must pause inside the process.",
+      "would_change": "The number of runs that must pause for a person inside the process. At zero, or when the flow is a straight line, a script is enough; when the step already runs inside a coding agent, use skills and hooks.",
+      "source": "report §8, fourth row; report §2.7"
+    },
+    "agent_product": {
+      "label": "an agent product for users, with sessions that resume mid-run",
+      "choice": "A durable engine under a plain loop",
+      "why": "Sessions of your users must resume mid-run. That is where Cursor and Replit use an engine.",
+      "would_change": "The number of sessions that must resume mid-run. At zero, this row of the table no longer describes you: answer again.",
+      "source": "report §8, third row; report §5.2"
+    },
+    "many_repositories": {
+      "label": "the same change across hundreds of repositories",
+      "choice": "A script and a CI matrix, one PR per repository",
+      "why": "It is a different job from one ticket to one pull request: a script fans out, with one writer per repository.",
+      "would_change": "The number of repositories that get the change. The report says \"hundreds\" in its table and \"tens or hundreds of independent units\" in its grid: it gives no lower bound. For \"several\" repositories its grid names something else, a versioned plugin and a reusable CI workflow.",
+      "source": "report §8, fifth row; report §7, questions 5 and 7"
+    },
+    "long_lived_orchestrator": {
+      "label": "a long-lived orchestrator, a tool server or a binary for many teams",
+      "choice": "Rust is reasonable",
+      "why": "The code part is a program worth compiling: a binary handed to many repositories, or an orchestrator that lives long. Rust buys nothing on the duration or the model cost of a ticket.",
+      "would_change": "The number of teams or repositories the binary is handed to. For one team whose runners have Python, standard-library Python is the cheapest to change.",
+      "source": "report §8, sixth row; report §4.5"
+    }
+  },
+  "symptoms": [
+    {"key": "runs_paid_twice", "symptom": "Runs die far in and pay their tokens twice",
+     "counts": "the share of runs that died far in and were paid twice, from 0 to 1", "unit": "share",
+     "above": 0.1, "written": "more than about one run in ten",
+     "smallest_fix": "Shorter jobs; progress written on the pull request between jobs",
+     "removed_by": "An engine", "engine": true},
+    {"key": "double_runs", "symptom": "Two runs on one ticket",
+     "counts": "the number of tickets that had two runs at once", "unit": "count", "above": 0, "written": null,
+     "smallest_fix": "One run at a time per ticket; keys derived from the ticket, never random",
+     "removed_by": "An engine with one workflow per ticket", "engine": true},
+    {"key": "silent_events", "symptom": "An event accepted, nothing happened, nobody told",
+     "counts": "the number of events that were accepted and then lost without a word", "unit": "count",
+     "above": 0, "written": null,
+     "smallest_fix": "A job timeout; a scheduled sweep; a final status written by code",
+     "removed_by": "Polling, or an engine timer", "engine": true},
+    {"key": "agent_loops", "symptom": "An agent loops and burns tokens",
+     "counts": "the number of runs where the agent looped until something outside stopped it", "unit": "count",
+     "above": 0, "written": null,
+     "smallest_fix": "A budget cap per run; empty turns count as failure",
+     "removed_by": "Nothing. An engine retries it faithfully", "engine": false},
+    {"key": "waits_inside_computation", "symptom": "A wait that must resume inside an expensive multi-step computation",
+     "counts": "the number of waits that must resume inside an expensive multi-step computation", "unit": "count", "above": 0, "written": null,
+     "smallest_fix": "Model the wait as a ticket state",
+     "removed_by": "An engine", "engine": true},
+    {"key": "steps_with_own_retry_rule", "symptom": "Many steps, each with its own retry and timeout rule",
+     "counts": "the number of steps that need a retry or timeout rule of their own", "unit": "count",
+     "above": null, "written": null,
+     "left_to_you": "The report says \"many steps\" and gives no number, so this command names no threshold: whether {value} is many is yours to judge",
+     "smallest_fix": "Reusable CI workflows",
+     "removed_by": "An engine; count one to two days per workflow", "engine": true},
+    {"key": "order_breaks", "symptom": "Strict order across events from several systems",
+     "counts": "the number of events from several systems that were handled out of order", "unit": "count",
+     "above": 0, "written": null,
+     "smallest_fix": "One queue per ticket",
+     "removed_by": "An engine, or a database constraint", "engine": true},
+    {"key": "tickets_without_cost", "symptom": "You cannot say what a ticket cost",
+     "counts": "the number of tickets whose cost nobody can give", "unit": "count", "above": 0, "written": null,
+     "smallest_fix": "The step writes tokens and dollars on the pull request",
+     "removed_by": "Any runtime with a run record", "engine": false}
+  ],
+  "verdicts": {
+    "by_hand": {
+      "sentence": "By hand with the ai-sdlc skills may be enough: no ticket goes through this path yet.",
+      "why": "No ticket goes through this path in a week and the phases are chained by hand: there is nothing to chain yet. The ai-sdlc skills, run one after the other by a person, can do the work.",
+      "would_change": "tickets_per_week above 0. Zero is this command's own rule: neither the guide nor the report gives a number of tickets a week under which by hand is enough.",
+      "source": "decide.md §7 (\"Chaining the steps by hand may be enough\")"
+    },
+    "ticket_state_and_ci": {
+      "sentence": "Ticket state and CI are enough.",
+      "why_by_hand": "{tickets} tickets a week go through this path and the phases are chained by hand. The ticket or the pull request holds the state, and a short CI job runs each step. No measured symptom is above its threshold.",
+      "why_chained": "The phases are already chained without a person, and no measured symptom is above its threshold. The ticket or the pull request holds the state, and a short CI job runs each step.",
+      "would_change": "One symptom measured above its threshold on your own runs: runs_paid_twice above 0.1, any other above 0, except steps_with_own_retry_rule, which has no threshold and is yours to judge.",
+      "source": "report §8, first row; report §7, last table"
+    },
+    "symptom": {
+      "why": "On a ticket workflow, a measured symptom is the only thing that calls for more than ticket state and CI. Try the smallest fix first; move on only when the symptom is still there.",
+      "would_change": "Each symptom named above back at or under its threshold after its smallest fix: then ticket state and CI are enough.",
+      "engine": "If one stays, the report's choice is a managed engine (Temporal Cloud), one workflow per ticket; the worker can be Rust.",
+      "no_engine": "An engine does not remove {keys}.",
+      "source": "report §7, last table; report §8, second row; decide.md §3"
+    }
+  }
+}

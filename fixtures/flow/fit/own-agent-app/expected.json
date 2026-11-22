@@ -1,0 +1,14 @@
+{
+  "about": "The team writes its own agent application: the report's table names LangGraph, or an agent SDK plus an engine. The symptoms describe a ticket workflow, so the seven double runs decide nothing here: they are listed as not deciding.",
+  "exit": 0,
+  "verdict": "tool",
+  "tool": "LangGraph, or an agent SDK plus an engine",
+  "fired": [],
+  "not_deciding": [
+    "double_runs"
+  ],
+  "not_measured": [
+    "agent_loops"
+  ],
+  "refused": []
+}

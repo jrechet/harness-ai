@@ -1,0 +1,14 @@
+{
+  "about": "Fifteen tickets a week, chained by hand. One run in ten is paid twice: that is on the threshold, not above it, so nothing fires. Four steps have a retry rule of their own: the report says \"many steps\" and gives no number, so the four are listed for the person to judge and do not decide. One symptom is not measured and is listed.",
+  "exit": 0,
+  "verdict": "ticket_state_and_ci",
+  "tool": null,
+  "fired": [],
+  "not_deciding": [
+    "steps_with_own_retry_rule"
+  ],
+  "not_measured": [
+    "tickets_without_cost"
+  ],
+  "refused": []
+}

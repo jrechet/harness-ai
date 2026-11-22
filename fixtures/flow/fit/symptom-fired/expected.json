@@ -1,0 +1,15 @@
+{
+  "about": "Two symptoms are above zero, one an engine removes and one it does not; they are named in table order. Eight runs in a hundred paid twice is under the written threshold and is not named.",
+  "exit": 0,
+  "verdict": "symptom",
+  "tool": null,
+  "fired": [
+    "double_runs",
+    "agent_loops"
+  ],
+  "not_deciding": [],
+  "not_measured": [
+    "order_breaks"
+  ],
+  "refused": []
+}

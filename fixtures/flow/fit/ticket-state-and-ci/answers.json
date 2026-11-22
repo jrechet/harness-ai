@@ -1,0 +1,15 @@
+{
+  "building": "ticket_workflow",
+  "tickets_per_week": 15,
+  "chained_by_hand": "yes",
+  "symptoms": {
+    "runs_paid_twice": 0.1,
+    "double_runs": 0,
+    "silent_events": 0,
+    "agent_loops": 0,
+    "waits_inside_computation": 0,
+    "steps_with_own_retry_rule": 4,
+    "order_breaks": 0,
+    "tickets_without_cost": "not measured"
+  }
+}

@@ -1,5 +1,5 @@
 """The command line of `harness flow`: what a person types and reads. The rules are in flow.py,
-the placement in flow_place.py; nothing here decides anything.
+the placement in flow_place.py, the verdict of `flow fit` in flow_fit.py; nothing here decides anything.
 
 What a command answers goes to the standard output, in the form the contract fixes
 (docs/workflow-harness/flow-spec.md, section 4). What helps a person go on (where a run really
@@ -13,7 +13,7 @@ import os
 import sys
 from typing import Any
 
-from . import flow
+from . import flow, flow_fit
 
 FORMAT_PAGE = "docs/workflow-harness/flow-format.md"
 EVENT_EXAMPLE = '{"id": "T-12:triage:1:ticket_ready", "type": "ticket_ready", "payload": {"dollars": 0, "minutes": 1}}'
@@ -21,6 +21,8 @@ STOPS_HERE = "   ← as written, a run stops here on purpose"
 RAW = argparse.RawDescriptionHelpFormatter
 
 IN_ORDER = f"""In order:
+  0. flow fit <answers.json>       before any definition: is a flow needed, and which tool? flow fit --questions
+                                   lists the answers to record
   1. flow new feature|bug          writes a starting definition, .harness/flow/<kind>.json
   2. edit that file                every key, and a step of each type to paste: {FORMAT_PAGE}
   3. flow check <file>             refuses a flow that could loop, wait or spend without end, and says what to edit
@@ -52,6 +54,11 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     p = parser or argparse.ArgumentParser(description=flow.__doc__)
     p.formatter_class, p.epilog = RAW, IN_ORDER
     sub = p.add_subparsers(dest="flow_command", required=True)
+    fit = sub.add_parser("fit", help="before any definition: is a flow needed at all, and which tool",
+                         formatter_class=RAW,
+                         epilog="The answers are yours: nothing is measured here. A missing or unknown answer is "
+                                "refused, never guessed.\nThe rules: docs/workflow-harness/flow-spec.md, section 11.")
+    flow_fit.add_arguments(fit)
     new_ = sub.add_parser("new", help="writes a starting definition from a template", formatter_class=RAW,
                           epilog=f"Then edit the file: every key is explained in {FORMAT_PAGE}.")
     new_.add_argument("kind", choices=flow.TEMPLATES, help="the kind of ticket the flow is for")
@@ -78,7 +85,7 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
                      help='writes the "run" part of the answer to FILE, ready for --run with the next event')
     sts.add_argument("--map", action="store_true",
                      help="the levels in plain words, each reason this flow is not at the next one, and the next step")
-    for sp in (new_, chk, nxt, plc, sts):
+    for sp in (fit, new_, chk, nxt, plc, sts):
         sp.add_argument("--format", choices=["md", "json"], default="md")
     return p
 
@@ -265,6 +272,8 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
     if args is None:
         args = build_parser().parse_args(argv)
     try:
+        if args.flow_command == "fit":
+            return flow_fit.command(args)
         if args.flow_command == "new":
             return _new_command(args)
         if args.flow_command == "place":

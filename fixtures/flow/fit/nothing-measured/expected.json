@@ -1,0 +1,19 @@
+{
+  "about": "No symptom was measured. The verdict is still ticket state and CI, and all eight symptoms are listed as not measured, none counted as fine.",
+  "exit": 0,
+  "verdict": "ticket_state_and_ci",
+  "tool": null,
+  "fired": [],
+  "not_deciding": [],
+  "not_measured": [
+    "runs_paid_twice",
+    "double_runs",
+    "silent_events",
+    "agent_loops",
+    "waits_inside_computation",
+    "steps_with_own_retry_rule",
+    "order_breaks",
+    "tickets_without_cost"
+  ],
+  "refused": []
+}

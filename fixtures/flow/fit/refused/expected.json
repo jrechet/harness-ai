@@ -1,0 +1,15 @@
+{
+  "about": "Three slips: chained_by_hand is absent, one symptom is written \"none\" instead of \"not measured\", and double_runs is misspelt double_run. No verdict: each key is named, the misspelt one twice (the right key is missing, the wrong one is unknown).",
+  "exit": 1,
+  "verdict": null,
+  "tool": null,
+  "fired": [],
+  "not_deciding": [],
+  "not_measured": [],
+  "refused": [
+    "chained_by_hand",
+    "symptoms.double_runs",
+    "symptoms.silent_events",
+    "symptoms.double_run"
+  ]
+}
