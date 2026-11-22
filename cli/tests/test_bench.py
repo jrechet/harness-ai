@@ -668,6 +668,80 @@ class AskedOwnerTests(BenchCase):
             self.init([], answers="asked")
 
 
+class NeutralPathTests(BenchCase):
+    """A filed run is evidence meant to be committed: it names neither the machine's scratch folder nor
+    the place of this repository on it. Both are written as placeholders, `<work>` and `<repo>`."""
+
+    def setUp(self):
+        super().setUp()
+        write(self.fx, "owner.md", "# Fictional owner\n\n## Answers\n1. **Mode**: delegation.\n")
+        self.start = os.path.join(self.tmp.name, "start")
+        write(self.start, "AGENTS.md", "# demo\n\nMode: **delegation**.\n")
+        write(self.start, "CLAUDE.md", "@AGENTS.md\n")
+        self.work_root = os.path.join(self.tmp.name, "scratch")
+        self.common = {"runner": self.leaky_agent, "results": None, "day": "2026-01-02"}
+
+    def leaky_agent(self, workdir, prompt, spec):
+        """An agent that writes where it runs in a file, in its report and in the commands it was denied,
+        under the path it was given and under the resolved one (`/tmp` is `/private/tmp` on macOS)."""
+        real, repo = os.path.realpath(workdir), bench.repo_root()
+        write(workdir, ".harness/state.json", json.dumps({"repo": workdir, "resolved": real, "kit": os.path.dirname(real) + "/kit"}))
+        return {"report": f"Done in {real}, without reading {repo}.", "error": None,
+                "usage": {"tokens": 5, "denied": 3, "denied_commands": [
+                    f"ls -la {os.path.dirname(os.path.dirname(real))}", f'cd "{workdir}" && git status', f"cat {repo}/AGENTS.md"]}}
+
+    def assert_filed_without_machine_paths(self, out):
+        machine = (self.tmp.name, os.path.realpath(self.tmp.name), bench.repo_root(), os.path.realpath(bench.repo_root()))
+        read = {}
+        for folder, _, names in os.walk(out):
+            for name in names:
+                with open(os.path.join(folder, name), encoding="utf-8") as fh:
+                    read[name] = fh.read()
+                for path in machine:
+                    self.assertNotIn(path, read[name], f"{name} names a path of this machine")
+        self.assertRegex(read["diff.patch"], r'"repo": "<work>/w-[^/]+/repo"')
+        self.assertRegex(read["diff.patch"], r'"kit": "<work>/w-[^/]+/kit"')
+        denied = json.loads(read["usage.json"])["denied_commands"]
+        self.assertEqual(denied[0], "ls -la <work>")
+        self.assertRegex(denied[1], r'^cd "<work>/w-[^/]+/repo" && git status$')
+        self.assertEqual(denied[2], "cat <repo>/AGENTS.md")
+        self.assertIn("without reading <repo>.", read["report.md"])
+
+    def test_a_filed_task_run_names_no_path_of_the_machine(self):
+        done = bench.play(self.fx, "sub", "asis", self.work_root, **self.common)
+        self.assert_filed_without_machine_paths(done["out"])
+
+    def test_a_filed_init_run_names_no_path_of_the_machine(self):
+        done = bench.play_init(self.fx, self.work_root, **self.common)
+        self.assert_filed_without_machine_paths(done["out"])
+
+    def test_a_filed_audit_run_names_no_path_of_the_machine(self):
+        done = bench.play_audit(self.fx, self.work_root, **self.common)
+        self.assert_filed_without_machine_paths(done["out"])
+
+    def test_a_filed_step_run_names_no_path_of_the_machine(self):
+        done = bench.play_step(self.fx, self.work_root, self.start, None, **self.common)
+        self.assert_filed_without_machine_paths(done["out"])
+
+    def test_the_result_handed_back_keeps_the_real_working_copy(self):
+        done = bench.play(self.fx, "sub", "asis", self.work_root, **self.common)
+        self.assertTrue(os.path.isdir(done["workdir"]))
+
+    def test_the_longest_path_is_replaced_first(self):
+        work = os.path.join(self.tmp.name, "scratch")
+        text = bench.neutral_paths(f"{os.path.realpath(work)}/w-1/repo and {work}/w-1/kit and {bench.repo_root()}/cli", work)
+        self.assertEqual(text, "<work>/w-1/repo and <work>/w-1/kit and <repo>/cli")
+
+    def test_a_denied_command_is_neutralised_before_it_is_cut(self):
+        work = os.path.join(self.tmp.name, "s" * 200)            # longer than the cut: cut first, the path would stay, unrecognisable
+        workdir = os.path.join(work, "w-1", "repo")
+        out = mock.Mock(stderr="", stdout=json.dumps({"result": "ok", "usage": {}, "permission_denials": [
+            {"tool_name": "Bash", "tool_input": {"command": f'cd "{workdir}" && git status'}}]}))
+        with mock.patch.object(bench.subprocess, "run", return_value=out):
+            agent = bench.run_agent(workdir, "statement", {"work_root": work})
+        self.assertEqual(agent["usage"]["denied_commands"], ['cd "<work>/w-1/repo" && git status'])
+
+
 class EvidencePathTests(unittest.TestCase):
     """The registry and the requirements cite evidence by path: a cited path that no longer exists
     is a number nobody can check any more."""
