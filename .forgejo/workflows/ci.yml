@@ -20,6 +20,10 @@ jobs:
       # First step, before any code is fetched: a pull request coming from a fork never runs on the
       # server's runner. It fails here instead of skipping the job, because a skipped job reports
       # success to a required check.
+      # ASSUMPTION, not verified: Forgejo fills github.event.pull_request.head.repo.full_name as GitHub
+      # does. No mirror to the forge exists yet, so this was never run there. If the field comes back
+      # empty, every pull request on the forge fails here, same repository or not. Confirm it on the
+      # first pull request once the mirror is online, then remove this note.
       - name: Refuse a pull request coming from a fork
         env:
           SAME_REPOSITORY: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}

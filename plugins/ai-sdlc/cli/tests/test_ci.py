@@ -296,6 +296,20 @@ class CliAndRepoTests(Case):
             self.assertNotIn("\n        if:", first, workflow)       # itself unconditional
             self.assertIn("actions/checkout", rest, workflow)
 
+    def test_the_forge_workflow_says_its_fork_guard_rests_on_an_unverified_field(self):
+        # No forge mirror exists yet, so nobody has seen Forgejo fill pull_request.head.repo.full_name.
+        # If it leaves the field empty, every forge pull request fails: the workflow must say so where
+        # the person bringing the mirror online will read it, next to the guard.
+        with open(os.path.join(ROOT, ".forgejo", "workflows", "ci.yml"), encoding="utf-8") as fh:
+            lines = fh.read().splitlines()
+        guard = next(i for i, line in enumerate(lines) if "head.repo.full_name == github.repository" in line)
+        start = max(i for i, line in enumerate(lines[:guard]) if line.startswith("    steps:"))
+        comment = " ".join(line.strip().lstrip("# ") for line in lines[start:guard] if line.lstrip().startswith("#"))
+        self.assertIn("ASSUMPTION, not verified", comment)
+        self.assertIn("github.event.pull_request.head.repo.full_name", comment)   # which field
+        self.assertIn("every pull request on the forge fails", comment)           # what happens if it is empty
+        self.assertIn("first pull request", comment)                              # when to confirm it
+
 
 TICKET = "## Need\n" + "word " * 20 + "\n\n## Acceptance criteria\n1. Doubling 2 gives 4.\n2. Doubling 0 gives 0.\n"
 TESTS = ("import unittest\nfrom app.calc import double\n\n\nclass T(unittest.TestCase):\n"
