@@ -9,7 +9,8 @@ definition file, never asked: same file, same places.
   harness flow place flow.json --format json   the `place` document
 
 Needing a workflow engine is an answer, not a failure. Two things fail: a step with a missing
-answer, and a gate whose judge could not judge what they approve.
+answer, and a gate whose judge could not judge what they approve. A step that cannot be placed
+is told what to write: the key, its allowed values, and every other key it still lacks.
 
 Exit codes: 0 every step has a place and every gate can be judged, 1 otherwise, 2 a file that is
 missing, is not JSON or is not a flow."""
@@ -50,6 +51,35 @@ def answers_of(grid: dict[str, Any], step: dict[str, Any]) -> dict[str, str]:
     return answers
 
 
+def _values(question: dict[str, Any]) -> str:
+    """The values a step may give to a question, as a person writes them: "yes" or "no"."""
+    quoted = [json.dumps(value) for value in question["from"]["map"]]
+    return quoted[0] if len(quoted) == 1 else f"{', '.join(quoted[:-1])} or {quoted[-1]}"
+
+
+def fix_of(grid: dict[str, Any], step: dict[str, Any]) -> str | None:
+    """What to write in a step that cannot be placed: the key the walk stopped on, with its
+    allowed values, then every other key the walk would ask for if it went on. None once placed."""
+    answers, lacking, qid = answers_of(grid, step), [], grid["root"]
+    while qid is not None:
+        question = grid["questions"][qid]
+        option = answers.get(qid)
+        if option is None:
+            lacking.append(question)
+            # Without an answer, go on as if the step had given the one that leads to the next
+            # question. Nothing can be supposed of a step whose type is unknown.
+            onward = [o for o, target in question["options"].items() if "ask" in target]
+            option = onward[0] if onward and question["from"]["key"] != "type" else None
+        qid = question["options"][option].get("ask") if option is not None else None
+    if not lacking:
+        return None
+    first, key = lacking[0], lacking[0]["from"]["key"]
+    said = (f'"{key}" is {json.dumps(step[key], ensure_ascii=False)}: write {_values(first)}.' if key in step
+            else f'Add "{key}": {_values(first)}.')
+    others = [f'"{q["from"]["key"]}" ({_values(q)})' for q in lacking[1:]]
+    return said + (f" Also needed: {', '.join(others)}." if others else "")
+
+
 def place_step(grid: dict[str, Any], state: str, step: dict[str, Any]) -> dict[str, Any]:
     """One step: its place and the question that decided, or the question left without an answer."""
     walked = grid_walk.walk(grid, answers_of(grid, step))
@@ -59,7 +89,8 @@ def place_step(grid: dict[str, Any], state: str, step: dict[str, Any]) -> dict[s
     if walked["status"] != "placed":
         qid = walked["next"]["id"]
         question = grid["questions"][qid]
-        return {**entry, "missing": {"question": qid, "text": question["text"], "key": question["from"]["key"]}}
+        return {**entry, "missing": {"question": qid, "text": question["text"], "key": question["from"]["key"]},
+                "fix": fix_of(grid, step)}
     destination, last = walked["destination"], walked["path"][-1]
     return {**entry, "status": "placed", "destination": destination["id"], "name": destination["name"],
             "says": destination["says"], "reason": destination["why"],
@@ -115,7 +146,8 @@ def _step_line(entry: dict[str, Any], judge: str | None) -> str:
     who = TYPE_WORDS.get(kind, kind) if isinstance(kind, str) else json.dumps(kind)
     head = f"- {entry['state']} ({who}): "
     if entry["status"] == "open":
-        return f"{head}cannot be placed yet. N{_missing_words(entry)[1:]}."
+        fix = f"\n  {entry['fix']}" if entry.get("fix") else ""
+        return f"{head}cannot be placed yet. N{_missing_words(entry)[1:]}.{fix}"
     decided = entry["decided_by"]
     line = f'{head}{entry["says"]}. Decided by "{decided["text"]}": {decided["answer"]}.'
     if kind == "gate" and entry["shows"]:

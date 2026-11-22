@@ -7,22 +7,25 @@ calls an agent, a network, a clock or a key. The contract is docs/workflow-harne
 
   harness flow new feature|bug [--out FILE] [--force]   writes a starting definition from a template
   harness flow check <file>                             refuses a flow that could loop, wait or spend without end
-  harness flow next <file> --event FILE (--run FILE | --new)
-                                                        what one run does on one event, and what is left to spend
   harness flow place <file>                             where each step belongs, and whether one needs an engine
   harness flow status <file> [--map]                    the level this flow has reached, on paper
+  harness flow next <file> --event FILE (--run FILE | --new) [--save-run FILE]
+                                                        what one run does on one event, and what is left to spend
 
+This module holds the rules; the command line is flow_cli.py, the placement flow_place.py.
 Exit codes: 0 fine, 1 refused or failing, 2 wrong usage or an input file that is missing or is not JSON."""
 from __future__ import annotations
 
 import argparse
 import copy
+import difflib
 import importlib
 import json
 import math
 import os
 import re
 import sys
+from decimal import ROUND_CEILING, Decimal, DecimalException
 from typing import Any
 
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "flow_templates")
@@ -38,16 +41,11 @@ NAME = re.compile(r"[a-z][a-z0-9_]*")
 UNITS = ("dollars", "minutes")
 RUN_KEYS = ("state", "visits", "spent", "seen", "reason")
 DECIMALS = 4
+SMALLEST_COST = Decimal(1).scaleb(-DECIMALS)
+# From there on a float holds no fourth decimal: there is nothing to round up.
+NO_DECIMALS_FROM = 1e11
 # What a sum no float can hold is stored as: still a number, and above any budget.
 TOO_MUCH = sys.float_info.max
-NOT_A_FLOW = "the file cannot be read as a flow"
-LADDER = ((0, "None", "the phases are chained by hand"),
-          (1, "Mapped", "the flow is written down and every step has a place"),
-          (2, "Shadow", "the flow runs on real tickets and only comments"),
-          (3, "Drafting", "runs end with a draft PR; CI and review results come back to the run"),
-          (4, "Delivering", "runs reach a reviewed PR and merge only on a human's word"))
-NOTHING_MORE = ("Nothing more on paper. The next level needs the flow to run on real tickets, "
-                "which this version does not do yet.")
 
 
 # ---------------------------------------------------------------- small readers
@@ -152,6 +150,45 @@ def _reachable(start: Any, states: dict) -> set:
     return seen
 
 
+def _stops_here(definition: Any, transition: Any) -> bool:
+    """True for a transition that reaches the stop point: the run ends there, its target is not entered."""
+    stop_at = definition.get("stop_at") if isinstance(definition, dict) else None
+    return (isinstance(stop_at, str) and isinstance(transition, dict) and transition.get("reaches") == stop_at
+            and transition.get("to") not in ENDED)
+
+
+def _live(definition: dict) -> set:
+    """The states a run can enter as the file is written: those a path leads to from the start
+    without crossing the stop point. Read on a definition that is not malformed."""
+    states = definition["states"]
+    seen, todo = {definition["start"]}, [definition["start"]]
+    while todo:
+        for transition in states[todo.pop()]["on"].values():
+            to = transition["to"]
+            if to in states and to not in seen and not _stops_here(definition, transition):
+                seen.add(to)
+                todo.append(to)
+    return seen
+
+
+def stop_steps(definition: Any) -> list[str]:
+    """The steps after which a run stops on purpose: those with a transition that reaches the
+    stop point. Empty when the definition does not hold."""
+    if check(definition):
+        return []
+    return [name for name, state in definition["states"].items()
+            if any(_stops_here(definition, transition) for transition in state["on"].values())]
+
+
+def beyond_stop(definition: Any) -> list[str]:
+    """The steps described but never run as the file is written: every path to them crosses the
+    stop point. In file order; empty when the definition does not hold."""
+    if check(definition):
+        return []
+    live = _live(definition)
+    return [name for name in definition["states"] if name not in live]
+
+
 def _malformed_top(definition: dict) -> list[dict[str, str]]:
     out = []
     if not (_is_int(definition.get("format")) and definition["format"] == 1):
@@ -184,13 +221,20 @@ def _malformed_transition(where: str, event: Any, transition: Any, kind: str | N
         return out + [_malformed(where, f"the event {event} does not say where it leads")]
     to = transition["to"]
     if not (isinstance(to, str) and (to in states or to in ENDED)):
-        out.append(_malformed(where, f"the event {event} leads to {to}, which is not a step, done or stopped"))
+        out.append(_malformed(where, f"the event {event} leads to {to}, which is not a step, done or stopped"
+                                     + _meant(to, states)))
     elif to == "stopped" and "reason" not in transition:
         out.append(_malformed(where, f"the event {event} stops the run without a reason"))
     for key in ("reason", "reaches"):
         if key in transition and not _is_name(transition[key]):
             out.append(_malformed(where, f"the {key} of the event {event} is not a name"))
     return out
+
+
+def _meant(to: Any, states: dict) -> str:
+    """The step a mistyped target most likely meant, as the end of a sentence."""
+    close = difflib.get_close_matches(to, [*states, *ENDED], n=1) if isinstance(to, str) else []
+    return f' (did you mean "{close[0]}"?)' if close else ""
 
 
 def _malformed_state(name: Any, state: Any, states: dict, reachable: set) -> list[dict[str, str]]:
@@ -203,7 +247,7 @@ def _malformed_state(name: Any, state: Any, states: dict, reachable: set) -> lis
     if not isinstance(state, dict):
         return out + [_malformed(where, f"the step {name} is not an object")]
     if not _is_text(state.get("does")):
-        out.append(_malformed(where, f"the step {name} does not say what it does"))
+        out.append(_malformed(where, f'the step {name} does not say what it does: add "does": "<one plain sentence>"'))
     if "cap" in state and not (_is_int(state["cap"]) and state["cap"] > 0):
         out.append(_malformed(where, f"the cap of the step {name} must be a whole number above 0"))
     writes = state.get("writes")
@@ -216,10 +260,12 @@ def _malformed_state(name: Any, state: Any, states: dict, reachable: set) -> lis
         elif state["checks_premise"] and kind is not None and kind not in WORKERS:
             out.append(_malformed(where, f"the step {name} checks its facts, which only a program or an agent can do"))
     if name not in reachable:
-        out.append(_malformed(where, f"no path leads from the start to the step {name}"))
+        out.append(_malformed(where, f'no path leads from the start to the step {name}: point the "to" of an event '
+                                     "of an earlier step at it"))
     on = state.get("on")
     if not isinstance(on, dict) or not on:
-        return out + [_malformed(where, f"the step {name} has no way out: it needs at least one event")]
+        return out + [_malformed(where, f'the step {name} has no way out: it needs at least one event, written '
+                                      '"on": {"<event>": {"to": "<step>"}}')]
     for event, transition in on.items():
         out.extend(_malformed_transition(f"{where}.on.{event}", event, transition, kind, states))
     return out
@@ -247,10 +293,12 @@ def _unknown_types(states: dict) -> list[dict[str, str]]:
     return out
 
 
-def _loops_without_cap(states: dict) -> list[dict[str, str]]:
-    """One problem per group of states without a cap that can reach each other in a circle."""
+def _loops_without_cap(definition: dict, states: dict) -> list[dict[str, str]]:
+    """One problem per group of states without a cap that can reach each other in a circle. A
+    transition that reaches the stop point ends the run, so no circle goes through it."""
     free = [name for name, state in states.items() if "cap" not in state]
-    edges = {name: [t["to"] for t in states[name]["on"].values() if t["to"] in free] for name in free}
+    edges = {name: [t["to"] for t in states[name]["on"].values()
+                    if t["to"] in free and not _stops_here(definition, t)] for name in free}
     reach = {}
     for name in free:
         seen, todo = set(), list(edges[name])
@@ -267,7 +315,9 @@ def _loops_without_cap(states: dict) -> list[dict[str, str]]:
         group = [other for other in free if other in reach[name] and name in reach[other]]
         grouped.update(group)
         out.append(_problem("loop_without_cap", f"states.{name}",
-                            f"The steps {', '.join(group)} can repeat without end: none of them has a cap."))
+                            f"The steps {', '.join(group)} can repeat without end: none of them has a cap. "
+                            'Add "cap": <n> to one of them, the one that costs: the most times one run '
+                            "may enter that step."))
     return out
 
 
@@ -281,23 +331,37 @@ def _writes_without_key(states: dict) -> list[dict[str, str]]:
                 shown = what if _is_text(what) else "something it does not name"
                 out.append(_problem("write_without_key", where,
                                     f"Step {name} writes {shown} without a key derived from the ticket: "
-                                    "run twice, the step could not recognise its own write."))
+                                    "run twice, the step could not recognise its own write. "
+                                    'Write it {"what": "<the thing>", "key": "<name>-{ticket}"}.'))
             elif named.setdefault(key, what) != what:
                 out.append(_problem("write_without_key", where,
-                                    f"Step {name} writes {what} under the key {key}, which already names {named[key]}."))
+                                    f"Step {name} writes {what} under the key {key}, which already names "
+                                    f"{named[key]}. Give it a key of its own."))
     return out
 
 
 def _stop_and_budget(definition: dict, states: dict) -> list[dict[str, str]]:
     out = []
     stop_at = definition.get("stop_at")
-    reached = {t.get("reaches") for state in states.values() for t in state["on"].values() if t["to"] != "stopped"}
+    reached = []
+    for state in states.values():
+        for transition in state["on"].values():
+            name = transition.get("reaches")
+            if transition["to"] != "stopped" and name is not None and name not in reached:
+                reached.append(name)
+    choice = (f"Choose one of: {', '.join(reached)} (the names given by \"reaches\" on a transition)." if reached else
+              'No transition names one yet: add "reaches": "<name>" to the transition after which a run stops on '
+              'purpose, then "stop_at": "<name>".')
     if stop_at is None:
-        out.append(_problem("no_stop_point", "stop_at", "The flow does not say where it stops on purpose."))
+        out.append(_problem("no_stop_point", "stop_at",
+                            f'The flow does not say where it stops on purpose: it has no "stop_at". {choice}'))
     elif stop_at not in reached:
-        out.append(_problem("no_stop_point", "stop_at", f"The flow stops at {stop_at}, which no step reaches."))
+        out.append(_problem("no_stop_point", "stop_at",
+                            f'stop_at is "{stop_at}", which is not a stop point of this flow: a stop point is not '
+                            f"a step, it is a name a transition reaches. {choice}"))
     if not _budget_holds(definition.get("budget")):
-        out.append(_problem("no_budget", "budget", "The flow has no budget in dollars and minutes for one ticket."))
+        out.append(_problem("no_budget", "budget", "The flow has no budget in dollars and minutes for one ticket. "
+                            'Add "budget": {"dollars": <n>, "minutes": <n>}, both above 0.'))
     return out
 
 
@@ -308,7 +372,8 @@ def _premise_checks(states: dict) -> list[dict[str, str]]:
         if state.get("checks_premise") is True and len(state["on"]) < 2:
             out.append(_problem("wait_without_premise_check", f"states.{name}",
                                 f"The step {name} checks its facts but has one way out only: "
-                                "it cannot say they changed."))
+                                'it cannot say they changed. Add a second event to its "on", for example '
+                                '"premise_failed": {"to": "stopped", "reason": "premise_failed"}.'))
         if kind not in ("wait", "human", "gate"):
             continue
         for event, transition in state["on"].items():
@@ -318,38 +383,66 @@ def _premise_checks(states: dict) -> list[dict[str, str]]:
             if kind == "gate" and not target.get("writes"):
                 continue  # nothing outside changes until a later step that writes
             out.append(_problem("wait_without_premise_check", f"states.{name}.on.{event}",
-                                f"After {name}, the step {transition['to']} does not check that the facts still hold."))
+                                f"After {name}, the step {transition['to']} does not check that the facts "
+                                f'still hold. Add "checks_premise": true to {transition["to"]}, and an event in '
+                                'its "on" for the case where they changed.'))
     return out
 
 
-def _gate_problems(code: str, name: str, state: dict, states: dict) -> str | None:
+def _written(states: dict, but: str, among: set) -> list[str]:
+    """What the steps of `among`, `but` left aside, write outside: each thing once, in file order."""
+    found = []
+    for other, step in states.items():
+        for entry in (step.get("writes", []) if other != but and other in among else []):
+            if _is_text(entry.get("what")) and entry["what"] not in found:
+                found.append(entry["what"])
+    return found
+
+
+def _shows_nothing(name: str, state: dict, states: dict, live: set) -> str | None:
+    """A gate must show its judge something another step wrote; a gate a run can enter, something
+    written by a step a run can enter too."""
+    shows = state.get("shows")
+    if not _is_text(shows):
+        return (f'The gate {name} shows its judge nothing a step wrote: nobody could judge it. Add "shows": '
+                'the "what" of a "writes" entry of an earlier step.')
+    written = _written(states, name, live if name in live else set(states))
+    if shows in written:
+        return None
+    late = (" Only a step after the point where a run stops writes it: such a step never runs."
+            if shows in _written(states, name, set(states)) else "")
+    known = "Use one of: " + ", ".join(f'"{what}"' for what in written) + ", or add" if written else "Add"
+    return (f'The gate {name} shows its judge "{shows}", which is nothing a step wrote: nobody could judge it.'
+            f'{late} {known} a "writes" entry with that "what" to the step that produces it.')
+
+
+def _gate_problems(code: str, name: str, state: dict, states: dict, live: set) -> str | None:
     """The sentence of one gate rule when the gate breaks it."""
     if code == "gate_without_judge" and not _is_text(state.get("judge")):
-        return f"The gate {name} names nobody who decides."
+        return f'The gate {name} names nobody who decides. Add "judge": "<who decides, by role or by name>".'
     if code == "gate_without_deadline" and not _above_zero(state.get("deadline_hours")):
-        return f"The gate {name} has no deadline: a silent approver would hold the ticket for ever."
+        return (f"The gate {name} has no deadline: a silent approver would hold the ticket for ever. "
+                'Add "deadline_hours": <n>.')
     if code == "gate_cannot_refuse":
         targets = {t["to"] for event, t in state["on"].items() if event != "deadline_passed"}
         if len(targets) < 2:
-            return f"The gate {name} can only say yes: nothing leads anywhere else."
+            return (f'The gate {name} can only say yes: nothing leads anywhere else. Add a second event to its "on" '
+                    'that leads somewhere else, for example "refused": {"to": "stopped", "reason": "refused"}.')
     if code == "gate_shows_nothing":
-        written = {entry.get("what") for other, step in states.items() if other != name
-                   for entry in step.get("writes", []) if isinstance(entry.get("what"), str)}
-        shows = state.get("shows")
-        if not _is_text(shows) or shows not in written:
-            return f"The gate {name} shows its judge nothing a step wrote: nobody could judge it."
+        return _shows_nothing(name, state, states, live)
     return None
 
 
-def _waits_and_gates(states: dict) -> list[dict[str, str]]:
+def _waits_and_gates(states: dict, live: set) -> list[dict[str, str]]:
     out = []
     for name, state in states.items():
         if _step_type(state) in ("wait", "human") and not _above_zero(state.get("deadline_hours")):
             out.append(_problem("wait_without_deadline", f"states.{name}",
-                                f"The step {name} waits with no deadline: a lost event would hold the ticket for ever."))
+                                f"The step {name} waits with no deadline: a lost event would hold the ticket "
+                                'for ever. Add "deadline_hours": <n>.'))
     for code in ("gate_without_judge", "gate_without_deadline", "gate_cannot_refuse", "gate_shows_nothing"):
         for name, state in states.items():
-            sentence = _gate_problems(code, name, state, states) if _step_type(state) == "gate" else None
+            sentence = _gate_problems(code, name, state, states, live) if _step_type(state) == "gate" else None
             if sentence:
                 out.append(_problem(code, f"states.{name}", sentence))
     return out
@@ -362,8 +455,9 @@ def check(definition: Any) -> list[dict[str, str]]:
     if malformed:
         return malformed
     states = definition["states"]
-    return (_unknown_types(states) + _loops_without_cap(states) + _writes_without_key(states)
-            + _stop_and_budget(definition, states) + _premise_checks(states) + _waits_and_gates(states))
+    return (_unknown_types(states) + _loops_without_cap(definition, states) + _writes_without_key(states)
+            + _stop_and_budget(definition, states) + _premise_checks(states)
+            + _waits_and_gates(states, _live(definition)))
 
 
 # ---------------------------------------------------------------- flow next
@@ -374,10 +468,21 @@ def new_run(definition: dict[str, Any]) -> dict[str, Any]:
     return {"state": start, "visits": {start: 1}, "spent": {unit: 0 for unit in UNITS}, "seen": [], "reason": None}
 
 
-def _add(spent: Any, cost: Any) -> Any:
-    """A sum rounded to four decimals; a sum no float can hold stays a number, above any budget."""
+def _counted(cost: Any) -> Any:
+    """A cost as it is counted: rounded up to four decimals, so that no cost above 0 counts for nothing."""
+    if isinstance(cost, int) or cost >= NO_DECIMALS_FROM:
+        return cost
     try:
-        total = round(spent + cost, DECIMALS)
+        return float(Decimal(repr(cost)).quantize(SMALLEST_COST, rounding=ROUND_CEILING))
+    except (DecimalException, ValueError, OverflowError):
+        return cost
+
+
+def _add(spent: Any, cost: Any) -> Any:
+    """What was spent plus a cost rounded up, the sum rounded to four decimals; a sum no float can
+    hold stays a number, above any budget."""
+    try:
+        total = round(spent + _counted(cost), DECIMALS)
     except OverflowError:
         return spent if spent > TOO_MUCH else TOO_MUCH  # what was spent never falls
     return total if _is_number(total) else TOO_MUCH
@@ -435,23 +540,26 @@ def _event_fault(event: Any) -> str | None:
     """What makes an event unreadable, in plain words; None when it is well formed (rule 1)."""
     if not isinstance(event, dict):
         return "it is not a JSON object"
-    for key in ("id", "type"):
+    for key, what in (("id", '"<ticket>:<step>:<round>:<what happened>", the same each time the same fact '
+                              "is delivered"), ("type", '"<what happened>", an event of the step the run is at')):
         if not (isinstance(event.get(key), str) and event[key]):
-            return f"its {key} is missing or is not text"
+            return f'its "{key}" is missing or is not text: add "{key}": {what}'
     if "payload" in event:
         payload = event["payload"]
         if not isinstance(payload, dict):
             return "its payload is not an object"
         for unit in UNITS:
             if unit in payload and not (_is_number(payload[unit]) and payload[unit] >= 0):
-                return f"the {unit} it reports are not a number at or above 0"
+                return f'the {unit} it reports are not a number at or above 0: write "{unit}": <n> in its "payload"'
     if "at" in event:
         at = event["at"]
         if not (isinstance(at, dict) and isinstance(at.get("state"), str) and at["state"]
                 and _is_int(at.get("visit")) and at["visit"] > 0):
-            return "it does not say which step and which round it answers"
+            return ('its "at" does not say which step and which round it answers: write '
+                    '"at": {"state": "<step>", "visit": <n>}')
     elif event["type"] in ("deadline_passed", "step_failed"):
-        return f"a {event['type']} event must say which step and which round it answers"
+        return (f"a {event['type']} event must say which step and which round it answers: add "
+                '"at": {"state": "<step>", "visit": <n>}')
     return None
 
 
@@ -515,7 +623,8 @@ def _same(run: dict) -> dict:
 def _accepted(run: dict, event: dict) -> dict:
     """The run with the event taken into account: its id recorded, its costs added. State and reason come after."""
     after = _same(run)
-    after["seen"].append(event["id"])
+    if event["id"] not in after["seen"]:  # only a human stop gets here with an id already seen
+        after["seen"].append(event["id"])
     payload = event.get("payload", {})
     for unit in UNITS:
         if unit in payload:
@@ -539,9 +648,12 @@ def _refusal(states: dict, run: dict, event: dict) -> tuple[str, str] | None:
         return "stale_event", (f"Refused: the event {kind} answers {at['state']}, round {_show(at['visit'])}, "
                                f"but the run is at {state}, round {_show(count)}.")
     payload = event.get("payload", {})
-    if worker and kind != "deadline_passed" and not all(unit in payload for unit in UNITS):
-        return "cost_missing", (f"Refused: the event {kind} ends the step {state} without saying "
-                                "what it cost in dollars and minutes.")
+    # A deadline nobody declared, or one that ends the run, comes from outside the step and knows no
+    # cost; one declared towards a step starts work again, and what was spent must be counted.
+    retry = _transitions(step).get(kind, {}).get("to") in states
+    if worker and (kind != "deadline_passed" or retry) and not all(unit in payload for unit in UNITS):
+        return "cost_missing", (f"Refused: the event {kind} ends the step {state} without saying what it cost. "
+                                'Add "payload": {"dollars": <n>, "minutes": <n>} to the event; 0 is a cost.')
     return None
 
 
@@ -590,7 +702,7 @@ def next_state(definition: Any, run: Any, event: Any) -> dict[str, Any]:
     fault = _run_fault(states, run)
     if fault:
         return _inconsistent(states, budget, run, event, fault)
-    if event["id"] in run["seen"]:
+    if event["id"] in run["seen"] and event["type"] != "human_stop":
         return _answer(budget, "duplicate", "already_seen", None,
                        f"Event {event['id']} was already taken into account: nothing changes.", _same(run))
     state, kind = run["state"], event["type"]
@@ -609,221 +721,40 @@ def next_state(definition: Any, run: Any, event: Any) -> dict[str, Any]:
     return _answer(budget, outcome, reason, {"from": state, "event": kind, "to": to}, message, after)
 
 
-# ---------------------------------------------------------------- flow status
+# ---------------------------------------------------------------- the other modules of the contract
 
-def _placement_detail(placement: Any, states: Any = None) -> list[str]:
-    """One sentence per step that has no place yet and per gate nobody can judge."""
-    if not isinstance(placement, dict):
-        return ["the steps could not be placed"]
-    out, told = [], set()
-    steps = placement.get("steps")
-    for step in (steps if isinstance(steps, list) else []):
-        missing = step.get("missing") if isinstance(step, dict) else None
-        if isinstance(missing, dict) and step.get("status") == "open":
-            told.add(step.get("state"))
-            out.append(f"The step {step.get('state')} has no answer to \"{missing.get('text')}\" "
-                       f"(key {missing.get('key')}).")
-    for name in placement.get("open") or []:
-        if name not in told:
-            out.append(f"The step {name} cannot be placed yet.")
-    for name in placement.get("refused_gates") or []:
-        gate = states.get(name) if isinstance(states, dict) and isinstance(name, str) else None
-        judge = gate.get("judge") if isinstance(gate, dict) and _is_text(gate.get("judge")) else "its judge"
-        out.append(f"A gate nobody can judge: {name}. Remove it, or give {judge} something they can read and refuse.")
-    return out or ["a step has no place"]
+def _module(name: str) -> Any:
+    """The placement, the status and the command line are modules of their own, which read this
+    one: each is loaded when it is first asked for."""
+    return importlib.import_module(f"{__package__}.{name}")
 
 
 def _placement_module() -> Any:
     """The placement is another module of the same contract: it is read only when a flow is placed."""
-    return importlib.import_module(f"{__package__}.flow_place")
+    return _module("flow_place")
 
 
 def status(definition: Any, placement: Any = None) -> dict[str, Any]:
     """Where a flow stands on the ladder. This version measures level 1, Mapped, from the file alone."""
-    problems = check(definition)
-    malformed = any(p["code"] == "malformed" for p in problems)
-    if placement is None and not malformed:
-        placement = _placement_module().place(definition)
-    unset = [p["message"] for p in problems if p["code"] in ("no_stop_point", "no_budget")]
-    placed = isinstance(placement, dict) and placement.get("passed") is True
-    results = [("definition_holds", not problems, "flow check", "the flow is written down and holds together",
-                [p["message"] for p in problems]),
-               ("steps_placed", placed and not malformed, "flow place", "every step has a place",
-                [NOT_A_FLOW] if malformed else [] if placed
-                else _placement_detail(placement, definition.get("states") if isinstance(definition, dict) else None)),
-               ("stop_and_budget", not unset and not malformed, "the definition file",
-                "a stop point and a budget are set", [NOT_A_FLOW] if malformed else unset)]
-    checks = [{"id": ident, "passed": passed, "origin": origin, "plain": plain, "detail": detail}
-              for ident, passed, origin, plain, detail in results]
-    failing = [c for c in checks if not c["passed"]]
-    whole = definition if isinstance(definition, dict) else {}
-    states, budget = whole.get("states"), whole.get("budget")
-    return {"flow": whole["name"] if isinstance(whole.get("name"), str) else None,
-            "steps": len(states) if isinstance(states, dict) else None,
-            "stop_at": whole["stop_at"] if isinstance(whole.get("stop_at"), str) else None,
-            "budget": {unit: budget[unit] for unit in UNITS} if _budget_holds(budget) else None,
-            "level": {"reached": 0, "name": "None", "next": 1} if failing else {"reached": 1, "name": "Mapped", "next": 2},
-            "checks": checks,
-            "next_step": "Fix this first: " + failing[0]["detail"][0] if failing else NOTHING_MORE}
-
-
-def _flow_line(state: dict[str, Any]) -> str:
-    parts = [state["flow"] or "it has no readable name"]
-    if state["steps"] is not None:
-        parts.append(f"{state['steps']} steps")
-    parts.append(f"stops at {state['stop_at']}" if state["stop_at"] else "no stop point")
-    budget = state["budget"]
-    parts.append(f"up to {_show(budget['dollars'])} dollars and {_show(budget['minutes'])} minutes for one ticket"
-                 if budget else "no budget for one ticket")
-    return "This flow: " + ", ".join(parts) + "."
+    return _module("flow_status").status(definition, placement)
 
 
 def render_map(state: dict[str, Any]) -> str:
-    """The short map, in plain words: the ladder with "you are here", the flow in one line, what the
-    next level needs, the next step."""
-    reached = state["level"]["reached"]
-    lines = ["Where this flow stands, level by level:"]
-    for number, name, plain in LADDER:
-        if number == 0 and reached > 0:
-            continue
-        mark = "✓" if 0 < number <= reached else "·"
-        here = "   ← you are here" if number == reached else ""
-        lines.append(f"{mark} {number} {name.ljust(12)}{plain}{here}")
-    lines += ["", _flow_line(state)]
-    if reached == 0:
-        lines.append("What level 1 still needs:")
-        for check_ in state["checks"]:
-            if not check_["passed"]:
-                lines.append(f"- {check_['plain']}")
-                lines.extend(f"  {sentence}" for sentence in check_["detail"])
-    else:
-        lines.append("Levels 2 to 4 are read from real runs. Nothing measures them yet.")
-    lines.append(f"Next step: {state['next_step']}")
-    return "\n".join(lines) + "\n"
+    """The short map, in plain words, from a `status` document."""
+    return _module("flow_status").render_map(state)
 
 
 def render_status(state: dict[str, Any]) -> str:
-    level = state["level"]
-    lines = [f"This flow is at level {level['reached']} ({level['name']})."]
-    lines += [f"{'✓' if c['passed'] else '✗'} {c['plain']} (read by {c['origin']})" for c in state["checks"]]
-    return "\n".join(lines) + "\n"
+    """The level in one line, then one line per check."""
+    return _module("flow_status").render_status(state)
 
-
-# ---------------------------------------------------------------- the command line
 
 def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.ArgumentParser:
-    p = parser or argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    sub = p.add_subparsers(dest="flow_command", required=True)
-    new_ = sub.add_parser("new", help="writes a starting definition from a template")
-    new_.add_argument("kind", choices=TEMPLATES, help="the kind of ticket the flow is for")
-    new_.add_argument("--out", metavar="FILE", help="where to write it (default: .harness/flow/<kind>.json)")
-    new_.add_argument("--force", action="store_true", help="replaces the file if it exists")
-    chk = sub.add_parser("check", help="refuses a flow that could loop, wait or spend without end")
-    nxt = sub.add_parser("next", help="what one run does on one event")
-    plc = sub.add_parser("place", help="where each step belongs, and whether one needs an engine")
-    sts = sub.add_parser("status", help="the level this flow has reached, on paper")
-    for sp in (chk, nxt, plc, sts):
-        sp.add_argument("file", help="the flow definition, a JSON file")
-    nxt.add_argument("--event", required=True, metavar="FILE", help="the event, a JSON file")
-    nxt.add_argument("--run", metavar="FILE", help="the run returned by the call before")
-    nxt.add_argument("--new", action="store_true", help="the first event of a ticket: the run starts here")
-    sts.add_argument("--map", action="store_true", help="prints the short plain-words map of the levels")
-    for sp in (new_, chk, nxt, plc, sts):
-        sp.add_argument("--format", choices=["md", "json"], default="md")
-    return p
-
-
-def _emit(fmt: str, data: Any, markdown: str) -> None:
-    if fmt == "json":
-        json.dump(data, sys.stdout, ensure_ascii=False, indent=2)
-        sys.stdout.write("\n")
-    else:
-        sys.stdout.write(markdown)
-
-
-def _steps_md(definition: dict[str, Any]) -> str:
-    return "".join(f"- {name} ({TYPE_WORDS.get(state['type'], state['type'])}): {state['does']}\n"
-                   for name, state in definition["states"].items())
-
-
-def _new_command(args: argparse.Namespace) -> int:
-    path = args.out or os.path.join(".harness", "flow", f"{args.kind}.json")
-    if os.path.exists(path) and not args.force:
-        print(f"flow: {path} already exists and was left as it is. Add --force to replace it.", file=sys.stderr)
-        return 1
-    definition = new(args.kind)
-    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as fh:
-        json.dump(definition, fh, ensure_ascii=False, indent=2)
-        fh.write("\n")
-    _emit(args.format, {"file": path, "definition": definition}, f"Written: {path}\n" + _steps_md(definition))
-    return 0
-
-
-def _emit_check(fmt: str, path: str, definition: Any, problems: list[dict[str, str]]) -> None:
-    if problems:
-        markdown = "".join(f"- {p['message']}" + (f" ({p['where']})\n" if p["where"] else "\n") for p in problems)
-    else:
-        budget = definition["budget"]
-        markdown = (f"This flow holds: {len(definition['states'])} steps, it stops at {definition['stop_at']}, "
-                    f"one ticket may cost up to {_show(budget['dollars'])} dollars and "
-                    f"{_show(budget['minutes'])} minutes.\n")
-    _emit(fmt, {"file": path, "passed": not problems, "problems": problems}, markdown)
-
-
-def _next_md(answer: dict[str, Any]) -> str:
-    run, left = answer["run"], answer["remaining"]
-    if left is None:
-        return answer["message"] + "\n"
-    return (f"{answer['message']}\nState: {run['state']}. Spent: {_show(run['spent']['dollars'])} dollars, "
-            f"{_show(run['spent']['minutes'])} minutes. Left: {_show(left['dollars'])} dollars, "
-            f"{_show(left['minutes'])} minutes.\n")
-
-
-def _next_command(args: argparse.Namespace, definition: Any) -> int:
-    if bool(args.run) == bool(args.new):
-        raise ValueError("give exactly one of --run FILE (the run returned by the call before) and --new "
-                         "(the first event of a ticket)")
-    event = load_definition(args.event)
-    given = load_definition(args.run) if args.run else None
-    problems = check(definition)
-    if problems:
-        _emit_check(args.format, args.file, definition, problems)
-        return 2
-    answer = next_state(definition, new_run(definition) if args.new else given, event)
-    if isinstance(given, dict) and "state" not in given and isinstance(given.get("run"), dict):
-        print(f'flow: {args.run} holds a whole answer of flow next, not a run: give back only its "run" part.',
-              file=sys.stderr)
-    _emit(args.format, answer, _next_md(answer))
-    return 1 if answer["outcome"] in ("refused", "stopped") else 0
+    return _module("flow_cli").build_parser(parser)
 
 
 def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) -> int:
-    if args is None:
-        args = build_parser().parse_args(argv)
-    try:
-        if args.flow_command == "new":
-            return _new_command(args)
-        if args.flow_command == "place":
-            return _placement_module().main([args.file, "--format", args.format])
-        definition = load_definition(args.file)
-        if args.flow_command == "next":
-            return _next_command(args, definition)
-        if args.flow_command == "check":
-            problems = check(definition)
-            _emit_check(args.format, args.file, definition, problems)
-            return 1 if problems else 0
-        state = status(definition)
-        _emit(args.format, state, render_map(state) if args.map else render_status(state))
-        return 0
-    except ModuleNotFoundError as exc:
-        if not (exc.name or "").endswith("flow_place"):
-            raise
-        print("flow: the placement of steps (flow_place.py) is not installed with this version", file=sys.stderr)
-        return 2
-    except (ValueError, OSError) as exc:
-        print(f"flow: {exc}", file=sys.stderr)
-        return 2
+    return _module("flow_cli").main(argv, args)
 
 
 if __name__ == "__main__":
