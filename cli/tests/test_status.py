@@ -415,7 +415,7 @@ class Level3And4Tests(TempRepo):
         write(self.repo, "AGENTS.md", AGENTS_LEVEL4)
         write(self.repo, ".harness/harvest.json", harvest_json(real=1))
         write(self.repo, ".github/workflows/ci.yml", "name: ci\n")
-        write(self.repo, ".claude/skills/bump-dependency/SKILL.md", "---\nname: bump-dependency\n---\n")
+        write(self.repo, ".claude/skills/bump-dependency/SKILL.md", "---\nname: bump-dependency\ndescription: Bump a dependency and prove nothing breaks.\n---\n")
 
     def test_level_3_needs_guarded_ratio_and_clean_audit(self):
         s = self.state()
@@ -478,7 +478,7 @@ class BilingualTests(TempRepo):
         write(self.repo, ".harness/harvest.json", harvest_json(real=1))
         write(self.repo, ".harness/audit.json", audit_json(p1=0, passed=True))
         write(self.repo, ".github/workflows/ci.yml", "name: ci\n")
-        write(self.repo, ".claude/skills/bump-dependency/SKILL.md", "---\nname: bump-dependency\n---\n")
+        write(self.repo, ".claude/skills/bump-dependency/SKILL.md", "---\nname: bump-dependency\ndescription: Bump a dependency and prove nothing breaks.\n---\n")
         expected = {"level 1": 1, "level 2": 2, "level 4": 2, "level 4 guarded": 4}
         for name, (english, french) in self.PAIRS.items():
             with self.subTest(name):
@@ -877,7 +877,7 @@ class UnreadableFilesTests(TempRepo):
               .replace("- Never force push.", "- Never force push. Why: incident #7. Enforced by: branch protection")
               .replace("- `bump-dependency` — bump", "- `bump-dependency` — Enforced by: CI. Why: #3. bump"))
         write(self.repo, ".github/workflows/ci.yml", "name: ci\n")
-        write(self.repo, ".claude/skills/bump-dependency/SKILL.md", "---\nname: bump-dependency\n---\n")
+        write(self.repo, ".claude/skills/bump-dependency/SKILL.md", "---\nname: bump-dependency\ndescription: Bump a dependency and prove nothing breaks.\n---\n")
 
     def status_output(self, *args):
         code, out, _ = run_cli("status", self.repo, "--no-write", "--today", "2026-11-09", *args)

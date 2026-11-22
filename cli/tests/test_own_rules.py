@@ -207,6 +207,23 @@ class OwnLevelOneTests(unittest.TestCase):
         self.assertEqual(maturity.MAX_SOURCE_LINES, 60, "the limit this repository states in its level 1")
 
 
+class OwnRulesGuardedTests(unittest.TestCase):
+    """This repository's AGENTS.md names a guardrail on at least half of its rules, and every guardrail it
+    names exists: what `harness rules` and the level 3 of `harness status` read."""
+
+    def setUp(self):
+        self.facts = facts.collect(ROOT)
+
+    def test_at_least_half_of_the_rules_say_what_enforces_them(self):
+        source = self.facts["instructions"]["source"]
+        self.assertGreaterEqual(source["rules_total"], 8, "the rules of AGENTS.md must be found")
+        self.assertGreaterEqual(source["rules_guarded"] * 2, source["rules_total"],
+                                f"{source['rules_guarded']} of {source['rules_total']} rules name a guardrail")
+
+    def test_every_guardrail_and_task_contract_agents_md_cites_exists(self):
+        self.assertEqual(self.facts["dangling"], [])
+
+
 class OwnMarketplaceMedalTests(unittest.TestCase):
     """This repository's marketplace keeps the medal it asks of others, measured as `harness medals` measures it."""
 

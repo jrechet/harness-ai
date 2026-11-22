@@ -104,10 +104,38 @@ You remove nothing yourself. You list the candidates with both grades, and it is
 
 A task succeeded on a single arm proves nothing either way: one run is one draw. Say so, and propose to replay before concluding.
 
+## The proof of a removal: the task replayed without the line
+
+The generation campaign weighs the harness as a whole. A REMOVE verdict of `harness-audit` claims more: that one line no longer changes what the agent does. Its proof is the same task replayed without that line. The bench has no arm for it; the `harness` arm takes any harness through `--overlay`, an ablated one included. This proof has never been played: it is a campaign like the others, with its plan, its price and the owner's request.
+
+1. **A task that can tell.** The line must bear on what the task asks: a tie on a task that never meets the line proves nothing. If no task of the project exercises it, say that this removal cannot be proven on the bench. A new task is answer key: a question for the owner.
+2. **Two harnesses, as folders in the temporary folder.**
+   - `full/`: the audited harness, whole. If the audit read a harness a step produced, it is that run's `overlay/`. If it read the project's own instructions, it is the files `bench prepare <project> <dir> --arm bare` lists as removed, copied from a `bench prepare <project> <dir> --arm asis` copy, `.harness/` left out.
+   - `ablated/`: a copy of `full/` minus the removal under test, read in the `removals` list of the audit's `audit.json` (`path`, `line`, `text`). A file whose verdict is REMOVE is left out of the folder.
+
+   One removal per pair, or one homogeneous block: lines removed together do not say which one counted. Nothing else goes in these folders, neither the audit nor its report. `diff -r full ablated` must show the removed lines and nothing more; `bench prepare <project> <dir> --arm harness --overlay <ablated>` shows what will be laid, without launching an agent.
+3. **Play both sides on the `harness` arm**, same task, same generation label, one command per side:
+   ```bash
+   python3 cli/harness.py bench play <project> <task> --arm harness --overlay <full or ablated> \
+       --work-root <temporary folder> --label <label> \
+       --out fixtures/repos/<project>/runs/<date>-task-blind-ablation-<full|without> \
+       --note "<note>"
+   ```
+   Both sides go through `--overlay`, never `asis` against an overlay: the pair must differ by the removed lines only. `--out` is required, otherwise both sides are filed in the folder of the `harness` arm. The registry only knows the `harness` arm, so the note is what tells these rows apart:
+   - full side: `neutral agent; ablation control: <audit run>, harness whole`;
+   - ablated side: `neutral agent; ablation of <audit run>: without <path>:<line>`.
+4. **Read the pair.** Compare the grade and the check `task.json` marks `exercises`, over three draws per side at least: one run is one draw.
+   - Same result: the removal is confirmed, for this task and this generation, no further.
+   - The ablated side does worse: the line still serves. The verdict was wrong: a gap to file in step 5, and a question for the owner.
+   - The ablated side does better: the line got in the way. Say so with both grades.
+
+You remove nothing in a sample project: the pair goes into the report, and the removal stays a question for the owner.
+
 ## Common pitfalls
 - Launching "just one run to see" without announcing it.
 - Reading `traps.md` to understand a gap on a `holdout` project.
 - Fixing the skill so that it says the word the grader looks for.
 - Concluding on a single run.
+- Calling a removal proven because the audit said REMOVE: until the task has been replayed without the line, it is a verdict, not a proof.
 - Reading a tie between arms as "the harness is useless" before checking that the task could tell them apart. The check to look at first is the one `task.json` marks `exercises`: it is about the fact written nowhere else.
 - Stacking lessons: ten local fixes make a skill nobody reads in full any more, model included.

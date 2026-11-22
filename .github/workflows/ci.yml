@@ -4,9 +4,9 @@
 # - It runs the code of the pull request (the tests) on a runner that is not disposable. This is
 #   accepted because the repository is private and its PRs come from its owner. The day the
 #   repository becomes public, this file must no longer target this runner.
-# - As long as no runner is registered for this repository, the job is skipped: the repository
-#   variable CI_RUNNER is set to "ready" once the runner is in place (gh variable set CI_RUNNER --body ready).
-#   A skipped check counts as passed: do not make it required before the runner exists.
+# - The `verify` check is required on `main`, and a job skipped by a job-level `if` reports success
+#   to a required check. So nothing skips this job: no condition on the job, no repository variable.
+#   What must be refused (a pull request coming from a fork) fails in the first step.
 name: CI
 
 on:
@@ -24,13 +24,20 @@ permissions:
 
 jobs:
   verify:
-    # never the code of another repository (a PR coming from a fork) on the server's runner
-    if: >-
-      vars.CI_RUNNER == 'ready' &&
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, jre-server]
     timeout-minutes: 30
     steps:
+      # First step, before any code is fetched: a pull request coming from a fork never runs on the
+      # server's runner. It fails here instead of skipping the job, because a skipped job reports
+      # success to a required check.
+      - name: Refuse a pull request coming from a fork
+        env:
+          SAME_REPOSITORY: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          if [ "$SAME_REPOSITORY" != "true" ]; then
+            echo "::error::A pull request coming from a fork does not run on this runner: push the branch to this repository."
+            exit 1
+          fi
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
