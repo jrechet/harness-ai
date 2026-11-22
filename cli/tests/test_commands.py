@@ -233,5 +233,151 @@ class CliTests(RepoCase):
         self.assertIn("mvn verify", out.getvalue())
 
 
+class MisleadingTests(RepoCase):
+    """Code that looks dead and is still used: candidates asked as questions, never asserted."""
+
+    def by_path(self) -> dict:
+        return {c["path"]: c for c in commands.misleading(self.repo)}
+
+    def test_a_folder_named_like_dead_code_and_still_imported_is_a_candidate(self):
+        self.write("src/legacy/billing.py", "def bill():\n    return 1\n")
+        self.write("src/app.py", "import os\nfrom src.legacy.billing import bill\n")
+        found = self.by_path()
+        self.assertEqual(list(found), ["src/legacy/"])
+        self.assertEqual(found["src/legacy/"]["kind"], "dead-name")
+        self.assertEqual(found["src/legacy/"]["evidence"], ["src/app.py:2"])
+        self.assertEqual(found["src/legacy/"]["references"], 1)
+        self.assertFalse(found["src/legacy/"]["documented"])
+
+    def test_a_dead_named_folder_nobody_names_is_not_a_candidate(self):
+        self.write("src/legacy/billing.py", "from src.legacy import helpers\n")
+        self.write("src/legacy/helpers.py", "X = 1\n")
+        self.write("src/app.py", "import os\n")
+        self.assertEqual(commands.misleading(self.repo), [])
+
+    def test_the_name_counts_as_a_whole_word_of_the_folder_name(self):
+        self.write("old-api/client.js", "module.exports = {}\n")
+        self.write("threshold/index.js", "module.exports = {}\n")
+        self.write("main.js", "const a = require('./old-api/client')\nconst b = require('./threshold')\n")
+        self.assertEqual(list(self.by_path()), ["old-api/"])
+
+    def test_a_path_in_a_build_file_is_a_reference_too(self):
+        self.write("deprecated/migrate.sh", "echo migrate\n")
+        self.write("Makefile", "migrate:\n\tsh deprecated/migrate.sh\n")
+        found = self.by_path()
+        self.assertEqual(found["deprecated/"]["evidence"], ["Makefile:2"])
+
+    def test_prose_comments_urls_and_exclusions_are_not_references(self):
+        self.write("legacy/thing.py", "X = 1\n")
+        self.write("README.md", "See legacy/thing.py for the old way.\n")
+        self.write("app.py", "# from legacy import thing\nURL = 'https://example.org/legacy/doc'\n")
+        self.write("pyproject.toml", "[tool.ruff]\nexclude = [\"legacy/\"]\n")
+        self.assertEqual(commands.misleading(self.repo), [])
+
+    def test_a_dead_named_folder_without_code_is_not_a_candidate(self):
+        self.write("archive/notes.md", "old notes\n")
+        self.write("Makefile", "docs:\n\tcat archive/notes.md\n")
+        self.assertEqual(commands.misleading(self.repo), [])
+
+    def test_only_the_topmost_dead_named_folder_is_listed_and_evidence_is_capped(self):
+        self.write("legacy/old/a.py", "X = 1\n")
+        for index in range(5):
+            self.write(f"src/m{index}.py", "from legacy.old import a\n")
+        found = self.by_path()
+        self.assertEqual(list(found), ["legacy/"])
+        self.assertEqual(found["legacy/"]["references"], 5)
+        self.assertEqual(found["legacy/"]["evidence"], ["src/m0.py:1", "src/m1.py:1", "src/m2.py:1"])
+
+    def test_a_file_named_only_by_a_build_script_is_a_candidate(self):
+        self.write("src/gen_schema.py", "print('schema')\n")
+        self.write("src/app.py", "import os\n")
+        self.write("Makefile", "build:\n\tpython src/gen_schema.py\n")
+        found = self.by_path()
+        self.assertEqual(list(found), ["src/gen_schema.py"])
+        self.assertEqual(found["src/gen_schema.py"]["kind"], "build-only")
+        self.assertEqual(found["src/gen_schema.py"]["evidence"], ["Makefile:2"])
+
+    def test_a_file_the_code_also_names_is_not_build_only(self):
+        self.write("src/gen_schema.py", "print('schema')\n")
+        self.write("src/app.py", "from src import gen_schema\n")
+        self.write("Makefile", "build:\n\tpython src/gen_schema.py\n")
+        self.assertEqual(commands.misleading(self.repo), [])
+
+    def test_scripts_folders_and_entry_points_are_not_build_only(self):
+        self.write("scripts/ci/check.sh", "echo ok\n")
+        self.write("main.py", "print('hello')\n")
+        self.write("Dockerfile", "FROM python:3\nCMD [\"python\", \"main.py\"]\n")
+        self.write(".github/workflows/ci.yml", "jobs:\n  t:\n    steps:\n      - run: sh scripts/ci/check.sh\n")
+        self.assertEqual(commands.misleading(self.repo), [])
+
+    def test_a_shell_script_the_ci_runs_is_not_build_only(self):
+        self.write("deploy/plan.sh", "echo plan\n")
+        self.write(".github/workflows/deploy.yml", "jobs:\n  d:\n    steps:\n      - run: sh deploy/plan.sh\n")
+        self.assertEqual(commands.misleading(self.repo), [])
+
+    def test_a_workflow_is_a_build_script(self):
+        self.write("db/seed_reference.py", "print('seed')\n")
+        self.write(".github/workflows/ci.yml", "jobs:\n  t:\n    steps:\n      - run: python db/seed_reference.py\n")
+        self.assertEqual(self.by_path()["db/seed_reference.py"]["evidence"], [".github/workflows/ci.yml:4"])
+
+    def test_a_candidate_already_in_the_instructions_is_marked_and_sorted_last(self):
+        self.write("legacy/a.py", "X = 1\n")
+        self.write("old/b.py", "Y = 1\n")
+        self.write("app.py", "from legacy import a\nfrom old import b\n")
+        self.write("AGENTS.md", "# Rules\n- `legacy/` is still used by billing: do not delete it.\n- The old way is gone.\n")
+        found = commands.misleading(self.repo)
+        self.assertEqual([(c["path"], c["documented"]) for c in found], [("old/", False), ("legacy/", True)])
+
+    def test_test_data_and_dependencies_are_not_walked(self):
+        self.write("node_modules/pkg/legacy/x.js", "module.exports = 1\n")
+        self.write("node_modules/pkg/index.js", "require('./legacy/x')\n")
+        self.write("fixtures/repo/old/x.py", "X = 1\n")
+        self.write("fixtures/repo/app.py", "from old import x\n")
+        self.assertEqual(commands.misleading(self.repo), [])
+
+    def test_an_empty_or_unreadable_repo_does_not_crash(self):
+        self.assertEqual(commands.misleading(self.repo), [])
+        self.write("legacy/a.py", "\x00\xff")
+        self.write("Makefile", "\t\x00 legacy/a.py\n")
+        commands.misleading(self.repo)
+
+    def test_collect_stays_without_the_repository_scan(self):
+        self.write("legacy/a.py", "X = 1\n")
+        self.write("app.py", "from legacy import a\n")
+        self.assertNotIn("misleading", self.found())
+
+
+class MisleadingCliTests(RepoCase):
+    def run_cli(self, fmt: str) -> str:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            self.assertEqual(harness.main(["commands", self.repo, "--format", fmt]), 0)
+        return out.getvalue()
+
+    def test_candidates_are_printed_as_questions_never_as_findings(self):
+        self.write("src/legacy/billing.py", "X = 1\n")
+        self.write("src/app.py", "from src.legacy import billing\n")
+        self.write("src/gen_schema.py", "print('schema')\n")
+        self.write("Makefile", "build:\n\tpython src/gen_schema.py\n")
+        text = self.run_cli("md")
+        self.assertIn("Code that may mislead an agent: 2 to ask the owner, 0 already in the instructions.", text)
+        self.assertIn("- `src/legacy/` — named like dead code, yet `src/app.py:1` names it.", text)
+        self.assertIn("- `src/gen_schema.py` — no source file names it, yet `Makefile:2` does.", text)
+        self.assertEqual(text.count("Ask the owner:"), 2)
+        self.assertIn("A candidate is a question, not a finding", text)
+        data = json.loads(self.run_cli("json"))
+        self.assertEqual([c["path"] for c in data["misleading"]], ["src/gen_schema.py", "src/legacy/"])
+        self.assertTrue(all(c["question"].endswith("?") for c in data["misleading"]))
+
+    def test_no_candidate_is_said_without_claiming_the_repository_is_clean(self):
+        text = self.run_cli("md")
+        self.assertIn("Code that may mislead an agent: no candidate.", text)
+        self.assertIn("not a proof", text)
+        self.assertEqual(json.loads(self.run_cli("json"))["misleading"], [])
+
+    def test_render_without_the_scan_prints_no_misleading_section(self):
+        self.assertNotIn("mislead", commands.render_md(self.found()))
+
+
 if __name__ == "__main__":
     unittest.main()
