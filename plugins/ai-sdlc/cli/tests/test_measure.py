@@ -103,6 +103,40 @@ class KindTests(MeasureCase):
         self.assertEqual({item["number"]: item["kind"] for item in result["prs"]}, {1: "agent", 2: "human"})
         self.assertEqual(result["markers"], ["acme-bot"])
 
+    def kind_of(self, co_author: str, markers=None) -> str:
+        only = self.measured([pr(1, "10-01 08:00", "10-01 12:00", message=f"x\n\nCo-Authored-By: {co_author}")], markers=markers)
+        return only["prs"][0]["kind"]
+
+    def test_a_person_whose_name_is_or_contains_a_default_marker_stays_human(self):
+        for person in ("Devin Smith <d@x.example>", "Devin Smith <devin.smith@acme.example>",
+                       "Jane Raider <jane@acme.example>", "Claude Dupont <claude.dupont@acme.example>",
+                       "Devin Smith <1234+dsmith@users.noreply.github.com>", "Jane Raider <jraider@users.noreply.github.com>",
+                       "Devin Smith"):
+            with self.subTest(person=person):
+                self.assertEqual(self.kind_of(person), "human")
+
+    def test_the_known_agents_are_recognised_by_their_address(self):
+        for agent in ("Claude <noreply@anthropic.com>", "Claude Fable 5.2 <noreply@anthropic.com>",
+                      "Copilot <175728472+Copilot@users.noreply.github.com>",
+                      "Cursor Agent <cursoragent@cursor.com>",
+                      "Devin AI <158243242+devin-ai-integration[bot]@users.noreply.github.com>",
+                      "aider (gpt-4o) <noreply@aider.chat>", "Codex <no-reply@openai.example>"):
+            with self.subTest(agent=agent):
+                self.assertEqual(self.kind_of(agent), "agent")
+
+    def test_a_team_s_marker_is_a_whole_word_of_the_trailer_not_a_part_of_one(self):
+        self.assertEqual(self.kind_of("Jane Raider <jane@acme.example>", markers=["aider"]), "human")
+        self.assertEqual(self.kind_of("aider <jane@acme.example>", markers=["aider"]), "agent")
+        self.assertEqual(self.kind_of("Build <ci[bot]@acme.example>", markers=["[bot]"]), "agent")
+
+    def test_the_report_says_which_rule_recognised_the_agents(self):
+        defaults = measure.render_md(self.measured())
+        self.assertIn("no-reply", defaults)
+        self.assertNotIn("naming one of", defaults)
+        own = measure.render_md(self.measured(markers=["acme-bot"]))
+        self.assertIn("as a whole word", own)
+        self.assertNotIn("no-reply", own)
+
     def test_a_pr_recorded_without_its_commits_is_of_unknown_kind_not_human(self):
         only = self.measured([pr(1, "10-01 08:00", "10-01 12:00", message=None)])
         self.assertEqual((only["groups"]["unknown"]["merged"], only["groups"]["human"]["merged"]), (1, 0))

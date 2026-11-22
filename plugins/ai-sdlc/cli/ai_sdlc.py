@@ -138,8 +138,8 @@ def build_parser() -> argparse.ArgumentParser:
                      help="a folder of recorded answers instead of the forge: prs.json, the output of "
                           f"`gh pr list --state merged --limit {measure.PAGE} --json {','.join(measure.FIELDS)}`")
     msr.add_argument("--agent-trailer", nargs="+", metavar="TEXT",
-                     help="what a Co-Authored-By trailer contains when the co-author is an agent "
-                          f"(default: {', '.join(measure.DEFAULT_MARKERS)})")
+                     help="a whole word a Co-Authored-By trailer holds when the co-author is an agent "
+                          f"(default: {', '.join(measure.DEFAULT_MARKERS)}, recognised by the trailer's address)")
     msr.add_argument("--format", choices=["md", "json"], default="md")
     grd = sub.add_parser("guard", help="an agent does not deliver").add_subparsers(dest="action", required=True)
     gchk = grd.add_parser("check", help="says whether a shell command tags, publishes or deploys")

@@ -10,8 +10,14 @@ Per kind of author (agent or human):
 - followed: the pull requests a later one fixed or reverted within N days of their merge.
 
 How each is recognised, so that a figure can be argued with:
-- agent: a commit of the pull request carries a `Co-Authored-By:` trailer naming one of the markers; a pull
-  request listed without its commits is "unknown", never human by default;
+- agent: a commit of the pull request carries a `Co-Authored-By:` trailer that one of the markers recognises; a
+  pull request listed without its commits is "unknown", never human by default. A marker is matched as a whole
+  word, never as a part of one ("aider" is not in "Raider"). The default markers are also first names (Devin,
+  Claude), so a name alone is not enough for them: the address of the trailer has to be an agent's (see
+  `_agent_address`). A marker given by the team is matched as a whole word anywhere in the trailer: the team
+  chose it. What is still misread: a person whose GitHub login is a default marker and who co-authors with
+  their GitHub no-reply address is counted as an agent; an agent that signs with an ordinary address on a domain
+  that does not carry its name is counted as human, unless the team gives its marker;
 - revert: a later pull request titled "Revert …" whose body says "Reverts #N", or, when its body names no
   number, whose title quotes the title of the reverted one;
 - fix: a later pull request, opened after the merge, whose title starts with "fix" or whose branch starts with
@@ -46,6 +52,9 @@ KINDS = ("agent", "human", "unknown")
 UNMEASURED = "unmeasured"
 
 TRAILER = re.compile(r"^co-authored-by:(.*)$", re.I | re.M)
+ADDRESS = re.compile(r"^(?P<name>[^<]*)<(?P<local>[^<>@\s]*)@(?P<domain>[^<>@\s]+)>\s*$")
+GITHUB_NOREPLY = "users.noreply.github.com"   # people have such an address too: there, the login decides
+AUTOMATED = re.compile(r"(?<![a-z])(?:no-?reply|bot)(?![a-z])")   # the mailbox of a no-reply or bot address
 REVERT_TITLE = re.compile(r"^revert\b", re.I)
 REVERTS = re.compile(r"\breverts\s+(?:[\w.-]+/[\w.-]+)?#(\d+)\b", re.I)
 FIX_TITLE = re.compile(r"^(?:hot|bug)?fix(?:es|ed)?\b", re.I)
@@ -160,13 +169,35 @@ def _login(holder: Any) -> str:
     return _text(author.get("login")).lower() if isinstance(author, dict) else ""
 
 
-def _kind(item: dict, markers: list[str]) -> str:
+def _word(marker: str, text: str) -> bool:
+    """The marker as a whole word of the text: not a part of a longer word ("aider" in "raider")."""
+    before = r"(?<!\w)" if re.match(r"\w", marker) else ""   # an edge that is not a letter ("[bot]") bounds itself
+    after = r"(?!\w)" if re.search(r"\w$", marker) else ""
+    return re.search(before + re.escape(marker) + after, text) is not None
+
+
+def _agent_address(marker: str, trailer: str) -> bool:
+    """A default marker recognises a trailer by its address, since the name may be a person's ("Devin Smith"):
+    the marker is a word of the address's domain (cursor.com), or a word of the name on a no-reply or bot
+    address (Claude <noreply@anthropic.com>); on GitHub's no-reply domain, which people use too, the marker
+    has to be a word of the login (175728472+Copilot, devin-ai-integration[bot])."""
+    address = ADDRESS.match(trailer)
+    if not address:
+        return False
+    name, local, domain = address["name"], address["local"], address["domain"]
+    if domain == GITHUB_NOREPLY:
+        return _word(marker, local.rpartition("+")[2])
+    return _word(marker, domain) or (_word(marker, name) and AUTOMATED.search(local) is not None)
+
+
+def _kind(item: dict, markers: list[str], own: bool) -> str:
     commits = item.get("commits")
     if not isinstance(commits, list) or not commits:
         return "unknown"
+    recognises = _word if own else _agent_address
     for commit in (c for c in commits if isinstance(c, dict)):
         for trailer in TRAILER.findall(_text(commit.get("messageBody"))):
-            if any(marker in trailer.lower() for marker in markers):
+            if any(recognises(marker, trailer.strip().lower()) for marker in markers):
                 return "agent"
     return "human"
 
@@ -188,7 +219,7 @@ def _hours(span: datetime.timedelta) -> float:
     return round(span.total_seconds() / 3600, 1)
 
 
-def _parse(prs: Any, markers: list[str]) -> list[dict[str, Any]]:
+def _parse(prs: Any, markers: list[str], own: bool) -> list[dict[str, Any]]:
     """The merged pull requests of a listing, each with its dates read and its kind. Refuses what is not a listing."""
     if not isinstance(prs, list):
         raise Refused("the listing of pull requests is not a list: the JSON of `gh pr list --json` is expected")
@@ -201,7 +232,7 @@ def _parse(prs: Any, markers: list[str]) -> list[dict[str, Any]]:
         opened, merged = _instant(item.get("createdAt")), _instant(item.get("mergedAt"))
         if opened is None or merged is None or merged < opened:
             raise Refused(f"pull request #{item['number']} of the listing has no readable createdAt and mergedAt")
-        parsed.append({"number": item["number"], "kind": _kind(item, markers), "opened": opened, "merged": merged,
+        parsed.append({"number": item["number"], "kind": _kind(item, markers, own), "opened": opened, "merged": merged,
                        "title": _text(item.get("title")).strip(), "body": _text(item.get("body")),
                        "branch": _text(item.get("headRefName")).lower(),
                        "open_to_merge_hours": _hours(merged - opened), "first_review_hours": _first_review(item, opened, merged)})
@@ -267,11 +298,11 @@ def measure(prs: Any, since: str, until: str | None = None, window: int | None =
     used = [m.strip().lower() for m in (markers or DEFAULT_MARKERS) if m.strip()]
     if not used:
         raise Refused("--agent-trailer: an empty marker would make every co-authored pull request an agent's")
-    listed = _parse(prs, used)
+    listed = _parse(prs, used, own=bool(markers))
     measured = [p for p in listed if p["merged"] >= start and (end is None or p["merged"] < end)]
     followed = _followed(listed, measured, window)
     groups = {kind: _group([p for p in measured if p["kind"] == kind], followed) for kind in KINDS}
-    return {"since": since, "until": until, "window_days": window, "markers": used,
+    return {"since": since, "until": until, "window_days": window, "markers": used, "own_markers": bool(markers),
             "groups": {**groups, "all": _group(measured, followed)}, "followed": followed,
             "cost_per_merged_pr": UNMEASURED,
             "prs": [{key: p[key] for key in ("number", "kind", "open_to_merge_hours", "first_review_hours")} for p in measured]}
@@ -299,6 +330,15 @@ def _cell(spread: dict[str, Any]) -> str:
     return f"{spread['median']} h ({spread['p90']} h)"
 
 
+def _rule(result: dict[str, Any]) -> str:
+    markers = ", ".join(result["markers"])
+    if result.get("own_markers"):
+        return f"that holds, as a whole word, one of the team's markers: {markers}."
+    return (f"whose address is an agent's, for one of: {markers}. The marker is a word of the address's domain, or of the "
+            "co-author's name on a no-reply or bot address, or of the login on a GitHub no-reply address; a person named "
+            "like an agent stays human, an agent signing with an ordinary address is not seen.")
+
+
 def render_md(result: dict[str, Any]) -> str:
     window = result["window_days"]
     period = f"from {result['since']}" + (f" to {result['until']} (excluded)" if result["until"] else "")
@@ -321,7 +361,7 @@ def render_md(result: dict[str, Any]) -> str:
         out += ["", "## Fixed or reverted", ""]
         out += [f"- #{f['number']} ({f['kind']}): {f['how']} #{f['by']}, {f['days']} days after its merge" for f in result["followed"]]
     out += ["", "## How this is read", "",
-            f"- agent: a commit of the pull request carries a `Co-Authored-By:` trailer naming one of: {', '.join(result['markers'])}. "
+            f"- agent: a commit of the pull request carries a `Co-Authored-By:` trailer {_rule(result)} "
             "A pull request listed without its commits is \"unknown\".",
             "- first review: the first one submitted by someone other than the author, before the merge.",
             f"- fixed or reverted: a later pull request, merged within {window} days, that says \"Reverts #N\", quotes the title "
