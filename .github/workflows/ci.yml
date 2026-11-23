@@ -1,10 +1,12 @@
 # The CI of the repository. Public repository since 2026-11-23: it runs on a GitHub-hosted runner,
-# free for a public repository, and never on the owner's server.
+# free for a public repository and disposable, never on the owner's server.
 #
-# Two things to know before touching it:
-# - It runs the code of the pull request (the tests). A hosted runner is disposable, which is why this
-#   file must never target the server's runner again: on a public repository, a pull request can
-#   change this file, and the server's runner is not disposable.
+# Three things to know before touching it:
+# - It runs the code of the pull request (the tests). No workflow of this folder may target the
+#   server's runner: that runner is not disposable (test_ci.py holds the files merged into main).
+# - The image and Python are pinned: `ubuntu-latest` moved to Python 3.14 on 2026-11-16, which the
+#   Django of the django-mvc fixture does not run on. The fixture selftests run here, since the
+#   hosted image has go and npm.
 # - The `verify` check is required on `main`, and a job skipped by a job-level `if` reports success
 #   to a required check. So nothing skips this job: no condition on the job, no repository variable.
 #   What must be refused (a pull request coming from a fork) fails in the first step.
@@ -25,13 +27,14 @@ permissions:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       # First step, before any code is fetched: pull requests coming from a fork are not accepted yet.
-      # The repository also makes every outside contributor's run wait for the owner's approval.
-      # It fails here instead of skipping the job, because a skipped job reports success to a
-      # required check.
+      # A courtesy, not a protection: a pull request runs its own copy of this file and can drop the
+      # step. What protects is the repository setting that makes every outside contributor's run wait
+      # for the owner's approval. It fails here instead of skipping the job, because a skipped job
+      # reports success to a required check.
       - name: Refuse a pull request coming from a fork
         env:
           SAME_REPOSITORY: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
@@ -44,6 +47,9 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: The target branch, to run the gates with its code
         if: github.event_name == 'pull_request'
         uses: actions/checkout@v4

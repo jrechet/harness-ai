@@ -266,7 +266,7 @@ class CliAndRepoTests(Case):
                 text = fh.read()
             self.assertIn("sh scripts/ci/verify.sh", text)            # the YAML does not carry the logic
             if workflow.startswith(".github"):                         # public repository: a disposable runner
-                self.assertIn("runs-on: ubuntu-latest", text)
+                self.assertIn("runs-on: ubuntu-24.04", text)               # pinned: the floating label moved Python
                 self.assertNotIn("self-hosted", text)
             else:                                                      # the forge has only the server's runner
                 self.assertIn("runs-on: [self-hosted, jre-server]", text)
@@ -276,6 +276,13 @@ class CliAndRepoTests(Case):
             self.assertIn("path: .base-branch", text)                  # the gates run with the code of the target branch
         with open(os.path.join(ROOT, ".github", "workflows", "ci.yml"), encoding="utf-8") as fh:
             self.assertIn("head.repo.full_name == github.repository", fh.read())   # fork PRs are not accepted yet
+        github = os.path.join(ROOT, ".github", "workflows")
+        for name in sorted(os.listdir(github)):                        # every workflow, not only ci.yml
+            with open(os.path.join(github, name), encoding="utf-8") as fh:
+                text = fh.read()
+            with self.subTest(workflow=name):
+                self.assertNotIn("self-hosted", text)                  # public repository: never the server's runner
+                self.assertNotIn("jre-server", text)
         with open(os.path.join(ROOT, "plugins", "ai-sdlc", "ci", "gates.yml"), encoding="utf-8") as fh:
             template = fh.read()
         run_lines = [line for line in template.splitlines() if "ai_sdlc.py ci pr" in line]
