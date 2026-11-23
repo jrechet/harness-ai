@@ -4,7 +4,7 @@ Every skill and every top-level command of both plugins has its line here; `cli/
 
 ## First: maybe nothing
 
-A model reads a repository well. If the user only wants to code, fix or explain something, no skill is needed: answer the request itself. A short `AGENTS.md` (what the agent cannot discover alone, the forbidden actions) is the one thing almost every repository gains from; beyond that, each level is a choice, and stopping is fine (`docs/maturity.md`).
+A model reads a repository well. If the user only wants to code, fix or explain something, no skill is needed: answer the request itself. A short `AGENTS.md` (what the agent cannot discover alone, the forbidden actions) is the one thing almost every repository gains from; beyond that, each level is a choice, and stopping is fine (`${CLAUDE_PLUGIN_ROOT}/docs/maturity.md`).
 
 Not sure which of the lines below fits: `harness-guide`, the skill that reads this map.
 
@@ -14,7 +14,7 @@ Not sure which of the lines below fits: `harness-guide`, the skill that reads th
 |---|---|---|
 | Start with Claude Code, Copilot or Cursor on a repository; write or redo `AGENTS.md` / `CLAUDE.md` | `harness-init` | `harness-step` once level 1 is reached |
 | Know where the repository stands, what the next step is, go up one level, or stop at one | `harness-step` | `harness-audit` for a full review |
-| Have the level told as a medal, the unlocked achievements, a badge or the medals page | `harness-medals` | it changes nothing: to move, `harness-step` |
+| Have the level told as a medal, the unlocked achievements, a badge or the medals page | `harness-medals` | it changes nothing but its medals file: to move, `harness-step` |
 | Audit an existing setup: is each rule, skill, agent, script and workflow in its place, what still serves | `harness-audit` | `harness-design` for one piece only |
 | Create or review one skill, agent, rule, hook or tool: "skill or agent?", "should this be code?", "where do I put this?" | `harness-design` | `flow-place` for a step of a team workflow |
 | Turn what happened in PRs and reviews (`rule:` comments, fixes after the fact, reverts) into rules | `harness-harvest` | `harness-audit` if no change is wanted |
@@ -76,12 +76,14 @@ The `harness-ai` plugin installs the whole repository, so both command lines are
 
 ## Where to read more
 
+These pages ship with the `harness-ai` plugin, not with the user's repository: read them under the plugin folder.
+
 | Question | Read |
 |---|---|
-| What the five levels are, and why stopping is fine | `docs/maturity.md` |
-| What each skill can really do today, and how it was measured | `docs/capabilities.md` |
-| How to decide where a step of a workflow goes | `docs/workflow-harness/decide.md` |
-| LangChain, LangGraph, engines, Rust, cost | `docs/workflow-harness/` (`langchain.md`, `langgraph.md`, `engines.md`, `rust.md`, `costs.md`) |
-| The ticket-to-production plugin, its design and a course | `docs/ai-sdlc/README.md`, `docs/ai-sdlc/course/index.html` |
-| Examples of what the commands produce | `docs/examples/` |
-| Sample projects with their traps, to try a skill | `fixtures/` |
+| What the five levels are, and why stopping is fine | `${CLAUDE_PLUGIN_ROOT}/docs/maturity.md` |
+| What each skill can really do today, and how it was measured | `${CLAUDE_PLUGIN_ROOT}/docs/capabilities.md` |
+| How to decide where a step of a workflow goes | `${CLAUDE_PLUGIN_ROOT}/docs/workflow-harness/decide.md` |
+| LangChain, LangGraph, engines, Rust, cost | `${CLAUDE_PLUGIN_ROOT}/docs/workflow-harness/` (`langchain.md`, `langgraph.md`, `engines.md`, `rust.md`, `costs.md`) |
+| The ticket-to-production plugin, its design and a course | `${CLAUDE_PLUGIN_ROOT}/docs/ai-sdlc/README.md`, `${CLAUDE_PLUGIN_ROOT}/docs/ai-sdlc/course/index.html` |
+| Examples of what the commands produce | `${CLAUDE_PLUGIN_ROOT}/docs/examples/` |
+| Sample projects with their traps, to try a skill | `${CLAUDE_PLUGIN_ROOT}/fixtures/` |

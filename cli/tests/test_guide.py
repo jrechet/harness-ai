@@ -1,7 +1,7 @@
 """The map of skills/harness-guide answers "which skill or command for this?" for both plugins: it
-names every shipped skill and every top-level subcommand of both CLIs, cites only skills that exist,
-and every path it points to leads somewhere. A skill or a subcommand added without its line in the
-map fails here, so the guide cannot quietly fall behind what ships."""
+names every shipped skill and every top-level subcommand of both CLIs as a whole word, every tool its
+"Use" and "Not this" cells name exists, and every path it points to leads somewhere. A skill or a
+subcommand added without its line in the map fails here, so the guide cannot quietly fall behind."""
 from __future__ import annotations
 
 import os
@@ -18,7 +18,9 @@ CLIS = {"harness": "cli/harness.py", "ai_sdlc.py": "plugins/ai-sdlc/cli/ai_sdlc.
 HELP_TIMEOUT_SECONDS = 60
 USAGE_CHOICES = re.compile(r"\{([a-z,-]+)\}")
 CITED_SKILL = re.compile(r"`((?!harness-ai`)(?:harness|flow)-[a-z]+)`")   # `harness-ai` is the plugin
-CITED_PATH = re.compile(r"`((?:cli|docs|skills|plugins|fixtures|app)/[^`\s]*)`")
+CITED_PATH = re.compile(r"`(?:\$\{CLAUDE_PLUGIN_ROOT\}/)?((?:cli|docs|skills|plugins|fixtures|app)/[^`\s]*)`")
+TABLE_HEADER = "| You want to… | Use | Not this |"
+TOOL_IN_CELL = re.compile(r"`([^`]+)`")
 
 
 def read(path: str) -> str:
@@ -41,6 +43,20 @@ def top_level_subcommands(script: str) -> list[str]:
     return found.group(1).split(",")
 
 
+def tools_in_use_cells(text: str) -> set[str]:
+    """The backticked names of the "Use" and "Not this" cells of every routing table of the map."""
+    named, in_table = set(), False
+    for line in text.splitlines():
+        if line.startswith(TABLE_HEADER):
+            in_table = True
+        elif in_table and line.startswith("|") and not line.startswith("|---"):
+            cells = line.strip("|").split("|")
+            named |= {name for cell in cells[1:3] for name in TOOL_IN_CELL.findall(cell)}
+        elif not line.startswith("|"):
+            in_table = False
+    return named
+
+
 class GuideMapTest(unittest.TestCase):
     def test_the_guide_skill_and_its_map_exist(self):
         self.assertTrue(os.path.isfile(os.path.join(GUIDE, "SKILL.md")))
@@ -59,13 +75,21 @@ class GuideMapTest(unittest.TestCase):
             self.assertGreaterEqual(len(names), 10, script)
             for name in names:
                 with self.subTest(cli=prefix, subcommand=name):
-                    self.assertIn(f"{prefix} {name}", text)
+                    self.assertRegex(text, rf"{re.escape(prefix)} {re.escape(name)}(?![a-z-])")
 
     def test_every_skill_the_map_cites_exists(self):
         shipped = set(shipped_skills())
         for name in sorted(set(CITED_SKILL.findall(read(MAP)))):
             with self.subTest(skill=name):
                 self.assertIn(name, shipped)
+
+    def test_every_tool_named_in_a_use_or_not_this_cell_exists(self):
+        shipped = set(shipped_skills())
+        named = tools_in_use_cells(read(MAP))
+        self.assertGreaterEqual(len(named), 16)
+        for tool in sorted(named):
+            with self.subTest(tool=tool):
+                self.assertTrue(tool in shipped or tool.split()[0] in CLIS, tool)
 
     def test_every_path_the_guide_points_to_exists(self):
         cited = set(CITED_PATH.findall(read(MAP)) + CITED_PATH.findall(read(os.path.join(GUIDE, "SKILL.md"))))
@@ -77,7 +101,11 @@ class GuideMapTest(unittest.TestCase):
     def test_the_reader_sees_a_missing_skill_and_a_dead_path(self):
         self.assertEqual(CITED_SKILL.findall("use `harness-nope` or `flow-why` from `harness-ai`"),
                          ["harness-nope", "flow-why"])
-        self.assertEqual(CITED_PATH.findall("see `docs/nope.md` and `README.md`"), ["docs/nope.md"])
+        self.assertEqual(CITED_PATH.findall("see `docs/nope.md`, `${CLAUDE_PLUGIN_ROOT}/docs/x.md` and `README.md`"),
+                         ["docs/nope.md", "docs/x.md"])
+        table = f"{TABLE_HEADER}\n|---|---|---|\n| Ship it | `deploy` | `review` |\n\nafter"
+        self.assertEqual(tools_in_use_cells(table), {"deploy", "review"})
+        self.assertIsNone(re.search(r"harness stat(?![a-z-])", "`harness status`"))
 
 
 if __name__ == "__main__":

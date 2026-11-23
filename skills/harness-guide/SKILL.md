@@ -5,7 +5,7 @@ description: Answers "which skill or command of harness-ai should I use for this
 
 # Harness guide — the right tool, or none
 
-Someone who has just installed the plugins sees sixteen skills and two command lines. This skill points to one of them, or to none, and gets out of the way.
+Someone who has just installed the plugins sees the skills of two plugins and two command lines. This skill points to one of them, or to none, and gets out of the way.
 
 Three rules:
 - **One recommendation, from the map.** Name what `references/map.md` names, never a skill or command that is not in it. If two fit, ask the one question that separates them.
@@ -18,18 +18,18 @@ Three rules:
 If the session is in a repository, `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" status --map --no-write .` says in a few words where its AI setup stands. Use it only when the answer depends on it (init or step?); do not show it otherwise.
 
 ### 2. Read the map
-Read `references/map.md`. Find the line of what the user wants, and its "Not this" column: the neighbour is part of the answer.
+Read `${CLAUDE_PLUGIN_ROOT}/skills/harness-guide/references/map.md`. Find the line of what the user wants, and its "Not this" column: the neighbour is part of the answer.
 
 ### 3. Answer
 In a few lines, in the user's language:
 - **Use**: the skill or command, and in one sentence why it fits what they said.
 - **Not**: the neighbour they might have picked, and why not, if there is one.
 - **How**: the phrase or the slash command that starts it (`/harness-ai:harness-init`, `/ai-sdlc:review`), or the command line.
-- **How sure**: if they will rely on it, its state from `docs/capabilities.md` (tooled, measured once, never played), word for word.
+- **How sure**: if they will rely on it, its state from `${CLAUDE_PLUGIN_ROOT}/docs/capabilities.md` (tooled, measured once, never played), word for word.
 
 If the skill is in the `ai-sdlc` plugin and it is not installed, give the install line from the map. If what they want is in no line of the map, say so: neither plugin does it.
 
-For a question about the project itself (levels, why stopping is fine, LangGraph, the course), point to the page the map's last table names instead of summarising it.
+For a question about the project itself (levels, why stopping is fine, LangGraph, the course), point to the page the map's last table names, under `${CLAUDE_PLUGIN_ROOT}`, instead of summarising it: those pages ship with the plugin, not with the user's repository.
 
 ### 4. Offer, then stop
 Offer to start the recommended skill now. Start it only on their yes, and from then on follow that skill.
