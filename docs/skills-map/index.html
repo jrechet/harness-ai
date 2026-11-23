@@ -1,0 +1,1125 @@
+<title>harness-ai skills map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: one reading column for the story, one wide band for the map with its detail panel beside it (below it on narrow screens). Tokens follow docs/ai-sdlc/course of the repository. */
+:root {
+  --bg: #f3f6f8;
+  --surface: #ffffff;
+  --sunken: #e8edf1;
+  --ink: #15202b;
+  --muted: #536271;
+  --rule: #cfd8df;
+  --accent: #0f5777;
+  --accent-ink: #ffffff;
+  --accent-soft: #dcebf2;
+  --repo: #0f5777;
+  --repo-soft: #dcebf2;
+  --flow: #5b4a8b;
+  --flow-soft: #ebe7f5;
+  --sdlc: #7a5200;
+  --sdlc-soft: #f6ecd2;
+  --back: #536271;
+  --back-soft: #e6ebef;
+  --edge: #a7b5c0;
+  --edge-on: #0f5777;
+  --l1-bg: #e3eef4; --l1-ink: #0f4560;
+  --l2-bg: #bcd8e6; --l2-ink: #0b3c54;
+  --l3-bg: #4f93b3; --l3-ink: #ffffff;
+  --l4-bg: #0f4a66; --l4-ink: #ffffff;
+  --ok: #1b6e3f; --ok-bg: #dff1e5;
+  --bronze: #9a5b2a; --silver: #75828e; --gold: #a07c12; --platinum: #3f7c93;
+  --font-text: "IBM Plex Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --font-head: "IBM Plex Sans Condensed", "IBM Plex Sans", "Arial Narrow", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --fs-xs: 0.75rem;
+  --fs-sm: 0.875rem;
+  --fs-0: 1rem;
+  --fs-1: 1.2rem;
+  --fs-2: 1.6rem;
+  --fs-3: clamp(2.4rem, 6vw, 3.6rem);
+  --measure: 66ch;
+  --radius: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e151b; --surface: #151f28; --sunken: #1b2731; --ink: #e3eaf0; --muted: #9dadb9; --rule: #2b3946;
+    --accent: #74b9d8; --accent-ink: #08161e; --accent-soft: #173447;
+    --repo: #74b9d8; --repo-soft: #163345;
+    --flow: #b8a8e4; --flow-soft: #262140;
+    --sdlc: #e1b55c; --sdlc-soft: #33280f;
+    --back: #9dadb9; --back-soft: #1f2a34;
+    --edge: #415362; --edge-on: #74b9d8;
+    --l1-bg: #173447; --l1-ink: #d2e8f3;
+    --l2-bg: #1f4c64; --l2-ink: #e2f1f8;
+    --l3-bg: #3f88a9; --l3-ink: #06141b;
+    --l4-bg: #8ec9e3; --l4-ink: #06141b;
+    --ok: #7bd1a2; --ok-bg: #153425;
+    --bronze: #d28c55; --silver: #b5c1cb; --gold: #e0bc4c; --platinum: #8cc5da;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e151b; --surface: #151f28; --sunken: #1b2731; --ink: #e3eaf0; --muted: #9dadb9; --rule: #2b3946;
+  --accent: #74b9d8; --accent-ink: #08161e; --accent-soft: #173447;
+  --repo: #74b9d8; --repo-soft: #163345;
+  --flow: #b8a8e4; --flow-soft: #262140;
+  --sdlc: #e1b55c; --sdlc-soft: #33280f;
+  --back: #9dadb9; --back-soft: #1f2a34;
+  --edge: #415362; --edge-on: #74b9d8;
+  --l1-bg: #173447; --l1-ink: #d2e8f3;
+  --l2-bg: #1f4c64; --l2-ink: #e2f1f8;
+  --l3-bg: #3f88a9; --l3-ink: #06141b;
+  --l4-bg: #8ec9e3; --l4-ink: #06141b;
+  --ok: #7bd1a2; --ok-bg: #153425;
+  --bronze: #d28c55; --silver: #b5c1cb; --gold: #e0bc4c; --platinum: #8cc5da;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-text);
+  font-size: var(--fs-0);
+  line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+}
+.page { max-width: 1240px; margin: 0 auto; }
+.col { max-width: 860px; }
+h1, h2, h3 { font-family: var(--font-head); font-weight: 600; text-wrap: balance; margin: 0; line-height: 1.15; }
+h2 { font-size: var(--fs-2); }
+h3 { font-size: var(--fs-1); }
+p { margin: 0; max-width: var(--measure); }
+code, .mono { font-family: var(--font-mono); font-size: 0.9em; }
+a { color: var(--accent); text-underline-offset: 2px; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.eyebrow { font-family: var(--font-mono); font-size: var(--fs-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 24px; padding-block: 20px 0; }
+.top nav { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: var(--fs-sm); }
+.top nav a { color: var(--muted); text-decoration: none; }
+.top nav a:hover { color: var(--ink); text-decoration: underline; }
+.hero { padding-block: 44px 28px; display: grid; gap: 18px; }
+.hero h1 { font-size: var(--fs-3); letter-spacing: -0.01em; font-family: var(--font-mono); font-weight: 500; }
+.hero .lede { font-size: var(--fs-1); line-height: 1.45; max-width: 60ch; }
+.motto { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.motto span { font-family: var(--font-head); font-size: var(--fs-1); font-weight: 500; padding: 6px 12px; border-radius: 6px; }
+.motto .m2 { background: var(--l2-bg); color: var(--l2-ink); }
+.motto .m3 { background: var(--l3-bg); color: var(--l3-ink); }
+.motto .m4 { background: var(--l4-bg); color: var(--l4-ink); }
+.facts { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: var(--fs-sm); color: var(--muted); }
+.facts b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+section.block { padding-block: 40px 8px; border-top: 1px solid var(--rule); margin-top: 32px; display: grid; gap: 18px; }
+.block > header { display: grid; gap: 6px; }
+.prose { display: grid; gap: 12px; }
+
+/* Layers */
+.layers { display: grid; gap: 0; max-width: 860px; }
+.layer { display: grid; grid-template-columns: 150px minmax(0, 1fr) minmax(0, 0.9fr); gap: 4px 18px; align-items: baseline; padding: 14px 16px; border-radius: 6px; }
+.layer .ln { font-family: var(--font-head); font-weight: 600; font-size: var(--fs-1); }
+.layer .ln small { display: block; font-family: var(--font-mono); font-weight: 400; font-size: var(--fs-xs); opacity: 0.85; letter-spacing: 0.04em; }
+.layer .who { font-size: var(--fs-sm); }
+.layer.L1 { background: var(--l1-bg); color: var(--l1-ink); }
+.layer.L2 { background: var(--l2-bg); color: var(--l2-ink); }
+.layer.L3 { background: var(--l3-bg); color: var(--l3-ink); }
+.layer.L4 { background: var(--l4-bg); color: var(--l4-ink); }
+.joint { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--muted); padding: 5px 0 5px 166px; }
+.joint::before { content: "↓ "; }
+.callout { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px 16px; max-width: 860px; display: grid; gap: 4px; }
+.callout b { font-family: var(--font-head); font-size: var(--fs-1); font-weight: 600; }
+
+/* Ladder */
+.ladder { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; align-items: end; max-width: 980px; }
+.rung { text-align: left; border: 1px solid var(--rule); background: var(--surface); border-radius: 6px; padding: 10px 12px; cursor: pointer; display: grid; gap: 2px; }
+.rung:nth-child(1) { min-height: 74px; } .rung:nth-child(2) { min-height: 92px; } .rung:nth-child(3) { min-height: 110px; } .rung:nth-child(4) { min-height: 128px; } .rung:nth-child(5) { min-height: 146px; }
+.rung .num { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--muted); }
+.rung .nm { font-family: var(--font-head); font-weight: 600; font-size: var(--fs-1); }
+.rung .md { font-size: var(--fs-sm); color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; background: var(--rule); }
+.dot.bronze { background: var(--bronze); } .dot.silver { background: var(--silver); } .dot.gold { background: var(--gold); } .dot.platinum { background: var(--platinum); }
+.rung[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 -3px 0 var(--accent); }
+.rung:hover { border-color: var(--accent); }
+.level-card { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 18px; max-width: 980px; display: grid; gap: 14px; }
+.level-card dl { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 10px 18px; margin: 0; }
+.level-card dt { font-size: var(--fs-sm); color: var(--muted); }
+.level-card dd { margin: 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--font-mono); font-size: var(--fs-sm); border: 1px solid var(--rule); background: var(--surface); padding: 2px 9px; border-radius: 999px; cursor: pointer; }
+.chip:hover { border-color: currentColor; }
+.chip.repo { color: var(--repo); background: var(--repo-soft); border-color: transparent; }
+.chip.flow { color: var(--flow); background: var(--flow-soft); border-color: transparent; }
+.chip.sdlc { color: var(--sdlc); background: var(--sdlc-soft); border-color: transparent; }
+.chip.back { color: var(--back); background: var(--back-soft); border-color: transparent; }
+.chip.gate { color: var(--muted); border-style: dashed; }
+.chip:hover { border-color: currentColor; }
+.note { font-size: var(--fs-sm); color: var(--muted); }
+
+/* Map */
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.controls .lbl { font-size: var(--fs-sm); color: var(--muted); margin-right: 4px; }
+.btn { border: 1px solid var(--rule); background: var(--surface); border-radius: 6px; padding: 6px 12px; cursor: pointer; font-size: var(--fs-sm); }
+.btn:hover { border-color: var(--accent); }
+.btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.ghost { background: transparent; }
+.tourbar { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; }
+.tourbar .tt { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.tourbar .tt b { font-family: var(--font-head); font-size: var(--fs-1); }
+.tourbar .tt span { font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
+.tourbar .tnav { display: flex; flex-wrap: wrap; gap: 8px; }
+.progress { display: flex; gap: 4px; }
+.progress i { height: 4px; flex: 1; border-radius: 2px; background: var(--rule); }
+.progress i.done { background: var(--accent); }
+
+.workbench { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 20px; align-items: start; }
+.map { position: relative; isolation: isolate; display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 1.1fr); grid-template-areas: "repo flow" "sdlc sdlc" "back back"; gap: 16px; min-width: 0; }
+.map svg.edges { position: absolute; inset: 0; z-index: 1; pointer-events: none; overflow: visible; }
+.labels { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.elabel { position: absolute; transform: translate(-50%, -50%); font-size: 11.5px; line-height: 1.25; max-width: 150px; text-align: center; background: var(--surface); color: var(--ink); border: 1px solid var(--edge-on); border-radius: 4px; padding: 2px 6px; }
+.edge { fill: none; stroke: var(--edge); stroke-width: 1.5; transition: stroke 0.15s, opacity 0.15s; }
+.edge.on { stroke: var(--edge-on); stroke-width: 2.25; }
+.edge.dim { opacity: 0.35; }
+.edge.cross { stroke-dasharray: 5 4; }
+.arrowhead { fill: var(--edge); }
+.arrowhead.on { fill: var(--edge-on); }
+
+.zone { border: 1px solid var(--rule); background: var(--surface); border-radius: 10px; padding: 12px 14px 16px; display: grid; gap: 12px; align-content: start; min-width: 0; }
+.zone > h3 { position: relative; z-index: 2; display: block; font-size: var(--fs-0); }
+.zone > h3 small { font-family: var(--font-mono); font-weight: 400; font-size: var(--fs-xs); color: var(--muted); margin-left: 6px; white-space: nowrap; }
+.zone > h3::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 3px; background: var(--fam); margin-right: 8px; }
+.zone.repo { grid-area: repo; --fam: var(--repo); --fam-soft: var(--repo-soft); }
+.zone.flow { grid-area: flow; --fam: var(--flow); --fam-soft: var(--flow-soft); }
+.zone.sdlc { grid-area: sdlc; --fam: var(--sdlc); --fam-soft: var(--sdlc-soft); }
+.zone.back { grid-area: back; --fam: var(--back); --fam-soft: var(--back-soft); }
+.zgrid { display: grid; gap: 10px; }
+.zone.back .zgrid { grid-template-columns: minmax(0, 260px) minmax(0, 1fr); align-items: center; gap: 16px; }
+
+.node { position: relative; z-index: 2; text-align: left; background: var(--fam-soft); border: 1.5px solid transparent; border-radius: 7px; padding: 9px 11px; cursor: pointer; display: grid; gap: 3px; transition: opacity 0.15s, border-color 0.15s, box-shadow 0.15s; min-width: 0; }
+.node .nn { font-family: var(--font-mono); font-weight: 500; font-size: 0.86rem; color: var(--fam); overflow-wrap: anywhere; display: flex; justify-content: space-between; gap: 6px; align-items: baseline; }
+.node .nn em { font-style: normal; font-family: var(--font-text); font-size: var(--fs-xs); font-weight: 500; color: var(--muted); white-space: nowrap; }
+.node .ns { font-size: 0.82rem; line-height: 1.35; color: var(--ink); }
+.node.gate { background: var(--surface); border: 1.5px dashed var(--rule); }
+.node.gate .nn { color: var(--muted); }
+.node:hover { border-color: var(--fam); }
+.node.gate:hover { border-color: var(--muted); }
+.node.is-selected { border-color: var(--fam); box-shadow: 0 0 0 3px var(--fam-soft), 0 0 0 4.5px var(--fam); }
+.node.gate.is-selected { border-color: var(--muted); box-shadow: 0 0 0 3px var(--sunken), 0 0 0 4.5px var(--muted); }
+.node.is-linked { border-color: var(--fam); }
+.node.gate.is-linked { border-color: var(--muted); }
+.node.is-dim { background: var(--surface); border-color: var(--sunken); }
+.node.is-dim > * { opacity: 0.45; }
+.node.is-visited::after { content: "✓"; position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 11px; display: grid; place-items: center; }
+
+@media (min-width: 720px) {
+  .zone.repo .zgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "init step harvest" "medals audit design"; column-gap: 36px; row-gap: 58px; align-content: space-evenly; height: 100%; }
+  .zone.flow .zgrid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "why" "fmap" "place"; row-gap: 40px; }
+  .zone.sdlc .zgrid { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-areas: "ticket dev qa secu review" "guard run prod ship ci"; column-gap: 30px; row-gap: 58px; }
+  .zone.repo { grid-template-rows: auto 1fr; }
+  [data-id="init"] { grid-area: init; } [data-id="step"] { grid-area: step; } [data-id="harvest"] { grid-area: harvest; }
+  [data-id="medals"] { grid-area: medals; } [data-id="audit"] { grid-area: audit; } [data-id="design"] { grid-area: design; }
+  [data-id="why"] { grid-area: why; } [data-id="fmap"] { grid-area: fmap; } [data-id="place"] { grid-area: place; }
+  [data-id="ticket"] { grid-area: ticket; } [data-id="dev"] { grid-area: dev; } [data-id="qa"] { grid-area: qa; } [data-id="secu"] { grid-area: secu; } [data-id="review"] { grid-area: review; }
+  [data-id="guard"] { grid-area: guard; } [data-id="run"] { grid-area: run; } [data-id="prod"] { grid-area: prod; } [data-id="ship"] { grid-area: ship; } [data-id="ci"] { grid-area: ci; }
+}
+@media (max-width: 719px) {
+  .map { grid-template-columns: minmax(0, 1fr); grid-template-areas: "repo" "flow" "sdlc" "back"; }
+  .map svg.edges, .labels { display: none; }
+  .zgrid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); }
+  .zone.back .zgrid { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Panel */
+.panel { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 12px); max-height: calc(100vh - 24px); overflow: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: grid; gap: 14px; align-content: start; min-width: 0; }
+.panel .fam { display: flex; align-items: center; gap: 8px; font-size: var(--fs-xs); font-family: var(--font-mono); color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+.panel .fam i { width: 10px; height: 10px; border-radius: 3px; background: var(--fam); }
+.panel h3 { font-family: var(--font-mono); font-weight: 500; font-size: 1.3rem; color: var(--fam); overflow-wrap: anywhere; }
+.panel .ttl { font-family: var(--font-head); font-size: var(--fs-1); font-weight: 600; margin-top: -8px; }
+.panel h4 { margin: 0 0 4px; font-size: var(--fs-xs); font-family: var(--font-mono); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.panel p, .panel li { font-size: 0.94rem; }
+.panel ol, .panel ul { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
+.panel .when { display: flex; flex-wrap: wrap; gap: 5px; }
+.panel .when span { font-size: var(--fs-sm); background: var(--sunken); border-radius: 4px; padding: 1px 7px; font-style: italic; }
+.panel .never { background: var(--sunken); border-radius: 6px; padding: 10px 12px; }
+.panel .cli { display: grid; gap: 4px; }
+.panel .cli code { display: block; background: var(--sunken); padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; overflow-x: auto; white-space: nowrap; }
+.panel .meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-size: var(--fs-xs); border-radius: 999px; padding: 2px 9px; border: 1px solid var(--rule); color: var(--muted); }
+.pill.measured { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.pill.level { background: var(--sunken); color: var(--ink); border-color: transparent; }
+.links { display: grid; gap: 6px; }
+.links .lk { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 8px; align-items: baseline; font-size: var(--fs-sm); }
+.links .lk .chip { font-size: 0.8rem; }
+.links .lk span { color: var(--muted); }
+.panel .legend { display: grid; gap: 8px; font-size: var(--fs-sm); }
+.legend .row { display: flex; gap: 8px; align-items: flex-start; }
+.legend .sw { width: 22px; height: 14px; border-radius: 3px; flex: none; margin-top: 3px; }
+.legend svg { flex: none; margin-top: 3px; }
+
+@media (max-width: 1079px) {
+  .workbench { grid-template-columns: minmax(0, 1fr); }
+  .panel { position: static; max-height: none; }
+}
+
+/* Index */
+.index { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 18px 28px; }
+.index .grp { display: grid; gap: 2px; align-content: start; }
+.index .grp h3 { font-size: var(--fs-0); margin-bottom: 6px; display: flex; gap: 8px; align-items: center; }
+.index .grp h3 i { width: 10px; height: 10px; border-radius: 3px; }
+.want { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: baseline; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 8px 2px; cursor: pointer; }
+.want:hover .wt { text-decoration: underline; }
+.want .wt::before { content: "Je veux "; color: var(--muted); }
+.want code { font-size: 0.8rem; }
+
+/* Principles */
+.principles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 22px 28px; }
+.principles div { display: grid; gap: 4px; align-content: start; padding-top: 10px; border-top: 2px solid var(--ink); }
+.principles b { font-family: var(--font-head); font-size: var(--fs-1); font-weight: 600; }
+.principles p { font-size: 0.95rem; }
+
+/* Proof */
+.proof { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 16px; }
+.proof > div { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 14px; display: grid; gap: 8px; align-content: start; }
+.proof b { font-family: var(--font-head); font-size: var(--fs-1); font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; }
+.proof b span { font-family: var(--font-mono); font-size: var(--fs-sm); font-weight: 400; color: var(--muted); font-variant-numeric: tabular-nums; }
+.proof p { font-size: 0.92rem; }
+.empty { font-size: var(--fs-sm); color: var(--muted); font-style: italic; }
+
+pre.install { background: var(--surface); border: 1px solid var(--rule); border-radius: var(--radius); padding: 12px 14px; overflow-x: auto; font-family: var(--font-mono); font-size: 0.85rem; margin: 0; max-width: 860px; }
+footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: var(--fs-sm); color: var(--muted); }
+
+@media (max-width: 719px) {
+  .layer { grid-template-columns: minmax(0, 1fr); }
+  .joint { padding-left: 12px; }
+  .ladder { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; }
+  .rung { padding: 8px 6px; }
+  .rung .nm { font-size: var(--fs-sm); }
+  .rung .md span.t { display: none; }
+  .rung:nth-child(n) { min-height: 0; }
+  .level-card dl { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .level-card dd { margin-bottom: 10px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; scroll-behavior: auto !important; }
+}
+</style>
+<div class="page">
+  <div class="top">
+    <span class="eyebrow">Claude Code plugin marketplace · state of 23 November 2026</span>
+    <nav aria-label="Sections">
+      <a href="#goal">Goal</a>
+      <a href="#layers">Layers</a>
+      <a href="#levels">Levels</a>
+      <a href="#map">Skills map</a>
+      <a href="#i-want">I want…</a>
+      <a href="#habits">Habits</a>
+      <a href="#proof">Proof</a>
+    </nav>
+  </div>
+
+  <header class="hero" id="goal">
+    <h1>harness-ai</h1>
+    <p class="lede">Claude Code skills and a Python CLI that prepare a repository for AI coding agents, measure where it stands, and move it forward one step at a time. A second plugin, <code>ai-sdlc</code>, takes a ticket to production.</p>
+    <div class="motto" aria-label="The idea in one line">
+      <span class="m2">The prompt explains.</span>
+      <span class="m3">The code checks.</span>
+      <span class="m4">The pipeline executes.</span>
+    </div>
+    <div class="facts">
+      <span><b>2</b> plugins</span>
+      <span><b>16</b> shipped skills</span>
+      <span><b>1</b> internal skill</span>
+      <span><b>5</b> levels, from 0 to 4</span>
+      <span><b>2</b> CLIs on the Python standard library</span>
+    </div>
+  </header>
+
+  <div class="col prose">
+    <p><b>The problem.</b> An AI coding agent starts every session knowing nothing about your repository. It does not know the command your CI really runs, the folder that looks dead but is still used, the deployment it must never trigger. So it guesses, and you correct it, again and again.</p>
+    <p>The usual answer is a long instruction file. It does not hold: past a few dozen lines the agent skims it, nobody prunes it, and a rule written in a prompt is a wish, not a guarantee. An agent that "must not deploy" will deploy the day a ticket asks it to.</p>
+    <p><b>A harness</b> is everything around the agent that makes its work reliable: a short <code>AGENTS.md</code> that says only what the agent cannot discover, rules enforced by tools rather than by sentences, a loop that turns review comments into rules, and pipelines that keep the privileged actions. harness-ai helps a team build one, one step at a time, seeing at each step what has progressed.</p>
+  </div>
+
+  <section class="block" id="layers">
+    <header>
+      <span class="eyebrow">The model</span>
+      <h2>Four layers, one place for each responsibility</h2>
+      <p>Most reliability problems come from a responsibility placed on the wrong layer: a check that lives in a prompt, a deployment an agent can start.</p>
+    </header>
+    <div class="layers">
+      <div class="layer L1"><div class="ln">L1 Judgment<small>the agent</small></div><div>Choose between open options, talk with the human.</div><div class="who">The agent, its sub-agents</div></div>
+      <div class="joint">follows</div>
+      <div class="layer L2"><div class="ln">L2 Procedure<small>the prompt explains</small></div><div>Tell the order, when to call what, how to read a result.</div><div class="who">Skills, AGENTS.md</div></div>
+      <div class="joint">calls, never re-implements</div>
+      <div class="layer L3"><div class="ln">L3 Local logic<small>the code checks</small></div><div>Guarantee: preconditions, computations, idempotence.</div><div class="who">Tested CLI, linters, architecture tests</div></div>
+      <div class="joint">the same checks run again in</div>
+      <div class="layer L4"><div class="ln">L4 Remote execution<small>the pipeline executes</small></div><div>Act with rights on shared resources.</div><div class="who">CI, pipelines</div></div>
+    </div>
+    <div class="callout">
+      <b>The "cut the agent" test</b>
+      <p>Cut L1 and L2. Do L3 and L4 still serve a human in a hurry? If yes, the agent is an accelerator. If not, some process has leaked into the prompts. This is why every skill of harness-ai stands on a CLI: the skill tells the order, the CLI guarantees.</p>
+    </div>
+  </section>
+
+  <section class="block" id="levels">
+    <header>
+      <span class="eyebrow">The progression</span>
+      <h2>Five levels, and the right to stop</h2>
+      <p>Each level is earned by checks that <code>harness status</code> measures in the repository, never by a declaration. A level is a place where you can stay: you say which one you aim for with <code>harness target</code>, and beyond it the tool proposes nothing. Click a level.</p>
+    </header>
+    <div class="ladder" role="group" aria-label="Maturity levels" id="ladder"></div>
+    <div class="level-card" id="levelCard" aria-live="polite"></div>
+    <p class="note">The level measures the shape of the harness: files, sections, mentions. It does not say that the agents work better. That proof comes from the trend of signals from one harvest to the next, and from the bench on the sample projects.</p>
+  </section>
+
+  <section class="block" id="map">
+    <header>
+      <span class="eyebrow">The skills and their links</span>
+      <h2>The skills map</h2>
+      <p>Three families: one repository's harness, a team's workflow written down on paper, and the phases from ticket to production. Click a skill to see its goal, what it produces, what it never does, and the skills around it. Or follow a walkthrough.</p>
+    </header>
+    <div class="controls">
+      <span class="lbl">Follow a walkthrough:</span>
+      <button class="btn" type="button" data-tour="repo" id="tour-repo" aria-pressed="false">Equip a repository, level by level</button>
+      <button class="btn" type="button" data-tour="ticket" id="tour-ticket" aria-pressed="false">One ticket, all the way to production</button>
+      <button class="btn" type="button" data-tour="flow" id="tour-flow" aria-pressed="false">Design the team workflow</button>
+      <button class="btn ghost" type="button" id="clearSel">Clear</button>
+    </div>
+    <div class="tourbar" id="tourbar" hidden aria-live="polite"></div>
+    <div class="workbench">
+      <div class="map" id="mapArea">
+        <svg class="edges" id="edges" aria-hidden="true">
+          <defs>
+            <marker id="arr" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"></path></marker>
+            <marker id="arr-on" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead on" d="M0,0 L10,5 L0,10 z"></path></marker>
+          </defs>
+          <g id="edgeLayer"></g>
+        </svg>
+        <div class="labels" id="labels"></div>
+        <section class="zone repo" aria-label="One repository's harness">
+          <h3>One repository's harness <small>plugin harness-ai</small></h3>
+          <div class="zgrid" data-zone="repo"></div>
+        </section>
+        <section class="zone flow" aria-label="The team workflow">
+          <h3>The team workflow, on paper <small>plugin harness-ai</small></h3>
+          <div class="zgrid" data-zone="flow"></div>
+        </section>
+        <section class="zone sdlc" aria-label="From ticket to production">
+          <h3>From ticket to production <small>plugin ai-sdlc</small></h3>
+          <div class="zgrid" data-zone="sdlc"></div>
+        </section>
+        <section class="zone back" aria-label="Behind the scenes">
+          <h3>Behind the scenes <small>this repository only</small></h3>
+          <div class="zgrid" data-zone="back"></div>
+        </section>
+      </div>
+      <aside class="panel" id="panel" aria-live="polite" tabindex="-1"></aside>
+    </div>
+  </section>
+
+  <section class="block" id="i-want">
+    <header>
+      <span class="eyebrow">Index by need</span>
+      <h2>I want…</h2>
+      <p>The goal of each skill, in the words of whoever calls it. A skill triggers on a sentence like these, in English or in French, or by its name: <code>/harness-ai:harness-init</code>, <code>/ai-sdlc:review</code>.</p>
+    </header>
+    <div class="index" id="index"></div>
+  </section>
+
+  <section class="block" id="habits">
+    <header>
+      <span class="eyebrow">What they share</span>
+      <h2>Six habits every skill keeps</h2>
+    </header>
+    <div class="principles">
+      <div><b>The map first</b><p>Before any question, the skill shows where the repository stands with <code>harness status --map</code>: where you are, where it is going, the plan. It updates the map at the end.</p></div>
+      <div><b>One question, once</b><p>Questions are asked together, each with its reason, its options, their cost and the proposed default. Never one at a time along the way.</p></div>
+      <div><b>The text explains, the CLI guarantees</b><p>What must hold lives in a program that refuses a result that does not: a finding that cites no line of the diff, a fact not quoted word for word, a command missing from the procedure.</p></div>
+      <div><b>One step, then stop</b><p>Each skill does one thing, reports with what is not verified, and stops. What comes next is another call, and you decide it.</p></div>
+      <div><b>What it never does</b><p>Each skill writes it down: review does not approve, ship does not tag, run does not touch production, qa disables no test.</p></div>
+      <div><b>Plain words</b><p>An internal code (S1, P1, <code>stop_at</code>) never reaches the user alone: it comes with what it means, in the language of the conversation.</p></div>
+    </div>
+  </section>
+
+  <section class="block" id="proof">
+    <header>
+      <span class="eyebrow">What is established</span>
+      <h2>Where the proof stands</h2>
+      <p>Three states, always the same words, those of <code>docs/capabilities.md</code>. Click a name to find it on the map.</p>
+    </header>
+    <div class="proof" id="proofList"></div>
+    <p class="note">A measurement is one draw, not an average, and the test cases were written by the model being evaluated on them: they are easier than a real repository. The measurements of the ai-sdlc skills played their earlier French text; the English text that ships today has not been played yet.</p>
+  </section>
+
+  <section class="block" id="install">
+    <header>
+      <span class="eyebrow">To try it</span>
+      <h2>Install, or measure without Claude Code</h2>
+      <p>In Claude Code (the repository is private: your GitHub account needs access to it):</p>
+    </header>
+<pre class="install">/plugin marketplace add jrechet/harness-ai
+/plugin install harness-ai@harness-ai
+/plugin install ai-sdlc@harness-ai</pre>
+    <p>Without Claude Code, with Python 3.10 or later and nothing else to install:</p>
+<pre class="install">python3 harness-ai/cli/harness.py status /path/to/your/repo --map</pre>
+  </section>
+
+  <footer class="end">
+    Built from the README, the 17 SKILL.md files and <code>docs/maturity.md</code>, state of 23 November 2026. The README and <code>docs/capabilities.md</code> stay the reference for what each skill can do; <code>cli/tests/test_skills_map.py</code> fails when a skill is added or removed without this page.
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var FAM = {
+    repo: { label: "One repository's harness", plugin: "plugin harness-ai" },
+    flow: { label: "The team workflow, on paper", plugin: "plugin harness-ai" },
+    sdlc: { label: "From ticket to production", plugin: "plugin ai-sdlc" },
+    back: { label: "Behind the scenes", plugin: "this repository only" }
+  };
+
+  var NODES = [
+    { id: "init", fam: "repo", name: "harness-init", invoke: "/harness-ai:harness-init",
+      short: "Write a first, short AGENTS.md",
+      title: "Set up level 1",
+      goal: "Writes a repository's first AGENTS.md, or cleans the one it has, so the agent knows where it is: what the repository does, how far it may go, what it never does. It writes only what the agent cannot discover alone by reading the code.",
+      when: ["start with Claude Code on this project", "create an AGENTS.md", "set up the repo for AI", "I don't know where to start"],
+      does: ["Asks four questions, at once. The last one: what you repeat at every review that no file says.", "Looks at the repository before writing anything, in particular the commands the CI really runs.", "Writes a short AGENTS.md: a mode (assistance or delegation), justified and dated rules, a Forbidden section, and the CLAUDE.md, Copilot and Cursor stubs.", "Measures the result with harness status, then stops."],
+      produces: "An AGENTS.md of at most 60 lines, a single source, and level 1 measured.",
+      never: "Writes nothing of the next levels: no Maintaining section, no task contract. An AGENTS.md generated by scanning the tree is noise.",
+      cli: ["harness status --map", "harness commands"],
+      state: "measured", stateText: "Measured on four sample projects" },
+
+    { id: "step", fam: "repo", name: "harness-step", invoke: "/harness-ai:harness-step",
+      short: "Move one step towards the target level",
+      title: "One step, then stop",
+      goal: "Moves a repository's harness forward by one step, and one only, towards the level you aim for. It shows where you stand, proposes the smallest step with what it costs, does it after agreement, then shows before and after.",
+      when: ["where am I", "what's next", "the next step", "go up a level", "we want to stop at level 2"],
+      does: ["Measures the repository with harness status --map.", "Asks once how far you want to go (harness target).", "Takes the first failing check of the first level not reached, and says what the step costs and changes.", "Does this step only, measures again, then stops.", "Target reached: says so, offers the next level once, with \"stay here\" as the default."],
+      produces: "One targeted change, for example the Maintaining section and the rule: convention, a guardrail for a rule, or the Working process section. With the measurement before and after.",
+      never: "Never takes two steps at once, and proposes nothing beyond the target level.",
+      cli: ["harness status --map", "harness target <level>"],
+      state: "measured", stateText: "Measured on one project" },
+
+    { id: "harvest", fam: "repo", name: "harness-harvest", invoke: "/harness-ai:harness-harvest",
+      short: "Draw rules from what happened in review",
+      title: "Learn from pull requests",
+      goal: "Evolves AGENTS.md and the task contracts from what really happened since the last harvest. It is the loop that keeps a mistake corrected in review from being made twice.",
+      when: ["update the rules", "see what we learned this month", "clean up AGENTS.md", "a scheduled harvest fires"],
+      does: ["Frames the window since the last harvest (30 days the first time).", "Collects by script first: rule: comments, fixes pushed after an agent PR was merged, the same review remark several times, a CI check that keeps failing on agent PRs, a rule nothing happened about, a task done three times or more.", "Groups them into candidates, decides, then proposes."],
+      produces: "A dedicated PR: additions, removals, shortenings, rules pushed down into CI, new contracts, each with its evidence. Level 2 asks for a harvest less than 45 days old that found a real signal.",
+      never: "Changes no rule outside a PR you review. One source is wired today: GitHub.",
+      cli: ["harness harvest github", "harness rules"],
+      state: "tooled", stateText: "Tooled, never played by an agent" },
+
+    { id: "audit", fam: "repo", name: "harness-audit", invoke: "/harness-ai:harness-audit",
+      short: "Check each layer, remove what no longer serves",
+      title: "Audit and prune",
+      goal: "Audits a repository's whole AI setup: agents, skills, AGENTS.md, scripts, CLI, linters, CI workflows. It checks that each responsibility sits on the right layer, and proposes to remove the instructions that no longer change what the agent does.",
+      when: ["audit my AGENTS.md", "review my skills", "does this rule still serve?", "we changed models", "every six months"],
+      does: ["Inventories everything before judging anything, and builds the call graph.", "Runs the \"cut the agent\" test: without it, can the team still run the process with the CLI and the workflows?", "Gives one verdict per item: KEEP, PUSH_DOWN (move down one layer), MERGE, SPLIT, BLOCK or REMOVE.", "Ranks P1 (risk of an incorrect delivery), P2 (fragility), P3 (hygiene), and writes the remediation plan."],
+      produces: "A fixed-format report, in Markdown and JSON (.harness/audit.json), comparable from one audit to the next. Level 3 asks for an audit with no open P1.",
+      never: "Judges nothing before seeing everything. A style convention with no consequence is never a leak: at worst a useless line.",
+      cli: ["harness rules", "harness fresh", "harness status --page <file>"],
+      state: "measured", stateText: "Measured once on each of two projects: 10 of 10, then 2 of 3 on a held-out project" },
+
+    { id: "design", fam: "repo", name: "harness-design", invoke: "/harness-ai:harness-design",
+      short: "Put each piece of a skill or a rule in its place",
+      title: "Each piece in its place",
+      goal: "Helps create or review a skill, an agent, a tool or a rule by saying where each piece goes, and why: a line in AGENTS.md, a skill, a sub-agent, a CLI subcommand, a hook, a permission, an MCP server, a CI check, a managed setting, or nothing at all.",
+      when: ["create a skill", "make an agent that…", "add a rule", "skill or agent?", "where do I put this?"],
+      does: ["Restates the need in one sentence: \"a release skill\" is a form, \"every release is tagged, published and announced without omission\" is the need.", "Splits the request into pieces.", "Answers the closed questions of the harness place grid: the place comes from the grid, not from an opinion.", "Asks you only what is a decision, shows the plan, sets up the files on agreement."],
+      produces: "A placement plan piece by piece, then the files. A line in AGENTS.md follows harness-init's format: the rule, its reason, its guardrail, its date.",
+      never: "Does not audit a whole harness: that is harness-audit's job.",
+      cli: ["harness place grid", "harness place plan <pieces.json>"],
+      state: "measured", stateText: "Measured: 12 traps of 12 on a held-out case" },
+
+    { id: "medals", fam: "repo", name: "harness-medals", invoke: "/harness-ai:harness-medals",
+      short: "Say the level as a medal, and why",
+      title: "The level, as a medal",
+      goal: "Says where a repository, or a plugin marketplace, stands as a medal (bronze, silver, gold, platinum), with the unlocked achievements and the next steps, and opens the interactive page that shows them.",
+      when: ["what level are we at", "why bronze", "why not gold", "which achievements have we unlocked", "show the medals page"],
+      does: ["Measures with harness medals, never from memory.", "Answers the question asked, in plain words, and ends on the next step.", "Writes the HTML page on request, and the .harness/medals.json file if you want it."],
+      produces: "An answer with figures, a standalone HTML page, and the history of achievements with their dates.",
+      never: "Changes nothing but its medals file. The medal is not a goal: bronze is a place where one can stay.",
+      cli: ["harness medals <repo> --page <file>"],
+      state: "tooled", stateText: "Tooled" },
+
+    { id: "why", fam: "flow", name: "flow-why", invoke: "/harness-ai:flow-why",
+      short: "LangGraph, Temporal, Rust: do we need one?",
+      title: "Do we need a tool?",
+      goal: "Answers \"do I need LangChain, LangGraph, Temporal, a workflow engine or Rust?\" before anything is built. The verdict comes from a program, with the date of its facts.",
+      when: ["do I need LangGraph?", "what is LangGraph for?", "do we need a workflow engine?", "should we write this in Rust?", "is CI enough?"],
+      does: ["Shows the cases harness flow fit knows.", "Asks once: what you are building, how many tickets a week, whether a person starts each phase, and what you measured on eight symptoms (runs paid twice, an agent that loops, an event lost…).", "Gives the verdict word for word, the page that explains it, what it costs, and the measurable symptom that would change the answer."],
+      produces: "One verdict for your case, and an answers file outside the repository.",
+      never: "Changes nothing in the repository. Does not soften the verdict or add a tool it did not name.",
+      cli: ["harness flow fit --questions", "harness flow fit <answers.json>"],
+      state: "tooled", stateText: "Tooled, never played by an agent" },
+
+    { id: "fmap", fam: "flow", name: "flow-map", invoke: "/harness-ai:flow-map",
+      short: "Write the path from ticket to production, checked",
+      title: "Write the workflow down",
+      goal: "Writes a team's path from a ticket to production as one definition file a program has checked. Often that path lives in people's heads: two people list the steps, and the lists differ.",
+      when: ["we want a workflow for feature tickets", "write down how we handle a bug ticket end to end", "draw our path from ticket to production"],
+      does: ["Shows the reference flow (feature or bug): each step done by a program, an agent, a person, or nobody while the run waits.", "Asks five questions, once: ticket type, where tickets live, which forge, where the flow must stop, who judges each approval.", "Writes the file with harness flow new, puts the team's names in it, and runs harness flow check until it passes.", "Shows the level reached on paper and the map redrawn."],
+      produces: "The file .harness/flow/<name>.json, refused by the program if it could loop, wait or spend without end.",
+      never: "Nothing runs: it is a map, not a pipeline. No agent is started on a real ticket.",
+      cli: ["harness flow new <feature|bug>", "harness flow check <flow.json>", "harness flow status <flow.json> --map"],
+      state: "tooled", stateText: "Tooled, never played by an agent" },
+
+    { id: "place", fam: "flow", name: "flow-place", invoke: "/harness-ai:flow-place",
+      short: "Say where each step of the workflow lives",
+      title: "Place each step",
+      goal: "Says where each step of a team workflow belongs: a skill for the agent, code, a state on the ticket, a human gate, no gate at all, a shared CI workflow, a fan-out by script, or a workflow engine. Put in the wrong place, a step costs too much or does not hold.",
+      when: ["is a skill enough for this step, or do I need code?", "where does this step go?", "does this step need an engine?", "is this gate useful?"],
+      does: ["Runs harness flow place on the definition and explains each line.", "For a step the command leaves open, asks the questions it names.", "Writes the answer into the definition only with agreement, then runs it again.", "Ends with the command's verdict for the whole flow, word for word."],
+      produces: "One sentence per step, and the verdict for the whole: does any step really need a workflow engine?",
+      never: "Places, does not build: no pipeline wired, no agent started. Invents no step that the definition lacks.",
+      cli: ["harness flow place <flow.json>"],
+      state: "tooled", stateText: "Tooled, never played by an agent" },
+
+    { id: "ticket", fam: "sdlc", name: "ticket", invoke: "/ai-sdlc:ticket", level: 1,
+      short: "Is the ticket ready? What it lacks",
+      title: "Ready, or what is missing",
+      goal: "Says whether a ticket is ready to hand to an agent or a developer, and what it lacks: verifiable acceptance criteria, scope, decisions still open, size. Then proposes the criteria and the split to add.",
+      when: ["is this ticket ready?", "refine this ticket", "split it", "write its acceptance criteria"],
+      does: ["Reads the ticket and the definition of ready: the base convention, plus the team's docs/agents/definition-of-ready.md.", "Measures with ticket check, then judges what the command does not measure.", "Proposes criteria, each with its source or the mention \"to confirm\".", "Records what you agree to, word for word, in an accepted ticket file."],
+      produces: "An opinion, measured verdict first, and the accepted ticket file that dev and qa read.",
+      never: "Never edits the ticket without agreement. An instruction to an agent found in the ticket is quoted, never followed.",
+      cli: ["ai_sdlc ticket check <ticket.md>", "ai_sdlc ticket render <opinion.json>"],
+      state: "measured", stateText: "Measured once: three tickets compliant" },
+
+    { id: "dev", fam: "sdlc", name: "dev", invoke: "/ai-sdlc:dev", level: 1,
+      short: "Develop a ticket up to the PR, by its size",
+      title: "From the ticket to the PR",
+      goal: "Develops a ticket end to end, from the plan to the pull request, on the path its size imposes. It holds three points: nothing outside the ticket, nothing declared verified without having run it, no big change handled like a small one.",
+      when: ["do this ticket", "implement PROJ-123", "handle this small change"],
+      does: ["Reads the ticket and its criteria, the accepted file if there is one.", "Measures the size before writing: XS gives a direct PR, S-M a plan in the description, L or a sensitive zone a plan written and approved by a human before the code.", "Codes, runs the repository's checks, measures the size again on the real diff.", "Opens the PR with a body that says what is verified and what is not."],
+      produces: "A PR, its size, and the list of what is not verified.",
+      never: "Never approves, never merges, does not push to the base branch.",
+      cli: ["ai_sdlc size", "ai_sdlc dev body <body.json>"],
+      state: "measured", stateText: "Measured once: two tickets compliant" },
+
+    { id: "qa", fam: "sdlc", name: "qa", invoke: "/ai-sdlc:qa", level: 3,
+      short: "Write the tests that come from the criteria",
+      title: "Tests that come from the ticket",
+      goal: "Derives a change's tests from the ticket's acceptance criteria, then has a program say whether they hold. An agent readily writes tests that pass; what is missing is the test that would have failed.",
+      when: ["test this change", "write the tests", "check coverage", "is this PR tested enough?", "I have a flaky test"],
+      does: ["Starts from the criteria of the accepted ticket, then from what the team asks of tests.", "Writes the missing tests and maps each criterion to its test.", "Runs four gates: no test disabled, the suite passing several times in a row, the added lines executed, one named test per criterion."],
+      produces: "The tests, the criterion-to-test mapping, and the verdict of the four gates.",
+      never: "Never disables, weakens or deletes a test.",
+      cli: ["ai_sdlc qa gate"],
+      state: "measured", stateText: "Measured once: seven planted defects of seven caught" },
+
+    { id: "secu", fam: "sdlc", name: "secu", invoke: "/ai-sdlc:secu", level: 1,
+      short: "Look at a change from the security angle",
+      title: "The security angle",
+      goal: "Looks at a change from the security angle. An agent that \"sees nothing worrying\" has proven nothing: here the team's scanners and four measured gates speak, and the agent rereads only the places they point at.",
+      when: ["do a security review", "check for secrets", "run the scanners", "before merging a change to authentication, permissions, dependencies or the CI"],
+      does: ["Reads the team's security rules.", "Runs the scanners the repository declares.", "Runs four gates: no secret added (history and commit messages included), no scanner silenced, no scanner result on an added line, and the list of sensitive places to reread.", "Rereads those places, then reports."],
+      produces: "What was looked at, by what, and what is left to a human.",
+      never: "Never declares a change \"safe\", and silences no scanner.",
+      cli: ["ai_sdlc secu gate --report <report.sarif>"],
+      state: "measured", stateText: "Measured once: four planted defects of four, two healthy places left alone" },
+
+    { id: "review", fam: "sdlc", name: "review", invoke: "/ai-sdlc:review", level: 1,
+      short: "Review a PR: few comments, all proven",
+      title: "Few comments, all proven",
+      goal: "Reviews a pull request or a diff with the base checklist and the team's, and returns few comments, each with its evidence on a line of the diff.",
+      when: ["review this PR", "do the review", "is it ready to merge?"],
+      does: ["Settles what is reviewed, and by whom.", "Applies the base checklist and docs/agents/review.md, read on the target branch: a PR cannot lighten its own review.", "Returns the comments; the program refuses a finding that cites no line of the diff.", "A remark made for the second time becomes a candidate rule: \"rule: … Why: …\"."],
+      produces: "A few comments anchored in the diff, and candidate rules for the harvest loop.",
+      never: "Only comments: never approves, never merges, does not fix the reviewed code.",
+      cli: ["ai_sdlc review render <review.json>"],
+      state: "measured", stateText: "Measured once: 6 traps of 6" },
+
+    { id: "ci", fam: "sdlc", gate: true, name: "CI · ci pr", slug: "step-ci",
+      short: "Gates run again, then a human merges",
+      title: "The pipeline, then a human",
+      goal: "Not a skill: the pipeline. The security and test gates run in CI, with their settings read on the target branch. If one fails, the merge is blocked. Then a human merges.",
+      does: ["ci pr: security and test gates on the pull request, and \"one test per criterion\" when the accepted ticket and the trace qa leaves are given.", "ci main: on a push to the delivery branch, says whether that commit could be delivered. Delivers nothing."],
+      cli: ["ai_sdlc ci pr --strict", "ai_sdlc ci main"] },
+
+    { id: "ship", fam: "sdlc", name: "ship", invoke: "/ai-sdlc:ship", level: 3,
+      short: "Prepare a delivery, without doing it",
+      title: "Prepare, propose, hand over",
+      goal: "Prepares a delivery and proposes it, without ever doing it. A program checks that what ships is the head commit of the remote delivery branch, that the CI is green on that exact commit, what touches a zone where a rollback is costly, and what breaks.",
+      when: ["prepare the release", "can we deliver?", "write the release notes", "what shipped since the last version?"],
+      does: ["Reads the convention and the team's delivery procedure (docs/agents/delivery.md).", "Checks the prerequisites with ship check.", "Proposes a version number and notes.", "Quotes the team's commands word for word, for a human to run."],
+      produces: "A delivery proposal, refused by the program if a command does not come from the procedure or if a prerequisite fails.",
+      never: "Sets no tag, publishes nothing, starts no deployment, not even to staging.",
+      cli: ["ai_sdlc ship check", "ai_sdlc ship render <proposal.json>"],
+      state: "measured", stateText: "Measured once: two cases compliant" },
+
+    { id: "prod", fam: "sdlc", gate: true, name: "Production", slug: "step-production",
+      short: "Delivered by a human or a pipeline",
+      title: "Never delivered by the agent",
+      goal: "Not a skill. Delivery is done by a human or by a pipeline, never by the agent: ship prepared and proposed, a human runs the commands of the team's procedure.",
+      does: [] },
+
+    { id: "run", fam: "sdlc", name: "run", invoke: "/ai-sdlc:run", level: 2,
+      short: "Investigate an incident, hands off production",
+      title: "Investigate, quote, return a ticket",
+      goal: "Investigates a production incident and returns a ticket, without ever acting in production. It establishes the impact, quotes facts word for word from their evidence (logs, alerts, commits), keeps hypotheses apart from facts, and proposes actions a human decides.",
+      when: ["we have an incident", "an alert just fired", "a regression in production", "what happened?", "post-mortem"],
+      does: ["Reads the team's runbook (docs/agents/operations.md).", "Gathers the evidence, then what shipped between two versions with run changes.", "Writes the investigation; the program refuses a fact not quoted word for word, or a cause \"confirmed\" without a fact.", "Creates the ticket on explicit agreement."],
+      produces: "A proven incident ticket, which goes back into the cycle through the ticket skill.",
+      never: "Does not restart, roll back, change or purge anything. Does not fix during the incident.",
+      cli: ["ai_sdlc run changes --since <version>", "ai_sdlc run render <investigation.json> --evidence <file>"],
+      state: "measured", stateText: "Measured once: one incident, the innocent last deployment not blamed" },
+
+    { id: "guard", fam: "sdlc", gate: true, name: "Guardrail", slug: "guardrail",
+      short: "A hook refuses tag, release, publish, deploy",
+      title: "The agent does not deliver",
+      goal: "Once installed, the ai-sdlc plugin sets a hook that reads every shell command of the agent before it runs. It refuses those that create or push a tag, create a release, start a workflow, publish a package or an image, deploy, or appear in the team's delivery procedure.",
+      does: ["A barrier against accidents and against an instruction slipped into a ticket, not a sandbox: a deployment script started by its name passes.", "On a corpus of 150 commands: 65 of 76 deliveries refused, 1 of 74 ordinary commands refused by mistake.", "A team that wants an agent to deliver sets AI_SDLC_ALLOW_AGENT_DELIVERY=1 in the session's environment."],
+      cli: ["ai_sdlc guard check \"<command>\""] },
+
+    { id: "stress", fam: "back", name: "harness-stress", invoke: "harness-stress (a skill of this repository)",
+      short: "Put the skills to the test, blind",
+      title: "The skills on trial",
+      goal: "Evaluates the harness-ai skills on the sample projects of fixtures/: a fresh agent that never saw the answer key plays each skill; the CLI grades; each gap is filed under a single cause; only the skills' text is fixed, in a dedicated PR; the fix is then measured on held-out projects.",
+      when: ["stress this skill", "evaluate the harness", "replay the bench after a model change", "does this rule still serve?"],
+      does: ["Announces the plan and its price before launching anything (harness bench plan).", "Prepares each run outside the repository, plays blind, grades with the CLI.", "Files each gap under one cause, fixes the skills in a dedicated PR, measures the fix.", "Proves a REMOVE of harness-audit by replaying the task without the line."],
+      produces: "A fixed-format report and a PR of fixes.",
+      never: "Never launches on its own: a campaign costs hundreds of thousands of tokens. Touches neither the answer keys nor the grader to make a run pass.",
+      cli: ["harness bench plan", "harness fixture check <name>"],
+      state: "internal", stateText: "For the maintainers of this repository" }
+  ];
+
+  // from, to, label, options: b = bend, x = across families (drawn only when active), h = hidden (panel only)
+  var EDGES = [
+    ["init", "step", "the next levels", {}],
+    ["step", "init", "at level 0", { b: 0.22 }],
+    ["step", "harvest", "level 2: harvest", {}],
+    ["harvest", "step", "the proposed rules", { b: 0.22 }],
+    ["step", "audit", "relevance review", {}],
+    ["medals", "step", "to take the step", {}],
+    ["design", "audit", "for the whole harness", {}],
+    ["why", "fmap", "verdict: ticket state and CI are enough", {}],
+    ["fmap", "place", "place the steps", {}],
+    ["place", "fmap", "no definition yet", { b: 0.3 }],
+    ["place", "why", "a question about a product or an engine", { b: -0.32 }],
+    ["place", "design", "one piece, inside one repository", { x: 1, b: 0.12 }],
+    ["why", "ticket", "verdict: by hand may be enough", { x: 1, b: -0.12 }],
+    ["review", "harvest", "rule: in the review", { x: 1, b: 0.18 }],
+    ["ticket", "dev", "the accepted ticket file", {}],
+    ["ticket", "qa", "the accepted criteria", { h: 1 }],
+    ["dev", "qa", "the PR and the ticket file", {}],
+    ["qa", "secu", "tests and gates", {}],
+    ["secu", "review", "places reread", {}],
+    ["review", "ci", "comments, never an approval", {}],
+    ["ci", "ship", "merged by a human", {}],
+    ["ship", "prod", "commands run by a human", {}],
+    ["prod", "run", "incident", {}],
+    ["run", "ticket", "new ticket", {}],
+    ["guard", "dev", "watches its commands", { x: 1 }],
+    ["guard", "ship", "watches its commands", { x: 1, b: 0.12 }],
+    ["guard", "run", "watches its commands", { x: 1 }]
+  ];
+
+  var LEVELS = [
+    { n: 0, name: "None", medal: "", medalName: "no medal",
+      brings: "Nothing: the agent starts from zero at every session.",
+      asks: "Nothing.",
+      measured: "No instruction file.",
+      skills: [], unlocks: [] },
+    { n: 1, name: "Framed", medal: "bronze", medalName: "bronze",
+      brings: "The agent knows where it is: what the repository does, how far it may go, what it never does.",
+      asks: "Write a short AGENTS.md once, and keep it short.",
+      measured: "AGENTS.md exists · a Mode line · at most 60 lines · CLAUDE.md is an @AGENTS.md stub or absent · a Forbidden section.",
+      skills: ["init"], unlocks: ["ticket", "dev", "review", "secu"] },
+    { n: 2, name: "Looped", medal: "silver", medalName: "silver",
+      brings: "Incidents become rules: a mistake corrected in review is not made twice.",
+      asks: "Mark the review comments that should become a rule with rule:, and harvest from time to time.",
+      measured: "A Maintenance section · the rule: convention documented · a harvest less than 45 days old · the last harvest found at least one real signal.",
+      skills: ["step", "harvest"], unlocks: ["run"] },
+    { n: 3, name: "Verified", medal: "gold", medalName: "gold",
+      brings: "Mandatory rules are held by tools, not by text.",
+      asks: "Turn each mandatory rule into a check (linter, test, CI job), and say why each rule exists.",
+      measured: "A CI exists · at least 50% of the rules say \"Enforced by\" a tool · at least 50% say why · an audit exists with no open P1.",
+      skills: ["step", "audit"], unlocks: ["qa", "ship"] },
+    { n: 4, name: "Delegated", medal: "platinum", medalName: "platinum",
+      brings: "Whole tasks come back clean, without correction after the fact.",
+      asks: "Hand over tasks under a written contract, and watch the agent's PRs.",
+      measured: "Mode delegation · a Working process section · at least one task contract referenced · agent PRs with no after-the-fact correction in the last harvest · the audit's \"cut the agent\" test passes.",
+      skills: ["step", "harvest", "audit"], unlocks: [] }
+  ];
+
+  var TOURS = {
+    repo: { title: "Equip a repository, level by level", steps: [
+      ["init", "Level 0 to 1. Four questions and a look at the repository give a short AGENTS.md. Many teams can stop here."],
+      ["step", "You say where you want to stop (harness target). harness-step sets up the Maintaining section and the rule: convention."],
+      ["review", "During reviews, a repeated remark becomes \"rule: …\", written by a human or proposed by the review skill of the ai-sdlc plugin."],
+      ["harvest", "The harvest turns these signals into proposed rules, in a PR. A recent real signal: level 2."],
+      ["step", "Next step: each mandatory rule gets the tool that holds it (Enforced by) and its reason (Why)."],
+      ["audit", "An audit with no open P1 completes level 3. Then, when the model changes or every six months, it removes what no longer serves."],
+      ["medals", "At any time: the level as a medal, the unlocked achievements, and what is left to do."]
+    ] },
+    ticket: { title: "One ticket, all the way to production", steps: [
+      ["ticket", "Is the ticket ready? Criteria are proposed, and those you accept are written word for word in a file."],
+      ["dev", "The code, on the path its size imposes. A PR that says what is not verified."],
+      ["qa", "The tests that come from the criteria, and four gates measured by a program."],
+      ["secu", "Scanners, secrets, sensitive places reread. Never \"safe\"."],
+      ["review", "Few comments, all anchored in the diff. Never an approval."],
+      ["ci", "The pipeline runs the gates again with the target branch's settings. A human merges."],
+      ["ship", "Prerequisites checked, version and notes proposed. No tag set."],
+      ["prod", "A human or a pipeline delivers. The guardrail hook keeps the agent from doing it."],
+      ["run", "An incident? An investigation that quotes its evidence, then a new ticket: the loop starts again."]
+    ] },
+    flow: { title: "Design the team workflow", steps: [
+      ["why", "Before building: do we need an engine, LangGraph, Temporal? Often the ticket's state and the CI are enough."],
+      ["fmap", "The path written in one file, checked: nothing can loop, wait or spend without end."],
+      ["place", "Each step in its place: code, skill, ticket state, human gate. An engine only if a step demands it."],
+      ["design", "For one precise piece inside a repository (a rule, a hook, a CI check), harness-design takes over."]
+    ] }
+  };
+
+  var WANTS = {
+    repo: [["to start with an agent on a repository, or clean up my AGENTS.md", "init"], ["to know where I stand and take the next step", "step"], ["to turn review remarks into rules", "harvest"], ["to clean up: what is misplaced, what no longer serves", "audit"], ["to create a skill, an agent or a rule in the right place", "design"], ["to see our level as a medal, and why", "medals"]],
+    flow: [["to know whether we need LangGraph, Temporal, an engine or Rust", "why"], ["to write down our path from ticket to production", "fmap"], ["to know where each step of that path should live", "place"]],
+    sdlc: [["to know whether a ticket is ready", "ticket"], ["to have a ticket developed up to the PR", "dev"], ["to write the tests that come from the criteria", "qa"], ["to check a change from the security angle", "secu"], ["to have a PR reviewed", "review"], ["to prepare a delivery", "ship"], ["to investigate an incident", "run"]]
+  };
+
+  var byId = {};
+  NODES.forEach(function (n) { if (!n.slug) n.slug = n.name; byId[n.id] = n; });
+  var state = { selected: null, tour: null };
+  var $ = function (s) { return document.querySelector(s); };
+  var map = $("#mapArea"), panel = $("#panel"), edgeLayer = $("#edgeLayer"), labels = $("#labels"), svg = $("#edges");
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]; }); }
+  var t = esc;
+  function famVars(f) { return "--fam: var(--" + f + "); --fam-soft: var(--" + f + "-soft);"; }
+
+  // Nodes
+  NODES.forEach(function (n) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "node" + (n.gate ? " gate" : "");
+    b.id = "n-" + n.id;
+    b.dataset.id = n.id;
+    var lvl = n.level ? "<em>level " + n.level + "+</em>" : "";
+    b.innerHTML = '<span class="nn">' + esc(n.name) + lvl + '</span><span class="ns">' + t(n.short) + "</span>";
+    b.setAttribute("aria-label", n.name + ": " + n.short);
+    b.addEventListener("click", function () { select(n.id, { manual: true }); });
+    document.querySelector('.zgrid[data-zone="' + n.fam + '"]').appendChild(b);
+  });
+  var backNote = document.createElement("p");
+  backNote.className = "note";
+  backNote.textContent = "This skill does not ship in the plugins: it lives in .claude/skills of this repository and serves its maintainers. It evaluates all the other skills.";
+  document.querySelector('.zgrid[data-zone="back"]').appendChild(backNote);
+
+  // Connections
+  function linksOf(id) {
+    var inc = [], out = [];
+    EDGES.forEach(function (e) {
+      if (e[1] === id) inc.push(e);
+      if (e[0] === id) out.push(e);
+    });
+    return { inc: inc, out: out };
+  }
+  function linkedSet(id) {
+    var s = {};
+    if (!id) return s;
+    if (id === "stress") { NODES.forEach(function (n) { if (!n.gate && n.id !== "stress") s[n.id] = 1; }); return s; }
+    EDGES.forEach(function (e) {
+      if (e[0] === id) s[e[1]] = 1;
+      if (e[1] === id) s[e[0]] = 1;
+    });
+    return s;
+  }
+  function tourPathEdges() {
+    var keys = {};
+    if (!state.tour) return keys;
+    var st = TOURS[state.tour.id].steps;
+    for (var i = 1; i <= state.tour.i; i++) keys[st[i - 1][0] + ">" + st[i][0]] = 1;
+    return keys;
+  }
+
+  // Edges
+  function rectOf(el, mr) {
+    var r = el.getBoundingClientRect();
+    return { cx: r.left - mr.left + r.width / 2, cy: r.top - mr.top + r.height / 2, hw: r.width / 2, hh: r.height / 2 };
+  }
+  function clip(r, tx, ty, pad) {
+    var dx = tx - r.cx, dy = ty - r.cy;
+    if (dx === 0 && dy === 0) return { x: r.cx, y: r.cy };
+    var k = Math.min(dx !== 0 ? r.hw / Math.abs(dx) : Infinity, dy !== 0 ? r.hh / Math.abs(dy) : Infinity);
+    var len = Math.sqrt(dx * dx + dy * dy);
+    return { x: r.cx + dx * k + (dx / len) * pad, y: r.cy + dy * k + (dy / len) * pad };
+  }
+  var raf = 0;
+  function scheduleDraw() { cancelAnimationFrame(raf); raf = requestAnimationFrame(draw); }
+  function draw() {
+    edgeLayer.textContent = "";
+    labels.textContent = "";
+    if (getComputedStyle(svg).display === "none") return;
+    var mr = map.getBoundingClientRect();
+    svg.setAttribute("width", mr.width);
+    svg.setAttribute("height", mr.height);
+    svg.setAttribute("viewBox", "0 0 " + mr.width + " " + mr.height);
+    var sel = state.selected;
+    var tourKeys = tourPathEdges();
+    var ns = "http://www.w3.org/2000/svg";
+    var drawn = [];
+    EDGES.forEach(function (e) {
+      var o = e[3];
+      if (o.h) return;
+      var key = e[0] + ">" + e[1];
+      var touches = sel && (e[0] === sel || e[1] === sel);
+      var inTour = !!tourKeys[key];
+      var on = state.tour ? (inTour || touches) : touches;
+      if (o.x && !on) return;
+      var a = document.getElementById("n-" + e[0]), b = document.getElementById("n-" + e[1]);
+      var ra = rectOf(a, mr), rb = rectOf(b, mr);
+      var mx = (ra.cx + rb.cx) / 2, my = (ra.cy + rb.cy) / 2;
+      var dx = rb.cx - ra.cx, dy = rb.cy - ra.cy, len = Math.sqrt(dx * dx + dy * dy) || 1;
+      var bend = o.b || 0;
+      var cx = mx + (-dy / len) * bend * len, cy = my + (dx / len) * bend * len;
+      var p0 = clip(ra, cx, cy, 3), p2 = clip(rb, cx, cy, 5);
+      var path = document.createElementNS(ns, "path");
+      path.setAttribute("d", "M" + p0.x.toFixed(1) + "," + p0.y.toFixed(1) + " Q" + cx.toFixed(1) + "," + cy.toFixed(1) + " " + p2.x.toFixed(1) + "," + p2.y.toFixed(1));
+      var dim = (sel || state.tour) && !on;
+      path.setAttribute("class", "edge" + (on ? " on" : "") + (dim ? " dim" : "") + (o.x ? " cross" : ""));
+      path.setAttribute("marker-end", on ? "url(#arr-on)" : "url(#arr)");
+      drawn.push({ el: path, on: on });
+      if (on && touches) {
+        var lx = 0.25 * p0.x + 0.5 * cx + 0.25 * p2.x, ly = 0.25 * p0.y + 0.5 * cy + 0.25 * p2.y;
+        var d = document.createElement("div");
+        d.className = "elabel";
+        d.style.left = lx + "px";
+        d.style.top = ly + "px";
+        d.textContent = e[2];
+        labels.appendChild(d);
+        var lr = d.getBoundingClientRect();
+        var hit = NODES.some(function (nd) {
+          var r = document.getElementById("n-" + nd.id).getBoundingClientRect();
+          return lr.left < r.right - 2 && lr.right > r.left + 2 && lr.top < r.bottom - 2 && lr.bottom > r.top + 2;
+        }) || Array.prototype.some.call(labels.children, function (other) {
+          if (other === d) return false;
+          var r = other.getBoundingClientRect();
+          return lr.left < r.right && lr.right > r.left && lr.top < r.bottom && lr.bottom > r.top;
+        });
+        if (hit) labels.removeChild(d);
+      }
+    });
+    drawn.sort(function (p, q) { return (p.on ? 1 : 0) - (q.on ? 1 : 0); }).forEach(function (d) { edgeLayer.appendChild(d.el); });
+  }
+
+  // Node states
+  function paintNodes() {
+    var sel = state.selected, linked = linkedSet(sel);
+    var visited = {};
+    if (state.tour) TOURS[state.tour.id].steps.slice(0, state.tour.i).forEach(function (s) { visited[s[0]] = 1; });
+    NODES.forEach(function (n) {
+      var el = document.getElementById("n-" + n.id);
+      var isSel = n.id === sel;
+      var isLinked = !!linked[n.id];
+      var isVisited = !!visited[n.id] && !isSel;
+      el.classList.toggle("is-selected", isSel);
+      el.classList.toggle("is-linked", isLinked && !isSel);
+      el.classList.toggle("is-visited", isVisited);
+      el.classList.toggle("is-dim", !!sel && !isSel && !isLinked && !isVisited);
+      el.setAttribute("aria-pressed", isSel ? "true" : "false");
+    });
+  }
+
+  // Panel
+  function chip(id, attr) {
+    var n = byId[id];
+    return '<button type="button" class="chip ' + (n.gate ? "gate" : n.fam) + '" ' + (attr || "data-go") + '="' + n.id + '">' + esc(n.name) + "</button>";
+  }
+  function renderDefault() {
+    panel.style.cssText = famVars("repo");
+    var html = '<div class="fam">How to read the map</div>';
+    html += "<p>Click a skill on the map: its goal, when to call it, what it produces, what it never does, the command that guarantees it, and its neighbours.</p>";
+    html += '<div class="legend">';
+    [["repo", "One repository's harness", "6 skills: set up, move forward, learn, audit, place, measure."], ["flow", "The team workflow", "3 skills: decide whether a tool is needed, write the path down, place each step. Nothing runs."], ["sdlc", "From ticket to production", "7 skills, one phase each, from a ready ticket to an incident."], ["back", "Behind the scenes", "1 skill that evaluates the others, blind."]].forEach(function (r) {
+      html += '<div class="row"><span class="sw" style="background: var(--' + r[0] + '-soft); outline: 1.5px solid var(--' + r[0] + ');"></span><span><b>' + t(r[1]) + "</b><br>" + t(r[2]) + "</span></div>";
+    });
+    html += '<div class="row"><span class="sw" style="border: 1.5px dashed var(--muted);"></span><span>A step that is not a skill: the CI, production, the guardrail.</span></div>';
+    html += '<div class="row"><svg width="22" height="14" aria-hidden="true"><line x1="1" y1="7" x2="21" y2="7" stroke="var(--edge)" stroke-width="1.5"></line></svg><span>A handover: one skill leads to the other.</span></div>';
+    html += '<div class="row"><svg width="22" height="14" aria-hidden="true"><line x1="1" y1="7" x2="21" y2="7" stroke="var(--edge-on)" stroke-width="2" stroke-dasharray="5 4"></line></svg><span>A link across families, shown when one of the two is selected.</span></div>';
+    html += "</div>";
+    html += '<p class="note">On a small screen the arrows disappear: each skill\'s neighbours stay listed here.</p>';
+    panel.innerHTML = html;
+  }
+  function renderPanel(id) {
+    var n = byId[id];
+    if (!n) { renderDefault(); return; }
+    panel.style.cssText = n.gate ? "--fam: var(--muted); --fam-soft: var(--sunken);" : famVars(n.fam);
+    var f = FAM[n.fam];
+    var html = '<div class="fam"><i></i><span>' + (n.gate ? "A step that is not a skill" : esc(f.label) + ' · <span style="white-space: nowrap;">' + esc(f.plugin) + "</span>") + "</span></div>";
+    html += "<h3>" + esc(n.name) + "</h3>";
+    html += '<div class="ttl">' + t(n.title) + "</div>";
+    var meta = "";
+    if (n.state === "measured") meta += '<span class="pill measured">' + t(n.stateText) + "</span>";
+    else if (n.stateText) meta += '<span class="pill">' + t(n.stateText) + "</span>";
+    if (n.level) meta += '<span class="pill level">Asks for a repository at level ' + n.level + " or above</span>";
+    if (meta) html += '<div class="meta">' + meta + "</div>";
+    html += "<div><h4>What it is for</h4><p>" + t(n.goal) + "</p></div>";
+    if (n.when && n.when.length) html += '<div><h4>Called when someone says</h4><div class="when">' + n.when.map(function (w) { return "<span>\"" + t(w) + "\"</span>"; }).join("") + "</div></div>";
+    if (n.does && n.does.length) html += "<div><h4>" + (n.gate ? "In detail" : "What it does") + "</h4><" + (n.gate ? "ul" : "ol") + ">" + n.does.map(function (d) { return "<li>" + t(d) + "</li>"; }).join("") + "</" + (n.gate ? "ul" : "ol") + "></div>";
+    if (n.produces) html += "<div><h4>What it produces</h4><p>" + t(n.produces) + "</p></div>";
+    if (n.never) html += '<div class="never"><h4>What it never does</h4><p>' + t(n.never) + "</p></div>";
+    if (n.cli && n.cli.length) html += '<div class="cli"><h4>The command that guarantees (L3)</h4>' + n.cli.map(function (c) { return "<code>" + esc(c) + "</code>"; }).join("") + "</div>";
+    if (n.invoke) html += "<div><h4>Direct call</h4><p><code>" + esc(n.invoke) + "</code></p></div>";
+    var l = linksOf(id);
+    if (l.inc.length || l.out.length) {
+      html += '<div class="links">';
+      if (l.inc.length) { html += "<h4>It comes after</h4>"; l.inc.forEach(function (e) { html += '<div class="lk">' + chip(e[0]) + "<span>" + t(e[2]) + "</span></div>"; }); }
+      if (l.out.length) { html += "<h4>It leads to</h4>"; l.out.forEach(function (e) { html += '<div class="lk">' + chip(e[1]) + "<span>" + t(e[2]) + "</span></div>"; }); }
+      html += "</div>";
+    }
+    if (id === "stress") html += '<div class="links"><h4>It evaluates</h4><div class="chips">' + NODES.filter(function (x) { return !x.gate && x.id !== "stress"; }).map(function (x) { return chip(x.id); }).join("") + "</div></div>";
+    panel.innerHTML = html;
+  }
+  panel.addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-go]");
+    if (b) select(b.dataset.go, { manual: true, focusNode: true });
+  });
+
+  // Walkthrough bar
+  function renderTour() {
+    var bar = $("#tourbar");
+    document.querySelectorAll("[data-tour]").forEach(function (b) { b.setAttribute("aria-pressed", state.tour && state.tour.id === b.dataset.tour ? "true" : "false"); });
+    if (!state.tour) { bar.hidden = true; bar.textContent = ""; return; }
+    var T = TOURS[state.tour.id], i = state.tour.i, st = T.steps[i];
+    var prog = T.steps.map(function (_, k) { return "<i" + (k <= i ? ' class="done"' : "") + "></i>"; }).join("");
+    var last = i === T.steps.length - 1;
+    bar.hidden = false;
+    bar.innerHTML = '<div class="tt"><b>' + t(T.title) + "</b><span>step " + (i + 1) + " of " + T.steps.length + " · " + esc(byId[st[0]].name) + '</span></div><div class="progress" aria-hidden="true">' + prog + "</div><p>" + t(st[1]) + '</p><div class="tnav"><button type="button" class="btn" id="tPrev"' + (i === 0 ? " disabled" : "") + '>Previous</button><button type="button" class="btn" id="tNext" aria-pressed="' + (last ? "false" : "true") + '">' + (last ? "Finish" : "Next") + '</button><button type="button" class="btn ghost" id="tStop">Leave the walkthrough</button></div>';
+    $("#tPrev").onclick = function () { goTour(i - 1); };
+    $("#tNext").onclick = function () { if (!last) goTour(i + 1); else stopTour(); };
+    $("#tStop").onclick = stopTour;
+  }
+  function goTour(i) {
+    state.tour.i = i;
+    state.selected = TOURS[state.tour.id].steps[i][0];
+    update();
+  }
+  function startTour(id) {
+    state.tour = { id: id, i: 0 };
+    state.selected = TOURS[id].steps[0][0];
+    update();
+  }
+  function stopTour() { state.tour = null; update(); }
+
+  // Selection
+  function setHash(slug) {
+    try { history.replaceState(null, "", slug ? "#" + slug : location.pathname + location.search); } catch (e) { /* the frame may refuse it */ }
+  }
+  function reduced() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches; }
+  function select(id, opts) {
+    opts = opts || {};
+    if (opts.manual && state.tour) {
+      var steps = TOURS[state.tour.id].steps, k = -1;
+      steps.forEach(function (s, j) { if (s[0] === id && k < 0 && j >= state.tour.i) k = j; });
+      if (k < 0) steps.forEach(function (s, j) { if (s[0] === id && k < 0) k = j; });
+      if (k >= 0) { goTour(k); return; }
+      state.tour = null;
+    }
+    state.selected = (state.selected === id && opts.manual && !opts.focusNode) ? null : id;
+    update();
+    if (state.selected && opts.manual && window.matchMedia("(max-width: 1079px)").matches) {
+      panel.scrollIntoView({ block: "start", behavior: reduced() ? "auto" : "smooth" });
+    }
+  }
+  function update() {
+    paintNodes();
+    renderPanel(state.selected);
+    renderTour();
+    scheduleDraw();
+    setHash(state.selected ? byId[state.selected].slug : "");
+  }
+
+  document.querySelectorAll("[data-tour]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      if (state.tour && state.tour.id === b.dataset.tour) stopTour(); else startTour(b.dataset.tour);
+    });
+  });
+  $("#clearSel").addEventListener("click", function () { state.tour = null; state.selected = null; update(); });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && (state.selected || state.tour)) { state.tour = null; state.selected = null; update(); }
+  });
+
+  function goToMap(id) {
+    state.tour = null;
+    state.selected = id;
+    update();
+    $("#map").scrollIntoView({ block: "start", behavior: reduced() ? "auto" : "smooth" });
+  }
+
+  // Levels
+  var ladder = $("#ladder"), levelSel = 1;
+  function renderLadder() {
+    ladder.innerHTML = LEVELS.map(function (L) {
+      return '<button type="button" class="rung" data-level="' + L.n + '" aria-pressed="' + (L.n === levelSel) + '"><span class="num">level ' + L.n + '</span><span class="nm">' + esc(L.name) + '</span><span class="md"><span class="dot ' + L.medal + '"></span><span class="t">' + esc(L.medalName) + "</span></span></button>";
+    }).join("");
+    var L = LEVELS[levelSel];
+    var html = '<div><span class="eyebrow">Level ' + L.n + " · " + esc(L.medalName) + "</span><h3>" + esc(L.name) + "</h3></div><dl>";
+    html += "<dt>What it brings</dt><dd>" + t(L.brings) + "</dd>";
+    html += "<dt>What it asks of the team</dt><dd>" + t(L.asks) + "</dd>";
+    html += "<dt>How it is measured</dt><dd>" + t(L.measured) + "</dd>";
+    html += "<dt>The skills that lead there</dt><dd>" + (L.skills.length ? '<div class="chips">' + L.skills.map(function (s) { return chip(s, "data-map"); }).join("") + "</div>" : '<span class="empty">The starting point.</span>') + "</dd>";
+    html += "<dt>ai-sdlc phases that ask for it</dt><dd>" + (L.unlocks.length ? '<div class="chips">' + L.unlocks.map(function (s) { return chip(s, "data-map"); }).join("") + '</div><p class="note">A level not reached is reported, not blocking: the phase still runs, says so at the top of its result, and that result is to be taken as a trial.</p>' : '<span class="empty">None.</span>') + "</dd>";
+    html += "</dl>";
+    $("#levelCard").innerHTML = html;
+  }
+  ladder.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-level]");
+    if (b) { levelSel = +b.dataset.level; renderLadder(); }
+  });
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-map]");
+    if (b) goToMap(b.dataset.map);
+  });
+
+  // Index
+  $("#index").innerHTML = ["repo", "flow", "sdlc"].map(function (f) {
+    return '<div class="grp"><h3><i style="background: var(--' + f + ');"></i>' + esc(FAM[f].label) + "</h3>" + WANTS[f].map(function (w) {
+      return '<button type="button" class="want" data-map="' + w[1] + '"><span class="wt">' + t(w[0]) + '</span><code style="color: var(--' + f + ');">' + esc(byId[w[1]].name) + "</code></button>";
+    }).join("") + "</div>";
+  }).join("");
+
+  // Proof
+  var skills = NODES.filter(function (n) { return !n.gate && n.state !== "internal"; });
+  var measured = skills.filter(function (n) { return n.state === "measured"; });
+  var tooled = skills.filter(function (n) { return n.state === "tooled"; });
+  function chips(list) { return '<div class="chips">' + list.map(function (n) { return chip(n.id, "data-map"); }).join("") + "</div>"; }
+  $("#proofList").innerHTML =
+    "<div><b>Tooled <span>" + tooled.length + " skills</span></b><p>The mechanism exists and its code is tested. No agent has played the skill blind yet.</p>" + chips(tooled) + "</div>" +
+    "<div><b>Measured <span>" + measured.length + " skills</span></b><p>An agent that never saw the answer key played the skill, and a program graded the result.</p>" + chips(measured) + "</div>" +
+    '<div><b>Proven <span>0</span></b><p>The measurement shows a gain on a real repository.</p><p class="empty">Nothing is proven today: what the project measures is that its mechanisms work on sample projects.</p></div>';
+
+  // Hash routing
+  function fromHash(initial) {
+    var h = (location.hash || "").replace(/^#/, "");
+    var n = NODES.filter(function (x) { return x.slug === h; })[0];
+    if (n) {
+      state.tour = null;
+      state.selected = n.id;
+      update();
+      if (initial) $("#map").scrollIntoView({ block: "start" });
+    }
+  }
+  window.addEventListener("hashchange", function () { fromHash(false); });
+
+  renderLadder();
+  renderDefault();
+  paintNodes();
+  fromHash(true);
+  scheduleDraw();
+  if (window.ResizeObserver) new ResizeObserver(scheduleDraw).observe(map);
+  window.addEventListener("resize", scheduleDraw);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(scheduleDraw);
+})();
+</script>

@@ -297,7 +297,7 @@ Both suites pass on a fresh clone, from Python 3.10 to 3.14. The repository's ru
 | `plugins/ai-sdlc/` | The second plugin: skills `ticket`, `dev`, `qa`, `secu`, `review`, `ship` and `run`, and its CLI |
 | `fixtures/` | Sample projects, trapped cases, answer keys, recorded runs |
 | `app/` | The progress page served by `harness serve` |
-| `docs/` | What the repository can do ([capabilities.md](docs/capabilities.md)), the requirements, the maturity model, the study and an [interactive course](docs/ai-sdlc/course/index.html) |
+| `docs/` | What the repository can do ([capabilities.md](docs/capabilities.md)), the requirements, the maturity model, the study, an [interactive course](docs/ai-sdlc/course/index.html) and an [interactive map of the skills](docs/skills-map/index.html) |
 | `.harness/` | This repository's state, measured by itself |
 
 ## Licence
