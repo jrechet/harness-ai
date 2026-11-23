@@ -42,7 +42,7 @@ THEMES = {
 
 MOTION = """
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; } }
-  .rise { opacity: 0; animation: rise .7s cubic-bezier(.16,1,.3,1) forwards; }
+  .rise { animation: rise .7s cubic-bezier(.16,1,.3,1) backwards; }
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 """
 
@@ -79,7 +79,7 @@ def hero(c):
          '</g>',
          f'<rect x=".5" y=".5" width="{w - 1}" height="{h - 1}" rx="18" fill="none" stroke="{c["rule"]}"/>']
     x = 64
-    b.append(f'<g {delay(0)}>' + t(x, 78, "CLAUDE CODE PLUGIN MARKETPLACE  ·  ZERO-DEPENDENCY PYTHON CLI", 13, c["muted"], MONO,
+    b.append(f'<g {delay(0)}>' + t(x, 78, "CLAUDE CODE PLUGIN MARKETPLACE  ·  ZERO-DEPENDENCY PYTHON CLI", 14, c["muted"], MONO,
                                     extra='letter-spacing="1.6"') + '</g>')
     b.append(f'<g {delay(1)}><text x="{x - 4}" y="168" font-family="{MONO}" font-size="92" font-weight="500" '
              f'fill="{c["ink"]}" letter-spacing="-2">harness-ai<tspan class="cursor" fill="{c["accent"]}">_</tspan></text></g>')
@@ -96,7 +96,7 @@ def hero(c):
                  + t(cx + width / 2, 358, label, 17, ink, HEAD, 600, "middle") + '</g>')
         cx += width + 10
     stats = "2 plugins  ·  16 skills  ·  5 levels  ·  2 tested CLIs  ·  0 dependencies"
-    b.append(f'<g {delay(6)}>' + t(x, 404, stats, 14, c["muted"], MONO) + '</g>')
+    b.append(f'<g {delay(6)}>' + t(x, 406, stats, 15, c["muted"], MONO) + '</g>')
 
     # terminal card: real output of `harness.py status . --map` on this repository, lines shortened with …
     tx, ty, tw, th = 700, 92, 520, 288
@@ -159,15 +159,15 @@ def layers(c):
         b.append(f'<g {delay(i, 0.15)}>')
         b.append(f'<rect x="{inset}" y="{y}" width="{w - 2 * inset}" height="{bh}" rx="12" fill="{fill}"/>')
         b.append(t(inset + 32, y + 44, name, 26, ink, HEAD, 600))
-        b.append(t(inset + 32, y + 68, sub, 13, ink, MONO, extra='opacity=".8" letter-spacing=".4"'))
-        b.append(t(inset + 340, y + 54, role, 19, ink))
+        b.append(t(inset + 32, y + 70, sub, 15, ink, MONO, extra='opacity=".8" letter-spacing=".4"'))
+        b.append(t(inset + 340, y + 54, role, 20, ink))
         b.append(f'<rect x="{w - inset - 316}" y="{y + 30}" width="292" height="32" rx="7" fill="{ink}" opacity=".09"/>')
-        b.append(t(w - inset - 170, y + 51, carried, 14, ink, MONO, 500, "middle"))
+        b.append(t(w - inset - 170, y + 52, carried, 15, ink, MONO, 500, "middle"))
         b.append('</g>')
         if i < len(gaps):
             gy = y + bh + gap / 2
             b.append(f'<g {delay(i + 0.5, 0.15)}><path d="M120 {gy - 12}v20m-6-7l6 7 6-7" fill="none" stroke="{c["muted"]}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>'
-                     + t(140, gy + 5, gaps[i], 14, c["muted"], MONO) + '</g>')
+                     + t(140, gy + 6, gaps[i], 16, c["muted"], MONO) + '</g>')
     return svg(w, h, "Four layers",
                "L1 Judgment, the agent: choose between open options and talk with the human. L2 Procedure, the prompt "
                "explains: skills and AGENTS.md. L3 Local logic, the code checks: tested CLI, linters, architecture tests. "
@@ -202,7 +202,7 @@ def levels(c):
          f'<rect x=".5" y=".5" width="{w - 1}" height="{h - 1}" rx="18" fill="none" stroke="{c["rule"]}"/>']
     base, cw, gap, x0 = 488, 224, 18, 40
     tops = [290, 240, 190, 140, 90]
-    b.append(t(x0, 52, "EVERY LEVEL IS MEASURED IN THE REPOSITORY, NEVER DECLARED  ·  AND EVERY LEVEL IS A PLACE YOU CAN STAY", 13,
+    b.append(t(x0, 52, "EVERY LEVEL IS MEASURED, NEVER DECLARED  ·  EVERY LEVEL IS A PLACE YOU CAN STAY", 15,
                c["muted"], MONO, extra='letter-spacing="1.2"'))
     for i, (n, name, kind, label, earn) in enumerate(steps):
         x, top = x0 + i * (cw + gap), tops[i]
@@ -214,12 +214,12 @@ def levels(c):
         b.append(f'<rect x="{x}" y="{top}" width="{cw}" height="{base - top}" rx="12" fill="{c["surface"]}" stroke="{c["rule"]}"/>')
         b.append(f'<rect x="{x}" y="{top}" width="{cw}" height="{base - top}" rx="12" fill="url(#{gid})"/>')
         b.append(f'<rect x="{x}" y="{top}" width="{cw}" height="5" rx="2.5" fill="{col}"/>')
-        b.append(t(x + 20, top + 36, f"level {n}", 13, c["muted"], MONO))
+        b.append(t(x + 20, top + 36, f"level {n}", 15, c["muted"], MONO))
         b.append(medal(c, x + cw - 42, top + 50, kind, 20, i))
         b.append(t(x + 20, top + 88, name, 27, c["ink"], HEAD, 600))
-        b.append(t(x + 20, top + 112, label, 13, col, MONO, 600, extra='letter-spacing=".6"'))
+        b.append(t(x + 20, top + 114, label, 15, col, MONO, 600, extra='letter-spacing=".6"'))
         for j, line in enumerate(earn):
-            b.append(t(x + 20, top + 144 + j * 21, line, 15, c["ink"]))
+            b.append(t(x + 20, top + 148 + j * 23, line, 16, c["ink"]))
         b.append('</g>')
     # rising arrow over the tops
     pts = " ".join(f"{x0 + i * (cw + gap) + cw / 2},{tops[i] - 22}" for i in range(5))
@@ -253,12 +253,12 @@ def sdlc(c):
                t(x + 18, y + 34, name, 20, c["sdlc"], MONO, 600)]
         if level:
             out.append(f'<rect x="{x + cw - 86}" y="{y + 17}" width="70" height="24" rx="12" fill="{c["sdlc"]}" opacity=".14"/>')
-            out.append(t(x + cw - 51, y + 34, level, 12, c["sdlc"], MONO, 600, "middle"))
+            out.append(t(x + cw - 51, y + 34, level, 13, c["sdlc"], MONO, 600, "middle"))
         for j, line in enumerate(does):
-            out.append(t(x + 18, y + 64 + j * 21, line, 15, c["ink"]))
+            out.append(t(x + 18, y + 64 + j * 21, line, 16, c["ink"]))
         out.append(f'<line x1="{x + 18}" x2="{x + cw - 18}" y1="{y + 106}" y2="{y + 106}" stroke="{c["sdlc_edge"]}" stroke-dasharray="3 4"/>')
         for j, line in enumerate(never):
-            out.append(t(x + 18, y + 128 + j * 19, line, 13.5, c["never"], SANS, 500, extra='font-style="italic"'))
+            out.append(t(x + 18, y + 128 + j * 19, line, 14.5, c["never"], SANS, 500, extra='font-style="italic"'))
         out.append('</g>')
         return out
 
@@ -287,7 +287,7 @@ def sdlc(c):
             out.append(f'<rect x="{x}" y="{y}" width="{cw}" height="{ch}" rx="12" fill="{c["sunken"]}" stroke="{c["muted"]}" stroke-width="1.5" stroke-dasharray="6 5"/>')
             out.append(t(x + 18, y + 36, title, 19, c["ink"], MONO, 600))
         for j, line in enumerate(lines):
-            out.append(t(x + 18, y + 74 + j * 21, line, 15, c["ink"]))
+            out.append(t(x + 18, y + 74 + j * 21, line, 16, c["ink"]))
         out.append('</g>')
         return out
 
@@ -317,9 +317,9 @@ def sdlc(c):
     b.append(f'<path class="shield" d="M{sx} {sy - 30}l26 10v18c0 18-11 30-26 36c-15-6-26-18-26-36v-18z" fill="{c["guard_acc"]}"/>'
              f'<path d="M{sx - 10} {sy + 2}l7 7l14-15" fill="none" stroke="{c["guard"]}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>')
     b.append(t(124, gy + 44, "An agent does not deliver.", 24, c["guard_ink"], HEAD, 600))
-    b.append(t(124, gy + 74, "A hook reads every shell command of the agent before it runs, and refuses tag, release,", 16, c["guard_ink"],
+    b.append(t(124, gy + 74, "A hook reads every shell command of the agent before it runs, and refuses tag, release,", 17, c["guard_ink"],
                extra='opacity=".88"'))
-    b.append(t(124, gy + 96, "workflow run, publish and deploy. A barrier against accidents and smuggled instructions, not a sandbox.", 16,
+    b.append(t(124, gy + 96, "workflow run, publish and deploy. Against accidents and smuggled instructions; not a sandbox.", 17,
                c["guard_ink"], extra='opacity=".88"'))
     b.append('</g>')
     style = """
