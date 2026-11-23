@@ -1,0 +1,9 @@
+{"about": "As person-merges-then-pipeline-deploys, and the team says it can take a merge back, not a deploy (\"irreversible\": [\"deployed\"]). The person's merge is still their decision on what follows: saying the merge is less dangerous never turns a flow that holds into one refused.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.human_review", "states.rework", "states.merge_auth", "states.merging.checks_premise", "states.merging.survives", "states.merging.units", "states.merging.repositories"],
+ "set": {"stop_at": "deployed", "irreversible": ["deployed"],
+         "states.mark_ready.on.marked_ready": {"to": "merging", "reaches": "ready_pr"},
+         "states.merging.type": "human", "states.merging.deadline_hours": 1},
+ "check": [],
+ "bounds": {"irreversible": ["deployed"], "taken_back": ["plan", "draft_pr", "ready_pr", "merged"],
+            "guards": [{"state": "delivery", "event": "deployed", "last_gate": "merging", "steps_between": 0, "agents_between": 0}]}}

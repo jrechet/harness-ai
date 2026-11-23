@@ -1,0 +1,5 @@
+{"about": "The review retyped as a person's work: the person makes the write, so nothing is refused, and no gate is asked.",
+ "definition": "definitions/bug.json",
+ "set": {"states.human_review.type": "human"},
+ "check": [],
+ "bounds": {"guards": [{"state": "human_review", "event": "merged_by_human", "last_gate": null, "steps_between": null, "agents_between": null}]}}

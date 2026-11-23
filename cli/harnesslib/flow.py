@@ -28,6 +28,8 @@ import sys
 from decimal import ROUND_CEILING, Decimal, DecimalException
 from typing import Any
 
+from . import flow_read
+
 TEMPLATE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "flow_templates")
 STEP_TYPES = ("code", "agent", "human", "gate", "wait")
 ENDED = ("done", "stopped")
@@ -94,12 +96,15 @@ def _show(number: Any) -> str:
 
 
 def load_definition(path: str) -> Any:
-    """The parsed JSON value, whatever it is. Raises ValueError only if the file is missing or is not JSON."""
+    """The parsed JSON value, whatever it is. Raises ValueError only if the file is missing, is not JSON,
+    or writes a key twice in one object."""
     try:
         with open(path, encoding="utf-8") as fh:
-            return json.load(fh)
+            return json.load(fh, object_pairs_hook=flow_read.once)
     except OSError as exc:
         raise ValueError(f"{path}: the file cannot be read ({exc.strerror or exc})") from exc
+    except flow_read.KeyWrittenTwice as exc:
+        raise ValueError(f"{path}: {exc}") from exc
     except (ValueError, RecursionError) as exc:
         raise ValueError(f"{path}: the file is not JSON ({exc})") from exc
 
@@ -274,7 +279,7 @@ def _malformed_state(name: Any, state: Any, states: dict, reachable: set) -> lis
 def _malformed_problems(definition: Any) -> list[dict[str, str]]:
     if not isinstance(definition, dict):
         return [_malformed("", "it is not a JSON object")]
-    out = _malformed_top(definition)
+    out = _malformed_top(definition) + _module("flow_paths").malformed_irreversible(definition)
     states = definition.get("states")
     if isinstance(states, dict):
         reachable = _reachable(definition.get("start"), states)
@@ -457,7 +462,7 @@ def check(definition: Any) -> list[dict[str, str]]:
     states = definition["states"]
     return (_unknown_types(states) + _loops_without_cap(definition, states) + _writes_without_key(states)
             + _stop_and_budget(definition, states) + _premise_checks(states)
-            + _waits_and_gates(states, _live(definition)))
+            + _waits_and_gates(states, _live(definition)) + _module("flow_paths").unguarded(definition))
 
 
 # ---------------------------------------------------------------- flow next
@@ -734,9 +739,9 @@ def _placement_module() -> Any:
     return _module("flow_place")
 
 
-def status(definition: Any, placement: Any = None) -> dict[str, Any]:
+def status(definition: Any, placement: Any = None, measured: Any = None) -> dict[str, Any]:
     """Where a flow stands on the ladder. This version measures level 1, Mapped, from the file alone."""
-    return _module("flow_status").status(definition, placement)
+    return _module("flow_status").status(definition, placement, measured)
 
 
 def render_map(state: dict[str, Any]) -> str:

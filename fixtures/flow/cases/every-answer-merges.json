@@ -1,0 +1,10 @@
+{"about": "Every answer of the only gate merges: the refusal of the merge authorisation leads to a copy of the merge step, which merges and delivers too. A gate guards a stop point, not one transition: one that cannot keep the run from every write of it guards nothing, so the four writes are refused.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.human_review", "states.rework"],
+ "set": {"stop_at": "deployed",
+         "states.mark_ready.on.marked_ready": {"to": "merge_auth", "reaches": "ready_pr"},
+         "states.merge_auth.on": {"merge_authorised": {"to": "merging"}, "merge_refused": {"to": "merging_b"}},
+         "states.merging_b": {"type": "code", "does": "Checks the pull request is still the one approved, then puts it in the merge queue", "checks_premise": true, "survives": "restart", "units": "one", "repositories": "one", "writes": [{"what": "the merge", "key": "merge-{ticket}"}], "on": {"merged": {"to": "delivery_b", "reaches": "merged"}, "head_moved": {"to": "stopped", "reason": "head_moved"}, "merge_failed": {"to": "stopped", "reason": "merge_failed"}}},
+         "states.delivery_b": {"type": "wait", "does": "Waits for the team's normal delivery pipeline, behind its protected environment", "deadline_hours": 168, "on": {"deployed": {"to": "closing", "reaches": "deployed"}, "deploy_failed": {"to": "stopped", "reason": "deploy_failed"}}}},
+ "check": [{"code": "irreversible_without_gate", "where": "states.merging.on.merged"}, {"code": "irreversible_without_gate", "where": "states.delivery.on.deployed"}, {"code": "irreversible_without_gate", "where": "states.merging_b.on.merged"}, {"code": "irreversible_without_gate", "where": "states.delivery_b.on.deployed"}],
+ "status": {"level": 0, "passed": {"definition_holds": false, "steps_placed": true, "stop_and_budget": true}}}

@@ -1,5 +1,5 @@
 {"about": "The reviewer is shown 'the diff', which no step writes: nobody could judge it.",
- "definition": "template:bug",
+ "definition": "definitions/bug.json",
  "set": {"states.human_review.shows": "the diff"},
  "check": [{"code": "gate_shows_nothing", "where": "states.human_review"}],
  "place": {"steps": {"human_review": "human_gate"}, "engine": [], "refused_gates": [], "open": [], "verdict": "no_engine", "passed": true},

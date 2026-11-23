@@ -17,7 +17,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import harness  # noqa: E402
-from harnesslib import flow, flow_place  # noqa: E402
+from harnesslib import flow, flow_paths, flow_place  # noqa: E402
+from tests import flow_fixture_files as files  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 FORMAT_PAGE = os.path.join(ROOT, "docs", "workflow-harness", "flow-format.md")
@@ -416,7 +417,9 @@ class OneCommandLeadsToTheNextTest(InAFolder):
         found = [block.find(f"flow {name}") for name in ("new", "check", "place", "status", "next")]
         self.assertNotIn(-1, found, f"a command is missing from the order of work: {found}")
         self.assertEqual(found, sorted(found))
-        self.assertIn("flow-format.md", out)
+        # Since section 12.4 the help names the pages by file name, never by a path from this repository.
+        self.assertIn("the page flow-format.md", out)
+        self.assertNotIn("docs/workflow-harness", out)
 
     def test_new_says_where_a_run_stops_what_is_not_run_and_what_to_do_next(self):
         code, out, err = call("new", "bug")
@@ -440,11 +443,13 @@ class OneCommandLeadsToTheNextTest(InAFolder):
         self.assertEqual(set(json.loads(out)), {"file", "definition"})
 
     def test_check_says_where_a_run_really_stops_and_what_comes_next(self):
+        # Since section 12.2 the answer is one line, then the figures that bound one run.
         call("new", "bug")
         path = os.path.join(".harness", "flow", "bug.json")
         code, out, err = call("check", path)
         self.assertEqual(code, 0)
-        self.assertEqual(len(out.splitlines()), 1)
+        self.assertEqual(out.splitlines()[1:], flow_paths.render_bounds(flow_paths.bounds(flow.new("bug"))).splitlines())
+        self.assertTrue(out.startswith("This flow holds: "), out)
         self.assertIn("after notify", err)
         self.assertIn("root_cause", err)
         self.assertIn("10 steps", err)
@@ -461,10 +466,12 @@ class OneCommandLeadsToTheNextTest(InAFolder):
     def test_check_with_json_prints_the_document_alone(self):
         code, out, err = call("check", self.write("flow.json", flow.new("bug")), "--format", "json")
         self.assertEqual((code, err), (0, ""))
-        self.assertEqual(json.loads(out), {"file": "flow.json", "passed": True, "problems": []})
+        self.assertEqual(json.loads(out), {"file": "flow.json", "passed": True, "problems": [],
+                                           "bounds": flow_paths.bounds(flow.new("bug"))})
 
     def test_place_says_when_flow_check_refuses_the_file(self):
-        definition = flow.new("feature")
+        # On the answered file since section 12.1: a fresh template leaves its gates open.
+        definition = files.answered_template("feature")
         del definition["states"]["plan_review"]["shows"]
         code, out, err = call("place", self.write("flow.json", definition))
         self.assertEqual(code, 0)
@@ -473,17 +480,22 @@ class OneCommandLeadsToTheNextTest(InAFolder):
         self.assertIn("provisional", err)
 
     def test_place_on_a_flow_that_holds_says_what_comes_next(self):
-        code, _, err = call("place", self.write("flow.json", flow.new("feature")))
+        # On the answered file since section 12.1; the fresh template is test_flow_waiting.py.
+        code, _, err = call("place", self.write("flow.json", files.answered_template("feature")))
         self.assertEqual(code, 0)
         self.assertIn("flow status flow.json --map", err)
         self.assertNotIn("provisional", err)
 
     def test_place_with_json_prints_the_document_alone(self):
-        code, _, err = call("place", self.write("flow.json", flow.new("feature")), "--format", "json")
+        # Since section 12.1 the fresh template exits 1: its approvals wait. Stderr stays empty either way.
+        code, _, err = call("place", self.write("flow.json", files.answered_template("feature")), "--format", "json")
         self.assertEqual((code, err), (0, ""))
+        code, _, err = call("place", self.write("fresh.json", flow.new("feature")), "--format", "json")
+        self.assertEqual((code, err), (1, ""))
 
     def test_status_at_level_one_says_how_to_try_the_flow_by_hand(self):
-        path = self.write("flow.json", flow.new("feature"))
+        # On the answered file since section 12.1: a fresh template is at level 0 until its judges answer.
+        path = self.write("flow.json", files.answered_template("feature"))
         for extra in ([], ["--map"]):
             with self.subTest(extra=extra):
                 code, out, err = call("status", path, *extra)

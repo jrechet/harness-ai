@@ -1,0 +1,94 @@
+{
+  "facts_date": "2026-11-21",
+  "entries": {
+    "agent_pass": {
+      "about": "One agent pass",
+      "figure": "near one dollar: Cloudflare's code review, mean $1.19 over 131,246 runs; Sentry's fix, $1.00 flat; GitHub's heavy runs, about $1.20",
+      "kind": "published",
+      "label": "[V] [V] [M]",
+      "where": "report §5.4; costs.md §1",
+      "found": {
+        "report.md": ["near one dollar", "$1.19", "131,246", "$1.00 flat", "$1.20"],
+        "costs.md": ["$1.19", "131,246", "$1.00 flat", "$1.20"]
+      }
+    },
+    "whole_ticket": {
+      "about": "One ticket from start to end",
+      "figure": null,
+      "kind": "none",
+      "label": null,
+      "where": "report §5.4; report §9.1, item 2",
+      "found": {}
+    },
+    "ticket_estimate": {
+      "about": "One ticket, estimated",
+      "figure": "$3 to $10 for a feature ticket, $1 to $3 for a simple bug fix",
+      "kind": "arithmetic",
+      "label": null,
+      "where": "report §5.4; costs.md §2",
+      "found": {
+        "report.md": ["$3 to $10", "$1 to $3"],
+        "costs.md": ["$3 to $10", "$1 to $3"]
+      }
+    },
+    "ci_minute": {
+      "about": "One CI minute",
+      "figure": "$0.006 on a GitHub Actions Linux runner with 2 cores",
+      "kind": "published",
+      "label": "[V]",
+      "where": "costs.md §1",
+      "found": {
+        "costs.md": ["$0.006", "2 cores"]
+      }
+    },
+    "engine_fee": {
+      "about": "The fee of a managed engine",
+      "figure": "about $50 per million actions on Temporal Cloud, with no base fee",
+      "kind": "published",
+      "label": "[V]",
+      "where": "report §3.5; costs.md §3",
+      "found": {
+        "report.md": ["$50 per million actions", "no base fee", "Temporal Cloud"],
+        "costs.md": ["$50 per million actions", "no base fee", "Temporal Cloud"]
+      }
+    },
+    "engine_workflow": {
+      "about": "Writing one workflow for an engine",
+      "figure": "\"1-2 days\" on average for a custom Temporal workflow at Duolingo",
+      "kind": "published",
+      "label": "[V, self-reported]",
+      "where": "report §5.2",
+      "found": {
+        "report.md": ["\"1-2 days\" on average", "custom Temporal workflow", "Duolingo"]
+      }
+    },
+    "engine_staffing": {
+      "about": "The people to host an engine yourself",
+      "figure": null,
+      "kind": "none",
+      "label": null,
+      "where": "report §3.5; report §9.1, item 5",
+      "found": {}
+    },
+    "this_tool": {
+      "about": null,
+      "figure": null,
+      "kind": "none",
+      "label": null,
+      "where": "report §8: the table gives no price",
+      "found": {}
+    }
+  },
+  "by_verdict": {
+    "by_hand": ["agent_pass", "whole_ticket", "ticket_estimate"],
+    "ticket_state_and_ci": ["agent_pass", "whole_ticket", "ticket_estimate", "ci_minute"],
+    "symptom": ["agent_pass", "whole_ticket", "ticket_estimate"],
+    "symptom_an_engine_removes": ["engine_fee", "engine_workflow", "engine_staffing"],
+    "tool": {
+      "own_agent_app": ["this_tool", "agent_pass"],
+      "agent_product": ["engine_fee", "engine_workflow", "engine_staffing"],
+      "many_repositories": ["this_tool", "agent_pass"],
+      "long_lived_orchestrator": ["this_tool"]
+    }
+  }
+}

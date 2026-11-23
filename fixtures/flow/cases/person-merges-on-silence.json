@@ -1,0 +1,7 @@
+{"about": "The review retyped as a person's work, and its deadline merging when nobody acted. Rule 1 reads a person's write as their decision; a human step left by deadline_passed is nobody's decision, so that transition is checked like any other: refused, no gate stands before it.",
+ "definition": "definitions/bug.json",
+ "remove": ["states.human_review.judge", "states.human_review.shows", "states.human_review.can_judge"],
+ "set": {"stop_at": "merged", "states.human_review.type": "human",
+         "states.human_review.on.deadline_passed": {"to": "closure_wait", "reaches": "merged"}},
+ "check": [{"code": "irreversible_without_gate", "where": "states.human_review.on.deadline_passed"}],
+ "status": {"level": 0, "passed": {"definition_holds": false, "steps_placed": true, "stop_and_budget": true}}}

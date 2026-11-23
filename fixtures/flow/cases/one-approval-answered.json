@@ -1,0 +1,6 @@
+{"about": "The feature template with only the plan review answered: the two other approvals still wait, in file order, so the flow stays at level 0 although the file holds.",
+ "definition": "template:feature",
+ "set": {"states.plan_review.can_judge": "yes"},
+ "check": [],
+ "waiting": ["human_review", "merge_auth"],
+ "status": {"level": 0, "passed": {"definition_holds": true, "steps_placed": false, "stop_and_budget": true}}}

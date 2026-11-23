@@ -1,0 +1,6 @@
+{"about": "The feature flow as the team answered it, with answers where nothing is above its threshold, one symptom is not measured and four steps have a retry rule of their own: no step needs an engine, as the file is written, and the verdict says what was measured and what was not.",
+ "definition": "definitions/feature.json",
+ "answers": "fit/ticket-state-and-ci/answers.json",
+ "check": [],
+ "place": {"steps": {}, "engine": [], "refused_gates": [], "open": [], "verdict": "no_engine", "passed": true, "fired": []},
+ "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}

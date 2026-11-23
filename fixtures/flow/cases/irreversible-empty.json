@@ -1,0 +1,6 @@
+{"about": "The flow of merge-without-a-person, with the team saying nothing is irreversible: it holds, and no write is checked for a gate.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.plan_review", "states.human_review", "states.rework", "states.merge_auth"],
+ "set": {"states.plan_size.on.plan_large": {"to": "coding", "reaches": "plan"}, "states.mark_ready.on.marked_ready": {"to": "merging", "reaches": "ready_pr"}, "stop_at": "deployed", "irreversible": []},
+ "check": [],
+ "bounds": {"irreversible": [], "taken_back": ["plan", "draft_pr", "ready_pr", "merged", "deployed"], "guards": []}}

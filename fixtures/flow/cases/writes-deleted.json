@@ -1,0 +1,4 @@
+{"about": "The draft pull request step declares none of its writes: it holds, because no program can know a step writes more than the file says. Recorded as what flow check cannot see.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.draft_pr.writes"],
+ "check": []}

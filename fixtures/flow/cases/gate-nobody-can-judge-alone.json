@@ -1,5 +1,5 @@
 {"about": "One gate whose judge cannot judge, and no step that needs an engine: the verdict is still 'no step needs an engine', and the placement fails because of the gate alone. flow check does not look at can_judge: the definition holds.",
- "definition": "template:feature",
+ "definition": "definitions/feature.json",
  "set": {"states.merge_auth.can_judge": "no"},
  "check": [],
  "place": {"steps": {"merge_auth": "no_gate", "human_review": "human_gate"}, "engine": [], "refused_gates": ["merge_auth"], "open": [], "verdict": "no_engine", "passed": false},

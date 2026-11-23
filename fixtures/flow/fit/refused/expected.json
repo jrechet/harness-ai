@@ -11,5 +11,6 @@
     "symptoms.double_runs",
     "symptoms.silent_events",
     "symptoms.double_run"
-  ]
+  ],
+  "cost": []
 }

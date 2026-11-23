@@ -1,5 +1,5 @@
 {"about": "The feature template: every step has a place, every wait is held by the ticket or the pull request, and no step needs an engine.",
- "definition": "template:feature",
+ "definition": "definitions/feature.json",
  "steps": {"ready": "code",
            "planning": "skill",
            "plan_size": "code",

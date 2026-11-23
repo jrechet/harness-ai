@@ -107,7 +107,8 @@ def _gate_slips(name: str, state: dict, states: dict) -> list[str]:
     written_elsewhere = {entry.get("what") for other, s in states.items() if other != name for entry in s.get("writes", [])}
     if state.get("shows") not in written_elsewhere:
         slips.append(f"{where}: the gate shows {state.get('shows')!r}, which no other step writes")
-    if state.get("can_judge") not in ("yes", "no"):
+    # An absent answer is a gate that waits for its judge, not a slip (section 12.1).
+    if "can_judge" in state and state["can_judge"] not in ("yes", "no"):
         slips.append(f"{where}: can_judge is neither yes nor no")
     targets = {move.get("to") for event, move in state.get("on", {}).items() if event != "deadline_passed"}
     if len(targets) < 2:
@@ -209,6 +210,10 @@ class DefinitionFormatTests(unittest.TestCase):
         for label, definition in definitions.items():
             with self.subTest(definition=label):
                 self.assertEqual(slips_of(definition), [])
+                # These are files a team answered (section 12.1): unlike a sequence on template:<kind>,
+                # every gate of theirs gives its judge's answer.
+                self.assertEqual([name for name, state in definition["states"].items()
+                                  if state.get("type") == "gate" and state.get("can_judge") not in ("yes", "no")], [])
 
     def test_the_reader_of_this_test_does_see_a_slip(self):
         # Otherwise the test above would pass on anything.
@@ -228,14 +233,16 @@ class DefinitionFormatTests(unittest.TestCase):
         for kind, states, start, stop_at, budget in (
                 ("feature", FEATURE_STATES, "ready", "ready_pr", {"dollars": 20, "minutes": 240}),
                 ("bug", BUG_STATES, "triage", "root_cause", {"dollars": 10, "minutes": 120})):
-            definition = files.reference_template(kind)
+            # Since section 12.1 the template leaves `can_judge` to the team; the answered file says "yes".
+            definition, answered = files.reference_template(kind), files.answered_template(kind)
             with self.subTest(template=kind):
                 self.assertEqual(list(definition["states"]), states)
                 self.assertEqual((definition["name"], definition["start"], definition["stop_at"], definition["budget"]),
                                  (kind, start, stop_at, budget))
                 for name, state in definition["states"].items():
                     if state["type"] == "gate":
-                        self.assertEqual((state["deadline_hours"], state["can_judge"]), (72, "yes"), name)
+                        self.assertEqual((state["deadline_hours"], state.get("can_judge")), (72, None), name)
+                        self.assertEqual(answered["states"][name]["can_judge"], "yes", name)
                     if state["type"] == "wait":
                         self.assertEqual(state["deadline_hours"], 6 if name == "ci_wait" else 168, name)
                     if state["type"] in RUNS:
@@ -368,8 +375,10 @@ class PlaceFormatTests(unittest.TestCase):
                 self.assertEqual(expected["verdict"], verdict)
                 self.assertIs(expected["passed"], not expected["open"] and not expected["refused_gates"])
                 self.assertEqual(os.path.isfile(os.path.join(folder, "traps.md")), name == "trapped")
+                # Since section 12.1, `feature` and `bug` name the answered files of `definitions/`:
+                # a folder has its own definition.json only when its flow is written nowhere else.
                 self.assertEqual(os.path.isfile(os.path.join(folder, "definition.json")),
-                                 not expected["definition"].startswith(files.TEMPLATE_PREFIX))
+                                 expected["definition"] == f"place/{name}/definition.json")
 
     def test_the_trapped_flow_holds_exactly_what_the_contract_plants(self):
         folder = files.place_folders()["trapped"]

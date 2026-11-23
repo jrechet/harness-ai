@@ -1,6 +1,29 @@
-# harness-ai
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/hero-dark.svg">
+  <img alt="harness-ai: the prompt explains, the code checks, the pipeline executes. A terminal shows harness-ai measuring itself with harness status --map: level 1, Framed, and its next step." src="docs/assets/readme/hero-light.svg">
+</picture>
+
+[![CI](https://github.com/jrechet/harness-ai/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrechet/harness-ai/actions/workflows/ci.yml)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-0f5777)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-0f5777?logo=python&logoColor=white)](#try-it-in-two-minutes-without-claude-code)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none-1b6e3f)](#try-it-in-two-minutes-without-claude-code)
+[![Claude Code: 2 plugins, 16 skills](https://img.shields.io/badge/Claude%20Code-2%20plugins%20%C2%B7%2016%20skills-7a5200)](#install-the-skills-in-claude-code)
+
+**[Try it](#try-it-in-two-minutes-without-claude-code)** ·
+**[How it works](#how-it-works)** ·
+**[What works today](#what-you-can-do-today)** ·
+**[Install](#install-the-skills-in-claude-code)** ·
+**[Ticket to production](#the-ai-sdlc-plugin-from-ticket-to-production)**
+
+</div>
+
+<br>
 
 Claude Code skills and a Python CLI that prepare a repository for AI coding agents, measure where it stands, and move it forward one step at a time.
+
+Your coding agent is brilliant, and it forgets everything between two sessions. harness-ai gives it what it cannot guess, turns what it must never do into checks a program runs, and shows you, level by level, how far your repository has come. It also tells you plainly what is proven and what is not: today, nothing is proven, and the tables below say so.
 
 ## The problem
 
@@ -10,7 +33,8 @@ The usual answer is a long instruction file. It does not hold: past a few dozen 
 
 A **harness** is everything around the agent that makes its work reliable: a short instruction file (`AGENTS.md`) that says only what the agent cannot discover, rules enforced by tools rather than by sentences, a loop that turns review comments into rules, and pipelines that keep the privileged actions. This repository helps you build one, and tells you where you stand.
 
-The idea fits in one line: **the prompt explains, the code checks, the pipeline executes.** What must be guaranteed is not written in a prompt.
+> [!IMPORTANT]
+> **The prompt explains, the code checks, the pipeline executes.** What must be guaranteed is not written in a prompt.
 
 ## Try it in two minutes, without Claude Code
 
@@ -20,7 +44,7 @@ You need Python 3.10 or later and git. Nothing to install: the CLI uses the stan
 git clone https://github.com/jrechet/harness-ai.git
 ```
 
-The repository is private today: the clone works only if the owner gave you access.
+The repository is public since 2026-11-23 and was private before. To keep your own changes private, clone it into a private repository of yours: a GitHub fork of a public repository is public.
 
 ```bash
 python3 harness-ai/cli/harness.py status /path/to/your/repo --map
@@ -50,6 +74,14 @@ python3 harness-ai/cli/harness.py medals /path/to/your/repo --page medals.html
 
 Every responsibility of a harness has a natural layer. Most reliability problems come from a responsibility placed on the wrong one: a check that lives in a prompt, a deployment an agent can start.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/layers-dark.svg">
+  <img alt="Four layers. L1 Judgment, the agent. L2 Procedure, the prompt explains: skills and AGENTS.md. L3 Local logic, the code checks: tested CLI, linters, architecture tests. L4 Remote execution, the pipeline executes: CI and pipelines." src="docs/assets/readme/layers-light.svg">
+</picture>
+
+<details>
+<summary>The same four layers, as a table</summary>
+
 | Layer | Role | Carried by |
 |---|---|---|
 | **L1 Judgment** | Choose between open options, talk with the human | The agent, its sub-agents |
@@ -57,25 +89,22 @@ Every responsibility of a harness has a natural layer. Most reliability problems
 | **L3 Local logic** | Guarantee: preconditions, computations, idempotence | Tested CLI, linters, architecture tests |
 | **L4 Remote execution** | Act with rights on shared resources | CI, pipeline |
 
-```mermaid
-flowchart TB
-    L1["L1 Judgment<br/>the agent decides between open options, talks with you"]
-    L2["L2 Procedure<br/>skills and AGENTS.md: the order, what to call, how to read it"]
-    L3["L3 Local logic<br/>tested CLI, linters, architecture tests: what must hold"]
-    L4["L4 Remote execution<br/>CI and pipelines: what needs rights on shared resources"]
-    L1 -->|"follows"| L2
-    L2 -->|"calls, never re-implements"| L3
-    L3 -->|"the same checks run again in"| L4
-    P["The prompt explains"] -.-> L2
-    C["The code checks"] -.-> L3
-    X["The pipeline executes"] -.-> L4
-```
+</details>
 
-The test: cut L1 and L2. Do L3 and L4 still serve a human in a hurry? If yes, the agent is an accelerator. If not, some process has leaked into the prompts.
+> [!TIP]
+> **The "cut the agent" test.** Cut L1 and L2. Do L3 and L4 still serve a human in a hurry? If yes, the agent is an accelerator. If not, some process has leaked into the prompts.
 
 ### Five levels, and the right to stop
 
 The harness grows in levels. Each level is earned by checks that `harness status` **measures** in the repository, never by a declaration. A level is reached when all its checks pass and the level below is reached.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/levels-dark.svg">
+  <img alt="Five levels, each a place you can stay: 0 None, no medal; 1 Framed, bronze; 2 Looped, silver; 3 Verified, gold; 4 Delegated, platinum." src="docs/assets/readme/levels-light.svg">
+</picture>
+
+<details>
+<summary>What each level brings, what it asks of the team, and how it is measured</summary>
 
 | Level | Medal | What it brings | What it asks of the team | How it is measured |
 |---|---|---|---|---|
@@ -85,17 +114,12 @@ The harness grows in levels. Each level is earned by checks that `harness status
 | 3 Verified | gold | Mandatory rules are held by tools, not by text | Turn each mandatory rule into a check (linter, test, CI job), and say why each rule exists | A CI exists · at least 50% of the rules say "Enforced by" a tool · at least 50% say why · an audit exists with no open P1 |
 | 4 Delegated | platinum | Whole tasks come back clean, without correction after the fact | Hand over tasks under a written contract, and watch the agent's PRs | Mode delegation · a Working process section · at least one task contract referenced · agent PRs with no after-the-fact correction in the last harvest · the audit's "cut the agent" test passes |
 
-```mermaid
-flowchart LR
-    N0["0 None<br/>no medal"] -->|"a short AGENTS.md,<br/>a mode, a Forbidden section"| N1["1 Framed<br/>bronze"]
-    N1 -->|"rule: in reviews,<br/>a harvest that finds a signal"| N2["2 Looped<br/>silver"]
-    N2 -->|"rules enforced by tools,<br/>a CI, an audit with no P1"| N3["3 Verified<br/>gold"]
-    N3 -->|"delegation mode, task contracts,<br/>agent PRs that come back clean"| N4["4 Delegated<br/>platinum"]
-```
+</details>
 
 **A level is a place where you can stay.** You say which one you aim for (`harness target`); beyond it, the tool proposes nothing, and when it is held `status` says "target reached". Many teams are well served by level 1 or 2. Some checks only time can pass, such as a real review signal or clean agent PRs: they do not block work on the next level you aim for.
 
-The level measures the **shape** of the harness: files, sections, mentions. It does not say that the agents work better. Model and thresholds: [docs/maturity.md](docs/maturity.md).
+> [!NOTE]
+> The level measures the **shape** of the harness: files, sections, mentions. It does not say that the agents work better. Model and thresholds: [docs/maturity.md](docs/maturity.md).
 
 ### Step by step
 
@@ -135,14 +159,14 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Know where a piece of a skill or agent belongs: AGENTS.md, CLI, hook, permission, CI… | `harness.py place grid`, `place one`, `place plan <pieces.json>` | tooled |
 | Write an assessment as a one-page HTML report | `harness.py report build <report.json> -o <page.html>` | tooled |
 | Follow progress in a local page | `harness.py serve <repo>` | tooled, rendering not reviewed |
-| Know, before writing any workflow, whether you need one at all and which tool (LangChain, LangGraph, a workflow engine, Rust, or only the ticket's state and CI), from answers you record yourself ([the pages that explain each verdict](docs/workflow-harness/README.md)) | `harness.py flow fit --questions`, then `harness.py flow fit <answers.json>` | tooled, not measured with a user |
-| Start a team workflow from a ticket to production, written as a small table of steps: a feature or a bug template to edit ([every key](docs/workflow-harness/flow-format.md)) | `harness.py flow new <feature\|bug>` | tooled, not measured with a user |
-| Have a program refuse a workflow that could loop, wait or spend without end, before anything runs | `harness.py flow check <flow.json>` | tooled, not measured with a user |
+| Know, before writing any workflow, whether you need one at all and which tool (LangChain, LangGraph, a workflow engine, Rust, or only the ticket's state and CI), from answers you record yourself, with the published costs it copies from the pages, dated and sourced ([the pages that explain each verdict](docs/workflow-harness/README.md)) | `harness.py flow fit --questions`, then `harness.py flow fit <answers.json>` | tooled, not measured with a user |
+| Start a team workflow from a ticket to production, written as a small table of steps: a feature or a bug template to edit, whose approvals wait for their judge's answer ([every key](docs/workflow-harness/flow-format.md)) | `harness.py flow new <feature\|bug>` | tooled, not measured with a user |
+| Have a program refuse a workflow that could loop, wait or spend without end, or merge or deploy with no approval that can refuse it, before anything runs, and print what bounds one run | `harness.py flow check <flow.json>` | tooled, not measured with a user |
 | Ask what one ticket does on one event: the next step, or why it stops, and what is left of its budget | `harness.py flow next <flow.json> --event <event.json> --new --save-run <run.json>`, then `--run <run.json> --save-run <run.json>` | tooled, not measured with a user |
-| Know where each step of the workflow belongs (code, a skill, the ticket's state, a human gate…) and whether one really needs a workflow engine ([guide](docs/workflow-harness/decide.md)) | `harness.py flow place <flow.json>` | tooled, not measured with a user |
-| Know where the workflow stands, level by level, in plain words | `harness.py flow status <flow.json> --map` | tooled, not measured with a user |
+| Know where each step of the workflow belongs (code, a skill, the ticket's state, a human gate…) and whether one really needs a workflow engine, beside the symptoms you measured for `flow fit` ([guide](docs/workflow-harness/decide.md)) | `harness.py flow place <flow.json> [--answers <answers.json>]` | tooled, not measured with a user |
+| Know where the workflow stands, level by level, in plain words: a fresh template stays at level 0 until each approval's judge has answered | `harness.py flow status <flow.json> --map [--answers <answers.json>]` | tooled, not measured with a user |
 
-`<repo>` is the path of your repository; without it, the current folder. `<flow.json>` is the file `flow new` writes, `.harness/flow/<kind>.json`; the `flow` commands call no agent, no network and no key: nothing runs a ticket yet, the workflow is checked on paper. Input examples are in [docs/examples/](docs/examples/): `report.json` for `report build`, `pieces.json` for `place plan` and `report from-place`.
+`<repo>` is the path of your repository; without it, the current folder. `<flow.json>` is the file `flow new` writes, `.harness/flow/<kind>.json`; the `flow` commands call no agent, no network and no key: nothing runs a ticket yet, the workflow is checked on paper. With `--format md`, each `flow` command that exits 0 or 1 ends, on stderr, with the full command as your installation runs it and the folder of the pages. Input examples are in [docs/examples/](docs/examples/): `report.json` for `report build`, `pieces.json` for `place plan` and `report from-place`.
 
 ### With Claude Code
 
@@ -165,12 +189,13 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Investigate an incident without touching production, and turn it into a ticket | `run` (plugin `ai-sdlc`) | measured once: one incident, the innocent last deployment not blamed |
 | Have a ticket developed up to the PR, on the path its size calls for | `dev` (plugin `ai-sdlc`) | measured once: two tickets compliant |
 
-A measurement is one draw, not an average, and the test cases were written by the model being evaluated on them: they are easier than a real repository. Every "measured once" of the `ai-sdlc` rows played the earlier French text of the skills, before their English rewrite and its guiding map: the text that ships today has not been played. The details are in [docs/capabilities.md](docs/capabilities.md) and [docs/requirements.md](docs/requirements.md).
+> [!CAUTION]
+> A measurement is one draw, not an average, and the test cases were written by the model being evaluated on them: they are easier than a real repository. Every "measured once" of the `ai-sdlc` rows played the earlier French text of the skills, before their English rewrite and its guiding map: the text that ships today has not been played. The details are in [docs/capabilities.md](docs/capabilities.md) and [docs/requirements.md](docs/requirements.md).
 
 ### What does not exist yet
 
 - Proof of a gain on a real repository. What the project measures is that its mechanisms work on sample projects.
-- A disposable CI runner. This repository's CI (`.github/workflows/ci.yml`, which runs `scripts/ci/verify.sh`) is a required check on `main`, but it runs the code of pull requests on a self-hosted runner on the owner's server, which is not disposable. This is accepted for a private repository with a single owner, to be revisited before any publication. The tests also run by hand, or with `sh scripts/ci/verify.sh`.
+- Outside contributions. Pull requests coming from a fork fail the CI on purpose for now; issues are welcome.
 
 ## Install the skills in Claude Code
 
@@ -180,7 +205,7 @@ A measurement is one draw, not an average, and the test cases were written by th
 /plugin install ai-sdlc@harness-ai
 ```
 
-The repository is private today: the first line works only if your GitHub account has access to it. From a local clone, use `claude plugin marketplace add <clone folder>` instead, then the two install lines.
+The first line installs from GitHub; it works for anyone, as the repository is public. From a local clone or a private copy, use `claude plugin marketplace add <clone folder>` instead, then the two install lines.
 
 A skill triggers on its description ("audit my AGENTS.md", "review this PR") or by its name: `/harness-ai:harness-init`, `/ai-sdlc:review`.
 
@@ -194,32 +219,37 @@ A second plugin, in [plugins/ai-sdlc/](plugins/ai-sdlc/), tools the phases of th
 
 Each phase is a skill that does one thing and states what it never does. Its result goes through the plugin's CLI, which refuses a result that does not hold (a finding that cites no line of the diff, a fact not quoted from its evidence, a delivery command not taken from the team's procedure).
 
-```mermaid
-flowchart LR
-    T["ticket<br/>says if the ticket is ready, proposes criteria and a split<br/><i>never edits the ticket without agreement</i>"]
-    D["dev<br/>plan, code, checks, PR on the path its size calls for<br/><i>never approves or merges</i>"]
-    Q["qa<br/>tests derived from the acceptance criteria, four gates<br/><i>never disables or weakens a test</i>"]
-    S["secu<br/>secrets, scanners, sensitive places to reread<br/><i>never declares a change safe, never silences a scanner</i>"]
-    R["review<br/>few comments, each on a line of the diff<br/><i>only comments: never approves or merges</i>"]
-    CI{{"CI: ci pr<br/>security and test gates,<br/>settings read on the target branch,<br/>blocks the merge if a gate fails"}}
-    M(["merge<br/>by a human"])
-    SH["ship<br/>prerequisites, version, notes, the team's commands<br/><i>never tags, publishes or deploys</i>"]
-    P(["production<br/>delivered by a human or a pipeline"])
-    RU["run<br/>investigates an incident, writes a ticket<br/><i>never restarts, rolls back or changes anything</i>"]
-    T --> D --> Q --> S --> R --> CI --> M --> SH --> P
-    P -.->|"incident"| RU
-    RU -.->|"new ticket"| T
-    G[/"guardrail: a hook reads every shell command of the agent before it runs<br/>and refuses tag, release, workflow run, publish, deploy"/]
-    G -.- D
-    G -.- SH
-    G -.- RU
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/sdlc-dark.svg">
+  <img alt="From ticket to production: ticket, dev, qa, secu and review, then the CI gates, a human merge, ship, and production delivered by a human or a pipeline; run turns an incident into a new ticket. Each phase states what it never does, and a guardrail refuses tag, release, workflow run, publish and deploy: against accidents and smuggled instructions, not a sandbox." src="docs/assets/readme/sdlc-light.svg">
+</picture>
+
+<details>
+<summary>The same phases, as a table</summary>
+
+| Phase | What it does | What it never does | Minimum level |
+|---|---|---|---|
+| `ticket` | Says whether the ticket is ready, proposes criteria and a split | Edits the ticket without agreement | 1 |
+| `dev` | Plan, code, checks, a PR on the path the ticket's size calls for | Approves or merges | 1 |
+| `qa` | Tests derived from the acceptance criteria, four gates | Disables or weakens a test | 3 |
+| `secu` | Secrets, scanners, the sensitive places to reread | Declares a change safe, silences a scanner | 1 |
+| `review` | Few comments, each on a line of the diff | Approves or merges: it only comments | 1 |
+| CI: `ci pr` | Security and test gates, settings read on the target branch; a failed gate blocks the merge | Merges | none |
+| merge | Done by a human | | |
+| `ship` | Prerequisites, version, notes, the team's own commands | Tags, publishes or deploys | 3 |
+| production | Delivered by a human or a pipeline | | |
+| `run` | Investigates an incident and writes it up as a new ticket | Restarts, rolls back or changes anything | 2 |
+
+</details>
 
 Each phase asks for a minimum harness level of the repository, the one `harness.py status` measures and writes in `.harness/state.json`. `ticket`, `dev`, `review` and `secu`: level 1; `run`: level 2; `qa` and `ship`: level 3. A level that is not reached is reported, not blocking: the phase still runs, says so at the top of its result, and its result is to be taken as a trial.
 
 **An agent does not deliver.** Once installed, the plugin sets a hook (`plugins/ai-sdlc/hooks/hooks.json`) that reads every shell command of the agent before it runs and refuses those that create or push a tag, create a release, start a workflow, publish a package or an image, deploy, or appear in the team's delivery procedure. It also refuses the commands of the team's runbook (`docs/agents/operations.md`) that the runbook does not mark read-only: write "read-only" on the same line, after each diagnostic command, or the agent cannot run it. It is a barrier against accidents and against an instruction slipped into a ticket, not a sandbox: a deployment script started by its name passes, as does a command assembled from variables. It reads the command of the Bash tool, of PowerShell and of any tool of an MCP server that carries a `command` field; a tool that names its command otherwise passes. A team that wants an agent to deliver sets `AI_SDLC_ALLOW_AGENT_DELIVERY=1` in the session's environment. The guardrail keeps that gate shut from the inside: it refuses a shell redirection, a `tee`, a `sed -i` or a copy onto `.claude/settings*.json`, and a Write or an Edit that leaves the variable in one of those files. These refusals are tested on the hook's input, not tried in a real session, and a script that writes the file under another name still passes: whether an agent can open the gate through its settings stays not verified, so keep `.claude/settings*.json` out of its reach where you can.
 
 **What the guardrail lets through, measured on commands it was not built on.** `fixtures/guard/commands.json` holds 150 commands, each with the verdict expected of the guardrail, written from the paragraph above before its author read the guardrail's code; `plugins/ai-sdlc/cli/tests/test_guard_corpus.py` runs the guardrail on each, with no delivery procedure and no runbook in the repository. It refuses 65 of the 76 deliveries. The other eleven pass and stay documented here rather than refused, each for the reason the corpus gives (`decision`); a team that delivers through one of them quotes the command in `docs/agents/delivery.md`, and the guardrail then refuses it as it is written there, except `./deploy.sh` alone, the command held in a variable and the decoded one, which still pass (`refused_when_quoted` in the corpus):
+
+<details>
+<summary>What passes the guardrail, and the ordinary commands it wrongly refuses</summary>
 
 <!-- guard-corpus:pass-through -->
 - `npm version patch`: bumps the version and creates a tag
@@ -243,6 +273,8 @@ It refuses 1 of the 74 ordinary commands, most of them chosen because they look 
 
 These figures are those of one corpus, written by an agent of the same family as the guardrail's author: they say what this draft found, not how often the guardrail is wrong on a team's own commands. The test fails when a listed command changes verdict, so that this list follows the guardrail.
 
+</details>
+
 The CI gates (`ci pr`) run the security and test gates in a pipeline, with their settings (`docs/agents/gates.json`) read on the target branch. "One test per criterion" runs there too when the pipeline gives the accepted ticket and the trace the `qa` skill leaves (`--ticket`, `--trace`); without them it is not run, and the summary says so. On a push to the delivery branch, `ci main` runs `ship check` and says whether that commit could be delivered. A workflow template is in `plugins/ai-sdlc/ci/gates.yml`: as shipped, an unmeasured gate passes, and the template says when to turn `--strict` on. The review in CI is not done yet.
 
 Its CLI also runs by hand. On a repository without a remote, give the target branch with `--base`:
@@ -250,6 +282,9 @@ Its CLI also runs by hand. On a repository without a remote, give the target bra
 ```bash
 python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /path/to/your/repo --base main
 ```
+
+<details>
+<summary>Every command of the ai-sdlc CLI</summary>
 
 | Command | Role |
 |---|---|
@@ -269,6 +304,8 @@ python3 harness-ai/plugins/ai-sdlc/cli/ai_sdlc.py status /path/to/your/repo --ba
 | `size [--paths …]` | The size of a change (XS, S-M, L) by rules: files, lines, sensitive zones |
 | `dev body <body.json>` | The body of a PR, refused if it is incomplete for its size |
 | `review render <review.json>` | A review as comments, refused if a finding does not cite a line of the diff |
+
+</details>
 
 ## What this repository does when you open it with Claude Code
 
@@ -299,6 +336,8 @@ Both suites pass on a fresh clone, from Python 3.10 to 3.14. The repository's ru
 | `app/` | The progress page served by `harness serve` |
 | `docs/` | What the repository can do ([capabilities.md](docs/capabilities.md)), the requirements, the maturity model, the study, an [interactive course](docs/ai-sdlc/course/index.html) and an [interactive map of the skills](docs/skills-map/index.html) |
 | `.harness/` | This repository's state, measured by itself |
+| `docs/assets/readme/` | The figures of this page, light and dark, and `build.py`, which draws them |
+
 
 ## Licence
 

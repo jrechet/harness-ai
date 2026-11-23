@@ -1,5 +1,5 @@
 {"about": "The bug template: every step has a place, the closure check days later is a wait held by the ticket, and no step needs an engine.",
- "definition": "template:bug",
+ "definition": "definitions/bug.json",
  "steps": {"triage": "code",
            "premise": "skill",
            "root_cause": "skill",

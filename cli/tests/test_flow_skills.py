@@ -217,6 +217,21 @@ class FlowSkillsTests(unittest.TestCase):
             self.assertTrue(any(all(part in sentence for part in parts) for sentence in sentences),
                             f'"{quote}" is not a verdict of flow fit')
 
+    def test_flow_map_says_writing_irreversible_replaces_the_default_names(self):
+        # The key replaces ["merged", "deployed"]: an edit that lists only a new name drops the other guard.
+        text = " ".join(read_skill("flow-map").split())
+        self.assertIn("`irreversible` replaces the default list", text)
+        self.assertNotIn("unless the same edit lists the new name under `irreversible`", text)
+
+    def test_the_pages_say_the_closing_note_comes_with_format_md_only(self):
+        # Section 12.4: with --format json, stderr is empty.
+        for page in ("flow-format.md", "decide.md"):
+            with open(os.path.join(ROOT, DOCS, page), encoding="utf-8") as fh:
+                lines = [line for line in fh if "on stderr, with a note" in line]
+            with self.subTest(page=page):
+                self.assertTrue(lines)
+                self.assertEqual([line for line in lines if "--format md" not in line], [])
+
     def test_the_commands_listed_as_not_built_are_not_built(self):
         # The day one of them ships, this fails: take it out of NOT_BUILT so the skills may cite it.
         for command in NOT_BUILT:

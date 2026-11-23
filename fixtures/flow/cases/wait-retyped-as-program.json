@@ -1,0 +1,5 @@
+{"about": "The CI wait written as a program, and the CI check without its premise check: it holds, because the type of a step is what the file says. Recorded as what flow check cannot see.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.ci_check.checks_premise"],
+ "set": {"states.ci_wait.type": "code"},
+ "check": []}

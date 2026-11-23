@@ -9,7 +9,7 @@ the verdict; nothing here measures anything.
   harness flow fit --questions      the questions and the allowed values
 
 The rules and every sentence are data (`flow_fit.json`), taken from the report's sections 7 and 8
-(docs/workflow-harness/report.md). The contract is section 11 of docs/workflow-harness/flow-spec.md.
+(docs/workflow-harness/report.md); the cost entries are `flow_costs.json`, each copied from a page. The contract is section 11 of docs/workflow-harness/flow-spec.md.
 A missing or unknown answer, or a key written twice, is refused with the key to fix, never guessed.
 A symptom "not measured" never fires and is never counted as fine: every verdict lists it. A number
 that is above its threshold but does not decide is listed too, with the reason.
@@ -26,8 +26,11 @@ import sys
 from typing import Any
 
 from .flow import _show
+from .flow_notes import q
 
 RULES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "flow_fit.json")
+COSTS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "flow_costs.json")
+COST_KEYS = ("about", "figure", "kind", "label", "where")
 LIST_THEM = "(flow fit --questions lists them)"
 NUMBER = "a number, 0 or more"
 WHOLE = "a whole number, 0 or more"
@@ -39,6 +42,12 @@ USAGE = ("give the answers file (or - for the standard input); to see the questi
 
 
 def load_rules(path: str = RULES_FILE) -> dict[str, Any]:
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def load_costs(path: str = COSTS_FILE) -> dict[str, Any]:
+    """The cost entries of section 12.3, each copied from a page that a test reads."""
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
 
@@ -228,7 +237,10 @@ def _decide(rules: dict[str, Any], answers: dict[str, Any], fired: list[dict[str
         return {"verdict": {"code": "by_hand", "sentence": words["sentence"]}, "tool": None, "why": words["why"],
                 "would_change": words["would_change"], "source": words["source"]}
     words = verdicts["ticket_state_and_ci"]
-    why = words["why_by_hand"].format(tickets=_show(answers["tickets_per_week"])) if by_hand else words["why_chained"]
+    # Nothing measured is never reassurance: the why says so in place of "no measured symptom is above".
+    unmeasured = "_unmeasured" if all(isinstance(value, str) for value in answers["symptoms"].values()) else ""
+    why = (words["why_by_hand" + unmeasured].format(tickets=_show(answers["tickets_per_week"])) if by_hand
+           else words["why_chained" + unmeasured])
     return {"verdict": {"code": "ticket_state_and_ci", "sentence": words["sentence"]}, "tool": None, "why": why,
             "would_change": words["would_change"], "source": words["source"]}
 
@@ -243,8 +255,81 @@ def fit(answers: Any) -> dict[str, Any]:
     fired, not_deciding = _sorted_out(_above(rules, given), "choice" not in rules["cases"][answers["building"]])
     unmeasured = [{"key": symptom["key"], "symptom": symptom["symptom"]} for symptom in rules["symptoms"]
                   if isinstance(given[symptom["key"]], str)]
+    decided = _decide(rules, answers, fired)
     return {"passed": True, "problems": [], "building": answers["building"], "fired": fired,
-            "not_deciding": not_deciding, "not_measured": unmeasured, **_decide(rules, answers, fired)}
+            "not_deciding": not_deciding, "not_measured": unmeasured, **decided,
+            "cost": cost(answers["building"], decided["verdict"]["code"], fired)}
+
+
+def cost(building: str, code: str, fired: list[dict[str, Any]]) -> dict[str, Any]:
+    """The cost entries of a verdict, in the order of `flow_costs.json` (section 12.3). Nothing is
+    added, multiplied, rounded or converted: each entry is the file's, without its evidence strings.
+    The entry about the tool itself is about the choice of the case."""
+    costs, cases = load_costs(), load_rules()["cases"]
+    chosen = costs["by_verdict"]
+    if code == "tool":
+        ids = chosen["tool"][building]
+    else:
+        ids = list(chosen[code])
+        if code == "symptom" and any(entry["engine"] for entry in fired):
+            ids += chosen["symptom_an_engine_removes"]
+    entries = []
+    for ident in ids:
+        entry = {"id": ident, **{key: costs["entries"][ident][key] for key in COST_KEYS}}
+        if entry["about"] is None:
+            entry["about"] = cases[building]["choice"]
+        entries.append(entry)
+    return {"facts_date": costs["facts_date"], "entries": entries}
+
+
+def measured(answers: Any, path: str = "the answers", flow_file: str = "this flow") -> dict[str, Any]:
+    """What `flow place --answers` and `flow status --answers` read of the answers of `flow fit`
+    (section 12.5), on what `parse` returns. Raises ValueError when `fit` refuses the answers, and
+    when they describe something that is not a ticket workflow: a definition is one, so numbers
+    counted on something else are never read as its own, nor dropped without a word. `path` and
+    `flow_file` are the names the messages give the answers file and the definition."""
+    document = fit(answers)
+    if not document["passed"]:
+        raise ValueError(f"{path}: flow fit refuses these answers ({len(document['problems'])} to fix). "
+                         f"Run flow fit {q(path)}.")
+    if document["verdict"]["code"] == "tool":
+        label = load_rules()["cases"][document["building"]]["label"]
+        raise ValueError(f"{path}: these answers describe {label}, not a ticket workflow, and {flow_file} is a "
+                         "ticket workflow. Give the answers measured on the runs of this flow.")
+    symptom = document["verdict"]["code"] == "symptom"
+    return {"fired": document["fired"], "sentence": document["verdict"]["sentence"] if symptom else None,
+            "not_deciding": document["not_deciding"], "not_measured": [e["key"] for e in document["not_measured"]],
+            "symptoms": len(load_rules()["symptoms"])}
+
+
+def said_of_runs(found: dict[str, Any]) -> str:
+    """What is said of the runs (‹M› of section 12.5), from what `measured` returns: what fired, or
+    how much was measured; what was not; the numbers with no threshold; and that no command can
+    tell which step a symptom comes from."""
+    total, unmeasured = found["symptoms"], found["not_measured"]
+    if found["fired"]:
+        said = found["sentence"]
+    elif not unmeasured:
+        said = f"None of the {total} symptoms measured on your own runs is above its threshold."
+    elif len(unmeasured) < total:
+        said = f"Measured on your own runs: {total - len(unmeasured)} of the {total} symptoms, none above its threshold."
+    else:
+        said = "Nothing was measured on your own runs, so nothing is known from them."
+    if unmeasured:
+        said += f" Not measured, so not counted as fine: {', '.join(unmeasured)}."
+    if found["not_deciding"]:
+        listed = "; ".join(f"{entry['key']} is {_show(entry['value'])}" for entry in found["not_deciding"])
+        said += f" Listed for you to judge, no threshold is written for it: {listed}."
+    if found["fired"]:
+        said += " No command can tell which step a symptom comes from."
+    return said
+
+
+def read_answers(path: str) -> Any:
+    """The answers file given with --answers: never the standard input, which these commands do not take."""
+    if path == "-":
+        raise ValueError("--answers -: the standard input is not read here; give the answers file of flow fit")
+    return _read(path)
 
 
 def questions() -> dict[str, Any]:
@@ -292,10 +377,25 @@ def render_md(document: dict[str, Any]) -> str:
     rules = load_rules()
     lines += [_listed_line(rules, entry) for entry in document["not_deciding"]]
     lines += [f"What would change this answer: {document['would_change']}", f"Source: {document['source']}."]
+    lines += _cost_lines(document["cost"])
     unmeasured = "; ".join(f"{entry['key']} ({entry['symptom']})" for entry in document["not_measured"])
     lines.append(f"Not measured, so not counted as fine: {unmeasured}." if unmeasured
                  else "Not measured: nothing. Every symptom has a number.")
     return "\n".join(lines) + "\n"
+
+
+def _cost_lines(found: dict[str, Any]) -> list[str]:
+    """The heading, then one line per cost entry, said as its kind says (section 12.3)."""
+    lines = [f"Cost, from the pages, facts of {found['facts_date']} (nothing here is measured on your runs):"]
+    for entry in found["entries"]:
+        if entry["kind"] == "published":
+            lines.append(f"- {entry['about']}: {entry['figure']}. Published {entry['label']} ({entry['where']}).")
+        elif entry["kind"] == "arithmetic":
+            lines.append(f"- {entry['about']}: {entry['figure']}. Arithmetic of the notes, not a measurement "
+                         f"({entry['where']}).")
+        else:
+            lines.append(f"- {entry['about']}: no published figure ({entry['where']}).")
+    return lines
 
 
 def render_questions(document: dict[str, Any]) -> str:
@@ -362,22 +462,16 @@ def _emit(fmt: str, document: dict[str, Any], markdown: str) -> None:
         sys.stdout.write(markdown)
 
 
-def command(args: argparse.Namespace) -> int:
-    """`flow fit`, from parsed arguments. Raises ValueError for a wrong usage or an unreadable input."""
+def command(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
+    """`flow fit`, from parsed arguments: prints the answer on the standard output and returns the
+    exit code with the document; the notes are `flow_cli`'s. Raises ValueError for a wrong usage or
+    an unreadable input."""
     if args.questions:
         document = questions()
         _emit(args.format, document, render_questions(document))
-        return 0
+        return 0, document
     if not args.file:
         raise ValueError(USAGE)
     document = fit(_read(args.file))
     _emit(args.format, document, render_md(document))
-    note = ""
-    if not document["passed"]:
-        note = "The questions and the allowed values: flow fit --questions"
-    elif document["verdict"]["code"] == "ticket_state_and_ci":
-        note = "Next: flow new feature or flow new bug writes a starting definition."
-    if note and args.format == "md":
-        sys.stdout.flush()
-        print(note, file=sys.stderr)
-    return 0 if document["passed"] else 1
+    return (0 if document["passed"] else 1), document

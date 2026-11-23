@@ -1,5 +1,5 @@
 {"about": "The merge authorisation loses its way to say no: a gate with one way out is refused.",
- "definition": "template:feature",
+ "definition": "definitions/feature.json",
  "remove": ["states.merge_auth.on.merge_refused"],
  "check": [{"code": "gate_cannot_refuse", "where": "states.merge_auth"}],
  "status": {"level": 0, "passed": {"definition_holds": false, "steps_placed": true, "stop_and_budget": true}}}

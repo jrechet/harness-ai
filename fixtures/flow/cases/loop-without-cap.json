@@ -1,5 +1,5 @@
 {"about": "The agent that codes loses its cap: coding and checks can then repeat without end. One problem for the group, at its first step in file order.",
- "definition": "template:feature",
+ "definition": "definitions/feature.json",
  "remove": ["states.coding.cap"],
  "check": [{"code": "loop_without_cap", "where": "states.coding"}],
  "place": {"steps": {}, "engine": [], "refused_gates": [], "open": [], "verdict": "no_engine", "passed": true},

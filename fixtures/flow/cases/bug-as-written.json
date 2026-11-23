@@ -1,6 +1,8 @@
-{"about": "The bug template as written: it holds and is at level 1. A run stops on purpose after notify: the ten steps behind the stop point root_cause, up to the closure check, are described and not run.",
+{"about": "The bug template as flow new writes it: it holds, but its one approval waits for its judge's answer, so the placement is open and the flow stays at level 0. A run stops on purpose after notify: the ten steps behind the stop point root_cause, up to the closure check, are described and not run.",
  "definition": "template:bug",
  "check": [],
  "not_run": ["repro", "fix", "verify", "draft_pr", "ci_wait", "ci_check", "ci_fix", "human_review", "closure_wait", "closure_check"],
- "place": {"steps": {}, "engine": [], "refused_gates": [], "open": [], "verdict": "no_engine", "passed": true},
- "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}
+ "waiting": ["human_review"],
+ "place": {"steps": {"human_review": null}, "engine": [], "refused_gates": [], "open": ["human_review"],
+           "verdict": "open", "passed": false, "missing": {"human_review": "can_judge"}},
+ "status": {"level": 0, "passed": {"definition_holds": true, "steps_placed": false, "stop_and_budget": true}}}

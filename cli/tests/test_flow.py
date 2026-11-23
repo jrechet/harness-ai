@@ -17,6 +17,7 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import harness  # noqa: E402
 from harnesslib import flow  # noqa: E402
+from tests.flow_fixture_files import SMALL_BOUNDS, SMALL_BOUNDS_LINES  # noqa: E402
 
 # The complete small example of the contract, section 1.
 SMALL = json.loads("""
@@ -212,6 +213,7 @@ class TemplatesTest(unittest.TestCase):
                     self.assertTrue(state["does"].strip())
 
     def test_each_template_answers_the_placement_questions_as_the_contract_says(self):
+        # Since section 12.1: every question but `judge`, which the team answers, so no gate has `can_judge`.
         for kind in flow.TEMPLATES:
             for name, state in flow.new(kind)["states"].items():
                 with self.subTest(kind=kind, state=name):
@@ -221,7 +223,7 @@ class TemplatesTest(unittest.TestCase):
                     if state["type"] == "agent":
                         self.assertEqual(state["weak_model"], "no")
                     if state["type"] == "gate":
-                        self.assertEqual((state["can_judge"], state["deadline_hours"]), ("yes", 72))
+                        self.assertEqual(("can_judge" in state, state["deadline_hours"]), (False, 72))
                         self.assertTrue(state["judge"].strip())
                     if state["type"] == "wait":
                         self.assertEqual(state["deadline_hours"], 6 if name == "ci_wait" else 168)
@@ -1139,6 +1141,7 @@ class StatusTest(unittest.TestCase):
     """Level Mapped, measured from the file alone."""
 
     def test_a_flow_that_holds_and_is_placed_is_mapped(self):
+        # Since section 12: it ends with the gates that wait, the bounds and what was measured (null: none given).
         state = flow.status(SMALL, PLACED)
         self.assertEqual(state, {
             "flow": "small", "steps": 8, "stop_at": "draft_pr", "budget": {"dollars": 5, "minutes": 60},
@@ -1151,7 +1154,8 @@ class StatusTest(unittest.TestCase):
                 {"id": "stop_and_budget", "passed": True, "origin": "the definition file",
                  "plain": "a stop point and a budget are set", "detail": []}],
             "next_step": "Nothing more on paper. The next level needs the flow to run on real tickets, "
-                         "which this version does not do yet."})
+                         "which this version does not do yet.",
+            "waiting": [], "bounds": SMALL_BOUNDS, "measured": None})
 
     def test_a_problem_keeps_the_flow_at_level_none(self):
         definition = small()
@@ -1197,6 +1201,7 @@ class StatusTest(unittest.TestCase):
         self.assertEqual((state["flow"], state["steps"], state["stop_at"], state["budget"]), (None, None, None, None))
 
     def test_the_map_of_a_mapped_flow(self):
+        # Since section 12.2: the bounds block follows the line "This flow: …".
         self.assertEqual(flow.render_map(flow.status(SMALL, PLACED)), "\n".join([
             "Where this flow stands, level by level:",
             "✓ 1 Mapped      the flow is written down and every step has a place   ← you are here",
@@ -1205,6 +1210,7 @@ class StatusTest(unittest.TestCase):
             "· 4 Delivering  runs reach a reviewed PR and merge only on a human's word",
             "",
             "This flow: small, 8 steps, stops at draft_pr, up to 5 dollars and 60 minutes for one ticket.",
+            *SMALL_BOUNDS_LINES,
             "Levels 2 to 4 are read from real runs. Nothing measures them yet.",
             "Next step: Nothing more on paper. The next level needs the flow to run on real tickets, "
             "which this version does not do yet.", ""]))
@@ -1287,11 +1293,13 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual(call(["flow", "new", "incident", "--out", os.path.join(self.tmp.name, "x.json")])[0], 2)
 
     def test_check_says_a_flow_holds(self):
+        # Since section 12.2: the figures that bound one run follow the first line.
         code, out, _ = call(["flow", "check", self.write("small.json", SMALL)])
         self.assertEqual((code, out), (0, "This flow holds: 8 steps, it stops at draft_pr, one ticket may cost "
-                                          "up to 5 dollars and 60 minutes.\n"))
+                                          "up to 5 dollars and 60 minutes.\n" + "\n".join(SMALL_BOUNDS_LINES) + "\n"))
 
     def test_check_prints_one_line_per_problem_and_exits_1(self):
+        # Since section 12.2 the document carries "bounds", null when the flow does not hold.
         definition = small()
         del definition["states"]["coding"]["cap"]
         del definition["budget"]
@@ -1304,7 +1312,7 @@ class CommandLineTest(unittest.TestCase):
         self.assertEqual((code, out), (1, f"- {flow.check('a sentence')[0]['message']}\n"))
         code, out, _ = call(["flow", "check", path, "--format", "json"])
         self.assertEqual(code, 1)
-        self.assertEqual(json.loads(out), {"file": path, "passed": False, "problems": problems})
+        self.assertEqual(json.loads(out), {"file": path, "passed": False, "problems": problems, "bounds": None})
 
     def test_check_takes_a_json_value_that_is_not_a_flow_as_malformed(self):
         code, out, _ = call(["flow", "check", self.write("list.json", [1, 2]), "--format", "json"])

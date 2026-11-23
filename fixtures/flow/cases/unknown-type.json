@@ -1,5 +1,5 @@
 {"about": "A step is given the type 'person', which is not one of the five. flow check says so once and leaves the step out of the rules that read the type; flow place cannot place it.",
- "definition": "template:bug",
+ "definition": "definitions/bug.json",
  "set": {"states.verify.type": "person"},
  "check": [{"code": "unknown_step_type", "where": "states.verify"}],
  "place": {"steps": {"verify": null}, "engine": [], "refused_gates": [], "open": ["verify"], "verdict": "open", "passed": false, "missing": {"verify": "type"}},

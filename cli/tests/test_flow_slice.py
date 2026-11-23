@@ -14,7 +14,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import harness  # noqa: E402
-from harnesslib import flow, flow_place  # noqa: E402
+from harnesslib import flow, flow_notes, flow_place  # noqa: E402
+from tests import flow_fixture_files as files  # noqa: E402
 
 
 def run(*argv: str) -> tuple[int, str, str]:
@@ -44,6 +45,7 @@ class InAFolder(unittest.TestCase):
 
 class WholePathTest(InAFolder):
     def test_a_new_flow_is_checked_placed_mapped_and_played_from_its_file(self):
+        # Since section 12.1 a fresh template is at level 0 until each judge has answered.
         for kind in flow.TEMPLATES:
             with self.subTest(template=kind):
                 path = os.path.join(".harness", "flow", f"{kind}.json")
@@ -52,6 +54,16 @@ class WholePathTest(InAFolder):
                 code, out, _ = run("check", path)
                 self.assertEqual(code, 0)
                 self.assertTrue(out.startswith("This flow holds: "), out)
+                code, out, _ = run("place", path)
+                self.assertEqual(code, 1)
+                self.assertIn("cannot be placed yet", out.splitlines()[-1])
+                code, out, _ = run("status", path, "--map")
+                self.assertEqual(code, 0)
+                self.assertIn("· 0 None        the phases are chained by hand   ← you are here", out)
+                answered = flow.load_definition(path)
+                for gate in flow_place.waiting(answered):
+                    answered["states"][gate]["can_judge"] = "yes"
+                self.write(path, answered)
                 code, out, _ = run("place", path)
                 self.assertEqual(code, 0)
                 self.assertEqual(out.splitlines()[-1], "Verdict: no step needs an engine.")
@@ -91,7 +103,8 @@ class WholePathTest(InAFolder):
         self.assertIn("answer.json", err)
         code, _, err = run("next", path, "--event", second, "--run", self.write("run.json", json.loads(
             open(whole, encoding="utf-8").read())["run"]))
-        self.assertEqual((code, err), (0, ""))
+        # Since section 12.4 every command that exits 0 or 1 ends with the closing note, and here prints nothing else.
+        self.assertEqual((code, err), (0, flow_notes.closing() + "\n"))
 
 
 class OneVoiceTest(InAFolder):
@@ -114,7 +127,8 @@ class OneVoiceTest(InAFolder):
         self.assertIs(flow_place.TYPE_WORDS, flow.TYPE_WORDS)
 
     def test_the_map_names_the_judge_of_a_gate_nobody_can_judge_as_flow_place_does(self):
-        definition = flow.new("feature")
+        # On the answered file since section 12.1, so that the gate refused is the one open reason.
+        definition = files.answered_template("feature")
         definition["states"]["merge_auth"]["can_judge"] = "no"
         path = self.write("flow.json", definition)
         sentence = ("A gate nobody can judge: merge_auth. Remove it, or give "

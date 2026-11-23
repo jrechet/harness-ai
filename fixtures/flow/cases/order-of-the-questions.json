@@ -1,5 +1,5 @@
 {"about": "The questions are asked in order and the first that names a place ends the walk: a step with many units and several repositories is a fan-out, not a shared workflow; an agent step that must go on from its middle needs an engine whatever its other answers.",
- "definition": "template:feature",
+ "definition": "definitions/feature.json",
  "set": {"states.checks.units": "many", "states.checks.repositories": "several", "states.coding.survives": "midway", "states.coding.weak_model": "yes"},
  "check": [],
  "place": {"steps": {"checks": "campaign", "coding": "durable_engine"}, "engine": ["coding"], "refused_gates": [], "open": [], "verdict": "engine", "passed": true},

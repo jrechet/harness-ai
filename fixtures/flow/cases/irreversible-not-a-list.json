@@ -1,0 +1,4 @@
+{"about": "irreversible written as one name, not a list: the file cannot be read as a flow, and only that is said.",
+ "definition": "definitions/feature.json",
+ "set": {"irreversible": "merged"},
+ "check": [{"code": "malformed", "where": "irreversible"}]}
