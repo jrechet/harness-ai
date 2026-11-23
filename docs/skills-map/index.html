@@ -219,12 +219,12 @@ section.block { padding-block: 40px 8px; border-top: 1px solid var(--rule); marg
 .node.is-visited::after { content: "✓"; position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 11px; display: grid; place-items: center; }
 
 @media (min-width: 720px) {
-  .zone.repo .zgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "init step harvest" "medals audit design"; column-gap: 36px; row-gap: 58px; align-content: space-evenly; height: 100%; }
+  .zone.repo .zgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "init step harvest" "medals audit design" "guide . ."; column-gap: 36px; row-gap: 58px; align-content: space-evenly; height: 100%; }
   .zone.flow .zgrid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "why" "fmap" "place"; row-gap: 40px; }
   .zone.sdlc .zgrid { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-areas: "ticket dev qa secu review" "guard run prod ship ci"; column-gap: 30px; row-gap: 58px; }
   .zone.repo { grid-template-rows: auto 1fr; }
   [data-id="init"] { grid-area: init; } [data-id="step"] { grid-area: step; } [data-id="harvest"] { grid-area: harvest; }
-  [data-id="medals"] { grid-area: medals; } [data-id="audit"] { grid-area: audit; } [data-id="design"] { grid-area: design; }
+  [data-id="medals"] { grid-area: medals; } [data-id="guide"] { grid-area: guide; } [data-id="audit"] { grid-area: audit; } [data-id="design"] { grid-area: design; }
   [data-id="why"] { grid-area: why; } [data-id="fmap"] { grid-area: fmap; } [data-id="place"] { grid-area: place; }
   [data-id="ticket"] { grid-area: ticket; } [data-id="dev"] { grid-area: dev; } [data-id="qa"] { grid-area: qa; } [data-id="secu"] { grid-area: secu; } [data-id="review"] { grid-area: review; }
   [data-id="guard"] { grid-area: guard; } [data-id="run"] { grid-area: run; } [data-id="prod"] { grid-area: prod; } [data-id="ship"] { grid-area: ship; } [data-id="ci"] { grid-area: ci; }
@@ -334,7 +334,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
     </div>
     <div class="facts">
       <span><b>2</b> plugins</span>
-      <span><b>16</b> shipped skills</span>
+      <span><b>17</b> shipped skills</span>
       <span><b>1</b> internal skill</span>
       <span><b>5</b> levels, from 0 to 4</span>
       <span><b>2</b> CLIs on the Python standard library</span>
@@ -472,7 +472,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
   </section>
 
   <footer class="end">
-    Built from the README, the 17 SKILL.md files and <code>docs/maturity.md</code>, state of 23 November 2026. The README and <code>docs/capabilities.md</code> stay the reference for what each skill can do; <code>cli/tests/test_skills_map.py</code> fails when a skill is added or removed without this page.
+    Built from the README, the 18 SKILL.md files and <code>docs/maturity.md</code>, state of 23 November 2026. The README and <code>docs/capabilities.md</code> stay the reference for what each skill can do; <code>cli/tests/test_skills_map.py</code> fails when a skill is added or removed without this page.
   </footer>
 </div>
 
@@ -553,6 +553,17 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
       never: "Changes nothing but its medals file. The medal is not a goal: bronze is a place where one can stay.",
       cli: ["harness medals <repo> --page <file>"],
       state: "tooled", stateText: "Tooled" },
+
+    { id: "guide", fam: "repo", name: "harness-guide", invoke: "/harness-ai:harness-guide",
+      short: "Which skill or command, or none",
+      title: "The right tool, or none",
+      goal: "Says which skill or command of the two plugins fits what you want, which neighbour not to pick, or that nothing is needed at all. Its map also names the commands no skill wraps.",
+      when: ["I just installed the plugin, what can I do", "I want to…, what do you advise", "skill A or skill B", "is there a command for…"],
+      does: ["Reads its map of both plugins: what you want, what to use, what not to use.", "Gives one recommendation, or says that none is needed.", "Offers to start the recommended skill, and starts it only on your yes."],
+      produces: "One recommendation, the neighbour not to pick, how to start it, and how far it was measured.",
+      never: "Changes nothing. Never names a skill or a command that is not in its map: a test holds the map to what ships.",
+      cli: ["harness status <repo> --map --no-write"],
+      state: "measured", stateText: "Measured once: 20 questions of 20 routed, 16 of 20 with the descriptions alone" },
 
     { id: "why", fam: "flow", name: "flow-why", invoke: "/harness-ai:flow-why",
       short: "LangGraph, Temporal, Rust: do we need one?",
@@ -785,7 +796,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
   };
 
   var WANTS = {
-    repo: [["to start with an agent on a repository, or clean up my AGENTS.md", "init"], ["to know where I stand and take the next step", "step"], ["to turn review remarks into rules", "harvest"], ["to clean up: what is misplaced, what no longer serves", "audit"], ["to create a skill, an agent or a rule in the right place", "design"], ["to see our level as a medal, and why", "medals"]],
+    repo: [["to start with an agent on a repository, or clean up my AGENTS.md", "init"], ["to know where I stand and take the next step", "step"], ["to turn review remarks into rules", "harvest"], ["to clean up: what is misplaced, what no longer serves", "audit"], ["to create a skill, an agent or a rule in the right place", "design"], ["to see our level as a medal, and why", "medals"], ["to know which skill or command fits, or whether I need one at all", "guide"]],
     flow: [["to know whether we need LangGraph, Temporal, an engine or Rust", "why"], ["to write down our path from ticket to production", "fmap"], ["to know where each step of that path should live", "place"]],
     sdlc: [["to know whether a ticket is ready", "ticket"], ["to have a ticket developed up to the PR", "dev"], ["to write the tests that come from the criteria", "qa"], ["to check a change from the security angle", "secu"], ["to have a PR reviewed", "review"], ["to prepare a delivery", "ship"], ["to investigate an incident", "run"]]
   };
