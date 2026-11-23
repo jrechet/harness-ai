@@ -18,8 +18,8 @@ MONO = "'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospac
 THEMES = {
     "light": dict(
         bg="#f3f6f8", surface="#ffffff", sunken="#e8edf1", ink="#15202b", muted="#536271", rule="#cfd8df",
-        accent="#0f5777", accent_soft="#dcebf2", mid="#4f93b1", glow="#bfe0ee",
-        l1="#e3eef3", l1_ink="#15202b", l2="#bcd9e6", l2_ink="#15202b", l3="#4f93b1", l3_ink="#ffffff",
+        accent="#0f5777", accent_soft="#dcebf2", mid="#2f7394", glow="#bfe0ee",
+        l1="#e3eef3", l1_ink="#15202b", l2="#bcd9e6", l2_ink="#15202b", l3="#2f7394", l3_ink="#ffffff",
         l4="#0f5777", l4_ink="#ffffff",
         sdlc="#7a5200", sdlc_soft="#f6ecd2", sdlc_edge="#e2c98a", never="#8a3b2e",
         bronze=("#e2a676", "#9a5b2a", "#6b3c17"), silver=("#e9eef2", "#9aa7b2", "#5f6c77"),
@@ -29,7 +29,7 @@ THEMES = {
     ),
     "dark": dict(
         bg="#0e151b", surface="#151f28", sunken="#1b2731", ink="#e3eaf0", muted="#9dadb9", rule="#2b3946",
-        accent="#74b9d8", accent_soft="#173447", mid="#3c86a8", glow="#123247",
+        accent="#74b9d8", accent_soft="#173447", mid="#2f6f8f", glow="#123247",
         l1="#1b2a35", l1_ink="#e3eaf0", l2="#1d3c50", l2_ink="#e3eaf0", l3="#2f6f8f", l3_ink="#ffffff",
         l4="#74b9d8", l4_ink="#08161e",
         sdlc="#e1b55c", sdlc_soft="#33280f", sdlc_edge="#6b5420", never="#f08f7c",
@@ -79,7 +79,7 @@ def hero(c):
          '</g>',
          f'<rect x=".5" y=".5" width="{w - 1}" height="{h - 1}" rx="18" fill="none" stroke="{c["rule"]}"/>']
     x = 64
-    b.append(f'<g {delay(0)}>' + t(x, 78, "CLAUDE CODE PLUGIN MARKETPLACE  ·  ZERO-DEPENDENCY PYTHON CLI", 14, c["muted"], MONO,
+    b.append(f'<g {delay(0)}>' + t(x, 78, "CLAUDE CODE PLUGIN MARKETPLACE  ·  ZERO-DEPENDENCY PYTHON CLIS", 14, c["muted"], MONO,
                                     extra='letter-spacing="1.6"') + '</g>')
     b.append(f'<g {delay(1)}><text x="{x - 4}" y="168" font-family="{MONO}" font-size="92" font-weight="500" '
              f'fill="{c["ink"]}" letter-spacing="-2">harness-ai<tspan class="cursor" fill="{c["accent"]}">_</tspan></text></g>')
@@ -108,15 +108,15 @@ def hero(c):
         ("· ", c["term_muted"], "3 Verified   mandatory rules are…", c["term_muted"]),
         ("· ", c["term_muted"], "4 Delegated  whole tasks go to…", c["term_muted"]),
         ("", None, "", c["term_ink"]),
-        ("", None, "Target: none chosen yet. You decide how", c["term_ink"]),
-        ("", None, "far to go; you can stay at any level.", c["term_ink"]),
+        ("", None, "Next step: collect once what recent reviews", c["term_ink"]),
+        ("", None, "taught, to see whether a rule comes out…", c["term_ink"]),
     ]
     b.append(f'<g {delay(4, start=0.3)}>')
     b.append(f'<rect x="{tx + 6}" y="{ty + 10}" width="{tw}" height="{th}" rx="14" fill="{c["accent"]}" opacity=".18"/>')
     b.append(f'<rect x="{tx}" y="{ty}" width="{tw}" height="{th}" rx="14" fill="{c["term_bg"]}"/>')
     for i, dot in enumerate(("#ff5f57", "#febc2e", "#28c840")):
         b.append(f'<circle cx="{tx + 22 + i * 18}" cy="{ty + 20}" r="5.5" fill="{dot}"/>')
-    b.append(t(tx + tw / 2, ty + 25, "your-repo — harness status", 12, c["term_muted"], MONO, anchor="middle"))
+    b.append(t(tx + tw / 2, ty + 25, "harness-ai — measuring itself", 12, c["term_muted"], MONO, anchor="middle"))
     b.append(f'<line x1="{tx}" x2="{tx + tw}" y1="{ty + 38}" y2="{ty + 38}" stroke="#ffffff" stroke-opacity=".08"/>')
     for i, (lead, lead_ink, text, ink) in enumerate(lines):
         y = ty + 66 + i * 24
@@ -128,14 +128,15 @@ def hero(c):
              + t(tx + 443, here_y, "← you are here", 12, c["term_ok"], MONO, 600, "middle") + '</g>')
     b.append('</g>')
     style = """
-  .cursor { animation: blink 1.1s steps(1) infinite; }
+  .cursor { animation: blink 1.1s steps(1) 4; }
   @keyframes blink { 50% { opacity: 0; } }
-  .here { animation: pulse 2.4s ease-in-out infinite; }
+  .here { animation: pulse 2.4s ease-in-out 2; }
   @keyframes pulse { 50% { opacity: .55; } }
 """
     return svg(w, h, "harness-ai",
-               "harness-ai: Claude Code skills and a zero-dependency Python CLI. The prompt explains, the code checks, "
-               "the pipeline executes. A terminal shows harness status --map placing this repository at level 1, Framed.",
+               "harness-ai: Claude Code skills and two zero-dependency Python CLIs. The prompt explains, the code checks, "
+               "the pipeline executes. A terminal shows harness-ai measuring itself with harness status --map: level 1, Framed, "
+               "and its next step.",
                "\n".join(b), style)
 
 
@@ -159,7 +160,7 @@ def layers(c):
         b.append(f'<g {delay(i, 0.15)}>')
         b.append(f'<rect x="{inset}" y="{y}" width="{w - 2 * inset}" height="{bh}" rx="12" fill="{fill}"/>')
         b.append(t(inset + 32, y + 44, name, 26, ink, HEAD, 600))
-        b.append(t(inset + 32, y + 70, sub, 15, ink, MONO, extra='opacity=".8" letter-spacing=".4"'))
+        b.append(t(inset + 32, y + 70, sub, 15, ink, MONO, extra='letter-spacing=".4"'))
         b.append(t(inset + 340, y + 54, role, 20, ink))
         b.append(f'<rect x="{w - inset - 316}" y="{y + 30}" width="292" height="32" rx="7" fill="{ink}" opacity=".09"/>')
         b.append(t(w - inset - 170, y + 52, carried, 15, ink, MONO, 500, "middle"))
@@ -193,10 +194,10 @@ def levels(c):
     w, h = 1280, 520
     steps = (
         (0, "None", None, "no medal", ("The agent starts from", "zero at every session.")),
-        (1, "Framed", "bronze", "bronze", ("A short AGENTS.md, a mode,", "a Forbidden section.")),
-        (2, "Looped", "silver", "silver", ("rule: in reviews, a harvest", "that finds a real signal.")),
-        (3, "Verified", "gold", "gold", ("Rules held by tools, a CI,", "an audit with no P1 left.")),
-        (4, "Delegated", "platinum", "platinum", ("Task contracts, agent PRs", "that come back clean.")),
+        (1, "Framed", "bronze", "bronze", ("A short AGENTS.md,", "a mode, a Forbidden", "section.")),
+        (2, "Looped", "silver", "silver", ("Review remarks marked", "\"rule:\", a harvest with", "a real signal.")),
+        (3, "Verified", "gold", "gold", ("Rules held by tools,", "a CI, an audit with", "no P1 left.")),
+        (4, "Delegated", "platinum", "platinum", ("Task contracts, agent", "PRs that come back", "clean.")),
     )
     b = [f'<rect width="{w}" height="{h}" rx="18" fill="{c["bg"]}"/>',
          f'<rect x=".5" y=".5" width="{w - 1}" height="{h - 1}" rx="18" fill="none" stroke="{c["rule"]}"/>']
@@ -207,6 +208,7 @@ def levels(c):
     for i, (n, name, kind, label, earn) in enumerate(steps):
         x, top = x0 + i * (cw + gap), tops[i]
         col = c[kind][1] if kind else c["muted"]
+        label_ink = (c[kind][2] if c is THEMES["light"] else c[kind][0]) if kind else c["muted"]
         gid = f"col{i}"
         b.append(f'<g {delay(i, 0.14)}>')
         b.append(f'<defs><linearGradient id="{gid}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="{col}" stop-opacity=".22"/>'
@@ -217,7 +219,7 @@ def levels(c):
         b.append(t(x + 20, top + 36, f"level {n}", 15, c["muted"], MONO))
         b.append(medal(c, x + cw - 42, top + 50, kind, 20, i))
         b.append(t(x + 20, top + 88, name, 27, c["ink"], HEAD, 600))
-        b.append(t(x + 20, top + 114, label, 15, col, MONO, 600, extra='letter-spacing=".6"'))
+        b.append(t(x + 20, top + 114, label, 15, label_ink, MONO, 600, extra='letter-spacing=".6"'))
         for j, line in enumerate(earn):
             b.append(t(x + 20, top + 148 + j * 23, line, 16, c["ink"]))
         b.append('</g>')
@@ -225,9 +227,9 @@ def levels(c):
     pts = " ".join(f"{x0 + i * (cw + gap) + cw / 2},{tops[i] - 22}" for i in range(5))
     b.append(f'<polyline class="trail" points="{pts}" fill="none" stroke="{c["accent"]}" stroke-width="2" stroke-dasharray="2 7" stroke-linecap="round" opacity=".7"/>')
     style = """
-  .shine { animation: shine 4.2s ease-in-out infinite; transform-box: fill-box; }
+  .shine { animation: shine 4.2s ease-in-out 1; transform-box: fill-box; }
   @keyframes shine { 0%, 70% { transform: translateX(0) rotate(20deg); } 100% { transform: translateX(90px) rotate(20deg); } }
-  .trail { animation: march 1.6s linear infinite; }
+  .trail { animation: march 1.6s linear 3; }
   @keyframes march { to { stroke-dashoffset: -18; } }
 """
     return svg(w, h, "Five levels",
@@ -258,7 +260,7 @@ def sdlc(c):
             out.append(t(x + 18, y + 64 + j * 21, line, 16, c["ink"]))
         out.append(f'<line x1="{x + 18}" x2="{x + cw - 18}" y1="{y + 106}" y2="{y + 106}" stroke="{c["sdlc_edge"]}" stroke-dasharray="3 4"/>')
         for j, line in enumerate(never):
-            out.append(t(x + 18, y + 128 + j * 19, line, 14.5, c["never"], SANS, 500, extra='font-style="italic"'))
+            out.append(t(x + 18, y + 128 + j * 19, line, 14.5, c["never"], SANS, 500, extra='font-style="italic" xml:space="preserve" style="white-space:pre"'))
         out.append('</g>')
         return out
 
@@ -266,7 +268,7 @@ def sdlc(c):
         ("ticket", "level 1+", ("Is the ticket ready?", "What does it lack?"), ("✕ never edits the ticket", "  without agreement")),
         ("dev", "level 1+", ("Plan, code, checks, a PR", "on the path its size needs"), ("✕ never approves", "  or merges")),
         ("qa", "level 3+", ("Tests derived from the", "acceptance criteria"), ("✕ never disables or", "  weakens a test")),
-        ("secu", "level 1+", ("Secrets, scanners, the", "sensitive places to reread"), ("✕ never declares", "  a change safe")),
+        ("secu", "level 1+", ("Secrets, scanners, the", "sensitive places to reread"), ("✕ never declares it safe,", "  silences no scanner")),
         ("review", "level 1+", ("Few comments, each on", "a line of the diff"), ("✕ never approves", "  or merges")),
     )
     for i, (name, level, does, never) in enumerate(row1):
@@ -301,8 +303,8 @@ def sdlc(c):
     # production -> run (incident), run -> ticket (new ticket)
     b.append(f'<line x1="{xs[1] - 3}" x2="{xs[0] + cw + 4}" y1="{y2 + ch / 2}" y2="{y2 + ch / 2}" stroke="{c["muted"]}" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#ah)"/>')
     px = xs[0] + cw + gx / 2
-    b.append(f'<rect x="{px - 36}" y="{y2 + ch / 2 + 12}" width="72" height="22" rx="11" fill="{c["bg"]}" stroke="{c["muted"]}"/>')
-    b.append(t(px, y2 + ch / 2 + 27, "incident", 12, c["muted"], MONO, anchor="middle"))
+    b.append(f'<rect x="{px - 36}" y="{y2 + ch + 10}" width="72" height="22" rx="11" fill="{c["bg"]}" stroke="{c["muted"]}"/>')
+    b.append(t(px, y2 + ch + 25, "incident", 12, c["muted"], MONO, anchor="middle"))
     b.append(f'<line x1="{xs[0] + cw / 2}" x2="{xs[0] + cw / 2}" y1="{y2 - 3}" y2="{y1 + ch + 4}" stroke="{c["muted"]}" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#ah)"/>')
     b.append(t(xs[0] + cw / 2 + 10, (y1 + ch + y2) / 2 + 4, "new ticket", 12, c["muted"], MONO))
 
@@ -323,13 +325,14 @@ def sdlc(c):
                c["guard_ink"], extra='opacity=".88"'))
     b.append('</g>')
     style = """
-  .shield { animation: glint 3.2s ease-in-out infinite; }
+  .shield { animation: glint 3.2s ease-in-out 1; }
   @keyframes glint { 50% { opacity: .7; } }
 """
     return svg(w, h, "From ticket to production",
                "The ai-sdlc phases: ticket, dev, qa, secu and review, then the CI gates, a human merge, ship, and production "
                "delivered by a human or a pipeline; run turns an incident into a new ticket. Each phase states what it never "
-               "does, and a guardrail hook refuses tag, release, workflow run, publish and deploy.", "\n".join(b), style)
+               "does, and a guardrail hook refuses tag, release, workflow run, publish and deploy: against accidents and "
+               "smuggled instructions, not a sandbox.", "\n".join(b), style)
 
 
 FIGURES = {"hero": hero, "layers": layers, "levels": levels, "sdlc": sdlc}

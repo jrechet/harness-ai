@@ -11,7 +11,7 @@
 <g class="rise" style="animation-delay:0.10s">
 <rect x="40" y="24" width="1200" height="92" rx="12" fill="#1b2a35"/>
 <text x="72" y="68" font-family="'IBM Plex Sans Condensed', 'IBM Plex Sans', -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#e3eaf0" text-anchor="start" >L1 Judgment</text>
-<text x="72" y="94" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="400" fill="#e3eaf0" text-anchor="start" opacity=".8" letter-spacing=".4">the agent</text>
+<text x="72" y="94" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="400" fill="#e3eaf0" text-anchor="start" letter-spacing=".4">the agent</text>
 <text x="380" y="78" font-family="'IBM Plex Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="400" fill="#e3eaf0" text-anchor="start" >Choose between open options, talk with the human</text>
 <rect x="924" y="54" width="292" height="32" rx="7" fill="#e3eaf0" opacity=".09"/>
 <text x="1070" y="76" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="500" fill="#e3eaf0" text-anchor="middle" >The agent, its sub-agents</text>
@@ -20,7 +20,7 @@
 <g class="rise" style="animation-delay:0.25s">
 <rect x="40" y="154" width="1200" height="92" rx="12" fill="#1d3c50"/>
 <text x="72" y="198" font-family="'IBM Plex Sans Condensed', 'IBM Plex Sans', -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#e3eaf0" text-anchor="start" >L2 Procedure</text>
-<text x="72" y="224" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="400" fill="#e3eaf0" text-anchor="start" opacity=".8" letter-spacing=".4">the prompt explains</text>
+<text x="72" y="224" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="400" fill="#e3eaf0" text-anchor="start" letter-spacing=".4">the prompt explains</text>
 <text x="380" y="208" font-family="'IBM Plex Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="400" fill="#e3eaf0" text-anchor="start" >Tell the order, when to call what, how to read a result</text>
 <rect x="924" y="184" width="292" height="32" rx="7" fill="#e3eaf0" opacity=".09"/>
 <text x="1070" y="206" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="500" fill="#e3eaf0" text-anchor="middle" >Skills, AGENTS.md</text>
@@ -29,7 +29,7 @@
 <g class="rise" style="animation-delay:0.40s">
 <rect x="40" y="284" width="1200" height="92" rx="12" fill="#2f6f8f"/>
 <text x="72" y="328" font-family="'IBM Plex Sans Condensed', 'IBM Plex Sans', -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#ffffff" text-anchor="start" >L3 Local logic</text>
-<text x="72" y="354" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="400" fill="#ffffff" text-anchor="start" opacity=".8" letter-spacing=".4">the code checks</text>
+<text x="72" y="354" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="400" fill="#ffffff" text-anchor="start" letter-spacing=".4">the code checks</text>
 <text x="380" y="338" font-family="'IBM Plex Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="400" fill="#ffffff" text-anchor="start" >Guarantee: preconditions, computations, idempotence</text>
 <rect x="924" y="314" width="292" height="32" rx="7" fill="#ffffff" opacity=".09"/>
 <text x="1070" y="336" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="500" fill="#ffffff" text-anchor="middle" >Tested CLI, linters, arch. tests</text>
@@ -38,7 +38,7 @@
 <g class="rise" style="animation-delay:0.55s">
 <rect x="40" y="414" width="1200" height="92" rx="12" fill="#74b9d8"/>
 <text x="72" y="458" font-family="'IBM Plex Sans Condensed', 'IBM Plex Sans', -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif" font-size="26" font-weight="600" fill="#08161e" text-anchor="start" >L4 Remote execution</text>
-<text x="72" y="484" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="400" fill="#08161e" text-anchor="start" opacity=".8" letter-spacing=".4">the pipeline executes</text>
+<text x="72" y="484" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="400" fill="#08161e" text-anchor="start" letter-spacing=".4">the pipeline executes</text>
 <text x="380" y="468" font-family="'IBM Plex Sans', -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="400" fill="#08161e" text-anchor="start" >Act with rights on shared resources</text>
 <rect x="924" y="444" width="292" height="32" rx="7" fill="#08161e" opacity=".09"/>
 <text x="1070" y="466" font-family="'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="500" fill="#08161e" text-anchor="middle" >CI, pipelines</text>

@@ -2,13 +2,13 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/hero-dark.svg">
-  <img alt="harness-ai: the prompt explains, the code checks, the pipeline executes. A terminal shows harness status --map placing this repository at level 1, Framed." src="docs/assets/readme/hero-light.svg">
+  <img alt="harness-ai: the prompt explains, the code checks, the pipeline executes. A terminal shows harness-ai measuring itself with harness status --map: level 1, Framed, and its next step." src="docs/assets/readme/hero-light.svg">
 </picture>
 
 [![CI](https://github.com/jrechet/harness-ai/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/jrechet/harness-ai/actions/workflows/ci.yml)
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-0f5777)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-0f5777?logo=python&logoColor=white)](#try-it-in-two-minutes-without-claude-code)
-[![Dependencies: none](https://img.shields.io/badge/dependencies-none-1b6e3f)](#contributing-and-checking)
+[![Dependencies: none](https://img.shields.io/badge/dependencies-none-1b6e3f)](#try-it-in-two-minutes-without-claude-code)
 [![Claude Code: 2 plugins, 16 skills](https://img.shields.io/badge/Claude%20Code-2%20plugins%20%C2%B7%2016%20skills-7a5200)](#install-the-skills-in-claude-code)
 
 **[Try it](#try-it-in-two-minutes-without-claude-code)** ·
@@ -189,7 +189,8 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Investigate an incident without touching production, and turn it into a ticket | `run` (plugin `ai-sdlc`) | measured once: one incident, the innocent last deployment not blamed |
 | Have a ticket developed up to the PR, on the path its size calls for | `dev` (plugin `ai-sdlc`) | measured once: two tickets compliant |
 
-A measurement is one draw, not an average, and the test cases were written by the model being evaluated on them: they are easier than a real repository. Every "measured once" of the `ai-sdlc` rows played the earlier French text of the skills, before their English rewrite and its guiding map: the text that ships today has not been played. The details are in [docs/capabilities.md](docs/capabilities.md) and [docs/requirements.md](docs/requirements.md).
+> [!CAUTION]
+> A measurement is one draw, not an average, and the test cases were written by the model being evaluated on them: they are easier than a real repository. Every "measured once" of the `ai-sdlc` rows played the earlier French text of the skills, before their English rewrite and its guiding map: the text that ships today has not been played. The details are in [docs/capabilities.md](docs/capabilities.md) and [docs/requirements.md](docs/requirements.md).
 
 ### What does not exist yet
 
@@ -220,17 +221,35 @@ Each phase is a skill that does one thing and states what it never does. Its res
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/sdlc-dark.svg">
-  <img alt="From ticket to production: ticket, dev, qa, secu and review, then the CI gates, a human merge, ship, and production delivered by a human or a pipeline; run turns an incident into a new ticket. Each phase states what it never does, and a guardrail refuses tag, release, workflow run, publish and deploy." src="docs/assets/readme/sdlc-light.svg">
+  <img alt="From ticket to production: ticket, dev, qa, secu and review, then the CI gates, a human merge, ship, and production delivered by a human or a pipeline; run turns an incident into a new ticket. Each phase states what it never does, and a guardrail refuses tag, release, workflow run, publish and deploy: against accidents and smuggled instructions, not a sandbox." src="docs/assets/readme/sdlc-light.svg">
 </picture>
+
+<details>
+<summary>The same phases, as a table</summary>
+
+| Phase | What it does | What it never does | Minimum level |
+|---|---|---|---|
+| `ticket` | Says whether the ticket is ready, proposes criteria and a split | Edits the ticket without agreement | 1 |
+| `dev` | Plan, code, checks, a PR on the path the ticket's size calls for | Approves or merges | 1 |
+| `qa` | Tests derived from the acceptance criteria, four gates | Disables or weakens a test | 3 |
+| `secu` | Secrets, scanners, the sensitive places to reread | Declares a change safe, silences a scanner | 1 |
+| `review` | Few comments, each on a line of the diff | Approves or merges: it only comments | 1 |
+| CI: `ci pr` | Security and test gates, settings read on the target branch; a failed gate blocks the merge | Merges | none |
+| merge | Done by a human | | |
+| `ship` | Prerequisites, version, notes, the team's own commands | Tags, publishes or deploys | 3 |
+| production | Delivered by a human or a pipeline | | |
+| `run` | Investigates an incident and writes it up as a new ticket | Restarts, rolls back or changes anything | 2 |
+
+</details>
 
 Each phase asks for a minimum harness level of the repository, the one `harness.py status` measures and writes in `.harness/state.json`. `ticket`, `dev`, `review` and `secu`: level 1; `run`: level 2; `qa` and `ship`: level 3. A level that is not reached is reported, not blocking: the phase still runs, says so at the top of its result, and its result is to be taken as a trial.
 
 **An agent does not deliver.** Once installed, the plugin sets a hook (`plugins/ai-sdlc/hooks/hooks.json`) that reads every shell command of the agent before it runs and refuses those that create or push a tag, create a release, start a workflow, publish a package or an image, deploy, or appear in the team's delivery procedure. It also refuses the commands of the team's runbook (`docs/agents/operations.md`) that the runbook does not mark read-only: write "read-only" on the same line, after each diagnostic command, or the agent cannot run it. It is a barrier against accidents and against an instruction slipped into a ticket, not a sandbox: a deployment script started by its name passes, as does a command assembled from variables. It reads the command of the Bash tool, of PowerShell and of any tool of an MCP server that carries a `command` field; a tool that names its command otherwise passes. A team that wants an agent to deliver sets `AI_SDLC_ALLOW_AGENT_DELIVERY=1` in the session's environment. The guardrail keeps that gate shut from the inside: it refuses a shell redirection, a `tee`, a `sed -i` or a copy onto `.claude/settings*.json`, and a Write or an Edit that leaves the variable in one of those files. These refusals are tested on the hook's input, not tried in a real session, and a script that writes the file under another name still passes: whether an agent can open the gate through its settings stays not verified, so keep `.claude/settings*.json` out of its reach where you can.
 
-<details>
-<summary>What the guardrail lets through, measured on 150 commands it was not built on</summary>
-
 **What the guardrail lets through, measured on commands it was not built on.** `fixtures/guard/commands.json` holds 150 commands, each with the verdict expected of the guardrail, written from the paragraph above before its author read the guardrail's code; `plugins/ai-sdlc/cli/tests/test_guard_corpus.py` runs the guardrail on each, with no delivery procedure and no runbook in the repository. It refuses 65 of the 76 deliveries. The other eleven pass and stay documented here rather than refused, each for the reason the corpus gives (`decision`); a team that delivers through one of them quotes the command in `docs/agents/delivery.md`, and the guardrail then refuses it as it is written there, except `./deploy.sh` alone, the command held in a variable and the decoded one, which still pass (`refused_when_quoted` in the corpus):
+
+<details>
+<summary>What passes the guardrail, and the ordinary commands it wrongly refuses</summary>
 
 <!-- guard-corpus:pass-through -->
 - `npm version patch`: bumps the version and creates a tag
