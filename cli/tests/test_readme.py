@@ -98,6 +98,9 @@ class ReadmeTests(unittest.TestCase):
         self.assertTrue(any("--map" in row for row in rows), rows)
 
     def test_it_says_the_repository_is_private_next_to_the_clone_and_the_install(self):
+        """The name dates from before 2026-11-23, when the repository was private; tests are not renamed here.
+        What it holds now: next to the clone and the install, the README says who can use them, and how
+        to keep one's own copy private."""
         text = readme()
         for command in ("git clone https://github.com/jrechet/harness-ai.git", "/plugin marketplace add jrechet/harness-ai"):
             with self.subTest(command=command):

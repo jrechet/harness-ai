@@ -265,13 +265,17 @@ class CliAndRepoTests(Case):
             with open(os.path.join(ROOT, workflow), encoding="utf-8") as fh:
                 text = fh.read()
             self.assertIn("sh scripts/ci/verify.sh", text)            # the YAML does not carry the logic
-            self.assertIn("runs-on: [self-hosted, jre-server]", text)  # private repository: never a billed runner
-            self.assertNotIn("ubuntu-latest", text)
+            if workflow.startswith(".github"):                         # public repository: a disposable runner
+                self.assertIn("runs-on: ubuntu-latest", text)
+                self.assertNotIn("self-hosted", text)
+            else:                                                      # the forge has only the server's runner
+                self.assertIn("runs-on: [self-hosted, jre-server]", text)
+                self.assertNotIn("ubuntu-latest", text)
             self.assertIn("fetch-depth: 0", text)
             self.assertIn("persist-credentials: false", text)
             self.assertIn("path: .base-branch", text)                  # the gates run with the code of the target branch
         with open(os.path.join(ROOT, ".github", "workflows", "ci.yml"), encoding="utf-8") as fh:
-            self.assertIn("head.repo.full_name == github.repository", fh.read())   # never a fork PR on this runner
+            self.assertIn("head.repo.full_name == github.repository", fh.read())   # fork PRs are not accepted yet
         with open(os.path.join(ROOT, "plugins", "ai-sdlc", "ci", "gates.yml"), encoding="utf-8") as fh:
             template = fh.read()
         run_lines = [line for line in template.splitlines() if "ai_sdlc.py ci pr" in line]

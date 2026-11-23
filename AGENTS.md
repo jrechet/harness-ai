@@ -36,7 +36,7 @@ Goal: help a team set up its repository's AI harness one step at a time, seeing 
 - All work finished or started, and every request or correction from the owner, has its row in the progress plan of `docs/capabilities.md`, in the same change. Enforced by: Stop hook, `python3 cli/harness.py progress check` [2026-11]
 
 ## Available CI/CD
-- GitHub Actions: `.github/workflows/ci.yml`, on `runs-on: [self-hosted, jre-server]`, runs `scripts/ci/verify.sh` (both suites, the plan, the answer keys, the PR gates). Runs on the server's runner, set up by the owner (variable `CI_RUNNER`); the `verify` check is required on `main`, administrators included, so every change goes through a pull request. Followed with `gh run list`. [2026-11]
+- GitHub Actions: `.github/workflows/ci.yml`, on `runs-on: ubuntu-latest`, runs `scripts/ci/verify.sh` (both suites, the plan, the answer keys, the PR gates). The repository is public since 2026-11-23: never point a workflow at the server's runner, since a pull request can rewrite the workflow and that runner is not disposable. Enforced by: `plugins/ai-sdlc/cli/tests/test_ci.py`. A run from an outside contributor waits for the owner's approval (repository setting), and a pull request from a fork fails its first step. The `verify` check is required on `main`, administrators included, so every change goes through a pull request. Followed with `gh run list`. [2026-11]
 - Forge: `.forgejo/workflows/ci.yml` runs the same script; no mirror to `forge.jrec.fr` yet. No workflow deploys. [2026-11]
 
 ## Delegated tasks
