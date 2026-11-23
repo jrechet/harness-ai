@@ -1,0 +1,6 @@
+{"about": "Only the plan review is left, every plan goes through it, and it stands seven steps before the merge, two of them agents. It is accepted, and the bounds say how far it is.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.human_review", "states.rework", "states.merge_auth"],
+ "set": {"states.plan_size.on.plan_small": {"to": "plan_review", "reaches": "plan"}, "states.mark_ready.on.marked_ready": {"to": "merging", "reaches": "ready_pr"}, "stop_at": "deployed"},
+ "check": [],
+ "bounds": {"guards": [{"state": "merging", "event": "merged", "last_gate": "plan_review", "steps_between": 7, "agents_between": 2}, {"state": "delivery", "event": "deployed", "last_gate": "plan_review", "steps_between": 8, "agents_between": 2}]}}

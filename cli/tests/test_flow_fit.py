@@ -15,7 +15,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import harness  # noqa: E402
-from harnesslib import flow_fit  # noqa: E402
+from harnesslib import flow_fit, flow_notes  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SPEC = os.path.join(ROOT, "docs", "workflow-harness", "flow-spec.md")
@@ -31,24 +31,42 @@ TOOLS = {"own_agent_app": "LangGraph, or an agent SDK plus an engine",
          "long_lived_orchestrator": "Rust is reasonable"}
 BUILDING = '"ticket_workflow", "own_agent_app", "agent_product", "many_repositories" or "long_lived_orchestrator"'
 DOCUMENT_KEYS = {"passed", "problems", "verdict", "building", "tool", "why", "fired", "not_deciding", "not_measured",
-                 "would_change", "source"}
+                 "would_change", "source", "cost"}
 # The one row of the table whose own wording is a quantity ("Many steps") with no number: it never fires.
 NO_THRESHOLD = "steps_with_own_retry_rule"
 COUNT = 'a whole number, 0 or more, or "not measured"'
 HUGE = 10 ** 400
 
+# The cost lines of section 12.3, which every verdict prints between its source and what was not measured.
+COST_HEAD = "Cost, from the pages, facts of 2026-11-21 (nothing here is measured on your runs):\n"
+AGENT_PASS = ("- One agent pass: near one dollar: Cloudflare's code review, mean $1.19 over 131,246 runs; Sentry's fix, "
+              "$1.00 flat; GitHub's heavy runs, about $1.20. Published [V] [V] [M] (report §5.4; costs.md §1).\n")
+TICKET_COST = AGENT_PASS + """- One ticket from start to end: no published figure (report §5.4; report §9.1, item 2).
+- One ticket, estimated: $3 to $10 for a feature ticket, $1 to $3 for a simple bug fix. Arithmetic of the notes, not a measurement (report §5.4; costs.md §2).
+"""
+CI_MINUTE = "- One CI minute: $0.006 on a GitHub Actions Linux runner with 2 cores. Published [V] (costs.md §1).\n"
+ENGINE_COST = """- The fee of a managed engine: about $50 per million actions on Temporal Cloud, with no base fee. Published [V] (report §3.5; costs.md §3).
+- Writing one workflow for an engine: "1-2 days" on average for a custom Temporal workflow at Duolingo. Published [V, self-reported] (report §5.2).
+- The people to host an engine yourself: no published figure (report §3.5; report §9.1, item 5).
+"""
+
+
+def tool_cost(choice):
+    return f"- {choice}: no published figure (report §8: the table gives no price).\n"
+
+
 EXAMPLE_1 = """Verdict: Ticket state and CI are enough.
 Why: 12 tickets a week go through this path and the phases are chained by hand. The ticket or the pull request holds the state, and a short CI job runs each step. No measured symptom is above its threshold.
 What would change this answer: One symptom measured above its threshold on your own runs: runs_paid_twice above 0.1, any other above 0, except steps_with_own_retry_rule, which has no threshold and is yours to judge.
 Source: report §8, first row; report §7, last table.
-Not measured, so not counted as fine: runs_paid_twice (Runs die far in and pay their tokens twice); agent_loops (An agent loops and burns tokens); tickets_without_cost (You cannot say what a ticket cost).
+""" + COST_HEAD + TICKET_COST + CI_MINUTE + """Not measured, so not counted as fine: runs_paid_twice (Runs die far in and pay their tokens twice); agent_loops (An agent loops and burns tokens); tickets_without_cost (You cannot say what a ticket cost).
 """
 EXAMPLE_2 = """Verdict: A symptom is measured above its threshold: double_runs is 3, above 0.
 Why: On a ticket workflow, a measured symptom is the only thing that calls for more than ticket state and CI. Try the smallest fix first; move on only when the symptom is still there.
 - double_runs is 3, above 0: the report writes no threshold, so any measured occurrence above zero is named. Two runs on one ticket. First try: One run at a time per ticket; keys derived from the ticket, never random. What removes it by design: An engine with one workflow per ticket.
 What would change this answer: Each symptom named above back at or under its threshold after its smallest fix: then ticket state and CI are enough. If one stays, the report's choice is a managed engine (Temporal Cloud), one workflow per ticket; the worker can be Rust.
 Source: report §7, last table; report §8, second row; decide.md §3.
-Not measured: nothing. Every symptom has a number.
+""" + COST_HEAD + TICKET_COST + ENGINE_COST + """Not measured: nothing. Every symptom has a number.
 """
 EXAMPLE_3 = f"""Refused: 3 answers to fix. No verdict is given on a guess.
 - "building" is "chatbot": write {BUILDING}.
@@ -62,31 +80,31 @@ PRINTED = {
 Why: You write the agent application yourself, the graph is known, and a run must pause inside the process. The symptoms describe a ticket workflow: they did not decide here.
 What would change this answer: The number of runs that must pause for a person inside the process. At zero, or when the flow is a straight line, a script is enough; when the step already runs inside a coding agent, use skills and hooks.
 Source: report §8, fourth row; report §2.7.
-Not measured: nothing. Every symptom has a number.
+""" + COST_HEAD + tool_cost(TOOLS["own_agent_app"]) + AGENT_PASS + """Not measured: nothing. Every symptom has a number.
 """,
     "agent_product": """Verdict: For an agent product for users, with sessions that resume mid-run: A durable engine under a plain loop.
 Why: Sessions of your users must resume mid-run. That is where Cursor and Replit use an engine. The symptoms describe a ticket workflow: they did not decide here.
 What would change this answer: The number of sessions that must resume mid-run. At zero, this row of the table no longer describes you: answer again.
 Source: report §8, third row; report §5.2.
-Not measured: nothing. Every symptom has a number.
+""" + COST_HEAD + ENGINE_COST + """Not measured: nothing. Every symptom has a number.
 """,
     "many_repositories": """Verdict: For the same change across hundreds of repositories: A script and a CI matrix, one PR per repository.
 Why: It is a different job from one ticket to one pull request: a script fans out, with one writer per repository. The symptoms describe a ticket workflow: they did not decide here.
 What would change this answer: The number of repositories that get the change. The report says "hundreds" in its table and "tens or hundreds of independent units" in its grid: it gives no lower bound. For "several" repositories its grid names something else, a versioned plugin and a reusable CI workflow.
 Source: report §8, fifth row; report §7, questions 5 and 7.
-Not measured: nothing. Every symptom has a number.
+""" + COST_HEAD + tool_cost(TOOLS["many_repositories"]) + AGENT_PASS + """Not measured: nothing. Every symptom has a number.
 """,
     "long_lived_orchestrator": """Verdict: For a long-lived orchestrator, a tool server or a binary for many teams: Rust is reasonable.
 Why: The code part is a program worth compiling: a binary handed to many repositories, or an orchestrator that lives long. Rust buys nothing on the duration or the model cost of a ticket. The symptoms describe a ticket workflow: they did not decide here.
 What would change this answer: The number of teams or repositories the binary is handed to. For one team whose runners have Python, standard-library Python is the cheapest to change.
 Source: report §8, sixth row; report §4.5.
-Not measured: nothing. Every symptom has a number.
+""" + COST_HEAD + tool_cost(TOOLS["long_lived_orchestrator"]) + """Not measured: nothing. Every symptom has a number.
 """,
     "by_hand": """Verdict: By hand with the ai-sdlc skills may be enough: no ticket goes through this path yet.
 Why: No ticket goes through this path in a week and the phases are chained by hand: there is nothing to chain yet. The ai-sdlc skills, run one after the other by a person, can do the work.
 What would change this answer: tickets_per_week above 0. Zero is this command's own rule: neither the guide nor the report gives a number of tickets a week under which by hand is enough.
 Source: decide.md §7 ("Chaining the steps by hand may be enough").
-Not measured: nothing. Every symptom has a number.
+""" + COST_HEAD + TICKET_COST + """Not measured: nothing. Every symptom has a number.
 """,
 }
 LISTED = """Verdict: For your own agent application in Python or TypeScript, with a known graph and pauses in the process: LangGraph, or an agent SDK plus an engine.
@@ -96,7 +114,7 @@ Why: You write the agent application yourself, the graph is known, and a run mus
 - steps_with_own_retry_rule is 2: listed, it did not decide. Many steps, each with its own retry and timeout rule.
 What would change this answer: The number of runs that must pause for a person inside the process. At zero, or when the flow is a straight line, a script is enough; when the step already runs inside a coding agent, use skills and hooks.
 Source: report §8, fourth row; report §2.7.
-Not measured, so not counted as fine: agent_loops (An agent loops and burns tokens).
+""" + COST_HEAD + tool_cost(TOOLS["own_agent_app"]) + AGENT_PASS + """Not measured, so not counted as fine: agent_loops (An agent loops and burns tokens).
 """
 
 
@@ -449,7 +467,7 @@ class CommandLineTest(WithFiles):
             self.assertIn(f"`{name}`", section)
         for value in (*rules["cases"], "yes", "no", NOT_MEASURED):
             self.assertIn(f'`"{value}"`', section)
-        self.assertLessEqual(len(section.splitlines()), 95)
+        self.assertLessEqual(len(section.splitlines()), 100)
 
     def test_the_json_format_prints_the_document_and_nothing_else(self):
         path = self.write(EXAMPLE_ANSWERS[1][0])
@@ -461,12 +479,18 @@ class CommandLineTest(WithFiles):
         self.assertEqual(json.loads(out), flow_fit.fit(EXAMPLE_ANSWERS[2][0]))
 
     def test_a_note_says_what_comes_next(self):
+        """Since section 12.4: the "Next:" note names where flow new writes, and the closing note ends every note."""
+        closing = flow_notes.closing()
         _, _, err = call(self.write(answers()))
-        self.assertEqual(err, "Next: flow new feature or flow new bug writes a starting definition.\n")
-        _, _, err = call(self.write(answers(double_runs=1)))
-        self.assertEqual(err, "")
+        self.assertEqual(err, flow_notes.fit_next(os.path.abspath(os.getcwd())) + "\n" + closing + "\n")
+        self.assertIn("Next: flow new feature --out .harness/flow/feature.json writes a starting definition", err)
+        # Since the critics of section 12, a symptom verdict says which commands read these answers beside a flow.
+        path = self.write(answers(double_runs=1))
+        _, _, err = call(path)
+        self.assertEqual(err, flow_notes.fit_next_symptom(path) + "\n" + closing + "\n")
+        self.assertEqual(call("-", stdin=json.dumps(answers(double_runs=1)))[2], closing + "\n")
         _, _, err = call(self.write({}))
-        self.assertEqual(err, "The questions and the allowed values: flow fit --questions\n")
+        self.assertEqual(err, "The questions and the allowed values: flow fit --questions\n" + closing + "\n")
 
     def test_the_answers_can_come_on_the_standard_input(self):
         code, out, _ = call("-", stdin=json.dumps(EXAMPLE_ANSWERS[0][0]))
@@ -531,7 +555,7 @@ class CommandLineTest(WithFiles):
 
     def test_the_questions_list_every_key_and_allowed_value(self):
         code, out, err = call("--questions")
-        self.assertEqual((code, err), (0, ""))
+        self.assertEqual((code, err), (0, flow_notes.closing() + "\n"))  # since section 12.4, the closing note
         rules = flow_fit.load_rules()
         for name in (*rules["questions"], *rules["cases"], *SYMPTOMS, '"yes"', '"no"', '"not measured"'):
             self.assertIn(name, out)
@@ -576,16 +600,19 @@ class FixtureTest(unittest.TestCase):
             return json.load(fh)
 
     def test_six_fixtures_one_per_verdict_one_unmeasured_one_refused(self):
+        """Since section 12.3: seven folders, the seventh a symptom no engine removes, each with its cost entries."""
         expected = [self.expected(name) for name in self.folders()]
-        self.assertEqual(len(expected), 6)
+        self.assertEqual(len(expected), 7)
+        self.assertTrue(any(entry["verdict"] == "symptom" and "engine_fee" not in entry["cost"] for entry in expected))
         self.assertEqual({entry["verdict"] for entry in expected}, self.KINDS)
         self.assertTrue(any(entry["not_measured"] == list(SYMPTOMS) for entry in expected))
         self.assertEqual(sorted(tuple(entry["not_deciding"]) for entry in expected if entry["not_deciding"]),
                          [("double_runs",), (NO_THRESHOLD,)])
         for entry in expected:
             self.assertEqual(set(entry), {"about", "exit", "verdict", "tool", "fired", "not_deciding", "not_measured",
-                                          "refused"})
+                                          "refused", "cost"})
             self.assertEqual(entry["exit"], 1 if entry["verdict"] is None else 0)
+            self.assertEqual(entry["cost"] == [], entry["verdict"] is None, "a refusal, and only a refusal, has no cost")
 
     def test_each_fixture_gets_its_expected_answer_through_the_command_line(self):
         for name in self.folders():
@@ -597,7 +624,9 @@ class FixtureTest(unittest.TestCase):
                 self.assertEqual([problem["key"] for problem in document["problems"]], expected["refused"])
                 if expected["verdict"] is None:
                     self.assertIsNone(document["verdict"])
+                    self.assertNotIn("cost", document)
                     continue
+                self.assertEqual([entry["id"] for entry in document["cost"]["entries"]], expected["cost"])
                 self.assertEqual((document["verdict"]["code"], document["tool"]), (expected["verdict"], expected["tool"]))
                 self.assertEqual([entry["key"] for entry in document["fired"]], expected["fired"])
                 self.assertEqual([entry["key"] for entry in document["not_deciding"]], expected["not_deciding"])

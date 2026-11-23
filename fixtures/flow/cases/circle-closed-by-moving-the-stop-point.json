@@ -1,5 +1,5 @@
 {"about": "The twin of circle-through-the-stop-point: with the stop point moved to the draft pull request, the same circle can repeat, and is refused.",
- "definition": "template:bug",
+ "definition": "definitions/bug.json",
  "set": {"stop_at": "draft_pr"},
  "remove": ["states.root_cause.cap"],
  "check": [{"code": "loop_without_cap", "where": "states.root_cause"}],

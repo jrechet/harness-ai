@@ -1,5 +1,5 @@
 {"about": "Five problems at once come in the order of the contract's table, then in file order: the write without a key, the budget, the two waits without a deadline, the gate without a judge.",
- "definition": "template:bug",
+ "definition": "definitions/bug.json",
  "set": {"states.draft_pr.writes": [{"what": "the branch", "key": "the-branch"}, {"what": "the pull request", "key": "pr-{ticket}"}]},
  "remove": ["budget", "states.closure_wait.deadline_hours", "states.ci_wait.deadline_hours", "states.human_review.judge"],
  "check": [{"code": "write_without_key", "where": "states.draft_pr.writes[0]"}, {"code": "no_budget", "where": "budget"}, {"code": "wait_without_deadline", "where": "states.ci_wait"}, {"code": "wait_without_deadline", "where": "states.closure_wait"}, {"code": "gate_without_judge", "where": "states.human_review"}],

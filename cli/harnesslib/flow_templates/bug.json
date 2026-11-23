@@ -216,7 +216,6 @@
       "judge": "a maintainer of the repository",
       "shows": "the pull request",
       "deadline_hours": 72,
-      "can_judge": "yes",
       "on": {
         "merged_by_human": {
           "to": "closure_wait",

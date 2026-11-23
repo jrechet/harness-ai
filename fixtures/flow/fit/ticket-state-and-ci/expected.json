@@ -10,5 +10,11 @@
   "not_measured": [
     "tickets_without_cost"
   ],
-  "refused": []
+  "refused": [],
+  "cost": [
+    "agent_pass",
+    "whole_ticket",
+    "ticket_estimate",
+    "ci_minute"
+  ]
 }

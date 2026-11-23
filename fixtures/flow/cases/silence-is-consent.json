@@ -1,0 +1,4 @@
+{"about": "Example 3 of section 12.2: both approvals of the pull request hand over to the next step when nobody answers. Silence is not a decision: the merge and the delivery are refused.",
+ "definition": "definitions/feature.json",
+ "set": {"stop_at": "deployed", "states.human_review.on.deadline_passed": {"to": "merge_auth"}, "states.merge_auth.on.deadline_passed": {"to": "merging"}},
+ "check": [{"code": "irreversible_without_gate", "where": "states.merging.on.merged"}, {"code": "irreversible_without_gate", "where": "states.delivery.on.deployed"}]}

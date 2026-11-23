@@ -1,0 +1,6 @@
+{"about": "The same flow with answers where no symptom was measured: the verdict stays no_engine and says nothing is known from the runs, never that all is fine.",
+ "definition": "definitions/feature.json",
+ "answers": "fit/nothing-measured/answers.json",
+ "check": [],
+ "place": {"steps": {}, "engine": [], "refused_gates": [], "open": [], "verdict": "no_engine", "passed": true, "fired": []},
+ "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}

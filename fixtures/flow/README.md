@@ -40,12 +40,12 @@ A second test, `cli/tests/test_flow_fixtures_format.py`, needs no code. It check
 
 | File | What it is |
 |---|---|
-| `feature` | The feature template, written from the contract's table: 18 steps from "ready for an agent" to the closed ticket, stopping by default when the pull request is marked ready. `flow new feature` must write the same states, events, caps and writes; only the sentences are the code author's |
-| `bug` | The bug template: 14 steps from triage to the closure check days later, stopping by default at the root cause |
+| `feature` | The feature template, written from the contract's table: 18 steps from "ready for an agent" to the closed ticket, stopping by default when the pull request is marked ready. `flow new feature` must write the same states, events, caps and writes; only the sentences are the code author's. Its three gates are answered `"can_judge": "yes"`, as a team would answer them: the template itself leaves that answer to the team (the contract's section 12.1) |
+| `bug` | The bug template: 14 steps from triage to the closure check days later, stopping by default at the root cause. Its one gate is answered, like the feature's |
 | `every-case` | A small flow for what the templates do not hold: a step done by a person, an agent step started again when its job crashes (three times at most), a gate whose deadline hands over to another judge, and an end with no reason given |
 | `retry-on-deadline` | Two steps: an agent step that declares its own deadline back to itself, so that a job that takes too long is started again, three times at most |
 
-A sequence or a flow to place names its definition as `template:feature` or `template:bug` (the test then asks the code for its template), or by a path from this folder. The test also compares each template with its file here.
+A sequence, a case or a flow to place names its definition as `template:feature` or `template:bug` (the test then asks the code for its template, which no judge has answered yet), or by a path from this folder, such as `definitions/feature.json` for the answered file. In `test_flow_fixtures_format.py`, which runs without the code, `template:<kind>` is read as `definitions/<kind>.json` with `can_judge` removed from every gate. The test also compares each template with its file here.
 
 ## The sequences
 
@@ -109,18 +109,21 @@ Beyond the recorded sequences, the same test checks by program, on the two templ
 
 | Folder | Flow | What it shows |
 |---|---|---|
-| `feature` | The feature template | Every step has a place; the verdict is "no step needs an engine"; the placement passes |
-| `bug` | The bug template | The same |
+| `feature` | The feature template with its gates answered (`definitions/feature.json`) | Every step has a place; the verdict is "no step needs an engine"; the placement passes |
+| `bug` | The bug template with its gate answered (`definitions/bug.json`) | The same |
 | `trapped` | `library_upgrade`, its own definition: twelve steps to move a shared library to a new major version | Exactly one step needs an engine (a rewrite of stored records that lasts days and must go on from the middle) and exactly one gate cannot be judged by anyone (a sign-off on a log of forty thousand lines). Beside them, three steps that only look like they need an engine: a wait of ten days, an agent step of four hours that may start again, a gate with a deadline of two weeks. The verdict names the one step, and the placement fails because of the gate. [traps.md](place/trapped/traps.md) says what was planted and why |
 
 ## The cases
 
-One file is one definition and what the three commands that replay nothing must answer on it. `definition` is a reference as above; `remove` (a list of dotted paths, such as `states.coding.cap`) then `set` (path → value) change it. `check` is the full list of problems `flow check` must report, each with its `code` and `where`, in order; an empty list means the definition holds. `not_run`, when present, is the list of steps behind the stop point, which no run enters as the file is written. `place`, when present, gives the three lists, the verdict and `passed` of `flow place`, the destination of the steps it names (the others are not compared) and, under `missing`, the key each open step lacks. `status`, when present, gives the level and which of its three checks pass.
+One file is one definition and what the three commands that replay nothing must answer on it. `definition` is a reference as above; `remove` (a list of dotted paths, such as `states.coding.cap`) then `set` (path → value) change it. `check` is the full list of problems `flow check` must report, each with its `code` and `where`, in order; an empty list means the definition holds. `not_run`, when present, is the list of steps behind the stop point, which no run enters as the file is written. `waiting`, when present, is the list of gates that wait for their judge's answer (no `can_judge`), in file order. `bounds`, when present, gives part of what bounds one run of a flow that holds: its `circles` (each `steps` and `most_entries`), the stop points that cannot be taken back (`irreversible`) and those the file treats as possible to take back (`taken_back`), and for each write that cannot be taken back the last gate that guards it on the shortest path (`guards`: `state`, `event`, `last_gate`, `steps_between`, `agents_between`). `answers`, when present, is an answers file of `flow fit`, a path from this folder, given to `place` and `status` as `--answers` gives it. `place`, when present, gives the three lists, the verdict and `passed` of `flow place`, the destination of the steps it names (the others are not compared), under `missing` the key each open step lacks and, only with `answers`, under `fired` the symptoms read above their threshold; its verdict is then `symptom` where no step needs an engine and a symptom fired. `status`, when present, gives the level and which of its three checks pass. The cases from `feature-answered` to `wait-retyped-as-program` were added for the contract's sections 12.1 and 12.2, and the four from `symptom-on-a-placed-flow` to `answers-nothing-measured` for its section 12.5, from its examples, by the sessions that also wrote the code for them: they hold a regression in place, they are not an independent measure.
 
 | File | Flow | What it shows |
 |---|---|---|
-| `feature-as-written` | feature | It holds, every step has a place, level 1; the six steps after `mark_ready` are described and not run |
-| `bug-as-written` | bug | The same; the ten steps after `notify` are not run |
+| `feature-as-written` | feature | It holds, but no template answers for the judge: the three approvals wait, the placement is open, level 0; the six steps after `mark_ready` are described and not run |
+| `bug-as-written` | bug | The same with its one approval; the ten steps after `notify` are not run |
+| `feature-answered` | feature, answered | Nothing waits, level 1; two circles of 3 and 16 entries at most; the merge and the delivery are guarded by the merge authorisation, 0 and 1 step before them |
+| `bug-answered` | bug, answered | Nothing waits, level 1; no circle a run can turn; the human review is the gate of its own merge |
+| `one-approval-answered` | feature, the plan review answered | The two other approvals still wait, in file order; level 0 |
 | `every-case-placed` | every-case | A step done by a person is held by the ticket; the second judge's gate is a human gate; no step lies behind a stop point that sits on the transition to `done` |
 | `engine-alone` | bug, the closure check must go on from its middle | Verdict "would need an engine", and the placement passes: an engine is an answer, not a failure |
 | `gate-nobody-can-judge-alone` | feature, the merge authorisation cannot be judged | Verdict "no step needs an engine", and the placement fails because of the gate alone; `flow check` still passes |
@@ -138,10 +141,43 @@ One file is one definition and what the three commands that replay nothing must 
 | `stop-point-is-a-step-name` | bug, `stop_at` set to the step `fix` | No stop point: a stop point is a name a transition reaches, not a step |
 | `unknown-type` | bug, one step of type "person" | `flow check` says it once; `flow place` leaves the step open and asks for `type` |
 | `several-problems-in-order` | bug, five things removed | The problems come in the order of the contract's table, then in file order |
+| `merge-without-a-person` | feature, answered, every gate removed, stopping at the delivery | The merge and the delivery cannot be taken back and no gate stands before them: two problems, the path printed |
+| `merge-behind-the-stop-point` | the same, stopping at the ready pull request | The same two problems: the whole graph is read, so moving the stop point never removes the last gate |
+| `gate-on-one-branch-only` | the same, the plan review kept | A small plan goes around the plan review: the same two problems |
+| `silence-is-consent` | feature, answered, both pull request approvals passing on in silence | A gate left by its deadline is read as absent: the same two problems |
+| `refusal-leads-to-the-write` | feature, answered, the refused merge handed to a step that merges anyway | A gate whose every answer leads to the write guards nothing: the same two problems |
+| `silence-on-the-last-gate-only` | feature, answered, only the merge authorisation passing on in silence | It holds: every path to the merge has crossed the human review by an answer |
+| `reaches-on-a-stop` | merge-behind-the-stop-point, the merge ending the run | A transition to `stopped` that reaches "merged" made the write: one problem |
+| `gate-with-a-mistyped-type` | bug, answered, the review typed "gat" | One line, `unknown_step_type`: the new refusal waits until the type is fixed |
+| `wait-watches-a-person-merge` | bug, answered, the review retyped as a wait | The program sees no gate before the merge: refused |
+| `person-merges-by-hand` | bug, answered, the review retyped as a person's work | A person makes the write: it holds, and no gate is asked |
+| `gate-far-before-the-write` | feature, answered, only the plan review left and every plan through it | It holds; the bounds say the gate stands 7 steps before the merge, 2 of them agents |
+| `irreversible-own-name` | feature, answered, `"irreversible": ["ready_pr"]` | The team's own word: the ready pull request is reached crossing no gate, refused |
+| `irreversible-empty` | merge-without-a-person, `"irreversible": []` | The team says nothing is irreversible: it holds, no write is checked |
+| `irreversible-not-a-list` | feature, answered, `"irreversible": "merged"` | The file cannot be read as a flow, and only that is said |
+| `irreversible-typo` | feature, answered, two names no transition reaches | The same: a slip of the pen never switches the rule off in silence |
+| `stop-point-renamed` | merge-without-a-person with the merge and the delivery renamed | It holds, since the program cannot know those names; the bounds list them as possible to take back |
+| `huge-cap-and-budget` | feature, answered, a cap of a million and a budget of a billion dollars | It holds; the bounds print the figures, no threshold is applied |
+| `writes-deleted` | feature, answered, the draft pull request declaring no write | It holds: what `flow check` cannot see |
+| `wait-retyped-as-program` | feature, answered, the CI wait written as a program | It holds: what `flow check` cannot see |
+| `symptom-on-a-placed-flow` | feature, answered, with the answers of `fit/symptom-fired` | No step is written as needing an engine, and the verdict, `symptom`, names the two symptoms measured above zero; the placement passes and the level stays 1 |
+| `symptom-beside-an-engine` | engine-alone, with the same answers | The verdict keeps its code, engine, and adds the two symptoms |
+| `answers-nothing-above` | feature, answered, with the answers of `fit/ticket-state-and-ci` | No step needs an engine, as the file is written: the verdict says 7 of the 8 symptoms were measured, none above its threshold, and lists the one not measured |
+| `answers-nothing-measured` | feature, answered, with the answers of `fit/nothing-measured` | No step needs an engine, as the file is written, and nothing is known from the runs: never read as reassurance |
+| `every-answer-merges` | feature, answered, the refused merge handed to a copy of the merge step | A gate guards a stop point, not one transition: both merges and both deliveries are refused |
+| `bug-every-answer-merges` | bug, answered, both answers of the review reaching the merge | The only gate cannot keep the run from the merge: both of its answers are refused |
+| `refusal-reaches-the-write` | feature, answered, the merge authorisation writing the merge on both of its answers | An answer that makes the write is no refusal: both are refused |
+| `refusal-deploys-directly` | feature, answered, the refused merge handed to a step that deploys without merging | The gate guards the merge, not the deploy: the two deploys are refused, the merge is not |
+| `person-merges-then-pipeline-deploys` | feature, answered, the merge made by hand by a person, the pipeline deploying after it | The person's merge stands before the deploy as a gate would: it holds |
+| `person-merges-on-silence` | bug, answered, the review retyped as a person's work whose deadline merges | A person's step left by `deadline_passed` is nobody's decision: that merge is refused |
+| `person-merges-on-silence-then-pipeline-deploys` | as `person-merges-then-pipeline-deploys`, the merge also made when the person's deadline passes | The silent merge is refused, and it guards nothing after it: the deploy is refused too |
+| `person-merges-what-can-be-taken-back` | as `person-merges-then-pipeline-deploys`, with `"irreversible": ["deployed"]` | The person's merge is still their decision on the deploy: it holds, as with the default list |
+| `triage-before-the-merge-authorisation` | feature, answered, the human review a triage that merges through the merge authorisation or redeploys without merging, nobody able to judge either | It holds; neither gate may be removed: the merge authorisation is the last gate before the merge, and without it the triage refuses nothing, so the deploy is left without a gate |
+| `bypass-and-two-gates-nobody-can-judge` | feature, answered, a trivial change merged around both approvals, nobody able to judge either | Refused at the merge and the deploy; the human review may be removed, the merge authorisation may not go with it: the gate kept is the one nearest the merge, whatever the bypass |
 
 ## The answers to `flow fit`
 
-`flow fit` is run before any definition exists: a team records what it builds, how many tickets a week go through the path, whether a person starts each phase, and eight symptoms, each a number or "not measured" (the contract's section 11). `expected.json` gives the exit code, the verdict (`by_hand`, `ticket_state_and_ci`, `tool`, `symptom`, or null when the answers are refused), the tool named, the symptoms that fired, the numbers listed without deciding (`not_deciding`), the symptoms not measured, and the keys a refusal names, each list in order. `cli/tests/test_flow_fit.py` runs each file through the command line. These six were written by the session that wrote the code: they hold a regression in place, they are not an independent measure.
+`flow fit` is run before any definition exists: a team records what it builds, how many tickets a week go through the path, whether a person starts each phase, and eight symptoms, each a number or "not measured" (the contract's section 11). `expected.json` gives the exit code, the verdict (`by_hand`, `ticket_state_and_ci`, `tool`, `symptom`, or null when the answers are refused), the tool named, the symptoms that fired, the numbers listed without deciding (`not_deciding`), the symptoms not measured, the keys a refusal names, and the ids of the cost entries the verdict prints (`cost`, empty for a refusal; the contract's section 12.3), each list in order. `cli/tests/test_flow_fit.py` runs each file through the command line. These seven were written by the session that wrote the code: they hold a regression in place, they are not an independent measure.
 
 ```bash
 python3 -m unittest discover -s cli/tests -p test_flow_fit.py -v
@@ -153,6 +189,7 @@ python3 -m unittest discover -s cli/tests -p test_flow_fit.py -v
 | `ticket-state-and-ci` | Fifteen tickets a week, chained by hand; one run in ten paid twice | "Ticket state and CI are enough": a value on the threshold is not above it. The one symptom not measured is listed, and the four steps with their own retry rule are listed without deciding |
 | `own-agent-app` | Its own agent application, with seven double runs written down | The tool the report's table names for that case; the symptoms describe a ticket workflow and decide nothing here |
 | `symptom-fired` | Thirty tickets a week, two double runs, three looping agents, eight runs in a hundred paid twice | Two symptoms named in table order, one an engine removes and one it does not; the share under its written threshold is not named |
+| `symptom-no-engine` | Twenty tickets a week, two looping agents, nothing else above zero | The symptom fires and no engine is named, since an engine retries a looping agent faithfully: the cost lists no engine entry |
 | `nothing-measured` | Twenty-five tickets a week, every symptom "not measured" | The verdict is still "ticket state and CI", and all eight symptoms are listed as not measured, none counted as fine |
 | `refused` | One key absent, one symptom written "none", one symptom key misspelt | No verdict, exit 1: each key is named, the misspelt one twice (the right key is missing, the wrong one is unknown) |
 

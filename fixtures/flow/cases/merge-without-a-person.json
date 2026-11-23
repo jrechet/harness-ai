@@ -1,0 +1,5 @@
+{"about": "Example 1 of section 12.2: every gate removed and the flow stopping at the delivery. The merge and the delivery cannot be taken back and no gate stands before them: two problems.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.plan_review", "states.human_review", "states.rework", "states.merge_auth"],
+ "set": {"states.plan_size.on.plan_large": {"to": "coding", "reaches": "plan"}, "states.mark_ready.on.marked_ready": {"to": "merging", "reaches": "ready_pr"}, "stop_at": "deployed"},
+ "check": [{"code": "irreversible_without_gate", "where": "states.merging.on.merged"}, {"code": "irreversible_without_gate", "where": "states.delivery.on.deployed"}]}

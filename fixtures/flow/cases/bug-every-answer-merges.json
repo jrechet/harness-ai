@@ -1,0 +1,4 @@
+{"about": "The only gate of the bug flow, both of its answers marked as reaching the merge: the person can close the pull request, and the run merges all the same. Both writes are refused.",
+ "definition": "definitions/bug.json",
+ "set": {"stop_at": "merged", "states.human_review.on.closed_with_reason": {"to": "closure_check", "reaches": "merged"}},
+ "check": [{"code": "irreversible_without_gate", "where": "states.human_review.on.merged_by_human"}, {"code": "irreversible_without_gate", "where": "states.human_review.on.closed_with_reason"}]}

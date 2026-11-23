@@ -1,6 +1,9 @@
-{"about": "The feature template as flow new writes it: it holds, every step has a place, it is at level 1. A run stops on purpose after mark_ready, so the six steps behind the stop point are described and not run.",
+{"about": "The feature template as flow new writes it: it holds, but no template answers for the judge, so its three approvals wait for their judge's answer, the placement is open and the flow stays at level 0. A run stops on purpose after mark_ready, so the six steps behind the stop point are described and not run.",
  "definition": "template:feature",
  "check": [],
  "not_run": ["human_review", "rework", "merge_auth", "merging", "delivery", "closing"],
- "place": {"steps": {}, "engine": [], "refused_gates": [], "open": [], "verdict": "no_engine", "passed": true},
- "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}
+ "waiting": ["plan_review", "human_review", "merge_auth"],
+ "place": {"steps": {"plan_review": null, "human_review": null, "merge_auth": null}, "engine": [], "refused_gates": [],
+           "open": ["plan_review", "human_review", "merge_auth"], "verdict": "open", "passed": false,
+           "missing": {"plan_review": "can_judge", "human_review": "can_judge", "merge_auth": "can_judge"}},
+ "status": {"level": 0, "passed": {"definition_holds": true, "steps_placed": false, "stop_and_budget": true}}}

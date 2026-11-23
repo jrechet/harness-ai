@@ -1,0 +1,6 @@
+{"about": "The bug flow with its approval answered: nothing waits, it is at level 1. No circle can turn as the file is written, since the CI loop is behind the stop point; the merge is the reviewer's own answer, so the gate that guards it is the step itself.",
+ "definition": "definitions/bug.json",
+ "check": [],
+ "waiting": [],
+ "bounds": {"circles": [], "irreversible": ["merged", "deployed"], "taken_back": ["root_cause", "plan", "draft_pr", "ready_pr"], "guards": [{"state": "human_review", "event": "merged_by_human", "last_gate": "human_review", "steps_between": 0, "agents_between": 0}]},
+ "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}

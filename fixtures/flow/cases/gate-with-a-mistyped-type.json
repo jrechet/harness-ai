@@ -1,0 +1,4 @@
+{"about": "The reviewer's gate typed \"gat\": one line, unknown_step_type. The new refusal waits until the type is fixed: one fault, one line.",
+ "definition": "definitions/bug.json",
+ "set": {"states.human_review.type": "gat"},
+ "check": [{"code": "unknown_step_type", "where": "states.human_review"}]}

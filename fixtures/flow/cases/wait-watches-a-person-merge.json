@@ -1,0 +1,5 @@
+{"about": "The review retyped as a wait that watches the team merge, with no judge: the program sees no gate before the merge, so it is refused, and the sentence's second way out fits it.",
+ "definition": "definitions/bug.json",
+ "remove": ["states.human_review.judge", "states.human_review.can_judge"],
+ "set": {"stop_at": "ready_pr", "states.human_review.type": "wait", "states.human_review.deadline_hours": 168},
+ "check": [{"code": "irreversible_without_gate", "where": "states.human_review.on.merged_by_human"}]}

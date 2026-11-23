@@ -74,7 +74,6 @@
       "judge": "a maintainer of the repository",
       "shows": "the plan",
       "deadline_hours": 72,
-      "can_judge": "yes",
       "on": {
         "plan_approved": {
           "to": "coding"
@@ -227,7 +226,6 @@
       "judge": "a reviewer who did not request the change",
       "shows": "the pull request",
       "deadline_hours": 72,
-      "can_judge": "yes",
       "on": {
         "approved": {
           "to": "merge_auth"
@@ -256,7 +254,6 @@
       "judge": "a maintainer who is not the requester",
       "shows": "the pull request",
       "deadline_hours": 72,
-      "can_judge": "yes",
       "on": {
         "merge_authorised": {
           "to": "merging"

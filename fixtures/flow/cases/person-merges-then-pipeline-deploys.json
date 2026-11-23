@@ -1,0 +1,8 @@
+{"about": "A person merges by hand, then the team's pipeline deploys. The person's merge is their decision on the write, and it stands before the deploy as a gate would: it holds.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.human_review", "states.rework", "states.merge_auth", "states.merging.checks_premise", "states.merging.survives", "states.merging.units", "states.merging.repositories"],
+ "set": {"stop_at": "deployed",
+         "states.mark_ready.on.marked_ready": {"to": "merging", "reaches": "ready_pr"},
+         "states.merging.type": "human", "states.merging.deadline_hours": 1},
+ "check": [],
+ "bounds": {"guards": [{"state": "merging", "event": "merged", "last_gate": null, "steps_between": null, "agents_between": null}, {"state": "delivery", "event": "deployed", "last_gate": "merging", "steps_between": 0, "agents_between": 0}]}}

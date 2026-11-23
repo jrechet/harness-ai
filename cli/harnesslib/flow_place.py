@@ -7,6 +7,7 @@ definition file, never asked: same file, same places.
 
   harness flow place flow.json                 one line per step, then the verdict
   harness flow place flow.json --format json   the `place` document
+  harness flow place flow.json --answers a.json   the same, with the symptoms measured on the runs
 
 Needing a workflow engine is an answer, not a failure. Two things fail: a step with a missing
 answer, and a gate whose judge could not judge what they approve. A step that cannot be placed
@@ -22,6 +23,7 @@ import os
 import sys
 from typing import Any
 
+from . import flow_fit, flow_paths
 from . import place as grid_walk
 from .flow import TYPE_WORDS, load_definition
 
@@ -121,9 +123,42 @@ def _verdict(steps: list[dict[str, Any]]) -> dict[str, str]:
     return {"code": "no_engine", "sentence": "No step needs an engine."}
 
 
-def place(definition: Any) -> dict[str, Any]:
+def with_runs(verdict: dict[str, str], measured: dict[str, Any] | None) -> dict[str, str]:
+    """The verdict once the symptoms measured on the team's runs are read (section 12.5). Without
+    them, unchanged. With them, a symptom that fired is never hidden behind "no step needs an
+    engine", and what was measured, or not, is always said."""
+    if measured is None:
+        return verdict
+    said = flow_fit.said_of_runs(measured)
+    if verdict["code"] == "no_engine" and measured["fired"]:
+        return {"code": "symptom", "sentence": f"No step is written as needing an engine. {said}"}
+    if verdict["code"] == "no_engine":
+        return {"code": "no_engine", "sentence": f"No step needs an engine, as the file is written. {said}"}
+    return {"code": verdict["code"], "sentence": f"{verdict['sentence']} {said}"}
+
+
+def waiting(definition: Any) -> list[str]:
+    """The gates that wait for their judge's answer: those with no `can_judge` key, in file order.
+    A value the grid cannot read is a fault, which `flow place` names, not a wait. No template
+    answers for the team, so a fresh one waits at every gate. Never raises."""
+    states = definition.get("states") if isinstance(definition, dict) else None
+    if not isinstance(states, dict):
+        return []
+    return [str(name) for name, step in states.items()
+            if isinstance(step, dict) and step.get("type") == "gate" and "can_judge" not in step]
+
+
+def only_waiting(placement: dict[str, Any], gates: list[str]) -> bool:
+    """True when the placement fails only because gates wait for their judge: no gate is refused,
+    and every open step is one of them."""
+    return (not placement["passed"] and not placement["refused_gates"]
+            and all(state in gates for state in placement["open"]))
+
+
+def place(definition: Any, measured: dict[str, Any] | None = None) -> dict[str, Any]:
     """The `place` document of a flow definition. It places what it finds: whether the flow
-    holds together is `flow check`'s question, not this one."""
+    holds together is `flow check`'s question, not this one. `measured` is what
+    `flow_fit.measured` read of the team's answers, or None when none were given."""
     if not isinstance(definition, dict):
         raise ValueError("the file is not a flow: expected an object with its steps under states")
     states = definition.get("states")
@@ -135,8 +170,8 @@ def place(definition: Any) -> dict[str, Any]:
     waiting = [s["state"] for s in steps if s["status"] == "open"]
     return {"flow": _text(definition.get("name")), "steps": steps,
             "engine": [s["state"] for s in steps if s["destination"] == ENGINE],
-            "refused_gates": refused, "open": waiting, "verdict": _verdict(steps),
-            "passed": not waiting and not refused}
+            "refused_gates": refused, "open": waiting, "verdict": with_runs(_verdict(steps), measured),
+            "passed": not waiting and not refused, "measured": measured}
 
 
 # --- Rendering -------------------------------------------------------------------------------------
@@ -155,14 +190,16 @@ def _step_line(entry: dict[str, Any], judge: str | None) -> str:
     return line
 
 
-def render_md(result: dict[str, Any], judges: dict[str, str | None]) -> str:
-    """What a person reads: one line per step, the verdict, then the gates nobody can judge."""
+def render_md(result: dict[str, Any], judges: dict[str, str | None], kept: dict[str, Any] | None = None) -> str:
+    """What a person reads: one line per step, the verdict, then the gates nobody can judge. A gate of
+    `kept` (the gate, its `flow_paths.gate_keeps` entry or `flow_paths.UNREAD`) is one the flow cannot
+    lose, or one a fault keeps from being read: its line never says to remove it."""
     lines = [_step_line(entry, judges.get(entry["state"])) for entry in result["steps"]]
     sentence = result["verdict"]["sentence"]
     starts_with_a_word = sentence[:1].isalpha()
     lines += ["", "Verdict: " + (sentence[:1].lower() + sentence[1:] if starts_with_a_word else sentence)]
-    lines += [f"A gate nobody can judge: {state}. Remove it, or give {judges.get(state) or 'its judge'} "
-              "something they can read and refuse." for state in result["refused_gates"]]
+    lines += [flow_paths.refused_gate_line(state, judges.get(state), (kept or {}).get(state))
+              for state in result["refused_gates"]]
     return "\n".join(lines) + "\n"
 
 
@@ -173,14 +210,20 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
                                           formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("file", help="the flow definition, a JSON file")
     p.add_argument("--format", choices=["md", "json"], default="md")
+    p.add_argument("--answers", metavar="FILE", help="the answers file of flow fit, read beside the definition")
     return p
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Prints the answer on the standard output, and only the answer: every note is `flow_cli`'s.
+    With --answers, the symptoms measured on the team's runs are read into the verdict (section 12.5)."""
     args = build_parser().parse_args(argv)
     try:
+        measured = None
+        if args.answers:
+            measured = flow_fit.measured(flow_fit.read_answers(args.answers), args.answers, args.file)
         definition = load_definition(args.file)
-        result = place(definition)
+        result = place(definition, measured)
     except ValueError as exc:
         print(f"flow: {exc}", file=sys.stderr)
         return 2
@@ -189,7 +232,7 @@ def main(argv: list[str] | None = None) -> int:
         sys.stdout.write("\n")
     else:
         judges = {state: _text(step.get("judge")) for state, step in definition["states"].items()}
-        sys.stdout.write(render_md(result, judges))
+        sys.stdout.write(render_md(result, judges, flow_paths.gate_marks(definition, result["refused_gates"])))
     return 0 if result["passed"] else 1
 
 

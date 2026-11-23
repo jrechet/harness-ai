@@ -10,5 +10,9 @@
   "not_measured": [
     "agent_loops"
   ],
-  "refused": []
+  "refused": [],
+  "cost": [
+    "this_tool",
+    "agent_pass"
+  ]
 }

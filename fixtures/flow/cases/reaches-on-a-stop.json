@@ -1,0 +1,5 @@
+{"about": "The merge step ends the run when it merges, the transition still reaching \"merged\": the write was made, so it is read like any other, and refused.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.plan_review", "states.human_review", "states.rework", "states.merge_auth", "states.delivery", "states.closing"],
+ "set": {"states.plan_size.on.plan_large": {"to": "coding", "reaches": "plan"}, "states.mark_ready.on.marked_ready": {"to": "merging", "reaches": "ready_pr"}, "states.merging.on.merged": {"to": "stopped", "reason": "merged", "reaches": "merged"}},
+ "check": [{"code": "irreversible_without_gate", "where": "states.merging.on.merged"}]}

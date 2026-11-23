@@ -1,0 +1,5 @@
+{"about": "Example 4 of section 12.2: the refusal of the merge authorisation leads to a program step that merges anyway. A gate whose every answer leads to the write guards nothing: two problems.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.human_review", "states.rework"],
+ "set": {"states.mark_ready.on.marked_ready": {"to": "merge_auth", "reaches": "ready_pr"}, "states.merge_auth.on.merge_refused": {"to": "merge_anyway"}, "states.merge_anyway": {"type": "code", "does": "Merges the pull request although its merge was refused", "survives": "restart", "units": "one", "repositories": "one", "on": {"overruled": {"to": "merging"}}}},
+ "check": [{"code": "irreversible_without_gate", "where": "states.merging.on.merged"}, {"code": "irreversible_without_gate", "where": "states.delivery.on.deployed"}]}
