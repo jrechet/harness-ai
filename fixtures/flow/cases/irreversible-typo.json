@@ -1,0 +1,4 @@
+{"about": "irreversible names two stop points no transition reaches: a slip of the pen must not switch the rule off in silence, so the file cannot be read as a flow.",
+ "definition": "definitions/feature.json",
+ "set": {"irreversible": ["mergd", "deploied"]},
+ "check": [{"code": "malformed", "where": "irreversible"}]}

@@ -10,6 +10,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from harnesslib import flow, flow_place  # noqa: E402
+from tests import flow_fixture_files as files  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 GUIDE = os.path.join(ROOT, "docs", "workflow-harness", "decide.md")
@@ -92,12 +93,15 @@ class GuideTest(unittest.TestCase):
         self.assertIn("symptom that would make you need it", last_heading.lower())
 
     def test_the_two_templates_are_placed_in_the_guide_as_flow_place_places_them(self):
+        # Since section 12.1 a template leaves its approvals open: the tables place the answered
+        # files of fixtures/flow/definitions/, and the page says a fresh template is not answered.
         tables = placed_tables(guide())
         self.assertEqual(len(tables), 2, "decide.md must hold one step-by-step table per template")
+        self.assertIn("A fresh template leaves its approvals open", guide())
         for kind, table in zip(flow.TEMPLATES, tables):
             with self.subTest(template=kind):
                 real = [(step["state"], flow.TYPE_WORDS[step["type"]], step["says"])
-                        for step in flow_place.place(flow.new(kind))["steps"]]
+                        for step in flow_place.place(files.answered_template(kind))["steps"]]
                 self.assertEqual(table, real)
 
     def test_the_example_lines_of_the_guide_are_lines_flow_place_prints(self):

@@ -92,6 +92,8 @@
       "sentence": "Ticket state and CI are enough.",
       "why_by_hand": "{tickets} tickets a week go through this path and the phases are chained by hand. The ticket or the pull request holds the state, and a short CI job runs each step. No measured symptom is above its threshold.",
       "why_chained": "The phases are already chained without a person, and no measured symptom is above its threshold. The ticket or the pull request holds the state, and a short CI job runs each step.",
+      "why_by_hand_unmeasured": "{tickets} tickets a week go through this path and the phases are chained by hand. The ticket or the pull request holds the state, and a short CI job runs each step. Nothing was measured on your own runs, so nothing is known from them.",
+      "why_chained_unmeasured": "The phases are already chained without a person. The ticket or the pull request holds the state, and a short CI job runs each step. Nothing was measured on your own runs, so nothing is known from them.",
       "would_change": "One symptom measured above its threshold on your own runs: runs_paid_twice above 0.1, any other above 0, except steps_with_own_retry_rule, which has no threshold and is yours to judge.",
       "source": "report §8, first row; report §7, last table"
     },

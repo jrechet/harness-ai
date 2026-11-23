@@ -1,0 +1,5 @@
+{"about": "The plan review kept, but a small plan goes around it: a run can merge crossing no gate, and the plan review is struck too, since its refusal leads back to a path around it.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.human_review", "states.rework", "states.merge_auth"],
+ "set": {"states.mark_ready.on.marked_ready": {"to": "merging", "reaches": "ready_pr"}, "stop_at": "deployed"},
+ "check": [{"code": "irreversible_without_gate", "where": "states.merging.on.merged"}, {"code": "irreversible_without_gate", "where": "states.delivery.on.deployed"}]}

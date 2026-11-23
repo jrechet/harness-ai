@@ -1,0 +1,4 @@
+{"about": "The team says the ready pull request cannot be taken back: the transition that reaches it is crossed by no gate, so it is refused.",
+ "definition": "definitions/feature.json",
+ "set": {"irreversible": ["ready_pr"]},
+ "check": [{"code": "irreversible_without_gate", "where": "states.mark_ready.on.marked_ready"}]}

@@ -1,0 +1,4 @@
+{"about": "Only the merge authorisation hands over in silence: the file holds, since every path to the merge has crossed the human review by an answer.",
+ "definition": "definitions/feature.json",
+ "set": {"states.merge_auth.on.deadline_passed": {"to": "merging"}},
+ "check": []}

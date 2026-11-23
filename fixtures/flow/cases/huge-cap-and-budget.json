@@ -1,0 +1,5 @@
+{"about": "Example 5 of section 12.2: a cap of a million on the coding agent and a budget of a billion dollars. It holds; what changes is what the person reads.",
+ "definition": "definitions/feature.json",
+ "set": {"states.coding.cap": 1000000, "budget": {"dollars": 1000000000, "minutes": 240}},
+ "check": [],
+ "bounds": {"circles": [{"steps": ["planning", "plan_size", "plan_review"], "most_entries": 3}, {"steps": ["coding", "checks", "draft_pr", "ci_wait", "ci_check", "ci_fix", "review_checks"], "most_entries": 1000010}]}}

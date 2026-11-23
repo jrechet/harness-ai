@@ -1,0 +1,6 @@
+{"about": "The merge authorisation writes the merge on both of its answers, the refusal included, and nothing guards it before: an answer that makes the write is no refusal, so both are refused.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.human_review", "states.rework", "states.merging"],
+ "set": {"states.mark_ready.on.marked_ready": {"to": "merge_auth", "reaches": "ready_pr"},
+         "states.merge_auth.on": {"merge_authorised": {"to": "delivery", "reaches": "merged"}, "merge_refused": {"to": "stopped", "reason": "merge_refused", "reaches": "merged"}}},
+ "check": [{"code": "irreversible_without_gate", "where": "states.merge_auth.on.merge_authorised"}, {"code": "irreversible_without_gate", "where": "states.merge_auth.on.merge_refused"}]}

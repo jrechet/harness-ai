@@ -1,0 +1,8 @@
+{"about": "A trivial change goes from the review checks straight to the merge, around both approvals, and nobody can judge either approval. flow check refuses the bypass. The approval nearest the merge is still the one kept: once the bypass is closed, removing every gate offered must not leave the merge without a gate.",
+ "definition": "definitions/feature.json",
+ "set": {"states.human_review.can_judge": "no",
+         "states.merge_auth.can_judge": "no",
+         "states.review_checks.on.trivial": {"to": "merging"}},
+ "check": [{"code": "irreversible_without_gate", "where": "states.merging.on.merged"}, {"code": "irreversible_without_gate", "where": "states.delivery.on.deployed"}],
+ "place": {"steps": {"human_review": "no_gate", "merge_auth": "no_gate"}, "engine": [], "refused_gates": ["human_review", "merge_auth"], "open": [], "verdict": "no_engine", "passed": false},
+ "status": {"level": 0, "passed": {"definition_holds": false, "steps_placed": false, "stop_and_budget": true}}}

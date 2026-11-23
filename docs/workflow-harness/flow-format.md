@@ -6,15 +6,17 @@ Nothing here runs an agent, a pipeline or a clock. The commands read the file an
 
 ## The order of work
 
-0. Before any file: `python3 cli/harness.py flow fit --questions`, then `flow fit <answers.json>`, says whether you need a workflow at all, and which tool.
-1. `python3 cli/harness.py flow new feature` (or `bug`) writes `.harness/flow/feature.json`, a starting definition.
+0. Before any file: `python3 cli/harness.py flow fit --questions`, then `flow fit <answers.json>`, says whether you need a workflow at all, which tool, and the published costs it copies from the pages, dated and sourced.
+1. `python3 cli/harness.py flow new feature` (or `bug`) writes `.harness/flow/feature.json`, a starting definition. Its approvals have no `can_judge`: each waits for its judge's answer, and the flow stays at level 0 until every one is answered.
 2. Edit that file: this page.
-3. `flow check <file>` refuses a flow that could loop, wait or spend without end. Each problem ends with the key to write.
-4. `flow place <file>` says where each step belongs, and whether one needs a workflow engine.
-5. `flow status <file> --map` gives the level reached on paper and the next step.
+3. `flow check <file>` refuses a flow that could loop, wait or spend without end, or reach a write that cannot be taken back with no gate that can refuse it. Each problem ends with the key to write. When the flow holds, it prints what bounds one run.
+4. `flow place <file>` says where each step belongs, and whether one needs a workflow engine. With `--answers <answers.json>`, the answers file of `flow fit`, it also reads the symptoms measured on your runs.
+5. `flow status <file> --map` gives the level reached on paper and the next step; it takes `--answers` too.
 6. `flow next <file> --event <event.json> --new` tries the flow by hand, one event at a time.
 
-`flow check` and `flow place` answer two different questions and each can pass while the other fails. `flow check` looks at the shape: loops, deadlines, keys, ways out. `flow place` looks at where each step lives and whether each judge can judge. `flow status` needs both.
+From your own repository: with `--format md` (the default), every command that exits 0 or 1 ends, on stderr, with a note that gives the full command and the folder of these pages; with `--format json`, stderr stays empty.
+
+`flow check` and `flow place` answer two different questions and each can pass while the other fails. `flow check` looks at the shape: loops, deadlines, keys, ways out, a gate before what cannot be taken back. `flow place` looks at where each step lives and whether each judge can judge. `flow status` needs both.
 
 ## Words
 
@@ -39,6 +41,7 @@ One JSON object. Names of flows, steps, events, reasons and stop points are lowe
 | `start` | the name of a step | yes | Where a run begins |
 | `stop_at` | the name of a stop point | yes | Where a run ends on purpose. One of the names given by `reaches` |
 | `budget` | `{"dollars": n, "minutes": n}`, both above 0 | yes | What one run may spend. The run is stopped at the first event that passes it |
+| `irreversible` | a list of stop point names, `[]` allowed | no | The stop points whose write cannot be taken back; absent, `merged` and `deployed`. `flow check` refuses a transition that reaches one when a run can take it crossing no gate that can keep the run from every write of that stop point (a gate left by `deadline_passed` does not count; a step of type `human` that makes such a write, or writes `merged` or `deployed` even when this list leaves them out, counts as one for the writes after it), and refuses a name here that no transition reaches |
 | `states` | an object: step name → step | yes | The steps. `done` and `stopped` are the two ends of every flow: never declare them |
 
 ## A step
@@ -54,7 +57,7 @@ One JSON object. Names of flows, steps, events, reasons and stop points are lowe
 | `deadline_hours` | a number above 0 | needed on `gate`, `wait`, `human`; allowed on the others | After that long with no event, the step has failed |
 | `judge` | text | needed on `gate` | Who decides, by role or by name |
 | `shows` | text | needed on `gate` | What the judge reads. It must be, to the letter, the `what` of a `writes` entry of another step |
-| `can_judge` | `yes` or `no` | `gate`; read by `flow place` | Can the judge really judge what they approve? A person answers this |
+| `can_judge` | `yes` or `no` | `gate`; read by `flow place` | Can the judge really judge what they approve? A person answers this: `flow new` never writes it, and until it is written the gate waits for its judge, `flow place` leaves it open and the flow stays at level 0 |
 | `survives` | `restart` or `midway` | `code`, `agent`; read by `flow place` | `restart`: minutes to a few hours, and starting again from the beginning is fine. `midway`: it must go on from its middle |
 | `units` | `one` or `many` | `code`, `agent`; read by `flow place` | Does the work split into many independent units? |
 | `repositories` | `one` or `several` | `code`, `agent`; read by `flow place` | How many repositories need this step |
@@ -109,6 +112,8 @@ A person who decides. Two ways out, so that the gate can refuse:
                    "sent_back": {"to": "drafting"}}}}
 ```
 
+This gate is shown answered. When you paste it, leave `can_judge` out: only the judge answers it, and until then `flow place` leaves the gate open.
+
 A person who works:
 
 ```json
@@ -160,6 +165,8 @@ A wait. The program after it checks its facts:
               "on": {"confirmed": {"to": "done", "reaches": "published", "reason": "published"},
                      "drifted": {"to": "stopped", "reason": "drifted"}}}}}
 ```
+
+Its gate is answered, as a team writes it once the judge has said yes.
 
 As written, a run of this flow stops on purpose after `review`: `stop_at` is `reviewed`, the stop point the event `approved` reaches. The three steps after it (`apply_by_hand`, `site_wait`, `confirm`) are described but not run. To run them too, set `stop_at` to `published`. `flow new` and `flow check` say the same of your own file.
 

@@ -1,0 +1,17 @@
+{
+  "about": "Twenty tickets a week; two runs looped until something outside stopped them, and nothing else is above zero. The symptom fires, but an engine retries a looping agent faithfully: no engine is named, and the cost lists no engine entry.",
+  "exit": 0,
+  "verdict": "symptom",
+  "tool": null,
+  "fired": [
+    "agent_loops"
+  ],
+  "not_deciding": [],
+  "not_measured": [],
+  "refused": [],
+  "cost": [
+    "agent_pass",
+    "whole_ticket",
+    "ticket_estimate"
+  ]
+}

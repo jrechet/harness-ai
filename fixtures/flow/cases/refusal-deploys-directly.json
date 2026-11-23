@@ -1,0 +1,8 @@
+{"about": "The refusal of the merge authorisation leads to a program step that deploys without merging. The gate keeps the run from the merge, not from the deploy: both deploys are refused, the merge is not.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.human_review", "states.rework"],
+ "set": {"stop_at": "deployed",
+         "states.mark_ready.on.marked_ready": {"to": "merge_auth", "reaches": "ready_pr"},
+         "states.merge_auth.on.merge_refused": {"to": "deploy_direct"},
+         "states.deploy_direct": {"type": "code", "does": "Deploys the branch as it is, without a merge", "checks_premise": true, "survives": "restart", "units": "one", "repositories": "one", "on": {"deployed_anyway": {"to": "closing", "reaches": "deployed"}, "deploy_refused": {"to": "stopped", "reason": "deploy_refused"}}}},
+ "check": [{"code": "irreversible_without_gate", "where": "states.delivery.on.deployed"}, {"code": "irreversible_without_gate", "where": "states.deploy_direct.on.deployed_anyway"}]}

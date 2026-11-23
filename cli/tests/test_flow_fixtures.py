@@ -31,7 +31,8 @@ RUN_KEYS = {"state", "visits", "spent", "seen", "reason"}
 OUTCOMES = ("moved", "done", "stopped", "duplicate", "refused")
 UNCHANGED = ("duplicate", "refused")
 # What the contract fixes of a template's state; `does` and `judge` are the core author's words.
-FIXED_STATE_KEYS = ("type", "cap", "shows", "can_judge", "survives", "units", "repositories", "weak_model")
+# `can_judge` is the team's answer, not the template's (section 12.1): it is not compared here.
+FIXED_STATE_KEYS = ("type", "cap", "shows", "survives", "units", "repositories", "weak_model")
 FIXED_TOP_KEYS = ("format", "name", "start", "stop_at", "budget")
 TIMED_TYPES = ("gate", "wait")
 SEQUENCES = 200
@@ -70,6 +71,18 @@ class TemplateTests(unittest.TestCase):
             for state in reference["order"]:
                 with self.subTest(template=kind, state=state):
                     self.assertEqual(written["states"].get(state), reference["states"][state])
+
+    def test_no_template_answers_for_the_judge_and_every_answered_file_does(self):
+        # Section 12.1: `flow new` leaves `can_judge` to the team; `definitions/` holds answered files.
+        for kind in files.TEMPLATE_KINDS:
+            written = flow.new(kind)["states"]
+            answered = files.read_json(files.definition_files()[kind])["states"]
+            for name, state in written.items():
+                if state.get("type") != "gate":
+                    continue
+                with self.subTest(template=kind, gate=name):
+                    self.assertNotIn("can_judge", state)
+                    self.assertEqual(answered[name].get("can_judge"), "yes")
 
     def test_each_template_says_what_every_step_does_and_who_judges(self):
         for kind in files.TEMPLATE_KINDS:

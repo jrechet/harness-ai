@@ -1,0 +1,5 @@
+{"about": "The same flow left stopping at the ready pull request: the merge is behind the stop point, and still refused, since moving stop_at must never be the edit that removes the last gate.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.plan_review", "states.human_review", "states.rework", "states.merge_auth"],
+ "set": {"states.plan_size.on.plan_large": {"to": "coding", "reaches": "plan"}, "states.mark_ready.on.marked_ready": {"to": "merging", "reaches": "ready_pr"}},
+ "check": [{"code": "irreversible_without_gate", "where": "states.merging.on.merged"}, {"code": "irreversible_without_gate", "where": "states.delivery.on.deployed"}]}

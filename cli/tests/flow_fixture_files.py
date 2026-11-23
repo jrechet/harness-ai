@@ -29,6 +29,19 @@ CONTRACT_SEQUENCES = (
     "counts-over-cap", "rework-loop", "bug-already-fixed", "bug-low-confidence",
     "bug-to-root-cause", "gate-deadline", "ci-stale-and-fix",
 )
+# The bounds of the small example of the contract (sections 1 and 12.2), and the lines a person reads.
+SMALL_BOUNDS = {"budget": {"dollars": 5, "minutes": 60}, "irreversible": ["merged", "deployed"],
+                "irreversible_declared": False, "taken_back": ["draft_pr"],
+                "circles": [{"steps": ["coding", "checks"], "caps": {"coding": 3}, "most_entries": 3}], "guards": []}
+SMALL_BOUNDS_LINES = [
+    "What bounds one run (figures for you to read: no threshold is applied to them):",
+    "- Spending: a run is stopped at the first event that takes it past 5 dollars or 60 minutes. It can pass them by "
+    "the cost of one step, which the file does not bound.",
+    "- The circle coding, checks: its capped steps can be entered 3 times in all at most (cap of coding 3).",
+    '- Cannot be taken back: merged, deployed (the default: the file has no "irreversible").',
+    "- The file treats as possible to take back: draft_pr.",
+    *(f'- No transition of this file reaches "{name}": if a step of yours does that write under another name, flow '
+      'check does not know it; write that name under "irreversible".' for name in ("merged", "deployed"))]
 PLACE_FOLDERS = ("feature", "bug", "trapped")
 
 
@@ -67,9 +80,20 @@ def place_folders() -> dict[str, str]:
             if os.path.isdir(os.path.join(full, name))}
 
 
-def reference_template(kind: str) -> dict:
-    """The fixture author's own writing of a template, from the contract's tables."""
+def answered_template(kind: str) -> dict:
+    """`definitions/<kind>.json`: the fixture author's writing of a template, its gates answered
+    as a team would answer them."""
     return read_json(os.path.join(FAMILY, "definitions", f"{kind}.json"))
+
+
+def reference_template(kind: str) -> dict:
+    """What `flow new <kind>` writes, as the fixture author reads the contract's tables: the
+    answered file without its answers, since no template writes `can_judge` (section 12.1)."""
+    definition = answered_template(kind)
+    for state in definition["states"].values():
+        if isinstance(state, dict) and state.get("type") == "gate":
+            state.pop("can_judge", None)
+    return definition
 
 
 def resolve(reference: str, template: Callable[[str], dict]) -> dict:

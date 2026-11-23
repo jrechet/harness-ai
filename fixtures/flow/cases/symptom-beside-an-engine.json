@@ -1,0 +1,7 @@
+{"about": "The flow of engine-alone, whose closure check must go on from its middle, with the same answers: the verdict keeps its code, engine, and says the two symptoms after its own sentence.",
+ "definition": "definitions/bug.json",
+ "set": {"states.closure_check.survives": "midway"},
+ "answers": "fit/symptom-fired/answers.json",
+ "check": [],
+ "place": {"steps": {"closure_check": "durable_engine"}, "engine": ["closure_check"], "refused_gates": [], "open": [], "verdict": "engine", "passed": true, "fired": ["double_runs", "agent_loops"]},
+ "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}

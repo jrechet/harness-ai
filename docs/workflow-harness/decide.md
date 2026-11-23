@@ -4,13 +4,13 @@ Date of the facts: 2026-11-21, from [report.md](report.md). The grid is the one 
 
 You are a tech lead. Your team wants a ticket to go from "ready" to a pull request, or further, with a coding agent doing part of the work. For each step you must decide where it lives. This page gives the questions to ask, in order, and the places a step can land.
 
-**Where this page sits in the work.** All commands are `python3 cli/harness.py flow …`, in this order:
+**Where this page sits in the work.** All commands are `python3 cli/harness.py flow …`; from your own repository, with `--format md` (the default), every command that exits 0 or 1 ends, on stderr, with a note that gives the full command and the folder of these pages. In this order:
 
-0. `flow fit <answers.json>`, before any definition, says whether a flow is needed at all and which tool; `flow fit --questions` lists the answers to record.
-1. `flow new feature` or `flow new bug` writes a starting definition.
+0. `flow fit <answers.json>`, before any definition, says whether a flow is needed at all and which tool, with the published costs it copies from the pages, dated and sourced; `flow fit --questions` lists the answers to record.
+1. `flow new feature` or `flow new bug` writes a starting definition. Its approvals wait for their judge's answer (section 6).
 2. You edit it. Every key, and one step of each type ready to paste, are in [flow-format.md](flow-format.md).
-3. `flow check <file>` refuses a flow that could loop, wait or spend without end.
-4. `flow place <file>` says where each step belongs. This page explains its answers: read it before or after.
+3. `flow check <file>` refuses a flow that could loop, wait or spend without end, or reach a write that cannot be taken back with no gate that can refuse it; when the flow holds, it prints what bounds one run.
+4. `flow place <file>` says where each step belongs; with `--answers <answers.json>`, the answers file of `flow fit`, it also reads the symptoms you measured (section 3). This page explains its answers: read it before or after.
 5. `flow status <file> --map` gives the level reached on paper, and the next step.
 6. `flow next <file> --event <event.json> --new` tries the flow by hand, one event at a time. Nothing is run.
 
@@ -152,7 +152,7 @@ Try the middle column first. Move to the right column only when the symptom is s
 - **LangGraph**: right for one case, which is not a ticket flow: you write your own agent application in Python or TypeScript, the graph is known, and a run must pause and resume inside the process (report §2.7). Around an existing coding agent it has no place. The free library has no queue, no detection of a dead run and no "one run per ticket" lock [M] (report §2.5).
 - **How sure is the default?** It rests on converging accounts and on issue trackers, not on a controlled comparison. No first-hand account exists of a team of 5 to 50 running such a flow on any runtime [M: searched and not found] (report §9.1). On paper, neither reference flow needs an engine; the report calls that "a hypothesis to test" (§6.3).
 
-In this version, `flow place` reads one answer only for the engine: `survives: midway`. The other symptoms can be read only from real runs, which this version does not do yet.
+In this version, `flow place` reads one answer only in the file for the engine: `survives: midway`. The other symptoms are measured on your own runs, and you record them in the answers file of `flow fit`. Give that file with `--answers` (`flow place <file> --answers <answers.json>`, `flow status <file> --answers <answers.json>`) and both commands read the measured symptoms beside the definition. A symptom never moves a step and never changes the level: it is a fact about runs, the place is read from the file. And no command can tell which step a symptom comes from.
 
 ## 4. Reading what `flow place` prints
 
@@ -169,10 +169,10 @@ Verdict: no step needs an engine.
 - "a skill is enough" is the place, in the words of section 2.
 - "Decided by" gives the question that ended the walk and the answer read from your file. If you disagree with the place, that answer is the one to look at.
 - A gate's line ends with who judges and what they are shown.
-- **The verdict** is one of three. "No step needs an engine." Or "One step would need an engine", with the step and the reason: this is an answer, not a failure. Or "1 step(s) cannot be placed yet", with the question that has no answer and the key to add to that step, for example `can_judge` on a gate.
+- **The verdict** is one of four. "No step needs an engine." Or "One step would need an engine", with the step and the reason: this is an answer, not a failure. Or "1 step cannot be placed yet" (or "‹n› steps …"), with the question that has no answer and the key to add to that step, for example `can_judge` on a gate. The fourth comes only with `--answers`: "No step is written as needing an engine.", followed by the symptoms measured above their threshold. With `--answers`, "No step needs an engine." becomes "No step needs an engine, as the file is written.", and every verdict is followed by what was measured: the symptoms above their threshold, which were not measured, and the numbers that have no threshold. Answers where nothing is measured never read as reassurance.
 - **A step that cannot be placed** has a second line under it, which says what to write: the key, its allowed values, and every other key the step still lacks. A value the grid does not know (`"can_judge": true`, `"survives": "hours"`) is told as such, not as a missing answer.
-- **A gate nobody can judge** gets its own line: "A gate nobody can judge: ‹step›. Remove it, or give ‹judge› something they can read and refuse." The command then exits with 1, as it does for a step that cannot be placed.
-- **Two commands, two questions.** `flow check` looks at the shape of the flow: a gate must name a judge, a deadline, two ways out, and show something a step wrote. `flow place` looks at where each step lives and at `can_judge`, the answer a person gives. Each can pass while the other fails, and each says so in a note when it sees the other would refuse the file. `flow status` needs both.
+- **A gate nobody can judge** gets its own line: "A gate nobody can judge: ‹step›. Remove it, or give ‹judge› something they can read and refuse." The command then exits with 1, as it does for a step that cannot be placed. **Careful** when that gate is the last one before a write that cannot be taken back, such as the merge: removing it would leave the merge with no gate, and `flow check` would refuse the file. The line then says so ("It is the last gate before "merged", which cannot be taken back: do not remove it; give ‹judge› something they can read and refuse."), even while `flow check` refuses the file for another reason, and when the flow holds a note says the same. When another gate still guards that write, the note says which one would then be the last. With several gates nobody can judge, the gates the command offers to remove can all be removed together: each is read as removed with the ones offered before it, in the order a run meets them, so the gate kept is the one nearest the write whatever the order of the file, and whatever path around it the file already has. A gate kept may be one that could go alone, another gate still guarding the write: its line then says "do not remove it together with ‹the other gates›". A gate kept for a write it is not the last gate of says what removing it opens instead ("Without it, a run could reach "deployed", …"), and no note ever offers to remove a gate kept for another write. While `flow check` finds the file malformed or a step type unknown, no gate is offered for removal: the line only asks to give ‹judge› something they can read and refuse.
+- **Two commands, two questions.** `flow check` looks at the shape of the flow: a gate must name a judge, a deadline, two ways out, and show something a step wrote; a write that cannot be taken back, such as the merge, must come after a gate that can refuse it. `flow place` looks at where each step lives and at `can_judge`, the answer a person gives. Each can pass while the other fails, and each says so in a note when it sees the other would refuse the file. `flow status` needs both.
 
 ## 5. Three examples
 
@@ -184,7 +184,7 @@ Verdict: no step needs an engine.
 
 ## 6. The two reference flows, placed step by step
 
-These are the two templates `flow new` writes, built from the reference flows of report §6. Every step lands on the default: no step needs an engine.
+These are the two templates `flow new` writes, built from the reference flows of report §6, once a team has answered for each approval. A fresh template leaves its approvals open: no template writes `can_judge`, so `flow place` cannot place a gate until its judge says whether they can really read what they are shown and refuse it, and the team writes `"can_judge": "yes"` or `"no"` in the step. The tables below place the answered files, every gate answered `yes`. Every step lands on the default: no step needs an engine.
 
 **Feature ticket** (report §6.1). The flow starts at "ready for agent": writing the ticket and checking it is ready (steps 1 to 3) happen before. As written, a run stops on purpose when the pull request is marked ready: `stop_at` is the stop point `ready_pr`, reached by the transition out of `mark_ready`. The six steps after it, from `human_review` to `closing`, are described but not run until you set `stop_at` to `merged` or `deployed`.
 
@@ -238,7 +238,7 @@ What to notice: the waits of several days (`delivery`, `closure_wait`) and the g
 - **Pieces inside one repository**: an instruction line, a hook, a required check. Use `harness place`.
 - **Which agent, which model, which forge, which engine product.** The report compares them (§3, §4).
 - **Caps, budget and stop point.** You set them, with the keys `cap` on a step, and `budget` and `stop_at` at the top of the file ([flow-format.md](flow-format.md)); `flow check` only refuses a flow that has none.
-- **The symptoms of section 3.** They are measured on real runs, later.
+- **The symptoms of section 3.** They are measured on your own runs, by you: `flow fit` and `--answers` read the numbers you record, and nothing here measures them.
 
 ## The symptom that would make you need it
 

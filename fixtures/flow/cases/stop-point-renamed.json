@@ -1,0 +1,6 @@
+{"about": "Example 1 with the merge and the delivery renamed landed and shipped and no irreversible key: it holds, since the program cannot know these names, and the bounds say so.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.plan_review", "states.human_review", "states.rework", "states.merge_auth"],
+ "set": {"states.plan_size.on.plan_large": {"to": "coding", "reaches": "plan"}, "states.mark_ready.on.marked_ready": {"to": "merging", "reaches": "ready_pr"}, "stop_at": "shipped", "states.merging.on.merged": {"to": "delivery", "reaches": "landed"}, "states.delivery.on.deployed": {"to": "closing", "reaches": "shipped"}},
+ "check": [],
+ "bounds": {"irreversible": ["merged", "deployed"], "taken_back": ["plan", "draft_pr", "ready_pr", "landed", "shipped"], "guards": []}}

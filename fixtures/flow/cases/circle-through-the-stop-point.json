@@ -1,5 +1,5 @@
 {"about": "Without the cap of root_cause, the bug flow has a circle: root_cause, notify, repro, fix, verify and back. As written it only closes through the transition that reaches the stop point, where the run ends: it cannot repeat, and the definition holds.",
- "definition": "template:bug",
+ "definition": "definitions/bug.json",
  "remove": ["states.root_cause.cap"],
  "check": [],
  "not_run": ["repro", "fix", "verify", "draft_pr", "ci_wait", "ci_check", "ci_fix", "human_review", "closure_wait", "closure_check"],

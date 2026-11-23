@@ -1,5 +1,5 @@
 {"about": "The plan review runs before the stop point, and the only step that writes 'the plan' now lies behind it and never runs: the judge would be shown nothing.",
- "definition": "template:feature",
+ "definition": "definitions/feature.json",
  "set": {"states.closing.writes": [{"what": "the closing note", "key": "close-{ticket}"}, {"what": "the plan", "key": "plan-{ticket}"}]},
  "remove": ["states.plan_size.writes"],
  "check": [{"code": "gate_shows_nothing", "where": "states.plan_review"}],

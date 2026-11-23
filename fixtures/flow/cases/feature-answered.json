@@ -1,0 +1,6 @@
+{"about": "The feature flow with its three approvals answered by the team: nothing waits, it is at level 1. Two circles bound a run, of 3 and 16 entries at most, and the merge and the delivery are both guarded by the merge authorisation, the last gate before them.",
+ "definition": "definitions/feature.json",
+ "check": [],
+ "waiting": [],
+ "bounds": {"circles": [{"steps": ["planning", "plan_size", "plan_review"], "most_entries": 3}, {"steps": ["coding", "checks", "draft_pr", "ci_wait", "ci_check", "ci_fix", "review_checks"], "most_entries": 16}], "irreversible": ["merged", "deployed"], "taken_back": ["plan", "draft_pr", "ready_pr"], "guards": [{"state": "merging", "event": "merged", "last_gate": "merge_auth", "steps_between": 0, "agents_between": 0}, {"state": "delivery", "event": "deployed", "last_gate": "merge_auth", "steps_between": 1, "agents_between": 0}]},
+ "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}

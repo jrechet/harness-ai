@@ -1,0 +1,11 @@
+{"about": "The human review becomes a triage: its answers are to go to the merge authorisation or to redeploy without merging, and nobody can judge either gate. The merge authorisation is the last gate before the merge, but the deploy needs it too: without it, the triage has no answer left that refuses the deploy, so neither gate may be offered for removal.",
+ "definition": "definitions/feature.json",
+ "remove": ["states.rework"],
+ "set": {"stop_at": "deployed",
+         "states.human_review.can_judge": "no",
+         "states.human_review.on": {"approved": {"to": "merge_auth"}, "redeploy_only": {"to": "delivery"}},
+         "states.merge_auth.can_judge": "no"},
+ "check": [],
+ "place": {"steps": {"human_review": "no_gate", "merge_auth": "no_gate"}, "engine": [], "refused_gates": ["human_review", "merge_auth"], "open": [], "verdict": "no_engine", "passed": false},
+ "bounds": {"guards": [{"state": "merging", "event": "merged", "last_gate": "merge_auth", "steps_between": 0, "agents_between": 0}, {"state": "delivery", "event": "deployed", "last_gate": "human_review", "steps_between": 0, "agents_between": 0}]},
+ "status": {"level": 0, "passed": {"definition_holds": true, "steps_placed": false, "stop_and_budget": true}}}

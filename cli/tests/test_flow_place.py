@@ -288,7 +288,10 @@ class TestVerdict(unittest.TestCase):
         self.assertEqual((result["engine"], result["refused_gates"], result["open"]), ([], [], []))
         self.assertEqual(result["verdict"], {"code": "no_engine", "sentence": "No step needs an engine."})
         self.assertIs(result["passed"], True)
-        self.assertEqual(list(result), ["flow", "steps", "engine", "refused_gates", "open", "verdict", "passed"])
+        # Since section 12.5 the document ends with "measured", null when no answers were given.
+        self.assertEqual(list(result), ["flow", "steps", "engine", "refused_gates", "open", "verdict", "passed",
+                                        "measured"])
+        self.assertIsNone(result["measured"])
 
     def test_a_step_that_truly_needs_an_engine_is_an_answer_not_a_failure(self):
         flow = copy.deepcopy(SMALL)
@@ -424,10 +427,13 @@ class TestCommand(WithFiles):
         self.assertIn('- approval (a person decides): no gate here. Decided by "Can the person who approves '
                       'really judge what they approve?": no. Shown to a maintainer of the repository: the branch.',
                       lines)
+        # Section 12.2, after the attacks on issue 165: this small flow is malformed for flow check, so
+        # whether it can do without the gate is not read, and removing it is not offered.
         self.assertEqual(lines[-2:], [
             "Verdict: no step needs an engine.",
-            "A gate nobody can judge: approval. Remove it, or give a maintainer of the repository something "
-            "they can read and refuse."])
+            "A gate nobody can judge: approval. Give a maintainer of the repository something they can read "
+            "and refuse. Whether the flow can do without it is said once flow check finds no fault that hides "
+            "its paths."])
 
     def test_a_refused_gate_with_no_judge_named_still_reads_as_a_sentence(self):
         code, out, _ = run_main(self.write(flow_of(sign_off=step("gate", can_judge="no"))))

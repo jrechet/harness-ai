@@ -1,0 +1,6 @@
+{"about": "The feature flow as the team answered it, every step placed, and the answers a team gave flow fit: two double runs and three looping agents measured on its runs. No step is written as needing an engine, and the verdict says the two symptoms instead of reassuring: its code is symptom. The placement still passes and the level stays 1: a symptom is a fact about runs, the level is read from the file.",
+ "definition": "definitions/feature.json",
+ "answers": "fit/symptom-fired/answers.json",
+ "check": [],
+ "place": {"steps": {}, "engine": [], "refused_gates": [], "open": [], "verdict": "symptom", "passed": true, "fired": ["double_runs", "agent_loops"]},
+ "status": {"level": 1, "passed": {"definition_holds": true, "steps_placed": true, "stop_and_budget": true}}}
