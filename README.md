@@ -177,6 +177,7 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Audit your harness and remove what no longer serves | `harness-audit` | measured once on each of two projects: one compliant, 10 of 10; the other, held out, not compliant, 2 of 3 |
 | Create or review a skill, an agent, a rule, putting each piece in its place | `harness-design` | measured: 12 traps of 12 on a held-out case |
 | Ask "why this level?" | `harness-medals` | tooled |
+| Ask which skill or command fits what you want, or whether you need one at all | `harness-guide` | measured once: 20 questions of 20 routed, against 16 of 20 with the skill descriptions alone; the gap is the needs only a command line meets, and the questions were written from the same command help as the guide; triggering in a real session not measured ([the draw](docs/measurements/guide-routing-2026-11-23.json)) |
 | Draw rules from what happened in your PRs | `harness-harvest` | tooled, never played |
 | Ask "do I need LangChain, LangGraph, a workflow engine or Rust for this?" before building anything | `flow-why` | tooled, never played |
 | Write your team's path from a ticket to production as one file a program has checked; nothing runs | `flow-map` | tooled, never played |
@@ -330,7 +331,7 @@ Both suites pass on a fresh clone, from Python 3.10 to 3.14. The repository's ru
 | Folder | Content |
 |---|---|
 | `cli/` | The `harness.py` CLI and its tests |
-| `skills/` | The nine skills of the `harness-ai` plugin: six for one repository's harness, three (`flow-why`, `flow-map`, `flow-place`) for a team's ticket workflow |
+| `skills/` | The ten skills of the `harness-ai` plugin: six for one repository's harness, three (`flow-why`, `flow-map`, `flow-place`) for a team's ticket workflow, and `harness-guide`, which says which one to use |
 | `plugins/ai-sdlc/` | The second plugin: skills `ticket`, `dev`, `qa`, `secu`, `review`, `ship` and `run`, and its CLI |
 | `fixtures/` | Sample projects, trapped cases, answer keys, recorded runs |
 | `app/` | The progress page served by `harness serve` |

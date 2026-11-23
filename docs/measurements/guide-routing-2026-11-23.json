@@ -1,0 +1,528 @@
+{
+ "date": "2026-11-23",
+ "what": "One routing draw of harness-guide: 20 user questions written by an agent that read only the README table, the skill descriptions and the CLI help (never the map), each answered by a fresh agent with the skill descriptions alone (control) and by one with the descriptions plus the guide's SKILL.md and map (guided, told the guide had triggered), graded blind against the key by a third agent.",
+ "limits": [
+  "one draw",
+  "the question writer read the same CLI help the map draws on, which favours the guided arm on the three cli_only questions",
+  "whether the description triggers in a real session is not measured",
+  "the guide text measured is the one before the review fixes of PR 175 (paths prefixed with the plugin root, medals cell, no count)"
+ ],
+ "score": {
+  "control": {
+   "correct": 16,
+   "total": 20,
+   "byKind": {
+    "direct": {
+     "correct": 3,
+     "total": 3
+    },
+    "vague_goal": {
+     "correct": 6,
+     "total": 6
+    },
+    "confusable_neighbours": {
+     "correct": 4,
+     "total": 5
+    },
+    "nothing_needed": {
+     "correct": 3,
+     "total": 3
+    },
+    "cli_only": {
+     "correct": 0,
+     "total": 3
+    }
+   }
+  },
+  "guided": {
+   "correct": 20,
+   "total": 20,
+   "byKind": {
+    "direct": {
+     "correct": 3,
+     "total": 3
+    },
+    "vague_goal": {
+     "correct": 6,
+     "total": 6
+    },
+    "confusable_neighbours": {
+     "correct": 5,
+     "total": 5
+    },
+    "nothing_needed": {
+     "correct": 3,
+     "total": 3
+    },
+    "cli_only": {
+     "correct": 3,
+     "total": 3
+    }
+   }
+  }
+ },
+ "questions": [
+  {
+   "id": "d1",
+   "kind": "direct",
+   "message": "Lance harness-audit sur ce repo stp, je veux le rapport complet.",
+   "accepted": [
+    "harness-audit"
+   ],
+   "why": "Names the skill; harness-audit produces the fixed-format audit report."
+  },
+  {
+   "id": "d2",
+   "kind": "direct",
+   "message": "Can you run the ticket skill on issue #212 before I hand it off?",
+   "accepted": [
+    "ticket"
+   ],
+   "why": "Names ticket; it says whether a ticket is ready and what it lacks."
+  },
+  {
+   "id": "d3",
+   "kind": "direct",
+   "message": "Montre-moi la page des médailles, harness-medals.",
+   "accepted": [
+    "harness-medals"
+   ],
+   "why": "Names harness-medals, which opens the interactive medals page."
+  },
+  {
+   "id": "v1",
+   "kind": "vague_goal",
+   "message": "je viens de cloner ce projet et je veux que Claude bosse correctement dessus, je pars de zéro, rien n'est configuré",
+   "accepted": [
+    "harness-init"
+   ],
+   "why": "Starting with Claude Code on a project with no AGENTS.md is harness-init's trigger ('does not know where to start')."
+  },
+  {
+   "id": "v2",
+   "kind": "vague_goal",
+   "message": "Our setup is at level 1 now I think. What should we do next, and how much effort is it?",
+   "accepted": [
+    "harness-step"
+   ],
+   "why": "'what's next', moving up one level with its cost is harness-step."
+  },
+  {
+   "id": "v3",
+   "kind": "vague_goal",
+   "message": "Prod renvoie des 500 sur le paiement depuis ce matin, qu'est-ce qui s'est passé ?",
+   "accepted": [
+    "run"
+   ],
+   "why": "A production incident and 'what happened' is ai-sdlc run, which investigates without acting in prod."
+  },
+  {
+   "id": "v4",
+   "kind": "vague_goal",
+   "message": "On a eu plein de retours en review ce mois-ci, j'aimerais que nos règles pour l'agent en tiennent compte",
+   "accepted": [
+    "harness-harvest"
+   ],
+   "why": "Evolving AGENTS.md from what happened in reviews/PRs over a period is harness-harvest."
+  },
+  {
+   "id": "v5",
+   "kind": "vague_goal",
+   "message": "we're thinking about building an orchestration layer for our agents with LangGraph, is that overkill?",
+   "accepted": [
+    "flow-why"
+   ],
+   "why": "Whether LangGraph / an orchestrator is needed before building is flow-why."
+  },
+  {
+   "id": "v6",
+   "kind": "vague_goal",
+   "message": "Je voudrais qu'on écrive noir sur blanc comment un ticket de bug passe de Jira à la prod chez nous",
+   "accepted": [
+    "flow-map"
+   ],
+   "why": "Writing the team's path from ticket to production as a definition file is flow-map."
+  },
+  {
+   "id": "c1",
+   "kind": "confusable_neighbours",
+   "message": "Is PR #88 ready to merge? Just leave comments where something's off.",
+   "accepted": [
+    "review"
+   ],
+   "why": "'ready to merge' with comments on a PR is ai-sdlc review; harness-audit explicitly excludes PR review (it audits AI instrumentation), secu is only the security angle."
+  },
+  {
+   "id": "c2",
+   "kind": "confusable_neighbours",
+   "message": "J'ai un skill de déploiement qui fait 300 lignes, dis-moi s'il en fait trop et ce qui devrait devenir du code",
+   "accepted": [
+    "harness-design"
+   ],
+   "why": "Reviewing one specific skill and where each piece goes is harness-design; harness-audit is for the whole harness ('do not use ... to place one new piece'; design covers 'review a specific skill')."
+  },
+  {
+   "id": "c3",
+   "kind": "confusable_neighbours",
+   "message": "Dans notre flux ticket→prod, l'étape de validation QA, est-ce qu'un skill suffit ou il faut un moteur de workflow ?",
+   "accepted": [
+    "flow-place"
+   ],
+   "why": "Whether one step of an existing team flow needs a skill or an engine is flow-place; flow-why is for tool questions like LangGraph, harness-design for pieces inside one repo."
+  },
+  {
+   "id": "c4",
+   "kind": "confusable_neighbours",
+   "message": "Can we deliver what's on main today? Draft the release notes too.",
+   "accepted": [
+    "ship"
+   ],
+   "why": "'can we deliver' and release notes is ai-sdlc ship (prepares, never deploys); run covers post-delivery production, not preparation."
+  },
+  {
+   "id": "c5",
+   "kind": "confusable_neighbours",
+   "message": "cette PR touche l'authentification et ajoute deux dépendances, tu peux vérifier qu'on n'a pas laissé de secret avant que je merge ?",
+   "accepted": [
+    "secu"
+   ],
+   "why": "Checking for secrets on a change touching auth and dependencies is secu; review is the general review and excludes the security-specific gate."
+  },
+  {
+   "id": "n1",
+   "kind": "nothing_needed",
+   "message": "Écris-moi une fonction Groovy qui normalise un numéro de téléphone français au format E.164.",
+   "accepted": [
+    "none"
+   ],
+   "why": "Plain code writing with no ticket workflow, review, or harness concern; no skill applies."
+  },
+  {
+   "id": "n2",
+   "kind": "nothing_needed",
+   "message": "why does this regex match 'abc' but not 'ABC'? ^[a-z]+$",
+   "accepted": [
+    "none"
+   ],
+   "why": "Explaining a bug/behavior in a snippet needs no skill."
+  },
+  {
+   "id": "n3",
+   "kind": "nothing_needed",
+   "message": "Renomme la variable `tmp` en `contactCount` dans ContactService et corrige l'indentation.",
+   "accepted": [
+    "none"
+   ],
+   "why": "A trivial local edit requested directly, not a ticket to develop to a PR; no skill needed."
+  },
+  {
+   "id": "l1",
+   "kind": "cli_only",
+   "message": "Concrètement, quelles commandes tourne la CI sur ce repo ? Je veux les lancer en local avant de pousser.",
+   "accepted": [
+    "harness commands"
+   ],
+   "why": "`harness commands` gives 'what the CI really runs'; no skill wraps it."
+  },
+  {
+   "id": "l2",
+   "kind": "cli_only",
+   "message": "Some of our skills reference files we deleted months ago I think. Anything gone stale in the setup?",
+   "accepted": [
+    "harness fresh"
+   ],
+   "why": "`harness fresh` reports what has aged: a skill citing a vanished file, a late harvest; no skill wraps it (audit is a full verdict report, not this check)."
+  },
+  {
+   "id": "l3",
+   "kind": "cli_only",
+   "message": "J'aimerais voir les PR de l'équipe sur les trois derniers mois : celles des agents vs celles des humains, quels signaux.",
+   "accepted": [
+    "ai_sdlc.py measure"
+   ],
+   "why": "`ai_sdlc.py measure` gives a team's PR signals over a period by kind of author; no skill wraps it."
+  }
+ ],
+ "answers": [
+  {
+   "id": "d1",
+   "arm": "control",
+   "recommendation": "harness-audit",
+   "correct": true,
+   "note": "Recommendation names harness-audit, matching the key."
+  },
+  {
+   "id": "d1",
+   "arm": "guided",
+   "recommendation": "harness-audit",
+   "correct": true,
+   "note": "Recommendation names harness-audit, matching the key."
+  },
+  {
+   "id": "d2",
+   "arm": "control",
+   "recommendation": "ticket",
+   "correct": true,
+   "note": "The recommendation names only \"ticket\", which matches the answer key."
+  },
+  {
+   "id": "d2",
+   "arm": "guided",
+   "recommendation": "ticket",
+   "correct": true,
+   "note": "The recommendation names only \"ticket\", and that matches the key."
+  },
+  {
+   "id": "d3",
+   "arm": "control",
+   "recommendation": "harness-medals",
+   "correct": true,
+   "note": "The recommendation names harness-medals, which is the one answer the key accepts."
+  },
+  {
+   "id": "d3",
+   "arm": "guided",
+   "recommendation": "harness-medals",
+   "correct": true,
+   "note": "The recommendation names only harness-medals, which is an accepted answer."
+  },
+  {
+   "id": "v1",
+   "arm": "control",
+   "recommendation": "harness-init",
+   "correct": true,
+   "note": "The router recommended harness-init, which is the one accepted answer."
+  },
+  {
+   "id": "v1",
+   "arm": "guided",
+   "recommendation": "harness-init",
+   "correct": true,
+   "note": "The recommendation names harness-init alone, which is an accepted answer."
+  },
+  {
+   "id": "v2",
+   "arm": "control",
+   "recommendation": "harness-step",
+   "correct": true,
+   "note": "The recommendation names harness-step only, and that matches the answer key."
+  },
+  {
+   "id": "v2",
+   "arm": "guided",
+   "recommendation": "harness-step",
+   "correct": true,
+   "note": "The router named harness-step, which is one of the accepted answers."
+  },
+  {
+   "id": "v3",
+   "arm": "control",
+   "recommendation": "run",
+   "correct": true,
+   "note": "Recommendation \"run\" matches key \"run\"."
+  },
+  {
+   "id": "v3",
+   "arm": "guided",
+   "recommendation": "run",
+   "correct": true,
+   "note": "The router recommended only \"run\", which is one of the accepted answers."
+  },
+  {
+   "id": "v4",
+   "arm": "control",
+   "recommendation": "harness-harvest",
+   "correct": true,
+   "note": "The recommendation names harness-harvest, which is the accepted answer."
+  },
+  {
+   "id": "v4",
+   "arm": "guided",
+   "recommendation": "harness-harvest",
+   "correct": true,
+   "note": "The recommendation names harness-harvest, which is the accepted answer. harness-audit is mentioned only to contrast it, not recommended."
+  },
+  {
+   "id": "v5",
+   "arm": "control",
+   "recommendation": "flow-why",
+   "correct": true,
+   "note": "The recommendation is flow-why, which matches the answer key."
+  },
+  {
+   "id": "v5",
+   "arm": "guided",
+   "recommendation": "flow-why",
+   "correct": true,
+   "note": "The router recommended flow-why, which is one of the accepted answers."
+  },
+  {
+   "id": "v6",
+   "arm": "control",
+   "recommendation": "flow-map",
+   "correct": true,
+   "note": "The router recommended flow-map, which is the accepted answer."
+  },
+  {
+   "id": "v6",
+   "arm": "guided",
+   "recommendation": "flow-map",
+   "correct": true,
+   "note": "The router recommended flow-map, which is the one answer in the key."
+  },
+  {
+   "id": "c1",
+   "arm": "control",
+   "recommendation": "review",
+   "correct": true,
+   "note": "The router recommended \"review\", which is the answer key."
+  },
+  {
+   "id": "c1",
+   "arm": "guided",
+   "recommendation": "review",
+   "correct": true,
+   "note": "The router recommended \"review\", which is in the answer key."
+  },
+  {
+   "id": "c2",
+   "arm": "control",
+   "recommendation": "harness-audit",
+   "correct": false,
+   "note": "The router picked harness-audit, but the answer key only accepts harness-design. The task is a review of one specific skill, which falls under harness-design."
+  },
+  {
+   "id": "c2",
+   "arm": "guided",
+   "recommendation": "harness-design",
+   "correct": true,
+   "note": "The recommendation names harness-design, which is in the answer key."
+  },
+  {
+   "id": "c3",
+   "arm": "control",
+   "recommendation": "flow-place",
+   "correct": true,
+   "note": "The recommendation names flow-place, which is in the answer key."
+  },
+  {
+   "id": "c3",
+   "arm": "guided",
+   "recommendation": "flow-place",
+   "correct": true,
+   "note": "The router recommended flow-place, which is in the answer key."
+  },
+  {
+   "id": "c4",
+   "arm": "control",
+   "recommendation": "ship",
+   "correct": true,
+   "note": "The recommendation names \"ship\", which is one of the accepted answers."
+  },
+  {
+   "id": "c4",
+   "arm": "guided",
+   "recommendation": "ship",
+   "correct": true,
+   "note": "The router recommends only `ship`, which matches the answer key."
+  },
+  {
+   "id": "c5",
+   "arm": "control",
+   "recommendation": "secu",
+   "correct": true,
+   "note": "The router recommended 'secu', which is one of the accepted answers."
+  },
+  {
+   "id": "c5",
+   "arm": "guided",
+   "recommendation": "secu",
+   "correct": true,
+   "note": "The router recommended \"secu\", which is one of the accepted answers."
+  },
+  {
+   "id": "n1",
+   "arm": "control",
+   "recommendation": "none",
+   "correct": true,
+   "note": "Recommendation \"none\" matches key."
+  },
+  {
+   "id": "n1",
+   "arm": "guided",
+   "recommendation": "none",
+   "correct": true,
+   "note": "The router recommended \"none\", which matches the answer key [\"none\"]."
+  },
+  {
+   "id": "n2",
+   "arm": "control",
+   "recommendation": "none",
+   "correct": true,
+   "note": "The router said \"none\", which matches the answer key."
+  },
+  {
+   "id": "n2",
+   "arm": "guided",
+   "recommendation": "none",
+   "correct": true,
+   "note": "The recommendation is \"none\", which is one of the accepted answers."
+  },
+  {
+   "id": "n3",
+   "arm": "control",
+   "recommendation": "none",
+   "correct": true,
+   "note": "Recommendation \"none\" matches the key."
+  },
+  {
+   "id": "n3",
+   "arm": "guided",
+   "recommendation": "none",
+   "correct": true,
+   "note": "The router recommended \"none\", which matches the key."
+  },
+  {
+   "id": "l1",
+   "arm": "control",
+   "recommendation": "none",
+   "correct": false,
+   "note": "Router recommended \"none\"; key expects \"harness commands\"."
+  },
+  {
+   "id": "l1",
+   "arm": "guided",
+   "recommendation": "harness commands",
+   "correct": true,
+   "note": "The router recommended exactly 'harness commands', which is the accepted answer."
+  },
+  {
+   "id": "l2",
+   "arm": "control",
+   "recommendation": "harness-audit",
+   "correct": false,
+   "note": "Recommended harness-audit; key is harness fresh."
+  },
+  {
+   "id": "l2",
+   "arm": "guided",
+   "recommendation": "harness fresh",
+   "correct": true,
+   "note": "The recommendation names exactly \"harness fresh\", which matches the key."
+  },
+  {
+   "id": "l3",
+   "arm": "control",
+   "recommendation": "none",
+   "correct": false,
+   "note": "Router recommended \"none\"; key expects ai_sdlc.py measure."
+  },
+  {
+   "id": "l3",
+   "arm": "guided",
+   "recommendation": "ai_sdlc.py measure",
+   "correct": true,
+   "note": "The recommendation names exactly the one accepted answer, `ai_sdlc.py measure`, and no other tool."
+  }
+ ]
+}
