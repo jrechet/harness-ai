@@ -169,6 +169,7 @@ section.block { padding-block: 40px 8px; border-top: 1px solid var(--rule); marg
 .btn:hover { border-color: var(--accent); }
 .btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .btn.ghost { background: transparent; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .tourbar { background: var(--accent-soft); border: 1px solid var(--accent); border-radius: var(--radius); padding: 12px 14px; display: grid; gap: 8px; }
 .tourbar .tt { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
 .tourbar .tt b { font-family: var(--font-head); font-size: var(--fs-1); }
@@ -438,7 +439,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
       <h2>Six habits every skill keeps</h2>
     </header>
     <div class="principles">
-      <div><b>The map first</b><p>Before any question, the skill shows where the repository stands with <code>harness status --map</code>: where you are, where it is going, the plan. It updates the map at the end.</p></div>
+      <div><b>The map first</b><p>Before any question, the skill shows where things stand: <code>harness status --map</code> for a repository's harness, the output of <code>flow fit</code> or <code>flow place</code> for the team workflow, six short lines (goal, plan, where we are) in the ai-sdlc phases. It updates the map at the end.</p></div>
       <div><b>One question, once</b><p>Questions are asked together, each with its reason, its options, their cost and the proposed default. Never one at a time along the way.</p></div>
       <div><b>The text explains, the CLI guarantees</b><p>What must hold lives in a program that refuses a result that does not: a finding that cites no line of the diff, a fact not quoted word for word, a command missing from the procedure.</p></div>
       <div><b>One step, then stop</b><p>Each skill does one thing, reports with what is not verified, and stops. What comes next is another call, and you decide it.</p></div>
@@ -525,7 +526,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
       title: "Audit and prune",
       goal: "Audits a repository's whole AI setup: agents, skills, AGENTS.md, scripts, CLI, linters, CI workflows. It checks that each responsibility sits on the right layer, and proposes to remove the instructions that no longer change what the agent does.",
       when: ["audit my AGENTS.md", "review my skills", "does this rule still serve?", "we changed models", "every six months"],
-      does: ["Inventories everything before judging anything, and builds the call graph.", "Runs the \"cut the agent\" test: without it, can the team still run the process with the CLI and the workflows?", "Gives one verdict per item: KEEP, PUSH_DOWN (move down one layer), MERGE, SPLIT, BLOCK or REMOVE.", "Ranks P1 (risk of an incorrect delivery), P2 (fragility), P3 (hygiene), and writes the remediation plan."],
+      does: ["Inventories everything before judging anything, and builds the call graph.", "Runs the \"cut the agent\" test: without it, can the team still run the process with the CLI and the workflows?", "Gives one verdict per item among eight: KEEP, INLINE, PUSH_DOWN (move down one layer), PROMOTE (move up one), MERGE, SPLIT, BLOCK or REMOVE.", "Ranks P1 (risk of an incorrect delivery), P2 (fragility), P3 (hygiene), and writes the remediation plan."],
       produces: "A fixed-format report, in Markdown and JSON (.harness/audit.json), comparable from one audit to the next. Level 3 asks for an audit with no open P1.",
       never: "Judges nothing before seeing everything. A style convention with no consequence is never a leak: at worst a useless line.",
       cli: ["harness rules", "harness fresh", "harness status --page <file>"],
@@ -688,7 +689,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
       title: "The skills on trial",
       goal: "Evaluates the harness-ai skills on the sample projects of fixtures/: a fresh agent that never saw the answer key plays each skill; the CLI grades; each gap is filed under a single cause; only the skills' text is fixed, in a dedicated PR; the fix is then measured on held-out projects.",
       when: ["stress this skill", "evaluate the harness", "replay the bench after a model change", "does this rule still serve?"],
-      does: ["Announces the plan and its price before launching anything (harness bench plan).", "Prepares each run outside the repository, plays blind, grades with the CLI.", "Files each gap under one cause, fixes the skills in a dedicated PR, measures the fix.", "Proves a REMOVE of harness-audit by replaying the task without the line."],
+      does: ["Announces the plan and its price before launching anything (harness bench plan, which prices audit, init, step and task runs today).", "Prepares each run outside the repository, plays blind, grades with the CLI.", "Files each gap under one cause, fixes the skills in a dedicated PR, measures the fix.", "Proves a REMOVE of harness-audit by replaying the task without the line."],
       produces: "A fixed-format report and a PR of fixes.",
       never: "Never launches on its own: a campaign costs hundreds of thousands of tokens. Touches neither the answer keys nor the grader to make a run pass.",
       cli: ["harness bench plan", "harness fixture check <name>"],
@@ -735,7 +736,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
     { n: 1, name: "Framed", medal: "bronze", medalName: "bronze",
       brings: "The agent knows where it is: what the repository does, how far it may go, what it never does.",
       asks: "Write a short AGENTS.md once, and keep it short.",
-      measured: "AGENTS.md exists · a Mode line · at most 60 lines · CLAUDE.md is an @AGENTS.md stub or absent · a Forbidden section.",
+      measured: "An instruction file: AGENTS.md, or a CLAUDE.md alone that is not a stub · a Mode line · at most 60 lines · a single source: CLAUDE.md is an @AGENTS.md stub, absent, or the source itself · a Forbidden section.",
       skills: ["init"], unlocks: ["ticket", "dev", "review", "secu"] },
     { n: 2, name: "Looped", medal: "silver", medalName: "silver",
       brings: "Incidents become rules: a mistake corrected in review is not made twice.",
@@ -814,7 +815,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
   });
   var backNote = document.createElement("p");
   backNote.className = "note";
-  backNote.textContent = "This skill does not ship in the plugins: it lives in .claude/skills of this repository and serves its maintainers. It evaluates all the other skills.";
+  backNote.textContent = "This skill does not ship in the plugins: it lives in .claude/skills of this repository and serves its maintainers. It evaluates the skills of the harness-ai plugin.";
   document.querySelector('.zgrid[data-zone="back"]').appendChild(backNote);
 
   // Connections
@@ -829,7 +830,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
   function linkedSet(id) {
     var s = {};
     if (!id) return s;
-    if (id === "stress") { NODES.forEach(function (n) { if (!n.gate && n.id !== "stress") s[n.id] = 1; }); return s; }
+    if (id === "stress") { NODES.forEach(function (n) { if (n.fam === "repo" || n.fam === "flow") s[n.id] = 1; }); return s; }
     EDGES.forEach(function (e) {
       if (e[0] === id) s[e[1]] = 1;
       if (e[1] === id) s[e[0]] = 1;
@@ -942,8 +943,9 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
     var html = '<div class="fam">How to read the map</div>';
     html += "<p>Click a skill on the map: its goal, when to call it, what it produces, what it never does, the command that guarantees it, and its neighbours.</p>";
     html += '<div class="legend">';
-    [["repo", "One repository's harness", "6 skills: set up, move forward, learn, audit, place, measure."], ["flow", "The team workflow", "3 skills: decide whether a tool is needed, write the path down, place each step. Nothing runs."], ["sdlc", "From ticket to production", "7 skills, one phase each, from a ready ticket to an incident."], ["back", "Behind the scenes", "1 skill that evaluates the others, blind."]].forEach(function (r) {
-      html += '<div class="row"><span class="sw" style="background: var(--' + r[0] + '-soft); outline: 1.5px solid var(--' + r[0] + ');"></span><span><b>' + t(r[1]) + "</b><br>" + t(r[2]) + "</span></div>";
+    [["repo", "One repository's harness", "set up, move forward, learn, audit, place, measure."], ["flow", "The team workflow", "decide whether a tool is needed, write the path down, place each step. Nothing runs."], ["sdlc", "From ticket to production", "one phase each, from a ready ticket to an incident."], ["back", "Behind the scenes", "evaluates the harness-ai skills, blind."]].forEach(function (r) {
+      var count = NODES.filter(function (n) { return n.fam === r[0] && !n.gate; }).length;
+      html += '<div class="row"><span class="sw" style="background: var(--' + r[0] + '-soft); outline: 1.5px solid var(--' + r[0] + ');"></span><span><b>' + t(r[1]) + "</b><br>" + count + (count === 1 ? " skill: " : " skills: ") + t(r[2]) + "</span></div>";
     });
     html += '<div class="row"><span class="sw" style="border: 1.5px dashed var(--muted);"></span><span>A step that is not a skill: the CI, production, the guardrail.</span></div>';
     html += '<div class="row"><svg width="22" height="14" aria-hidden="true"><line x1="1" y1="7" x2="21" y2="7" stroke="var(--edge)" stroke-width="1.5"></line></svg><span>A handover: one skill leads to the other.</span></div>';
@@ -979,7 +981,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
       if (l.out.length) { html += "<h4>It leads to</h4>"; l.out.forEach(function (e) { html += '<div class="lk">' + chip(e[1]) + "<span>" + t(e[2]) + "</span></div>"; }); }
       html += "</div>";
     }
-    if (id === "stress") html += '<div class="links"><h4>It evaluates</h4><div class="chips">' + NODES.filter(function (x) { return !x.gate && x.id !== "stress"; }).map(function (x) { return chip(x.id); }).join("") + "</div></div>";
+    if (id === "stress") html += '<div class="links"><h4>It evaluates</h4><div class="chips">' + NODES.filter(function (x) { return x.fam === "repo" || x.fam === "flow"; }).map(function (x) { return chip(x.id); }).join("") + "</div></div>";
     panel.innerHTML = html;
   }
   panel.addEventListener("click", function (ev) {
@@ -996,7 +998,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
     var prog = T.steps.map(function (_, k) { return "<i" + (k <= i ? ' class="done"' : "") + "></i>"; }).join("");
     var last = i === T.steps.length - 1;
     bar.hidden = false;
-    bar.innerHTML = '<div class="tt"><b>' + t(T.title) + "</b><span>step " + (i + 1) + " of " + T.steps.length + " · " + esc(byId[st[0]].name) + '</span></div><div class="progress" aria-hidden="true">' + prog + "</div><p>" + t(st[1]) + '</p><div class="tnav"><button type="button" class="btn" id="tPrev"' + (i === 0 ? " disabled" : "") + '>Previous</button><button type="button" class="btn" id="tNext" aria-pressed="' + (last ? "false" : "true") + '">' + (last ? "Finish" : "Next") + '</button><button type="button" class="btn ghost" id="tStop">Leave the walkthrough</button></div>';
+    bar.innerHTML = '<div class="tt"><b>' + t(T.title) + "</b><span>step " + (i + 1) + " of " + T.steps.length + " · " + esc(byId[st[0]].name) + '</span></div><div class="progress" aria-hidden="true">' + prog + "</div><p>" + t(st[1]) + '</p><div class="tnav"><button type="button" class="btn" id="tPrev"' + (i === 0 ? " disabled" : "") + '>Previous</button><button type="button" class="btn' + (last ? "" : " primary") + '" id="tNext">' + (last ? "Finish" : "Next") + '</button><button type="button" class="btn ghost" id="tStop">Leave the walkthrough</button></div>';
     $("#tPrev").onclick = function () { goTour(i - 1); };
     $("#tNext").onclick = function () { if (!last) goTour(i + 1); else stopTour(); };
     $("#tStop").onclick = stopTour;
