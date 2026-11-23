@@ -14,7 +14,7 @@ Three rules that are not negotiable:
 
 ## Guide the user
 
-**Show the map first.** Before any question, run `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" flow place <file>` (the definition is usually `.harness/flow/<name>.json`) and show, in at most six short lines plus the command's output as is:
+**Show the map first.** Before any question, run `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" flow place <file>` (the definition is usually `.harness/flow/<name>.json`). When the user has an answers file of `flow fit` (from flow-why, numbers measured on the runs of this flow), run `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" flow place <file> --answers <answers file>` instead, and use the same `--answers` in every later run. Show, in at most six short lines plus the command's output as is:
 - **Goal**: know, for each step of your flow, where it lives, and whether any step needs a workflow engine.
 - **Plan**: 1. read the placement · 2. answer what the definition leaves open · 3. write those answers after your OK · 4. read the placement again · 5. one sentence per step and the verdict.
 - **Where we are**: the output of `flow place`, one line per step, then its verdict.
@@ -23,7 +23,7 @@ Three rules that are not negotiable:
 
 **Ask with context.** For each open step: why you ask (the command cannot place the step without it), what the answer changes (the two places it leads to), the options in plain words, the default and what taking it means. One decision per question; all open steps in one message, one line per step.
 
-**Plain words.** A key or a value (`survives`, `midway`, `can_judge`) is never shown without what it means. Say "must it go on from its middle after a crash, or may it start again?", not "restart or midway?". Speak the language of the conversation; the definition follows the language of the user's repository. When the conversation is not in English, show the command's lines as printed, then say each in the user's language right under it: never the translation in place of the printed line, never the printed line alone. When an output you show names a command (`flow status <file> --map`) or a page (`decide.md §3`), say once that the command is `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" flow …` and that the page is under the plugin's folder, and give its full path.
+**Plain words.** A key or a value (`survives`, `midway`, `can_judge`) is never shown without what it means. Say "must it go on from its middle after a crash, or may it start again?", not "restart or midway?". Speak the language of the conversation; the definition follows the language of the user's repository. When the conversation is not in English, show the command's lines as printed, then say each in the user's language right under it: never the translation in place of the printed line, never the printed line alone. Every `flow` command that exits 0 or 1 ends with a note that says how "flow" is typed here and which folder holds the pages: when an output you show names a command (`flow status <file> --map`) or a page (`decide.md §3`), give that note once, as printed. On exit 2 there is none: a command named in the message is typed as `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" flow …`.
 
 ## Steps
 
@@ -33,10 +33,10 @@ The question decides before the file does:
 - The question is about one piece inside one repository (a rule, a script, a linter, a hook, a required CI check), or no team workflow is in the question: hand over to **harness-design**. `flow place` hands out no hook and no single CI job; `harness place` does.
 - The user wants the steps of a team workflow placed and no definition exists: hand over to **flow-map**, which writes one. Do not invent steps here; if the step asked about is not in the definition, say so: adding a step is flow-map's work too.
 - One file in `.harness/flow/`: take it and say which. Several, and the request names none: list them with their ticket type and ask which one; that single question may come before the map. Never place two flows in one go.
-- Exit code 2: the file is unreadable or the usage is wrong. Show the message; fix nothing by guessing.
+- Exit code 2: the file is unreadable, the usage is wrong, or the answers file is refused (answers `flow fit` refuses, or answers that describe something other than a ticket workflow). Show the message; fix nothing by guessing.
 
 ### 2. Read the placement
-Each line reads: the step's name, who performs it, the place, then "Decided by" with the question that ended the walk and the answer read from the file. A gate's line ends with who judges and what they are shown. `${CLAUDE_PLUGIN_ROOT}/docs/workflow-harness/decide.md`, section 4, explains every part of the output: read it before you explain a line. For a gate placed with the answer yes, say who judges and what they are shown, and ask once whether that person confirmed it: a yes that came with the template is nobody's answer. If they did not, list it under Questions with the judge's name.
+Each line reads: the step's name, who performs it, the place, then "Decided by" with the question that ended the walk and the answer read from the file. A gate's line ends with who judges and what they are shown. `${CLAUDE_PLUGIN_ROOT}/docs/workflow-harness/decide.md`, section 4, explains every part of the output: read it before you explain a line. For a gate placed with the answer yes, say who judges and what they are shown. If the file predates this version of `flow new`, or the user cannot say who answered a yes, ask once whether the judge gave it; if not, list it under Questions with the judge's name. A file fresh from `flow new` answers no approval: each gate waits for its judge, and the command's note says nothing is wrong with these steps; say that in plain words, then ask (step 3).
 
 ### 3. Ask what is open
 A step that "cannot be placed yet" has a second line that names the key to add, its allowed values and every other key the step still lacks. Ask for the key it names and for every key listed after "Also needed", one line per key, all in the same message, and say which later answers stop mattering if an earlier one ends the walk (an answer that sends the step to an engine makes the rest unneeded). Take the meaning from this table (the full text of each question is in decide.md, section 1; every key is in `${CLAUDE_PLUGIN_ROOT}/docs/workflow-harness/flow-format.md`):
@@ -53,10 +53,10 @@ The defaults are this skill's proposals, not measurements: say so, and say what 
 
 ### 4. Write the answers, on agreement, then read again
 Show the exact keys and values you will add, step by step, and wait for the OK. Edit only those keys. Then, and also when nothing was open and nothing was written, run both and show both outputs:
-- `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" flow place <file>`
+- `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" flow place <file>`, with `--answers <answers file>` when the user gave one
 - `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" flow check <file>`
 
-The two commands answer two questions: `flow check` looks at the shape of the flow (loops, waits, spending without end), `flow place` at where each step lives. Each can pass while the other refuses, and each says so in a note. A refusal of `flow check` is reported as is; fixing the shape of the flow is flow-map's work.
+The two commands answer two questions: `flow check` looks at the shape of the flow (loops, waits, spending without end, and a gate before every write that cannot be taken back), `flow place` at where each step lives. Each can pass while the other refuses, and each says so in a note. A refusal of `flow check` is reported as is; fixing the shape of the flow is flow-map's work.
 
 ### 5. One sentence per step
 For each step, one sentence built from the command's line: the place in the command's own words, the question that decided, and where decide.md explains it. Steps that share the same place and the same deciding question get one sentence together. When the question is about one step, show the whole output once, then explain that step's line only.
@@ -68,29 +68,29 @@ For each step, one sentence built from the command's line: the place in the comm
 | a skill is enough, with its date | The same; the model and the date are written in the skill file. The command only reminds, nothing checks it | section 1, last question |
 | the ticket holds this | A state on the ticket or the pull request; nothing runs while it lasts | section 1, "Who performs this step?"; section 6 |
 | this is a human gate | A state only a human account may set; the judge is shown something they can refuse | section 1, second question |
-| no gate here | A refusal: nobody can judge this. The command exits with 1 until the gate is removed or the judge has something to read | sections 2 and 5 |
+| no gate here | A refusal: nobody can judge this. The command exits with 1 until the judge has something to read, or the gate is removed when the command does not say "do not remove it" | sections 2 and 5 |
 | this is a shared CI workflow | One versioned workflow with an owner, used by several repositories | section 1, "How many repositories" |
 | this is a fan-out by script | A script starts one writer per unit; never a swarm of agents | section 1, "many independent units" |
 | this would need an engine | A workflow engine holds the step. An answer, not a failure: try the cheap fixes first | section 3; then `engines.md` and `ci-as-engine.md` in the same folder |
 
 When you quote a fact from one of these pages, give its "Date of the facts" line. Do not copy the pages: point to the section. A hook or a single CI job is never an answer of this command: for those, name harness-design.
 
-On "no gate here", write nothing. Put the choice to the user under Questions, in this order: 1. give the judge something they can read and refuse (name what: a shorter plan, a summary of the diff, a test result), then the judge answers again; 2. remove the approval, which means nobody decides at this point: say in one sentence what then happens without a person (before a merge: the flow merges on the agent's work alone), and never propose it as the default. Either one changes the shape of the flow: that is flow-map's work, done after the user's word. Never set `can_judge` to `yes` to get exit code 0.
+On "no gate here", write nothing. Put the choice to the user under Questions, in this order: 1. give the judge something they can read and refuse (name what: a shorter plan, a summary of the diff, a test result), then the judge answers again; 2. remove the approval, which means nobody decides at this point: say in one sentence what then happens without a person, and never propose it as the default. When the line or a "Careful:" note says "do not remove it", only the first is offered: `flow check` would refuse the file without that gate. The line says it even while `flow check` refuses the file for another reason, and the gates it lets you remove can be removed together. Either one changes the shape of the flow: that is flow-map's work, done after the user's word. Never set `can_judge` to `yes` to get exit code 0.
 
 ### 6. Report, then stop
 Always the same format:
 - **The map, updated**: steps of the plan done, and the last output of `flow place`.
 - **Step by step**: the sentences of step 5, in the order of the file.
 - **What changed**: the keys written in the definition, each marked "your answer" or "my proposed default, accepted"; or "nothing was changed".
-- **Verdict**: the command's "Verdict:" line, word for word, and under it each "A gate nobody can judge" line, word for word.
-- **`flow check`**: when it holds (exit code 0), its first line as is, and its "Careful:" line if it prints one; when it refuses (exit code 1), every line, as is.
+- **Verdict**: the command's "Verdict:" line, word for word, and under it each "A gate nobody can judge" line and the note on measured symptoms, word for word.
+- **`flow check`**: when it holds (exit code 0), its first line and the lines of its bounds block that begin "- The event …", as printed, and its "Careful:" line if it prints one; when it refuses (exit code 1), every line, as is.
 - **What is not proven**: see below.
 - **Questions**, numbered, each with why it is asked and the proposed default, if any remain.
-- **What comes next**, one line: a step would need an engine → the cheaper fix of decide.md, section 3, then flow-why for the product; `flow check` refuses or a gate must go → flow-map; otherwise `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" flow status <file> --map` gives the level reached on paper. Wiring a step is not built yet.
+- **What comes next**, one line: a step would need an engine → the cheaper fix of decide.md, section 3, then flow-why for the product; `flow check` refuses or a gate must go → flow-map; a symptom is measured above its threshold → the smallest fix of each, given by `flow fit <answers file>` (decide.md, section 3), applied by the team; no step moves and the level does not change; the product question is flow-why's; otherwise the command's "Next:" note, as printed (`flow status <file> --map`, with the same `--answers`), gives the level reached on paper. Wiring a step is not built yet.
 
 ## What the result proves, and what it does not
 
-Everything here is on paper. `flow place` reads the answers found in the file; after flow-map most of them are the template's, and nobody on the team gave them. It runs no agent, calls no forge, measures nothing. "No step needs an engine" means no step answered `midway`; it does not mean the flow works on real tickets. The other signs that an engine is needed (runs that die and pay twice, two runs on one ticket) are read from real runs, which this version does not do: decide.md, section 3, lists them, and a number counts only if the user typed it. A verdict "no step needs an engine" does not answer a symptom `flow fit` named: the two commands read different things. A place decided by a default you accepted says what the skill proposed, not what your team observed. Whether a judge can judge is the judge's word, not a check.
+Everything here is on paper. `flow place` reads the answers found in the file; after flow-map most of them are the template's, and nobody on the team gave them. It runs no agent, calls no forge, measures nothing. "No step needs an engine" means no step answered `midway`; it does not mean the flow works on real tickets. The other signs that an engine is needed (runs that die and pay twice, two runs on one ticket; decide.md, section 3) come from real runs: with `--answers`, the verdict adds the numbers the user recorded for `flow fit`, which are above their threshold and which were not measured; without it, a note says they were not read. A symptom never moves a step nor the level, and no command says which step a symptom comes from. A place decided by a default you accepted says what the skill proposed, not what your team observed. Whether a judge can judge is the judge's word, not a check.
 
 ## Common pitfalls
 - Asking questions before showing the command's output.
