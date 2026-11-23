@@ -20,7 +20,7 @@ You need Python 3.10 or later and git. Nothing to install: the CLI uses the stan
 git clone https://github.com/jrechet/harness-ai.git
 ```
 
-The repository is private today: the clone works only if the owner gave you access.
+The repository is public since 2026-11-23 and was private before. To keep your own changes private, clone it into a private repository of yours: a GitHub fork of a public repository is public.
 
 ```bash
 python3 harness-ai/cli/harness.py status /path/to/your/repo --map
@@ -170,7 +170,7 @@ A measurement is one draw, not an average, and the test cases were written by th
 ### What does not exist yet
 
 - Proof of a gain on a real repository. What the project measures is that its mechanisms work on sample projects.
-- A disposable CI runner. This repository's CI (`.github/workflows/ci.yml`, which runs `scripts/ci/verify.sh`) is a required check on `main`, but it runs the code of pull requests on a self-hosted runner on the owner's server, which is not disposable. This is accepted for a private repository with a single owner, to be revisited before any publication. The tests also run by hand, or with `sh scripts/ci/verify.sh`.
+- Outside contributions. Pull requests coming from a fork fail the CI on purpose for now; issues are welcome.
 
 ## Install the skills in Claude Code
 
@@ -180,7 +180,7 @@ A measurement is one draw, not an average, and the test cases were written by th
 /plugin install ai-sdlc@harness-ai
 ```
 
-The repository is private today: the first line works only if your GitHub account has access to it. From a local clone, use `claude plugin marketplace add <clone folder>` instead, then the two install lines.
+The first line installs from GitHub; it works for anyone, as the repository is public. From a local clone or a private copy, use `claude plugin marketplace add <clone folder>` instead, then the two install lines.
 
 A skill triggers on its description ("audit my AGENTS.md", "review this PR") or by its name: `/harness-ai:harness-init`, `/ai-sdlc:review`.
 
