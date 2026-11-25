@@ -49,7 +49,8 @@ NEVER_HARVESTED = ("nobody has looked yet for a review remark or a fixed agent c
 
 # A check the owner may not set aside: without an instruction file there is nothing to measure.
 NOT_IGNORABLE = {FOLLOWS_SOURCE}
-SET_ASIDE = "set aside by the owner"
+# Who wrote the choice is not known: an agent or a hand edit writes the file like the owner does.
+SET_ASIDE = "set aside"
 
 
 def _check(cid: str, label: str, passed: bool, value: Any, next_action: str) -> Check:
@@ -258,9 +259,20 @@ def _set_aside(checks: list[Check], chosen: dict[str, dict[str, str]]) -> list[C
             for c in checks]
 
 
-def evaluate(f: dict) -> dict[str, Any]:
+def measured_level(f: dict) -> int:
+    """The level with nothing set aside: what the checks alone say."""
+    reached = 0
+    for num in sorted(LEVEL_CHECKS):
+        if not all(c["passed"] for c in LEVEL_CHECKS[num](f)):
+            break
+        reached = num
+    return reached
+
+
+def evaluate(f: dict, honour_ignored: bool = True) -> dict[str, Any]:
+    """`honour_ignored=False` is the measure alone: what a grader reads, whatever the repository chose."""
     target = (f.get("config") or {}).get("target_level")      # None: the owner declared nothing
-    chosen = (f.get("config") or {}).get("ignored_checks") or {}
+    chosen = ((f.get("config") or {}).get("ignored_checks") or {}) if honour_ignored else {}
     levels = []
     reached = 0
     blocked = False
@@ -296,7 +308,9 @@ def evaluate(f: dict) -> dict[str, Any]:
         "schema": "harness-state/1",
         "repo": f["repo"],
         "date": f["date"],
-        "level": {"reached": reached, "name": LEVELS[reached][1], "next": next_level["level"] if next_level else None},
+        "level": {"reached": reached, "name": LEVELS[reached][1], "next": next_level["level"] if next_level else None,
+                  "measured": measured_level(f),
+                  "set_aside": sum(l["ignored_checks"] for l in levels if l["achieved"])},
         "target": {"level": target, "name": LEVELS[target][1] if target else None,
                    "reached": target is not None and reached >= target},
         "levels": levels,
@@ -315,6 +329,14 @@ def unreadable(state: dict) -> list[str]:
     return list((state.get("facts") or {}).get("unreadable") or [])
 
 
+def _aside_note(lvl: dict) -> str:
+    """Said wherever the level is stated: it was reached with checks set aside, and what they alone give."""
+    count = lvl.get("set_aside") or 0
+    if not count:
+        return ""
+    return f" ({count} check{'' if count == 1 else 's'} set aside; level {lvl.get('measured', 0)} without that)"
+
+
 def render_markdown(state: dict) -> str:
     lvl = state["level"]
     target = state.get("target") or {"level": None, "reached": False}
@@ -325,7 +347,7 @@ def render_markdown(state: dict) -> str:
     else:
         goal = f"target: {target['level']} · {target['name']}"
     out = [f"# Harness state — {state['repo']}", "",
-           f"**Level reached**: {lvl['reached']} · {lvl['name']} · {goal}",
+           f"**Level reached**: {lvl['reached']} · {lvl['name']}{_aside_note(lvl)} · {goal}",
            f"**Date**: {state['date']}", ""]
     if unreadable(state):
         out += [*unreadable(state), ""]
@@ -420,7 +442,9 @@ def beyond_target(state: dict, target: dict | None = None) -> str | None:
         return None
     above = max(target["level"] or 0, reached) + 1
     if above >= len(LEVELS):
-        return "every level is reached. What is in place still needs upkeep."
+        aside = state["level"].get("set_aside") or 0
+        return ("every level is reached" + (f", with {aside} check{'' if aside == 1 else 's'} set aside" if aside else "")
+                + ". What is in place still needs upkeep.")
     return (f"your target is reached. If you want more, level {above} ({LEVELS[above][1]}) "
             f"would bring this: {LEVEL_PLAIN[above]}. It is your choice.")
 
@@ -473,6 +497,8 @@ def render_map(state: dict) -> str:
                 waits = c["waits"] and not _never_harvested(state, c)
                 out.append(f"- {_plain(state, c)[0]}" + (" (comes with time, not with work)" if waits else ""))
     if state.get("ignored"):
+        if state["level"].get("set_aside"):
+            out.append(f"Without what was set aside, the measure alone gives level {state['level']['measured']}.")
         out.append("Set aside by you (not counted, not proposed again):")
         out.extend(f"- {CHECK_PLAIN[i['id']][0]} ({i['reason']})" for i in state["ignored"])
     if state.get("dangling"):

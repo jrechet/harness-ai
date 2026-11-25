@@ -15,7 +15,7 @@ from datetime import date
 CLI_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, CLI_DIR)
 from harness import main as harness_main  # noqa: E402
-from harnesslib import facts, maturity, medals, page  # noqa: E402
+from harnesslib import facts, maturity, medals, page, serve  # noqa: E402
 
 CONFIG = ".harness/config.json"
 TODAY = date(2026, 11, 25)
@@ -111,7 +111,8 @@ class RenderTests(IgnoreTests):
         out = maturity.render_markdown(self.state())
         self.assertIn("✓ Level 1", out)
         self.assertIn("(4/5, 1 set aside)", out)
-        self.assertIn(f"- [~] A \"Forbidden\" section says what an agent never does → set aside by the owner: {REASON}", out)
+        self.assertIn(f"- [~] A \"Forbidden\" section says what an agent never does → set aside: {REASON}", out)
+        self.assertIn("**Level reached**: 1 · Framed (1 check set aside; level 0 without that)", out)
         self.assertNotIn("- [x] A \"Forbidden\"", out)
 
     def test_the_map_says_what_was_set_aside_and_does_not_ask_for_it(self):
@@ -129,13 +130,100 @@ class RenderTests(IgnoreTests):
         steps = page._steps(self.state())
         self.assertNotIn(maturity.CHECK_PLAIN["L1.forbidden"][0], [s["missing"] for s in steps])
 
-    def test_the_medal_follows_the_level_and_its_line_says_set_aside(self):
+    def test_the_medal_follows_the_level_but_the_achievement_is_set_aside_not_unlocked(self):
         self.set_aside()
-        evaluated = medals.evaluate_repo(self.repo, today=TODAY)
-        success = next(s for s in evaluated["successes"] if s["id"] == "L1.forbidden")
-        self.assertTrue(success["passed"])
-        self.assertIn("set aside", success["evidence"])
-        self.assertGreaterEqual(medals.build(evaluated)["medal"]["rank"], 1)
+        built = medals.build(medals.evaluate_repo(self.repo, today=TODAY))
+        success = next(s for s in built["successes"] if s["id"] == "L1.forbidden")
+        self.assertEqual((success["unlocked"], success["lost"], success["set_aside"]), (None, None, REASON))
+        self.assertEqual(built["medal"]["rank"], 1)
+        self.assertIn("4 are unlocked and 1 set aside", built["why"])
+        out = medals.render_md(built)
+        self.assertIn("## ✓ Bronze — Framed (4/5, 1 set aside)", out)
+        self.assertIn(f"- [~] A \"Forbidden\" section says what an agent never does — set aside: {REASON}", out)
+        self.assertNotIn("[x] A \"Forbidden\"", out)
+        self.assertNotIn("Forbidden", " ".join(str(s.get("action")) for s in built["next"]))
+
+    def test_restoring_does_not_report_as_lost_what_was_never_held(self):
+        self.set_aside()
+        first = medals.build(medals.evaluate_repo(self.repo, today=TODAY))
+        os.remove(os.path.join(self.repo, CONFIG))
+        second = medals.build(medals.evaluate_repo(self.repo, today=TODAY), first)
+        success = next(s for s in second["successes"] if s["id"] == "L1.forbidden")
+        self.assertEqual((success["unlocked"], success["lost"]), (None, None))
+
+    def test_the_page_says_what_was_set_aside_and_what_the_measure_alone_gives(self):
+        self.set_aside()
+        data = page.build(self.repo, today=TODAY)
+        self.assertEqual((data["level"]["reached"], data["level"]["measured"], data["level"]["set_aside"]), (1, 0, 1))
+        self.assertEqual(data["ladder"][1]["set_aside"], 1)
+        self.assertEqual(data["set_aside"], [{"level": 1, "missing": maturity.CHECK_PLAIN["L1.forbidden"][0],
+                                              "reason": REASON}])
+        html = page.render_html(data)
+        self.assertIn("data.set_aside", html)
+        self.assertIn("the measure alone gives level", html)
+
+    def test_the_local_app_gets_the_count_and_draws_a_third_state(self):
+        self.set_aside()
+        summary = serve.summarize(self.state())
+        self.assertEqual((summary["set_aside"], summary["levels"][0]["set_aside"]), (1, 1))
+        with open(os.path.join(os.path.dirname(CLI_DIR), "app", "app.js"), encoding="utf-8") as fh:
+            app = fh.read()
+        self.assertIn('v-if="c.ignored"', app)
+        self.assertIn("set aside, not passed: {{ c.reason }}", app)
+
+    def test_the_state_keeps_the_level_the_checks_alone_give(self):
+        self.set_aside()
+        level = self.state()["level"]
+        self.assertEqual((level["reached"], level["measured"], level["set_aside"]), (1, 0, 1))
+        self.assertIn("the measure alone gives level 0", maturity.render_map(self.state()))
+
+    def test_the_measure_alone_can_be_asked_for_whatever_the_repository_chose(self):
+        self.set_aside()
+        measured = maturity.evaluate(facts.collect(self.repo, today=TODAY), honour_ignored=False)
+        self.assertEqual((measured["level"]["reached"], measured["ignored"]), (0, []))
+
+
+class PartlySetAsideTests(IgnoreTests):
+    """A level that still lacks something after one of its checks was set aside: the walk goes on with
+    the others, and only with them."""
+
+    def setUp(self):
+        super().setUp()
+        self.write("AGENTS.md", "# demo\n\n## Rules\n- Tests pass.\n")      # no mode, no Forbidden section
+        self.set_aside()
+
+    def test_the_level_is_not_reached_and_the_other_check_is_the_step(self):
+        state = self.state()
+        self.assertEqual((state["level"]["reached"], state["level"]["set_aside"]), (0, 0))
+        self.assertEqual(len(state["next_actions"]), 1)
+        self.assertIn("mode", state["next_actions"][0])
+        out = maturity.render_map(state)
+        needs = out.split("still needs:")[1].split("Set aside by you")[0]
+        self.assertIn(maturity.CHECK_PLAIN["L1.mode"][0], needs)
+        self.assertNotIn(maturity.CHECK_PLAIN["L1.forbidden"][0], needs)
+        self.assertIn(f"Next step: {maturity.CHECK_PLAIN['L1.mode'][1]}", out)
+        self.assertEqual([s["missing"] for s in page._steps(state) if s["level"] == 1],
+                         [maturity.CHECK_PLAIN["L1.mode"][0]])
+
+    def test_a_check_that_only_time_passes_no_longer_waits_once_set_aside(self):
+        self.write("AGENTS.md", AGENTS_NO_FORBIDDEN)
+        self.write(CONFIG, json.dumps({"ignored_checks": {
+            "L1.forbidden": {"reason": REASON}, "L2.signal": {"reason": "two people, no reviews"}}}))
+        state = self.state()
+        self.assertEqual(state["waiting"], [])
+        signal = next(c for c in state["levels"][2]["checks"] if c["id"] == "L2.signal")
+        self.assertEqual((signal["ignored"], signal["waits"]), (True, False))
+
+    def test_with_no_instruction_file_nothing_is_set_aside(self):
+        os.remove(os.path.join(self.repo, "AGENTS.md"))
+        state = self.state()
+        self.assertEqual(state["ignored"], [])
+        check = next(c for c in state["levels"][1]["checks"] if c["id"] == "L1.forbidden")
+        self.assertFalse(check.get("ignored"))
+        code, out, _ = self.run_cli("ignore", "L1.mode", "--reason", "x", "--repo", self.repo)
+        self.assertEqual(code, 0)
+        self.assertIn("No effect today", out)
+        self.assertNotIn("no longer waits", out)
 
 
 class CommandTests(IgnoreTests):
@@ -148,8 +236,47 @@ class CommandTests(IgnoreTests):
         entry = config["ignored_checks"]["L1.forbidden"]
         self.assertEqual(entry["reason"], REASON)
         self.assertRegex(entry["date"], r"^\d{4}-\d{2}-\d{2}$")
-        self.assertIn("set aside", out)
+        self.assertIn("no longer waits for it", out)
+        self.assertIn("(written to .harness/config.json)", out)        # relative to the repository, wherever it is run
         self.assertEqual(self.state()["level"]["reached"], 1)
+
+    def test_another_harness_folder_is_written_and_read(self):
+        code, _, _ = self.run_cli("ignore", "L1.forbidden", "--reason", REASON, "--repo", self.repo, "--harness-dir", ".h")
+        self.assertEqual(code, 0)
+        self.assertTrue(os.path.isfile(os.path.join(self.repo, ".h", "config.json")))
+        self.assertFalse(os.path.exists(os.path.join(self.repo, ".harness")))
+        code, out, _ = self.run_cli("ignore", self.repo, "--harness-dir", ".h")
+        self.assertIn(f"set aside: {REASON}", out)
+
+    def test_a_check_that_passes_is_recorded_and_said_to_change_nothing(self):
+        code, out, _ = self.run_cli("ignore", "L1.mode", "--reason", "x", "--repo", self.repo)
+        self.assertEqual(code, 0)
+        self.assertIn("passes today, so nothing changes", out)
+        code, out, _ = self.run_cli("ignore", self.repo)
+        self.assertIn("held (a choice to set it aside is written, without effect today: x)", out)
+
+    def test_a_settings_file_that_is_not_an_object_is_refused_and_kept(self):
+        for broken in ("{", "[1, 2]", "42"):
+            with self.subTest(content=broken):
+                self.write(CONFIG, broken)
+                code, _, err = self.run_cli("ignore", "L1.forbidden", "--reason", REASON, "--repo", self.repo)
+                self.assertEqual(code, 2)
+                self.assertIn("not a JSON object", err)
+                with open(os.path.join(self.repo, CONFIG), encoding="utf-8") as fh:
+                    self.assertEqual(fh.read(), broken)
+                self.assertEqual(self.run_cli("status", self.repo, "--no-write")[0], 0)    # and status still answers
+                self.assertEqual(self.run_cli("ignore", self.repo)[0], 0)
+
+    def test_an_id_the_ladder_no_longer_has_can_still_be_taken_out_of_the_file(self):
+        self.write(CONFIG, json.dumps({"ignored_checks": {"L1.gone": {"reason": "old"}}}))
+        code, out, _ = self.run_cli("ignore", "L1.gone", "--restore", "--repo", self.repo)
+        self.assertEqual(code, 0)
+        self.assertNotIn("ignored_checks", self.config())
+
+    def test_a_mistyped_id_is_not_taken_for_a_folder(self):
+        code, _, err = self.run_cli("ignore", "l1.forbidden")
+        self.assertEqual(code, 2)
+        self.assertIn("not a check of the ladder", err)
 
     def test_a_reason_is_required(self):
         code, _, err = self.run_cli("ignore", "L1.forbidden", "--repo", self.repo)
@@ -194,6 +321,7 @@ class CommandTests(IgnoreTests):
         self.assertIn(f"set aside: {REASON}", out)
         self.assertIn("missing", out)
         self.assertIn("held", out)
+        self.assertIn(f"When missing: {maturity.CHECK_PLAIN['L1.forbidden'][0]}. Id: L1.forbidden", out)
 
     def test_the_list_as_json(self):
         self.set_aside()

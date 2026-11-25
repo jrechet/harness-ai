@@ -188,7 +188,8 @@ def instruction_corpus(repo: str, names: set[str] | None = None, resolve: bool =
 
 def config_facts(hdir: str) -> dict[str, Any]:
     """`.harness/config.json`: what the owner decided, starting with the target level."""
-    config = load_json(os.path.join(hdir, "config.json")) or {}
+    config = load_json(os.path.join(hdir, "config.json"))
+    config = config if isinstance(config, dict) else {}       # a file of another shape decides nothing
     target = config.get("target_level")
     return {"target_level": target if isinstance(target, int) and 1 <= target <= 4 else None,
             "ignored_checks": ignored_checks(config)}

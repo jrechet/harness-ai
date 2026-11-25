@@ -43,9 +43,11 @@ _NEGATIVE = re.compile(r"ne pas utiliser|do not use|don't use|not for\b|n'est pa
 
 
 def _success(ident: str, tier: str, title: str, passed: bool, evidence: str, action: str | None,
-             waiting: bool = False) -> dict[str, Any]:
+             waiting: bool = False, set_aside: str | None = None) -> dict[str, Any]:
+    """`set_aside` is the reason a failing check was set aside: it is not unlocked, and asks for nothing."""
     return {"id": ident, "tier": tier, "title": title, "passed": bool(passed), "evidence": evidence,
-            "next": None if passed else action, "waiting": bool(waiting and not passed)}
+            "next": None if passed else action, "waiting": bool(waiting and not passed),
+            "set_aside": None if passed else set_aside}
 
 
 def _short(value: Any) -> str:
@@ -81,10 +83,10 @@ def evaluate_repo(repo: str, today: date | None = None) -> dict[str, Any]:
     for level in state["levels"][1:]:
         medal = MEDALS[level["level"]]
         tiers.append({"id": medal["id"], "name": medal["name"], "title": level["name"], "promise": level["summary"]})
-        successes += [_success(c["id"], medal["id"], c["label"], maturity.holds(c),
-                               f"{maturity.SET_ASIDE}: {c['reason']}" if c.get("ignored") else
+        successes += [_success(c["id"], medal["id"], c["label"], c["passed"],
                                maturity.WITH_FILE if c.get("follows") else _short(c.get("value")),
-                               _plain_step(c), c.get("waits", False)) for c in level["checks"]]
+                               _plain_step(c), c.get("waits", False), c.get("reason") if c.get("ignored") else None)
+                      for c in level["checks"]]
     source = state["facts"]["instructions"]["source"]
     total = source.get("rules_total") or 0
     found = commands.collect(repo)
@@ -306,22 +308,27 @@ def build(evaluated: dict[str, Any], previous: Any = None) -> dict[str, Any]:
         unlocked = (day(old.get("unlocked")) or today) if item["passed"] else None
         lost = None if item["passed"] else (day(old.get("lost")) or (today if day(old.get("unlocked")) else None))
         successes.append({"id": item["id"], "tier": item["tier"], "title": item["title"], "unlocked": unlocked, "lost": lost,
-                          "evidence": item["evidence"], "next": item["next"], "waiting": item["waiting"]})
+                          "evidence": item["evidence"], "next": item["next"], "waiting": item["waiting"],
+                          "set_aside": item.get("set_aside")})
     rank = evaluated["rank"]
     medal = {**MEDALS[rank], "rank": rank, "of": len(MEDALS) - 1}
     tiers = []
     for index, tier in enumerate(evaluated["tiers"], 1):
         mine = [s for s in successes if s["tier"] == tier["id"]]
-        tiers.append({**tier, "done": sum(bool(s["unlocked"]) for s in mine), "total": len(mine), "earned": index <= rank})
+        tiers.append({**tier, "done": sum(bool(s["unlocked"]) for s in mine), "total": len(mine), "earned": index <= rank,
+                      "set_aside": sum(bool(s["set_aside"]) for s in mine)})
     upcoming = evaluated["tiers"][rank]["id"] if rank < len(evaluated["tiers"]) else None
-    missing = [s for s in successes if s["tier"] == upcoming and not s["unlocked"]]
+    missing = [s for s in successes if s["tier"] == upcoming and not s["unlocked"] and not s["set_aside"]]
     # An achievement that comes with another one (no action of its own) is missing, but is not a step.
     # With an offer, the target is reached: the steps stop there.
     offer = evaluated.get("offer")
     steps = [] if offer else [{"id": s["id"], "title": s["title"], "action": s["next"], "waiting": s["waiting"]}
                               for s in missing if s["next"]]
     if rank and tiers:
-        why = f"{medal['name']}: the {tiers[rank - 1]['total']} achievements of the \"{tiers[rank - 1]['title']}\" rank are unlocked"
+        held = tiers[rank - 1]
+        why = (f"{medal['name']}: the {held['total']} achievements of the \"{held['title']}\" rank are unlocked" if not held["set_aside"]
+               else f"{medal['name']}: of the {held['total']} achievements of the \"{held['title']}\" rank, {held['done']} are "
+                    f"unlocked and {held['set_aside']} set aside")
         why += f", and {len(missing)} missing for {MEDALS[rank + 1]['name'].lower()}." if upcoming else ". It is the last rank."
     else:
         why = f"No medal yet: {len(missing)} achievement(s) missing for bronze."
@@ -339,9 +346,13 @@ def render_md(data: dict[str, Any]) -> str:
     out = [f"# {data['medal']['name']} — {data['name']}", "", data["why"],
            f"Achievements unlocked: {len(done)} of {len(data['successes'])}. Measured on {data['date']}.", ""]
     for tier in data["tiers"]:
-        out.append(f"## {'✓' if tier['earned'] else '·'} {tier['name']} — {tier['title']} ({tier['done']}/{tier['total']})")
+        aside = f", {tier['set_aside']} set aside" if tier.get("set_aside") else ""
+        out.append(f"## {'✓' if tier['earned'] else '·'} {tier['name']} — {tier['title']} ({tier['done']}/{tier['total']}{aside})")
         out.append(f"_{tier['promise']}_")
         for s in (s for s in data["successes"] if s["tier"] == tier["id"]):
+            if s.get("set_aside"):
+                out.append(f"- [~] {s['title']} — {maturity.SET_ASIDE}: {s['set_aside']}")
+                continue
             mark = f"[x] {s['title']} (since {s['unlocked']})" if s["unlocked"] else f"[ ] {s['title']}"
             out.append(f"- {mark}" + (f" — lost on {s['lost']}" if s["lost"] else ""))
         out.append("")
