@@ -567,7 +567,7 @@ def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, 
         os.makedirs(os.path.join(workdir, ".harness"), exist_ok=True)
         with open(os.path.join(workdir, ".harness", "config.json"), "w", encoding="utf-8") as fh:
             json.dump({"schema": "harness-config/1", "target_level": target}, fh)
-    before = maturity.evaluate(facts.collect(workdir, today=today))
+    before = maturity.evaluate(facts.collect(workdir, today=today), honour_ignored=False)   # the measure, not a choice the run wrote
     tasks = [load_task(fixture_dir, t) for t in list_tasks(fixture_dir)]
     bash = {rule for t in tasks for rule in t.get("agent_bash", [])} | {f"python3 {kit}/cli/harness.py *"}
     simulated = owner.load(fixture_dir)
@@ -582,7 +582,7 @@ def play_step(fixture_dir: str, work_root: str, start: str, target: int | None, 
         told = ("The owner is not reachable during this session. Here is what they answered in advance; "
                 f"expect no other answer.\n\n{owner_answers(fixture_dir)}\n")
         agent = _started(runner(workdir, STEP_PROMPT.format(kit=kit, owner=told), {"agent_bash": sorted(bash), "work_root": work_root}))
-    after = maturity.evaluate(facts.collect(workdir, today=today))
+    after = maturity.evaluate(facts.collect(workdir, today=today), honour_ignored=False)   # the measure, not a choice the run wrote
     changes = sorted(diff(workdir))
     graded = fixtures.check_step(before, after, expected.get("init", {}), agent.get("report") or "", changes)
     out_dir = out_dir or os.path.join(fixture_dir, "runs", f"{day}-step-blind")
