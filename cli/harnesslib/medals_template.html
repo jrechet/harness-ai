@@ -107,6 +107,8 @@ button { font: inherit; color: inherit; }
 .tile[data-state="locked"] .title { color: var(--muted); }
 .tile[data-state="locked"] .foot { color: var(--muted); }
 .tile[data-state="lost"] .foot { color: var(--lost); }
+.tile[data-state="aside"] { border-style: dashed; border-top-style: dashed; border-top-color: var(--line); }
+.tile[data-state="aside"] .title, .tile[data-state="aside"] .foot { color: var(--muted); }
 @keyframes rise { from { opacity: 0; transform: translateY(0.6rem); } }
 .empty { color: var(--muted); font-style: italic; }
 
