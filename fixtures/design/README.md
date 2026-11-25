@@ -8,7 +8,7 @@ fixtures/design/<name>/
 ├── artifact/        # the skill, the agent, the rules to review: given to the evaluated agent
 ├── traps.md         # each trap and each healthy item, and what the plan must say about it
 ├── expected.json    # the answer key read by the grader: file, lines, accepted destinations
-└── runs/            # dated plans; <date>-author = the plan of the author of the traps
+└── runs/            # dated plans; <date>-author = the plan of the author of the traps; <date>-coach-* = a run of harness-coach, with its prompt and its reply
 ```
 
 `traps.md`, `expected.json` and `runs/` are never given to the evaluated agent. The author's plan is a regression baseline, not a measurement: only a blind run measures the skill, and it is launched at the owner's request.
