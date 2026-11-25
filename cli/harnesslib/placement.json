@@ -309,5 +309,47 @@
       "where": "No file.",
       "why": "What the agent finds by reading the repository does not change what it does; writing it costs context in every session and goes stale."
     }
+  },
+  "concepts": {
+    "skippable_condition": {
+      "name": "A condition that can be skipped",
+      "definition": "Something the result must respect is written as a sentence. Nothing stops the agent, or a person, from going on without it: a program could check it, with the same answer every time."
+    },
+    "determinism": {
+      "name": "A determinism problem",
+      "definition": "A result entirely fixed by its inputs is left to the model, which works it out again on every run and sometimes gets it wrong. In code, it gives the same answer to the agent, to a person and to the CI."
+    },
+    "limit_only_asked": {
+      "name": "A limit that is only asked for",
+      "definition": "What the agent must not do is written as a request. A sentence can be forgotten or worked around; a permission or a protection refuses whatever the prompt says."
+    },
+    "unguarded_action": {
+      "name": "An action without a guard",
+      "definition": "The text has the agent read, write or deliver outside the repository with whatever rights the session holds. Nothing bounds those rights, and nothing stops before the irreversible."
+    },
+    "weak_guard": {
+      "name": "A guard that can be bypassed",
+      "definition": "A real guard exists, but not where it counts: someone it should hold can still go around it."
+    },
+    "frozen_judgment": {
+      "name": "Judgement frozen in code",
+      "definition": "A choice with no right answer in advance, or a plain convention, is hard-coded. It becomes rigid, and the team ends up working around it."
+    },
+    "tidy_helper": {
+      "name": "A helper that only looks tidy",
+      "definition": "A separate agent does work that needs no fresh context, no independent eye, no narrower rights and no parallelism. It costs context and round trips for nothing."
+    },
+    "dead_weight": {
+      "name": "Dead weight",
+      "definition": "The agent finds this alone by reading the repository. Writing it costs context in every session and goes stale."
+    },
+    "wrong_place": {
+      "name": "Not in the right place",
+      "definition": "The right kind of thing, held in the wrong file or at the wrong reach: loaded when it does not serve, or missing when it does."
+    },
+    "two_in_one": {
+      "name": "Two things in one",
+      "definition": "One text carries its procedure and other things that are not procedure. Each of them is listed under its own heading; cut them out, and the procedure calls them."
+    }
   }
 }

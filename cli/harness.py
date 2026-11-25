@@ -10,7 +10,7 @@
   harness fixture check <name>       compares a fixture with its expected.json
   harness bench …                    the before-and-after bench: plan, prepare, check, selftest, record, report
   harness serve [repo]               local tracking app (http://127.0.0.1:8787)
-  harness place grid|one|plan …      where each piece of a harness goes, and why
+  harness place grid|one|plan|review … where each piece of a harness goes, and why
   harness commands [repo]            the commands an agent does not guess: what the CI really runs
   harness fresh [repo] [--hook|--strict]   what has aged: a skill citing a vanished file, a late harvest
   harness medals [repo] [--write] [--page F]   medal, unlocked achievements, next steps; HTML page

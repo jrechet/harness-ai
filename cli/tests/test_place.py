@@ -323,6 +323,123 @@ class DesignFixtureTests(unittest.TestCase):
                 self.assertEqual(result["flagged"], 0, result)
 
 
+# One piece per concept the review can name: where it is held today, its answers, the concept expected.
+# A change that moves one of these cases changes what the review tells a user.
+RULE_CI = {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "dev"}
+CONCEPT_CASES = [
+    ("Refuse to release with uncommitted files", RULE_CI, "skill", "skippable_condition"),
+    ("Compute the next version", {"nature": "compute", "when": "on_demand"}, "skill", "determinism"),
+    ("Never push to main", {"nature": "limit", "bypass_limit": "dev"}, "agents_md", "limit_only_asked"),
+    ("Publish the package", {"nature": "action", "access": "deliver"}, "skill", "unguarded_action"),
+    ("Nothing merges without tests", RULE_CI, "hook_check", "weak_guard"),
+    ("Choose the release type", {"nature": "judgment", "isolation": "none"}, "cli", "frozen_judgment"),
+    ("Summarise the diff", {"nature": "judgment", "isolation": "none"}, "subagent", "tidy_helper"),
+    ("The list of folders", {"nature": "knowledge", "scope": "discoverable"}, "agents_md", "dead_weight"),
+    ("Conventions of the migrations folder", {"nature": "knowledge", "scope": "zone"}, "agents_md", "wrong_place"),
+]
+LEVEL_OR_CODE = re.compile(r"\bL[1-4]\b|\b[Ll]evel [0-4]\b|\b[Ll]ayers?\b|KEEP|PUSH_DOWN|PROMOTE|\bMOVE\b|REMOVE")
+
+
+def as_pieces(cases):
+    return [{"piece": text, "answers": answers, "current": current, "evidence": [f"SKILL.md:{i}"]}
+            for i, (text, answers, current, _) in enumerate(cases, 1)]
+
+
+class ReviewTests(unittest.TestCase):
+    """`place review`: the same placement, told as named concepts, with no level and no verdict code."""
+
+    def test_the_shipped_concepts_are_complete(self):
+        self.assertEqual(sorted(GRID["concepts"]), sorted(place.CONCEPTS))
+        for cid, concept in GRID["concepts"].items():
+            with self.subTest(concept=cid):
+                self.assertTrue(concept["name"].strip() and concept["definition"].strip())
+
+    def test_a_concept_without_definition_is_reported(self):
+        grid = json.loads(json.dumps(GRID))
+        grid["concepts"]["determinism"]["definition"] = " "
+        del grid["concepts"]["dead_weight"]
+        errors = "\n".join(place.validate(grid))
+        self.assertIn("concept determinism", errors)
+        self.assertIn("concept dead_weight", errors)
+
+    def test_each_weakness_gets_the_concept_the_doctrine_names(self):
+        for text, answers, current, expected in CONCEPT_CASES:
+            with self.subTest(piece=text):
+                row = place.place_piece(GRID, {"piece": text, "answers": answers, "current": current})
+                self.assertEqual(place.concept(GRID, row), expected)
+
+    def test_every_concept_but_the_note_has_a_case(self):
+        self.assertEqual({c for *_, c in CONCEPT_CASES} | {"two_in_one"}, set(place.CONCEPTS))
+
+    def test_a_piece_in_its_place_has_no_concept(self):
+        row = place.place_piece(GRID, {"piece": "How to release", "answers": {"nature": "procedure"},
+                                       "current": "skill"})
+        self.assertIsNone(place.concept(GRID, row))
+
+    def test_the_review_groups_by_concept_and_says_what_is_good(self):
+        pieces = as_pieces(CONCEPT_CASES) + [{"piece": "How to release", "answers": {"nature": "procedure"},
+                                              "current": "skill", "evidence": ["SKILL.md:40"]}]
+        result = place.review(GRID, pieces)
+        out = place.render_review_md(GRID, result)
+        self.assertEqual([r["piece"] for r in result["good"]], ["How to release"])
+        self.assertIn("## Well placed", out)
+        self.assertIn("How to release", out)
+        for cid in {c for *_, c in CONCEPT_CASES}:
+            with self.subTest(concept=cid):
+                self.assertIn(f"## {GRID['concepts'][cid]['name']}", out)
+                self.assertIn(GRID["concepts"][cid]["definition"], out)
+        self.assertIn("SKILL.md:2", out)                      # the evidence of each finding is cited
+        self.assertIn(GRID["destinations"]["cli"]["name"], out)   # and where it would hold
+
+    def test_the_review_shows_no_level_and_no_verdict_code(self):
+        out = place.render_review_md(GRID, place.review(GRID, as_pieces(CONCEPT_CASES)))
+        self.assertIsNone(LEVEL_OR_CODE.search(out), LEVEL_OR_CODE.findall(out))
+        for did in GRID["destinations"]:
+            self.assertNotIn(f"`{did}`", out)
+
+    def test_a_skill_that_carries_its_procedure_and_something_else_is_two_things_in_one(self):
+        pieces = [{"piece": "How to release", "answers": {"nature": "procedure"}, "current": "skill"},
+                  {"piece": "Compute the next version", "answers": {"nature": "compute", "when": "on_demand"},
+                   "current": "skill"}]
+        result = place.review(GRID, pieces)
+        self.assertEqual(result["notes"], ["two_in_one"])
+        self.assertIn(GRID["concepts"]["two_in_one"]["name"], place.render_review_md(GRID, result))
+        self.assertEqual(place.review(GRID, pieces[:1])["notes"], [])
+
+    def test_a_piece_without_a_current_place_is_refused_in_review(self):
+        with self.assertRaises(ValueError):
+            place.review(GRID, [{"piece": "New thing", "answers": {"nature": "procedure"}}])
+
+    def test_a_missing_answer_is_asked_in_plain_words_and_exits_3(self):
+        pieces = [{"piece": "Tests pass", "answers": {"nature": "rule"}, "current": "skill"}]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "pieces.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(pieces, fh)
+            code, out = run_cli("place", "review", path)
+        self.assertEqual(code, 3)
+        self.assertIn(GRID["questions"]["incident"]["text"], out)
+        self.assertNotIn("`incident`", out)
+
+    def test_the_review_of_a_fixture_plan_names_its_concepts(self):
+        plan = os.path.join(FIXTURES, "release-skill", "runs", "2026-11-15-author", "pieces.json")
+        code, out = run_cli("place", "review", plan)
+        code_json, out_json = run_cli("place", "review", plan, "--format", "json")
+        self.assertEqual((code, code_json), (0, 0))
+        self.assertIsNone(LEVEL_OR_CODE.search(out), LEVEL_OR_CODE.findall(out))
+        data = json.loads(out_json)
+        self.assertIn("determinism", [f["concept"] for f in data["findings"]])
+        self.assertIn("dead_weight", [f["concept"] for f in data["findings"]])
+
+    def test_a_review_of_invalid_input_exits_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "pieces.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump([{"piece": "x", "answers": {"nature": "procedure"}}], fh)
+            code, _ = run_cli("place", "review", path)
+        self.assertEqual(code, 2)
+
+
 class CliTests(unittest.TestCase):
     def test_one_piece_placed_prints_destination_and_why(self):
         code, out = run_cli("place", "one", "nature=limit", "bypass_limit=dev")

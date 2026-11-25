@@ -11,6 +11,8 @@ same destination: that is what makes the grid a guarantee and not advice.
   harness place grid                        the questions, their options, the destinations
   harness place one nature=limit …          one piece; if an answer is missing, the next question
   harness place plan pieces.json            several pieces, with a verdict if `current` is given
+  harness place review pieces.json          the same placement told as named concepts: what is well
+                                            placed, what is weak and why; no layer, no verdict code
   harness place check plan.json --expected … grades a review plan against a fixture's answer key
 
 Format of `pieces.json`: a list of
@@ -37,6 +39,11 @@ INCOMPLETE = 3
 # A review fixture starts from an artifact (each piece has a `current`); a create fixture starts
 # from a request, where nothing exists yet.
 MODES = ("review", "create")
+# What `place review` can name. `two_in_one` is a note on the whole artifact, the others file one piece.
+CONCEPTS = ("skippable_condition", "determinism", "limit_only_asked", "unguarded_action", "weak_guard",
+            "frozen_judgment", "tidy_helper", "dead_weight", "wrong_place", "two_in_one")
+CHECKS = ("hook_check", "ci_check", "release_gate", "org_check")
+TEXT_LAYER = 2          # up to here a piece is held by a sentence; beyond, by code or by a setting
 
 
 def fold(text: str) -> str:
@@ -112,11 +119,22 @@ def _reachable(grid: dict[str, Any]) -> tuple[set[str], set[str], list[str]]:
     return seen_q, seen_d, cycles
 
 
+def _validate_concepts(grid: dict[str, Any]) -> list[str]:
+    concepts = grid.get("concepts", {})
+    errors = [f"concept {cid}: missing" for cid in CONCEPTS if cid not in concepts]
+    errors += [f"concept {cid}: unknown, the review never names it" for cid in concepts if cid not in CONCEPTS]
+    for cid, concept in concepts.items():
+        for field in ("name", "definition"):
+            if not str(concept.get(field, "")).strip():
+                errors.append(f"concept {cid}: field {field} empty")
+    return errors
+
+
 def validate(grid: dict[str, Any]) -> list[str]:
     """The grid's defects; an empty list if it is sound."""
     if grid.get("root") not in grid.get("questions", {}):
         return [f"root {grid.get('root')} not found among the questions"]
-    errors = _validate_questions(grid) + _validate_destinations(grid)
+    errors = _validate_questions(grid) + _validate_destinations(grid) + _validate_concepts(grid)
     seen_q, seen_d, cycles = _reachable(grid)
     errors += [f"cycle: {c}" for c in cycles]
     errors += [f"question {q}: no answer leads to it" for q in sorted(set(grid["questions"]) - seen_q)]
@@ -290,6 +308,91 @@ def render_check_md(result: dict[str, Any]) -> str:
     return "\n".join(out) + "\n"
 
 
+# --- Review: the same placement, told as named concepts --------------------------------------------
+
+def concept(grid: dict[str, Any], row: dict[str, Any]) -> str | None:
+    """The concept a misplaced piece falls under; None if it is in its place or not placed yet.
+    Decided from the piece's nature, where it is held today and where the grid sends it: same
+    answers, same concept."""
+    if row["status"] != "placed" or row["verdict"] in (None, "KEEP"):
+        return None
+    nature = row["path"][0]["answer"]
+    destination = row["destination"]["id"]
+    held_by_text = LAYERS[grid["destinations"][row["current"]]["layer"]] <= TEXT_LAYER
+    if row["verdict"] == "REMOVE":
+        return "dead_weight"
+    if row["verdict"] == "PROMOTE":
+        return "wrong_place" if held_by_text else "frozen_judgment"
+    if row["current"] == "subagent" and destination == "session":
+        return "tidy_helper"
+    if held_by_text:
+        if nature == "compute":
+            return "determinism"
+        if nature == "rule" and destination in CHECKS:
+            return "skippable_condition"
+        if nature == "limit":
+            return "limit_only_asked"
+        if nature == "action":
+            return "unguarded_action"
+    elif nature in ("rule", "limit", "action"):
+        return "weak_guard"
+    return "wrong_place"
+
+
+def review(grid: dict[str, Any], pieces: list[Any]) -> dict[str, Any]:
+    """Every piece of an existing artifact, sorted: well placed, weak (with its concept), or still
+    waiting for an answer. A review reads what exists: a piece without `current` is refused."""
+    good, findings, waiting = [], [], []
+    for item in pieces:
+        row = place_piece(grid, item)
+        if row["current"] is None:
+            raise ValueError(f"{row['piece']}: current field missing; a review says where each piece is held today")
+        evidence = item.get("evidence", [])
+        row["evidence"] = [str(e) for e in (evidence if isinstance(evidence, list) else [evidence])]
+        row["concept"] = concept(grid, row)
+        (waiting if row["status"] != "placed" else findings if row["concept"] else good).append(row)
+    skill_keeps_its_procedure = any(r["current"] == "skill" for r in good)
+    mixed = skill_keeps_its_procedure and any(r["current"] == "skill" for r in findings)
+    return {"good": good, "findings": findings, "waiting": waiting, "notes": ["two_in_one"] if mixed else []}
+
+
+def _cited(row: dict[str, Any]) -> str:
+    return f" ({', '.join(row['evidence'])})" if row.get("evidence") else ""
+
+
+def render_review_md(grid: dict[str, Any], result: dict[str, Any]) -> str:
+    names = grid["destinations"]
+    total = len(result["good"]) + len(result["findings"]) + len(result["waiting"])
+    summary = f"{total} pieces read: {len(result['good'])} well placed, {len(result['findings'])} to change"
+    if result["waiting"]:
+        summary += f", {len(result['waiting'])} waiting for an answer"
+    out = ["# Review", "", summary + "."]
+    if result["good"]:
+        out += ["", "## Well placed", ""]
+        out += [f"- **{_cell(r['piece'])}**{_cited(r)}: {names[r['current']]['name']}, where it belongs."
+                for r in result["good"]]
+    for cid in CONCEPTS:
+        rows = [r for r in result["findings"] if r["concept"] == cid]
+        if not rows and cid not in result["notes"]:
+            continue
+        out += ["", f"## {grid['concepts'][cid]['name']}", "", grid["concepts"][cid]["definition"]]
+        for r in rows:
+            dest = r["destination"]
+            out += ["", f"- **{_cell(r['piece'])}**{_cited(r)}"]
+            if dest["id"] == "nothing":
+                out.append(f"  Today: {names[r['current']]['name']}. Better: take it out.")
+                continue
+            out += [f"  Today: {names[r['current']]['name']}. Better: {dest['name']}.",
+                    f"  Where: {dest['where']}", f"  Why: {dest['why']}"]
+    if result["waiting"]:
+        out += ["", "## Not decided yet", ""]
+        for r in result["waiting"]:
+            q = r["next"]
+            out += [f"- **{_cell(r['piece'])}**{_cited(r)}: {q['text']}"]
+            out += [f"  - {label}" for label in q["options"].values()]
+    return "\n".join(out) + "\n"
+
+
 # --- Rendering -------------------------------------------------------------------------------------
 
 def _leads_to_label(grid: dict[str, Any], alt: dict[str, str]) -> str:
@@ -390,7 +493,9 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     chk = sub.add_parser("check", help="grades a review plan against a fixture's answer key")
     chk.add_argument("file", help="the plan: list of {piece, answers, current, evidence}")
     chk.add_argument("--expected", required=True, help="the fixture's expected.json")
-    for sp in (grid, one, plan, chk):
+    rev = sub.add_parser("review", help="an existing artifact's pieces, told as named concepts")
+    rev.add_argument("file", help="list of {piece, answers, current, evidence?}")
+    for sp in (grid, one, plan, chk, rev):
         sp.add_argument("--format", choices=["md", "json"], default="md")
     return p
 
@@ -425,6 +530,10 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
             result = check(grid, expected, load_pieces(args.file))
             _emit(args.format, result, render_check_md(result))
             return 0 if result["passed"] else 1
+        if args.place_command == "review":
+            result = review(grid, load_pieces(args.file))
+            _emit(args.format, result, render_review_md(grid, result))
+            return INCOMPLETE if result["waiting"] else 0
         rows = [place_piece(grid, item) for item in load_pieces(args.file)]
     except ValueError as exc:
         print(f"place: {exc}", file=sys.stderr)

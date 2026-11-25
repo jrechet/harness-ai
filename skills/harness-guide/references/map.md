@@ -16,7 +16,8 @@ Not sure which of the lines below fits: `harness-guide`, the skill that reads th
 | Know where the repository stands, what the next step is, go up one level, or stop at one | `harness-step` | `harness-audit` for a full review |
 | Have the level told as a medal, the unlocked achievements, a badge or the medals page | `harness-medals` | it changes nothing but its medals file: to move, `harness-step` |
 | Audit an existing setup: is each rule, skill, agent, script and workflow in its place, what still serves | `harness-audit` | `harness-design` for one piece only |
-| Create or review one skill, agent, rule, hook or tool: "skill or agent?", "should this be code?", "where do I put this?" | `harness-design` | `flow-place` for a step of a team workflow |
+| Have one skill, agent or rule reviewed and explained: what is good, what is weak, which concept is behind it; nothing is written, no level is mentioned | `harness-coach` | `harness-design` to place the pieces and set up the files |
+| Create one skill, agent, rule, hook or tool, or put an existing one right: "skill or agent?", "should this be code?", "where do I put this?" | `harness-design` | `harness-coach` to understand first, without changing anything |
 | Turn what happened in PRs and reviews (`rule:` comments, fixes after the fact, reverts) into rules | `harness-harvest` | `harness-audit` if no change is wanted |
 
 ## A team's path from ticket to production (plugin `harness-ai`)
@@ -42,6 +43,7 @@ Not sure which of the lines below fits: `harness-guide`, the skill that reads th
 ## Neighbours that are often confused
 
 - **init, step or audit?** Nothing yet, or a long file to redo: `harness-init`. Level 1 reached and you want the next thing: `harness-step`. You want a verdict on everything that exists, with removals: `harness-audit`.
+- **coach or design?** Both read one piece with the same grid. `harness-coach` explains and stops: what holds, what does not, in named concepts. `harness-design` shows the plan and sets up the files.
 - **design or audit?** One piece, new or existing: `harness-design`. The whole setup: `harness-audit`.
 - **harvest or audit?** Evidence from real PRs, with a PR of changes: `harness-harvest`. A review of what exists today: `harness-audit`.
 - **step or medals?** Both start from the same measurement; `harness-medals` only shows it, `harness-step` acts on it.
@@ -60,7 +62,7 @@ The `harness-ai` plugin installs the whole repository, so both command lines are
 | `harness medals` | the medal and the achievements, `--page` for the page |
 | `harness commands` | the commands an agent does not guess: what the CI really runs |
 | `harness fresh` | what has aged: a skill citing a vanished file, a late harvest |
-| `harness place` | where a piece of a harness goes, from closed questions (`grid`, `one`, `plan`) |
+| `harness place` | where a piece of a harness goes, from closed questions (`grid`, `one`, `plan`); `review` tells an existing piece as named concepts |
 | `harness report` | a one-page HTML assessment, always in the same format |
 | `harness serve` | a local page that follows the state (http://127.0.0.1:8787) |
 | `harness flow` | a ticket workflow on paper: `fit`, `new`, `check`, `place`, `next`, `status` |
