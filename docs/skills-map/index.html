@@ -219,12 +219,12 @@ section.block { padding-block: 40px 8px; border-top: 1px solid var(--rule); marg
 .node.is-visited::after { content: "✓"; position: absolute; top: -8px; right: -8px; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 11px; display: grid; place-items: center; }
 
 @media (min-width: 720px) {
-  .zone.repo .zgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "init step harvest" "medals audit design" "guide . ."; column-gap: 36px; row-gap: 58px; align-content: space-evenly; height: 100%; }
+  .zone.repo .zgrid { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "init step harvest" "medals audit design" "guide coach ."; column-gap: 36px; row-gap: 58px; align-content: space-evenly; height: 100%; }
   .zone.flow .zgrid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "why" "fmap" "place"; row-gap: 40px; }
   .zone.sdlc .zgrid { grid-template-columns: repeat(5, minmax(0, 1fr)); grid-template-areas: "ticket dev qa secu review" "guard run prod ship ci"; column-gap: 30px; row-gap: 58px; }
   .zone.repo { grid-template-rows: auto 1fr; }
   [data-id="init"] { grid-area: init; } [data-id="step"] { grid-area: step; } [data-id="harvest"] { grid-area: harvest; }
-  [data-id="medals"] { grid-area: medals; } [data-id="guide"] { grid-area: guide; } [data-id="audit"] { grid-area: audit; } [data-id="design"] { grid-area: design; }
+  [data-id="medals"] { grid-area: medals; } [data-id="guide"] { grid-area: guide; } [data-id="coach"] { grid-area: coach; } [data-id="audit"] { grid-area: audit; } [data-id="design"] { grid-area: design; }
   [data-id="why"] { grid-area: why; } [data-id="fmap"] { grid-area: fmap; } [data-id="place"] { grid-area: place; }
   [data-id="ticket"] { grid-area: ticket; } [data-id="dev"] { grid-area: dev; } [data-id="qa"] { grid-area: qa; } [data-id="secu"] { grid-area: secu; } [data-id="review"] { grid-area: review; }
   [data-id="guard"] { grid-area: guard; } [data-id="run"] { grid-area: run; } [data-id="prod"] { grid-area: prod; } [data-id="ship"] { grid-area: ship; } [data-id="ci"] { grid-area: ci; }
@@ -312,7 +312,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
 </style>
 <div class="page">
   <div class="top">
-    <span class="eyebrow">Claude Code plugin marketplace · state of 23 November 2026</span>
+    <span class="eyebrow">Claude Code plugin marketplace · state of 25 November 2026</span>
     <nav aria-label="Sections">
       <a href="#goal">Goal</a>
       <a href="#layers">Layers</a>
@@ -334,7 +334,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
     </div>
     <div class="facts">
       <span><b>2</b> plugins</span>
-      <span><b>17</b> shipped skills</span>
+      <span><b>18</b> shipped skills</span>
       <span><b>1</b> internal skill</span>
       <span><b>5</b> levels, from 0 to 4</span>
       <span><b>2</b> CLIs on the Python standard library</span>
@@ -472,7 +472,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
   </section>
 
   <footer class="end">
-    Built from the README, the 18 SKILL.md files and <code>docs/maturity.md</code>, state of 23 November 2026. The README and <code>docs/capabilities.md</code> stay the reference for what each skill can do; <code>cli/tests/test_skills_map.py</code> fails when a skill is added or removed without this page.
+    Built from the README, the 19 SKILL.md files and <code>docs/maturity.md</code>, state of 25 November 2026. The README and <code>docs/capabilities.md</code> stay the reference for what each skill can do; <code>cli/tests/test_skills_map.py</code> fails when a skill is added or removed without this page.
   </footer>
 </div>
 
@@ -535,13 +535,13 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
     { id: "design", fam: "repo", name: "harness-design", invoke: "/harness-ai:harness-design",
       short: "Put each piece of a skill or a rule in its place",
       title: "Each piece in its place",
-      goal: "Helps create or review a skill, an agent, a tool or a rule by saying where each piece goes, and why: a line in AGENTS.md, a skill, a sub-agent, a CLI subcommand, a hook, a permission, an MCP server, a CI check, a managed setting, or nothing at all.",
+      goal: "Helps create a skill, an agent, a tool or a rule, or put an existing one right, by saying where each piece goes, and why: a line in AGENTS.md, a skill, a sub-agent, a CLI subcommand, a hook, a permission, an MCP server, a CI check, a managed setting, or nothing at all.",
       when: ["create a skill", "make an agent that…", "add a rule", "skill or agent?", "where do I put this?"],
       does: ["Restates the need in one sentence: \"a release skill\" is a form, \"every release is tagged, published and announced without omission\" is the need.", "Splits the request into pieces.", "Answers the closed questions of the harness place grid: the place comes from the grid, not from an opinion.", "Asks you only what is a decision, shows the plan, sets up the files on agreement."],
       produces: "A placement plan piece by piece, then the files. A line in AGENTS.md follows harness-init's format: the rule, its reason, its guardrail, its date.",
       never: "Does not audit a whole harness: that is harness-audit's job.",
       cli: ["harness place grid", "harness place plan <pieces.json>"],
-      state: "measured", stateText: "Measured: 12 traps of 12 on a held-out case" },
+      state: "measured", stateText: "Measured: 12 traps of 12 on a held-out case, on the text before 25 November 2026" },
 
     { id: "medals", fam: "repo", name: "harness-medals", invoke: "/harness-ai:harness-medals",
       short: "Say the level as a medal, and why",
@@ -564,6 +564,17 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
       never: "Changes nothing. Never names a skill or a command that is not in its map: a test holds the map to what ships.",
       cli: ["harness status <repo> --map --no-write"],
       state: "measured", stateText: "Measured once: 20 questions of 20 routed, 16 of 20 with the descriptions alone" },
+
+    { id: "coach", fam: "repo", name: "harness-coach", invoke: "/harness-ai:harness-coach",
+      short: "Review one skill, explain what is weak",
+      title: "What is good, what is weak, and why",
+      goal: "Reviews one skill, agent or rule and says what is well placed, what is weak, and which concept each weakness comes from: a condition that can be skipped, a determinism problem, a limit that is only asked for, dead weight. Stays outside the levels.",
+      when: ["review this skill", "is my skill any good", "what is wrong with this agent", "explain why this should be code", "help me write a skill"],
+      does: ["Splits the artifact into pieces and answers the grid's closed questions from the repository.", "Has harness place review name the concept behind each misplaced piece.", "Says what is good first, then each weakness with the line that shows it, then what it assumed."],
+      produces: "A review in plain words: what holds, what does not and why, with where each piece would hold.",
+      never: "Writes nothing in the repository, never speaks of levels, never fixes while reviewing: putting it right is harness-design, on your yes.",
+      cli: ["harness place grid", "harness place review <file>"],
+      state: "tooled", stateText: "Tooled, never played" },
 
     { id: "why", fam: "flow", name: "flow-why", invoke: "/harness-ai:flow-why",
       short: "LangGraph, Temporal, Rust: do we need one?",
@@ -716,6 +727,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
     ["step", "audit", "relevance review", {}],
     ["medals", "step", "to take the step", {}],
     ["design", "audit", "for the whole harness", {}],
+    ["coach", "design", "to put it right, on your yes", {}],
     ["why", "fmap", "verdict: ticket state and CI are enough", {}],
     ["fmap", "place", "place the steps", {}],
     ["place", "fmap", "no definition yet", { b: 0.3 }],
@@ -796,7 +808,7 @@ footer.end { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--ru
   };
 
   var WANTS = {
-    repo: [["to start with an agent on a repository, or clean up my AGENTS.md", "init"], ["to know where I stand and take the next step", "step"], ["to turn review remarks into rules", "harvest"], ["to clean up: what is misplaced, what no longer serves", "audit"], ["to create a skill, an agent or a rule in the right place", "design"], ["to see our level as a medal, and why", "medals"], ["to know which skill or command fits, or whether I need one at all", "guide"]],
+    repo: [["to start with an agent on a repository, or clean up my AGENTS.md", "init"], ["to know where I stand and take the next step", "step"], ["to turn review remarks into rules", "harvest"], ["to clean up: what is misplaced, what no longer serves", "audit"], ["to have one skill reviewed and explained, without levels", "coach"], ["to create a skill, an agent or a rule in the right place", "design"], ["to see our level as a medal, and why", "medals"], ["to know which skill or command fits, or whether I need one at all", "guide"]],
     flow: [["to know whether we need LangGraph, Temporal, an engine or Rust", "why"], ["to write down our path from ticket to production", "fmap"], ["to know where each step of that path should live", "place"]],
     sdlc: [["to know whether a ticket is ready", "ticket"], ["to have a ticket developed up to the PR", "dev"], ["to write the tests that come from the criteria", "qa"], ["to check a change from the security angle", "secu"], ["to have a PR reviewed", "review"], ["to prepare a delivery", "ship"], ["to investigate an incident", "run"]]
   };

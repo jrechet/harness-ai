@@ -188,6 +188,35 @@ class SkillsCallTheCliTests(unittest.TestCase):
         self.assertNotEqual(help_exit_code("ai_sdlc.py", ("qa", "no-such-action")), 0)
 
 
+def shadowed_names(path: str) -> list[str]:
+    """Top-level classes and functions defined twice in a file, and methods defined twice in a class:
+    the second definition silently replaces the first, and its tests stop running."""
+    with open(path, encoding="utf-8") as fh:
+        tree = ast.parse(fh.read())
+    twice = []
+    for owner, body in [("", tree.body)] + [(n.name + ".", n.body) for n in tree.body if isinstance(n, ast.ClassDef)]:
+        names = [n.name for n in body if isinstance(n, (ast.ClassDef, ast.FunctionDef))]
+        twice += sorted({owner + name for name in names if names.count(name) > 1})
+    return twice
+
+
+class NoTestIsShadowedTests(unittest.TestCase):
+    """A test class or a test method defined twice in one file: only the last one runs. Seen on
+    2026-11-25, when a second `ReviewTests` in test_place.py stopped ten tests without a failure."""
+
+    def test_no_test_file_defines_a_name_twice(self):
+        files = [path for root in CLI_ROOTS for path in python_files(root) if os.sep + "tests" + os.sep in path]
+        self.assertGreaterEqual(len(files), 40)
+        self.assertEqual({os.path.relpath(path, ROOT): names for path in files if (names := shadowed_names(path))}, {})
+
+    def test_the_reader_sees_a_class_and_a_method_defined_twice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "test_x.py")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write("class A:\n    def t(self): pass\n    def t(self): pass\nclass B: pass\nclass B: pass\n")
+            self.assertEqual(shadowed_names(path), ["B", "A.t"])
+
+
 class OwnLevelOneTests(unittest.TestCase):
     """This repository's AGENTS.md holds the level 1 it asks of others, measured as `harness status` measures it."""
 
