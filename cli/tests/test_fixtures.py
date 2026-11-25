@@ -307,6 +307,17 @@ Mode : **délégation**.
             fh.write(agents_md)
         return fixtures.check_init(self.tmp.name, self.init, date(2026, 11, 10))
 
+    def test_a_choice_written_during_the_run_does_not_raise_the_grade(self):
+        """`harness ignore` sets checks aside in .harness/config.json: the grader reads the measure alone."""
+        bare = "# demo\n\n## Rules\n- Tests pass.\n"
+        plain = self.grade(bare)
+        os.makedirs(os.path.join(self.tmp.name, ".harness"))
+        with open(os.path.join(self.tmp.name, ".harness", "config.json"), "w", encoding="utf-8") as fh:
+            json.dump({"ignored_checks": {cid: {"reason": "to pass"} for cid in ("L1.mode", "L1.forbidden")}}, fh)
+        chosen = self.grade(bare)
+        self.assertEqual(plain["level"], 0)
+        self.assertEqual((chosen["level"], chosen["problems"]), (plain["level"], plain["problems"]))
+
     def test_good_init_is_conformant(self):
         result = self.grade(self.GOOD)
         self.assertEqual(result["problems"], [])

@@ -25,7 +25,7 @@ FIXTURES_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.
 
 def check_status(fixture_dir: str, expected: dict, today: date | None = None) -> list[str]:
     """Problems between the measured state and the `status` block of expected.json."""
-    state = maturity.evaluate(facts.collect(os.path.join(fixture_dir, "repo"), today=today))
+    state = maturity.evaluate(facts.collect(os.path.join(fixture_dir, "repo"), today=today), honour_ignored=False)
     checks = {c["id"]: c["passed"] for l in state["levels"] for c in l["checks"]}
     problems = []
     if state["level"]["reached"] != expected["level_reached"]:
@@ -271,7 +271,8 @@ def check_init(result_dir: str, expected: dict, today: date | None = None, base:
     file rewritten for no reason (`min_similarity`). `base` is the fixture's repository as it was before
     the step: it serves when `result_dir` holds only the instruction files, and to tell whether a
     line copies the original noise or only cites it (`noise_hits`)."""
-    state = maturity.evaluate(facts.collect(result_dir, today=today))
+    # A grader reads the measure, not a choice the run wrote in config.json.
+    state = maturity.evaluate(facts.collect(result_dir, today=today), honour_ignored=False)
     corpus = facts.instruction_corpus(result_dir)
     text = "\n".join(corpus.values()).lower()
     rules = [r for t in corpus.values() for r in parse_rules(t)]
