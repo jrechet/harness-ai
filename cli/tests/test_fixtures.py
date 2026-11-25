@@ -307,6 +307,19 @@ Mode : **délégation**.
             fh.write(agents_md)
         return fixtures.check_init(self.tmp.name, self.init, date(2026, 11, 10))
 
+    def test_a_fixture_is_measured_without_any_choice_its_repository_carries(self):
+        fixture = os.path.join(self.tmp.name, "fx")
+        os.makedirs(os.path.join(fixture, "repo", ".harness"))
+        with open(os.path.join(fixture, "repo", "AGENTS.md"), "w", encoding="utf-8") as fh:
+            fh.write("# demo\n\n## Rules\n- Tests pass.\n")
+        expected = {"level_reached": 0, "source_path": "AGENTS.md"}
+        plain = fixtures.check_status(fixture, expected, date(2026, 11, 10))
+        with open(os.path.join(fixture, "repo", ".harness", "config.json"), "w", encoding="utf-8") as fh:
+            json.dump({"ignored_checks": {cid: {"reason": "to pass"} for cid in ("L1.mode", "L1.forbidden")}}, fh)
+        chosen = fixtures.check_status(fixture, expected, date(2026, 11, 10))
+        self.assertEqual(chosen, plain)
+        self.assertFalse(any(p.startswith("level ") for p in chosen), chosen)
+
     def test_a_choice_written_during_the_run_does_not_raise_the_grade(self):
         """`harness ignore` sets checks aside in .harness/config.json: the grader reads the measure alone."""
         bare = "# demo\n\n## Rules\n- Tests pass.\n"

@@ -382,7 +382,11 @@ def check_step(before: dict, after: dict, expected_init: dict, report: str, chan
     def values(state: dict) -> dict[str, Any]:
         return {c["id"]: c["value"] for l in state["levels"] for c in l["checks"]}
     b, a = passed(before), passed(after)
-    target = after["target"]["level"]
+    # The target the owner set before the run is the one the step is graded against: a run that lowers
+    # it to the level already held would otherwise be told "target reached" for doing nothing. With no
+    # target before, the skill asks for one and writes it: that one counts.
+    set_before = before["target"]["level"]
+    target = set_before if set_before is not None else after["target"]["level"]
     up = sorted(cid for cid in a if a[cid][1] and not b.get(cid, (0, False))[1])
     vb, va = values(before), values(after)
     gained = sorted(cid for cid in SHARES if cid in a and not a[cid][1]
@@ -392,6 +396,8 @@ def check_step(before: dict, after: dict, expected_init: dict, report: str, chan
     files = [f for f in changed if not f.startswith(".harness/")]
     if down:
         problems.append(f"regression: {', '.join(down)} passed before the step")
+    if set_before is not None and after["target"]["level"] != set_before:
+        problems.append(f"the run changed the target level the owner had set ({set_before} → {after['target']['level']})")
     if target is not None and before["level"]["reached"] >= target:
         if files:
             problems.append(f"target already reached, and the step still touched {', '.join(files[:5])}")
