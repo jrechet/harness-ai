@@ -26,7 +26,7 @@ const Stairs = {
         <span class="name">{{ l.name }}</span>
         <span class="goal" v-if="l.level === target">target</span>
         <span class="goal" v-else-if="l.in_scope === false">not targeted</span>
-        <span class="count">{{ l.passed_checks }}/{{ l.total_checks }}</span>
+        <span class="count">{{ l.passed_checks }}/{{ l.total_checks }}<template v-if="l.ignored_checks">, {{ l.ignored_checks }} set aside</template></span>
         <span class="bar"><i :style="{ width: (100 * l.passed_checks / l.total_checks) + '%' }"></i></span>
       </button>
     </div>`,
@@ -40,10 +40,12 @@ const Checks = {
       <p class="hint" v-if="level.in_scope === false">Not targeted: this level is not aimed for, nothing is proposed here. <code>harness target {{ level.level }}</code> to aim for it.</p>
       <ul class="checks">
         <li v-for="c in level.checks" :key="c.id">
-          <span :class="c.passed ? 'ok' : 'ko'" :aria-label="c.passed ? 'passes' : 'fails'">{{ c.passed ? '✓' : '✗' }}</span>
+          <span v-if="c.ignored" class="aside" aria-label="set aside">~</span>
+          <span v-else :class="c.passed ? 'ok' : 'ko'" :aria-label="c.passed ? 'passes' : 'fails'">{{ c.passed ? '✓' : '✗' }}</span>
           <span>{{ c.label }}
             <span class="value" v-if="c.value !== null && c.value !== undefined && typeof c.value !== 'object'"> · {{ c.value }}</span>
-            <div class="action" v-if="!c.passed && level.in_scope !== false">→ {{ c.next_action }}</div>
+            <div class="action" v-if="c.ignored">set aside, not passed: {{ c.reason }}</div>
+            <div class="action" v-else-if="!c.passed && level.in_scope !== false">→ {{ c.next_action }}</div>
           </span>
         </li>
       </ul>

@@ -47,6 +47,12 @@ NEVER_HARVESTED = ("nobody has looked yet for a review remark or a fixed agent c
                    "collect once what recent reviews taught, to see whether a rule comes out of it")
 
 
+# A check the owner may not set aside: without an instruction file there is nothing to measure.
+NOT_IGNORABLE = {FOLLOWS_SOURCE}
+# Who wrote the choice is not known: an agent or a hand edit writes the file like the owner does.
+SET_ASIDE = "set aside"
+
+
 def _check(cid: str, label: str, passed: bool, value: Any, next_action: str) -> Check:
     return {"id": cid, "label": label, "passed": bool(passed), "value": value,
             "next_action": None if passed else next_action, "waits": not passed and cid in WAITING}
@@ -240,14 +246,39 @@ def layer_view(f: dict) -> dict[str, Any]:
     }
 
 
-def evaluate(f: dict) -> dict[str, Any]:
+def holds(check: Check) -> bool:
+    """A check no longer holds its level back: it passes, or the owner set it aside."""
+    return bool(check["passed"] or check.get("ignored"))
+
+
+def _set_aside(checks: list[Check], chosen: dict[str, dict[str, str]]) -> list[Check]:
+    """Marks the failing checks the owner set aside. The measure does not move: `passed` stays false,
+    the check says `ignored` and why, and asks for nothing. A check that passes is simply passed."""
+    return [{**c, "ignored": True, "reason": chosen[c["id"]]["reason"], "next_action": None, "waits": False}
+            if c["id"] in chosen and c["id"] not in NOT_IGNORABLE and not c["passed"] and not c.get("follows") else c
+            for c in checks]
+
+
+def measured_level(f: dict) -> int:
+    """The level with nothing set aside: what the checks alone say."""
+    reached = 0
+    for num in sorted(LEVEL_CHECKS):
+        if not all(c["passed"] for c in LEVEL_CHECKS[num](f)):
+            break
+        reached = num
+    return reached
+
+
+def evaluate(f: dict, honour_ignored: bool = True) -> dict[str, Any]:
+    """`honour_ignored=False` is the measure alone: what a grader reads, whatever the repository chose."""
     target = (f.get("config") or {}).get("target_level")      # None: the owner declared nothing
+    chosen = ((f.get("config") or {}).get("ignored_checks") or {}) if honour_ignored else {}
     levels = []
     reached = 0
     blocked = False
     for num, name, summary in LEVELS:
-        checks = LEVEL_CHECKS[num](f) if num else []
-        passed = all(c["passed"] for c in checks) if num else True
+        checks = _set_aside(LEVEL_CHECKS[num](f), chosen) if num else []
+        passed = all(holds(c) for c in checks) if num else True
         achieved = passed and not blocked
         if not achieved and num:
             blocked = True
@@ -255,7 +286,8 @@ def evaluate(f: dict) -> dict[str, Any]:
             reached = num
         levels.append({"level": num, "name": name, "summary": summary, "achieved": achieved,
                        "in_scope": target is None or num <= target,
-                       "checks": checks, "passed_checks": sum(c["passed"] for c in checks), "total_checks": len(checks)})
+                       "checks": checks, "passed_checks": sum(c["passed"] for c in checks), "total_checks": len(checks),
+                       "ignored_checks": sum(1 for c in checks if c.get("ignored"))})
     next_level = next((l for l in levels if not l["achieved"]), None)
     # A level is a place where one can stay: beyond the target level, nothing is proposed.
     # A level that only lacks what time brings does not hold back the next ones.
@@ -266,7 +298,7 @@ def evaluate(f: dict) -> dict[str, Any]:
             continue
         if not l["in_scope"]:
             break
-        failing = [c for c in l["checks"] if not c["passed"]]
+        failing = [c for c in l["checks"] if not holds(c)]
         doable = [c for c in failing if not c["waits"] and not c.get("follows")]
         waiting += [c["id"] for c in failing if c["waits"]]
         if doable:
@@ -276,13 +308,17 @@ def evaluate(f: dict) -> dict[str, Any]:
         "schema": "harness-state/1",
         "repo": f["repo"],
         "date": f["date"],
-        "level": {"reached": reached, "name": LEVELS[reached][1], "next": next_level["level"] if next_level else None},
+        "level": {"reached": reached, "name": LEVELS[reached][1], "next": next_level["level"] if next_level else None,
+                  "measured": measured_level(f),
+                  "set_aside": sum(l["ignored_checks"] for l in levels if l["achieved"])},
         "target": {"level": target, "name": LEVELS[target][1] if target else None,
                    "reached": target is not None and reached >= target},
         "levels": levels,
         "layers": layer_view(f),
         "next_actions": next_actions[:3],
         "waiting": waiting,
+        "ignored": [{"id": c["id"], "level": l["level"], "reason": c["reason"]}
+                    for l in levels for c in l["checks"] if c.get("ignored")],
         "dangling": f.get("dangling") or [],
         "facts": f,
     }
@@ -291,6 +327,14 @@ def evaluate(f: dict) -> dict[str, Any]:
 def unreadable(state: dict) -> list[str]:
     """One line per audit or harvest file that failed its shape check and was left aside."""
     return list((state.get("facts") or {}).get("unreadable") or [])
+
+
+def _aside_note(lvl: dict) -> str:
+    """Said wherever the level is stated: it was reached with checks set aside, and what they alone give."""
+    count = lvl.get("set_aside") or 0
+    if not count:
+        return ""
+    return f" ({count} check{'' if count == 1 else 's'} set aside; level {lvl.get('measured', 0)} without that)"
 
 
 def render_markdown(state: dict) -> str:
@@ -303,7 +347,7 @@ def render_markdown(state: dict) -> str:
     else:
         goal = f"target: {target['level']} · {target['name']}"
     out = [f"# Harness state — {state['repo']}", "",
-           f"**Level reached**: {lvl['reached']} · {lvl['name']} · {goal}",
+           f"**Level reached**: {lvl['reached']} · {lvl['name']}{_aside_note(lvl)} · {goal}",
            f"**Date**: {state['date']}", ""]
     if unreadable(state):
         out += [*unreadable(state), ""]
@@ -315,11 +359,15 @@ def render_markdown(state: dict) -> str:
             out.append("")
             continue
         mark = "✓" if l["achieved"] else "·"
-        out.append(f"## {mark} Level {l['level']} — {l['name']} ({l['passed_checks']}/{l['total_checks']})")
+        aside = f", {l['ignored_checks']} set aside" if l.get("ignored_checks") else ""
+        out.append(f"## {mark} Level {l['level']} — {l['name']} ({l['passed_checks']}/{l['total_checks']}{aside})")
         out.append(f"_{l['summary']}_")
         for c in l["checks"]:
             if c.get("follows"):
                 out.append(f"- [ ] {c['label']} → {WITH_FILE}")
+                continue
+            if c.get("ignored"):
+                out.append(f"- [~] {c['label']} → {SET_ASIDE}: {c['reason']}")
                 continue
             out.append(f"- [{'x' if c['passed'] else ' '}] {c['label']}"
                        + ("" if c["passed"] else (" → **waiting**: " if c.get("waits") else " → ") + c["next_action"]))
@@ -378,7 +426,7 @@ def _first_doable(state: dict) -> tuple[int, Check] | None:
             continue
         if not l.get("in_scope", True):
             return None
-        failing = [c for c in l["checks"] if not c["passed"] and not c.get("follows")]
+        failing = [c for c in l["checks"] if not holds(c) and not c.get("follows")]
         doable = [c for c in failing if not c["waits"]] or [c for c in failing if _never_harvested(state, c)]
         if doable:
             return l["level"], doable[0]
@@ -394,7 +442,9 @@ def beyond_target(state: dict, target: dict | None = None) -> str | None:
         return None
     above = max(target["level"] or 0, reached) + 1
     if above >= len(LEVELS):
-        return "every level is reached. What is in place still needs upkeep."
+        aside = state["level"].get("set_aside") or 0
+        return ("every level is reached" + (f", with {aside} check{'' if aside == 1 else 's'} set aside" if aside else "")
+                + ". What is in place still needs upkeep.")
     return (f"your target is reached. If you want more, level {above} ({LEVELS[above][1]}) "
             f"would bring this: {LEVEL_PLAIN[above]}. It is your choice.")
 
@@ -426,6 +476,8 @@ def render_map(state: dict) -> str:
             continue
         mark = "✓" if l["achieved"] and num else "·"
         line = f"{mark} {num} {l['name']:<10} {LEVEL_PLAIN[num]}"
+        if l["achieved"] and l.get("ignored_checks"):
+            line += f"   ({l['ignored_checks']} set aside)"
         if num == reached:
             line += "   ← you are here"
         elif not l.get("in_scope", True) and not l["achieved"]:
@@ -441,9 +493,14 @@ def render_map(state: dict) -> str:
     if nxt is not None and (target["level"] is None or nxt <= target["level"]):
         out.append(f"What level {nxt} still needs:")
         for c in state["levels"][nxt]["checks"]:
-            if not c["passed"] and not c.get("follows"):
+            if not holds(c) and not c.get("follows"):
                 waits = c["waits"] and not _never_harvested(state, c)
                 out.append(f"- {_plain(state, c)[0]}" + (" (comes with time, not with work)" if waits else ""))
+    if state.get("ignored"):
+        if state["level"].get("set_aside"):
+            out.append(f"Without what was set aside, the measure alone gives level {state['level']['measured']}.")
+        out.append("Set aside by you (not counted, not proposed again):")
+        out.extend(f"- {CHECK_PLAIN[i['id']][0]} ({i['reason']})" for i in state["ignored"])
     if state.get("dangling"):
         out.append(f"Broken references: the instruction file cites {len(state['dangling'])} thing(s) "
                    "that cannot be found.")

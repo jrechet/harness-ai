@@ -52,7 +52,7 @@ python3 harness-ai/cli/harness.py status /path/to/your/repo --map
 
 `status --map` prints the five levels in plain words, from 0 (None) to 4 (Delegated), with "you are here", what the next level still needs, and the next step. Without `--map`, `status` prints the detailed report the skills read: every check with its id. Both write `.harness/state.json` in your repository.
 
-Commit what `.harness/` keeps: `config.json` (the level you aim for), `state.json`, and `audit.json` and `harvest.json` once they exist. Ignore `.harness/state.html`: it is a page rebuilt on demand by `status --page`.
+Commit what `.harness/` keeps: `config.json` (the level you aim for and the checks you set aside), `state.json`, and `audit.json` and `harvest.json` once they exist. Ignore `.harness/state.html`: it is a page rebuilt on demand by `status --page`.
 
 **By hand.** Without Claude Code, nothing writes `AGENTS.md` for you: copy the blocks of [the template](skills/harness-init/references/agents-template.md), one level at a time. Step 1 is the first `AGENTS.md` (level 1), Step 2 the maintenance block and the `rule:` convention (level 2), Step 4 the working process (level 4); level 3 has no block, it is earned by turning rules into checks. Run `status --map` again after each one. The review loop needs GitHub today: `harness.py harvest` has a single adapter, `github`.
 
@@ -96,7 +96,7 @@ Every responsibility of a harness has a natural layer. Most reliability problems
 
 ### Five levels, and the right to stop
 
-The harness grows in levels. Each level is earned by checks that `harness status` **measures** in the repository, never by a declaration. A level is reached when all its checks pass and the level below is reached.
+The harness grows in levels. Each level is earned by checks that `harness status` **measures** in the repository, never by a declaration. A level is reached when each of its checks passes, or was set aside by you, and the level below is reached.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/levels-dark.svg">
@@ -116,7 +116,7 @@ The harness grows in levels. Each level is earned by checks that `harness status
 
 </details>
 
-**A level is a place where you can stay.** You say which one you aim for (`harness target`); beyond it, the tool proposes nothing, and when it is held `status` says "target reached". Many teams are well served by level 1 or 2. Some checks only time can pass, such as a real review signal or clean agent PRs: they do not block work on the next level you aim for.
+**A level is a place where you can stay.** You say which one you aim for (`harness target`), and which of its checks you do not want (`harness ignore`); beyond it, the tool proposes nothing, and when it is held `status` says "target reached". Many teams are well served by level 1 or 2. Some checks only time can pass, such as a real review signal or clean agent PRs: they do not block work on the next level you aim for.
 
 > [!NOTE]
 > The level measures the **shape** of the harness: files, sections, mentions. It does not say that the agents work better. Model and thresholds: [docs/maturity.md](docs/maturity.md).
@@ -151,6 +151,7 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Know where your repository stands, in plain words | `harness.py status <repo> --map` | tooled |
 | Read every check behind the level, with its id | `harness.py status <repo>` | tooled |
 | Say at which level you stop | `harness.py target <level> <repo>` | tooled |
+| Set aside a check you do not want: the level is reached without it, and the state says "set aside", not "done", next to the level the checks alone give | `harness.py ignore <check> --reason "…" --repo <repo>`; `ignore <repo>` lists the checks | tooled |
 | See each rule, its age, its guardrail | `harness.py rules <repo>` | tooled |
 | Find the commands an agent does not guess | `harness.py commands <repo>` | tooled |
 | Know what has aged: a skill that cites a deleted file, a late harvest | `harness.py fresh <repo>` | tooled |

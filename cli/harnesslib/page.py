@@ -121,7 +121,7 @@ def _steps(state: dict[str, Any]) -> list[dict[str, Any]]:
     out = []
     for level in state["levels"]:
         for check in level["checks"]:
-            if check["passed"]:
+            if maturity.holds(check):
                 continue
             follows = bool(check.get("follows"))
             missing, action = (NOT_MEASURED, maturity.WITH_FILE) if follows else maturity.CHECK_PLAIN[check["id"]]
@@ -168,10 +168,14 @@ def build(repo: str, harness_dir: str = ".harness", audit_path: str | None = Non
         "schema": SCHEMA,
         "name": os.path.basename(f["repo"]) or f["repo"],
         "date": state["date"],
-        "level": {"reached": state["level"]["reached"], "name": state["level"]["name"]},
+        "level": {"reached": state["level"]["reached"], "name": state["level"]["name"],
+                  "measured": state["level"]["measured"], "set_aside": state["level"]["set_aside"]},
         "target": {"level": target.get("level"), "name": target.get("name"), "reached": bool(target.get("reached"))},
         "ladder": [{"level": l["level"], "name": l["name"], "plain": maturity.LEVEL_PLAIN[l["level"]],
-                    "achieved": bool(l["achieved"]), "in_scope": bool(l.get("in_scope", True))} for l in state["levels"]],
+                    "achieved": bool(l["achieved"]), "in_scope": bool(l.get("in_scope", True)),
+                    "set_aside": l.get("ignored_checks", 0)} for l in state["levels"]],
+        "set_aside": [{"level": i["level"], "missing": maturity.CHECK_PLAIN[i["id"]][0], "reason": _clip(i["reason"])}
+                      for i in state["ignored"]],
         "layers": _layers(f),
         "steps": _steps(state),
         "dangling": [_clip(f"{d.get('ref')} (line {d.get('line')} of the instruction file)") for d in state.get("dangling") or []

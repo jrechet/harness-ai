@@ -41,7 +41,9 @@ def summarize(state: dict, sha: str | None = None, committed_at: str | None = No
         "level": state["level"]["reached"],
         "checks_passed": sum(l["passed_checks"] for l in state["levels"]),
         "checks_total": sum(l["total_checks"] for l in state["levels"]),
-        "levels": [{"level": l["level"], "passed": l["passed_checks"], "total": l["total_checks"], "achieved": l["achieved"]}
+        "set_aside": sum(l.get("ignored_checks", 0) for l in state["levels"]),
+        "levels": [{"level": l["level"], "passed": l["passed_checks"], "total": l["total_checks"], "achieved": l["achieved"],
+                    "set_aside": l.get("ignored_checks", 0)}
                    for l in state["levels"] if l["level"]],
         "layers": state["layers"]["layers"],
         "layers_source": state["layers"]["source"],

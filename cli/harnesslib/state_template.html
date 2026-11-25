@@ -69,6 +69,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .ladder strong { display: block; font: 600 0.95rem/1.2 var(--ui); margin-top: 0.25rem; }
 .ladder span { display: block; font-size: 0.82rem; line-height: 1.35; color: var(--muted); margin-top: 0.3rem; }
 .ladder i { position: absolute; top: -1.65rem; left: 0; font: 600 0.72rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; font-style: normal; padding: 0.25rem 0.45rem; }
+.aside-note { margin-top: 0.9rem; font-size: 0.88rem; color: var(--muted); border-left: 3px solid var(--line); padding-left: 0.75rem; }
+.aside-note ul { margin: 0.3rem 0 0; padding-left: 1.1rem; }
+.ladder span.aside { font-family: var(--mono); font-size: 0.72rem; }
 .ladder i.here { background: var(--ink); color: var(--paper); }
 .ladder i.goal { border: 1.5px solid var(--ink); left: auto; right: 0.8rem; }
 
@@ -238,6 +241,11 @@ dialog .close { margin-top: 1.2rem; border: 1.5px solid var(--ink); background: 
       el("p", { class: "eyebrow", text: `${data.name} · measured on ${data.date}` }),
       el("h1", {}, `Level ${data.level.reached} `, el("em", { text: data.level.name })),
       el("p", { class: "lede", text: `${cap(data.ladder[data.level.reached].plain)}. ${target}` }),
+      (data.set_aside || []).length ? el("div", { class: "aside-note" },
+        el("p", { text: data.level.set_aside
+          ? `Reached with ${data.level.set_aside} check${data.level.set_aside === 1 ? "" : "s"} set aside; the measure alone gives level ${data.level.measured}.`
+          : "Set aside: not counted, not proposed again." }),
+        el("ul", {}, ...data.set_aside.map((a) => el("li", { text: `${cap(a.missing)} — set aside: ${a.reason}` })))) : null,
       el("nav", { class: "tabs", "aria-label": "Views" },
         ...[["map", "Map"], ["medals", "Medals"]].map(([id, name]) => el("button", {
           type: "button", "data-key": `tab-${id}`, "aria-pressed": String(ui.tab === id), text: name, on: { click: () => { ui.tab = id; render(); } } }))));
@@ -247,7 +255,8 @@ dialog .close { margin-top: 1.2rem; border: 1.5px solid var(--ink); background: 
     ...data.ladder.map((l) => el("li", { "data-held": l.level <= held && l.level > 0, "data-out": !l.in_scope },
       l.level === held ? el("i", { class: "here", text: ui.at ? `after step ${ui.at}` : "you are here" }) : null,
       l.level === goal && l.level !== held ? el("i", { class: "goal", text: "target" }) : null,
-      el("b", { text: String(l.level) }), el("strong", { text: l.name }), el("span", { text: cap(l.plain) }))));
+      el("b", { text: String(l.level) }), el("strong", { text: l.name }), el("span", { text: cap(l.plain) }),
+      l.set_aside ? el("span", { class: "aside", text: `${l.set_aside} set aside` }) : null)));
 
   const stepper = () => {
     const step = walk[ui.at - 1];

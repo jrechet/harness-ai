@@ -69,7 +69,8 @@ class HistoryTests(unittest.TestCase):
     def test_summary_fields(self):
         e = serve.history(self.repo, today=TODAY)[0]
         self.assertEqual(set(e), {"sha", "date", "level", "checks_passed", "checks_total", "levels", "layers",
-                                  "layers_source", "health_score"})
+                                  "layers_source", "health_score", "set_aside"})   # set_aside: added with `harness ignore`
+        self.assertEqual(e["set_aside"], 0)
         self.assertEqual(len(e["levels"]), 4)
 
 

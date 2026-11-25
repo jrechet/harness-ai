@@ -107,6 +107,8 @@ button { font: inherit; color: inherit; }
 .tile[data-state="locked"] .title { color: var(--muted); }
 .tile[data-state="locked"] .foot { color: var(--muted); }
 .tile[data-state="lost"] .foot { color: var(--lost); }
+.tile[data-state="aside"] { border-style: dashed; border-top-style: dashed; border-top-color: var(--line); }
+.tile[data-state="aside"] .title, .tile[data-state="aside"] .foot { color: var(--muted); }
 @keyframes rise { from { opacity: 0; transform: translateY(0.6rem); } }
 .empty { color: var(--muted); font-style: italic; }
 
@@ -167,7 +169,7 @@ dialog form { margin-top: 1.4rem; text-align: right; }
     return node;
   };
   const tierOf = (id) => data.tiers.find((t) => t.id === id) || { id: "bonus", name: "Outside the ranks", title: "Extra" };
-  const stateOf = (s) => (s.unlocked ? "unlocked" : s.lost ? "lost" : "locked");
+  const stateOf = (s) => (s.unlocked ? "unlocked" : s.set_aside ? "aside" : s.lost ? "lost" : "locked");
   const unlocked = data.successes.filter((s) => s.unlocked).length;
 
   document.documentElement.dataset.medal = data.medal.id;
@@ -191,7 +193,7 @@ dialog form { margin-top: 1.4rem; text-align: right; }
     const tier = tierOf(s.tier);
     const rows = [
       ["Rank", `${tier.name} — ${tier.title}`],
-      ["State", s.unlocked ? `Unlocked on ${s.unlocked}` : s.lost ? `Lost on ${s.lost}` : s.waiting ? "To unlock — waiting: it does not depend on you alone" : "To unlock"],
+      ["State", s.unlocked ? `Unlocked on ${s.unlocked}` : s.set_aside ? `Set aside, not unlocked: ${s.set_aside}` : s.lost ? `Lost on ${s.lost}` : s.waiting ? "To unlock — waiting: it does not depend on you alone" : "To unlock"],
       ["What is measured", s.evidence || "nothing more than yes or no"],
       s.next ? ["To unlock it", s.next] : null,
       ["Id", s.id],
@@ -199,7 +201,7 @@ dialog form { margin-top: 1.4rem; text-align: right; }
     const list = el("dl");
     for (const [term, value] of rows) list.append(el("div", {}, el("dt", { text: term }), el("dd", { text: value })));
     dialog.replaceChildren(
-      el("p", { class: "eyebrow", text: s.unlocked ? "Achievement unlocked" : "Achievement to unlock" }),
+      el("p", { class: "eyebrow", text: s.unlocked ? "Achievement unlocked" : s.set_aside ? "Achievement set aside" : "Achievement to unlock" }),
       el("h3", { id: "detail-title", text: s.title }), list,
       el("form", { method: "dialog" }, el("button", { class: "close", text: "Close" })));
     dialog.dataset.medal = s.unlocked && tier.id !== "bonus" ? tier.id : "";
@@ -214,9 +216,9 @@ dialog form { margin-top: 1.4rem; text-align: right; }
       const kind = stateOf(s);
       const tile = el("button", { class: "tile", type: "button", "data-state": kind, "data-medal": kind === "unlocked" ? tier.id : "",
         on: { click: () => open(s) } },
-        el("span", { class: "tag" }, el("span", { text: tier.name }), el("span", { text: kind === "unlocked" ? "✓" : kind === "lost" ? "lost" : "to unlock" })),
+        el("span", { class: "tag" }, el("span", { text: tier.name }), el("span", { text: kind === "unlocked" ? "✓" : kind === "aside" ? "set aside" : kind === "lost" ? "lost" : "to unlock" })),
         el("span", { class: "title", text: s.title }),
-        el("span", { class: "foot", text: s.unlocked ? `since ${s.unlocked}` : s.lost ? `lost on ${s.lost}` : s.waiting ? "waiting" : "see how" }));
+        el("span", { class: "foot", text: s.unlocked ? `since ${s.unlocked}` : s.set_aside ? s.set_aside : s.lost ? `lost on ${s.lost}` : s.waiting ? "waiting" : "see how" }));
       tile.style.setProperty("animation-delay", `${Math.min(index, 14) * 35}ms`);
       return el("li", {}, tile);
     }));
