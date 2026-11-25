@@ -19,7 +19,7 @@ Read the whole file the user names (a SKILL.md, an agent, an AGENTS.md, a rule, 
 
 ### 2. Split and answer
 `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place grid` gives the kinds of pieces and the closed questions. Split the artifact into pieces of a single kind: a step followed by a condition, "and check that", "without ever" are signs of a piece to cut out. For each piece, answer the questions from the repository, and note:
-- `current`: where the piece is held **today**, not where the sentence is written. A rule the text states and nothing checks is held by the text (`skill`, `agents_md`, `subagent`); a rule that cites a check you opened and found blocking is held by that check.
+- `current`: where the piece is held **today**, not where the sentence is written. A rule the text states and nothing checks is held by the text (`skill`, `agents_md`, `subagent`); a rule that cites a check you opened and found blocking is held by that check. A choice the text leaves to the agent is held by the session (`session`), wherever the sentence is written.
 - `evidence`: the `path:line` that shows it.
 
 Two answers are decisions and not facts: what it costs when a rule is not respected, and who must not be able to go around it. Propose an answer from what the artifact says, and tell the user which ones you assumed. Ask only when the review would change with the answer.
@@ -33,11 +33,11 @@ Write the pieces in a JSON file in a temporary folder outside the repository:
   "current": "skill", "evidence": ["SKILL.md:19"]}]
 ```
 
-Then `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place review <file>`. Exit code 3: an answer is missing, the output says which question in plain words; answer it or ask the user. Exit code 2: invalid input, fix the file.
+Then `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place review <file>`. Exit code 3: an answer is missing, the output says which question in plain words, with its options; find the matching ids in `place grid`, answer it or ask the user. Exit code 2: invalid input, fix the file.
 
 ### 4. Tell the user
 In the language of the conversation, in this order:
-1. **What is good**, first: the pieces the review lists as well placed, and why each holds.
+1. **What is good**, first: the pieces the review lists as well placed, and why each holds, as the review says it.
 2. **What is weak**, one concept at a time, in the review's own order and with its own names. For each: the concept explained in one or two sentences with the user's own line as the example, where the piece is held today, and where it would hold.
 3. **What you assumed**: the answers you gave for the user, and what would change the review.
 4. **What the review does not say**: a sentence that is unclear, a step that is missing, a tool an agent lacks are your reading, not the command's. Give them apart, as remarks.
@@ -56,6 +56,6 @@ Offer once, and do nothing without a yes:
 - **Opening with the repository's level.** The user asked about one skill. Where the repository stands is another question (harness-step).
 - **Listing only defects.** What is well placed is half of the answer: it is what the author must keep.
 - **Getting `current` wrong.** A sentence in a SKILL.md that cites a check which exists and blocks is held by the check: open the workflow before saying the text is all there is.
-- **Showing the grid's ids.** `bypass_rule`, `ci_check`, `PUSH_DOWN` belong to the pieces file. Say "who must not be able to skip it?", "a check in the CI that blocks merging".
+- **Showing the grid's ids.** `bypass_rule` and `ci_check` belong to the pieces file, `PUSH_DOWN` to the other commands' output. Say "who must not be able to skip it?", "a check in the CI that blocks merging".
 - **Fixing while reviewing.** The review explains. The change is another request, with its own agreement.
 - **Turning a remark into a finding.** Only what the command lists is a finding; your own reading is given apart and named as such.

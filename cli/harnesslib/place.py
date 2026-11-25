@@ -43,7 +43,16 @@ MODES = ("review", "create")
 CONCEPTS = ("skippable_condition", "determinism", "limit_only_asked", "unguarded_action", "weak_guard",
             "frozen_judgment", "tidy_helper", "dead_weight", "wrong_place", "two_in_one")
 CHECKS = ("hook_check", "ci_check", "release_gate", "org_check")
-TEXT_LAYER = 2          # up to here a piece is held by a sentence; beyond, by code or by a setting
+# Where a piece is held by a sentence the agent reads, not by code or by a setting.
+TEXT_HOLDERS = ("skill", "agents_md", "agents_md_zone", "doc", "session", "subagent", "judge")
+# A choice left to the agent is held by the sentence that leaves it, wherever that sentence is written.
+WRITTEN = ("skill", "agents_md", "agents_md_zone", "doc")
+# Held today exactly where the destination's own description puts it: not a move.
+SAME_PLACE = {("subagent", "judge")}
+# Whom a guard holds: the agent alone (1), everyone in the repository (2), every team (3).
+GUARD_REACH = {"permission": 1, "hook_check": 1, "hook_compute": 1, "cli": 1,
+               "ci_check": 2, "release_gate": 2, "server_protection": 2, "workflow": 2, "pipeline": 2, "mcp": 2,
+               "org_check": 3, "managed": 3}
 
 
 def fold(text: str) -> str:
@@ -321,13 +330,13 @@ def concept(grid: dict[str, Any], row: dict[str, Any]) -> str | None:
     if row["status"] != "placed" or row["verdict"] in (None, "KEEP"):
         return None
     nature = row["path"][0]["answer"]
-    destination = row["destination"]["id"]
-    held_by_text = LAYERS[grid["destinations"][row["current"]]["layer"]] <= TEXT_LAYER
+    current, destination = row["current"], row["destination"]["id"]
+    held_by_text = current in TEXT_HOLDERS
+    if (current, destination) in SAME_PLACE or (destination == "session" and current in WRITTEN):
+        return None                       # the destination's own words already name where it is held
     if row["verdict"] == "REMOVE":
         return "dead_weight"
-    if row["verdict"] == "PROMOTE":
-        return "wrong_place" if held_by_text else "frozen_judgment"
-    if row["current"] == "subagent" and destination == "session":
+    if current == "subagent" and destination == "session":
         return "tidy_helper"
     if held_by_text:
         if nature == "compute":
@@ -338,9 +347,20 @@ def concept(grid: dict[str, Any], row: dict[str, Any]) -> str | None:
             return "limit_only_asked"
         if nature == "action":
             return "unguarded_action"
-    elif nature in ("rule", "limit", "action"):
+        return "wrong_place"
+    if destination in TEXT_HOLDERS or destination == "judge":
+        return "frozen_judgment"          # what a sentence or a judge should hold is held by a tool
+    if nature in ("rule", "limit", "action") and GUARD_REACH.get(destination, 0) > GUARD_REACH.get(current, 0):
         return "weak_guard"
     return "wrong_place"
+
+
+def _evidence(item: dict[str, Any]) -> list[str]:
+    evidence = item.get("evidence", [])
+    entries = [evidence] if isinstance(evidence, str) else evidence
+    if not isinstance(entries, list) or any(not isinstance(e, (str, type(None))) for e in entries):
+        raise ValueError(f"{item['piece']}: evidence is a text or a list of texts (path:line)")
+    return [e for e in entries if e and e.strip()]
 
 
 def review(grid: dict[str, Any], pieces: list[Any]) -> dict[str, Any]:
@@ -351,8 +371,7 @@ def review(grid: dict[str, Any], pieces: list[Any]) -> dict[str, Any]:
         row = place_piece(grid, item)
         if row["current"] is None:
             raise ValueError(f"{row['piece']}: current field missing; a review says where each piece is held today")
-        evidence = item.get("evidence", [])
-        row["evidence"] = [str(e) for e in (evidence if isinstance(evidence, list) else [evidence])]
+        row["evidence"] = _evidence(item)
         row["concept"] = concept(grid, row)
         (waiting if row["status"] != "placed" else findings if row["concept"] else good).append(row)
     skill_keeps_its_procedure = any(r["current"] == "skill" for r in good)
@@ -361,25 +380,29 @@ def review(grid: dict[str, Any], pieces: list[Any]) -> dict[str, Any]:
 
 
 def _cited(row: dict[str, Any]) -> str:
-    return f" ({', '.join(row['evidence'])})" if row.get("evidence") else ""
+    return f" ({', '.join(_cell(e) for e in row['evidence'])})" if row.get("evidence") else ""
 
 
 def render_review_md(grid: dict[str, Any], result: dict[str, Any]) -> str:
     names = grid["destinations"]
     total = len(result["good"]) + len(result["findings"]) + len(result["waiting"])
-    summary = f"{total} pieces read: {len(result['good'])} well placed, {len(result['findings'])} to change"
+    summary = f"{total} piece{'' if total == 1 else 's'} read: {len(result['good'])} well placed, {len(result['findings'])} to change"
     if result["waiting"]:
         summary += f", {len(result['waiting'])} waiting for an answer"
     out = ["# Review", "", summary + "."]
     if result["good"]:
         out += ["", "## Well placed", ""]
-        out += [f"- **{_cell(r['piece'])}**{_cited(r)}: {names[r['current']]['name']}, where it belongs."
-                for r in result["good"]]
+        for r in result["good"]:
+            out += [f"- **{_cell(r['piece'])}**{_cited(r)}: {r['destination']['name']}, where it belongs.",
+                    f"  Why it holds: {r['destination']['why']}"]
     for cid in CONCEPTS:
         rows = [r for r in result["findings"] if r["concept"] == cid]
         if not rows and cid not in result["notes"]:
             continue
         out += ["", f"## {grid['concepts'][cid]['name']}", "", grid["concepts"][cid]["definition"]]
+        if cid == "two_in_one":
+            mixed = [r["piece"] for r in result["findings"] if r["current"] == "skill"]
+            out += ["", "Carried by the skill next to its steps: " + "; ".join(_cell(m) for m in mixed) + "."]
         for r in rows:
             dest = r["destination"]
             out += ["", f"- **{_cell(r['piece'])}**{_cited(r)}"]
@@ -478,7 +501,7 @@ def load_pieces(path: str) -> list[Any]:
     try:
         with open(path, encoding="utf-8") as fh:
             pieces = json.load(fh)
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, json.JSONDecodeError, RecursionError) as exc:
         raise ValueError(f"{path}: {exc}") from exc
     if not isinstance(pieces, list) or not pieces:
         raise ValueError(f"{path}: expected a non-empty list of pieces")

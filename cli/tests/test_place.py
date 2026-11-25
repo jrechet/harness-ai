@@ -337,6 +337,21 @@ CONCEPT_CASES = [
     ("The list of folders", {"nature": "knowledge", "scope": "discoverable"}, "agents_md", "dead_weight"),
     ("Conventions of the migrations folder", {"nature": "knowledge", "scope": "zone"}, "agents_md", "wrong_place"),
 ]
+# Pieces a review must not flag, or must not flag under a flattering name: where it is held, its answers,
+# the concept expected (None: well placed).
+RULE_AGENT = {"nature": "rule", "incident": "forget", "checkable": "yes", "bypass_rule": "agent"}
+CONCEPT_EDGES = [
+    ("Choose the release type", {"nature": "judgment", "isolation": "none"}, "skill", None),
+    ("Choose the wording", {"nature": "judgment", "isolation": "none"}, "agents_md", None),
+    ("Judge readability", {"nature": "rule", "incident": "yes", "checkable": "no"}, "subagent", None),
+    ("Compute the next version", {"nature": "compute", "when": "on_demand"}, "workflow", "wrong_place"),
+    ("The agent does not read .env", {"nature": "limit", "bypass_limit": "agent"}, "managed", "wrong_place"),
+    ("Tests pass before handing back", RULE_AGENT, "ci_check", "wrong_place"),
+    ("Never push to main", {"nature": "limit", "bypass_limit": "dev"}, "managed", "wrong_place"),
+    ("Never push to main", {"nature": "limit", "bypass_limit": "dev"}, "permission", "weak_guard"),
+    ("Short functions are preferred", {"nature": "rule", "incident": "no", "scope": "always"}, "ci_check",
+     "frozen_judgment"),
+]
 LEVEL_OR_CODE = re.compile(r"\bL[1-4]\b|\b[Ll]evel [0-4]\b|\b[Ll]ayers?\b|KEEP|PUSH_DOWN|PROMOTE|\bMOVE\b|REMOVE")
 
 
@@ -345,7 +360,7 @@ def as_pieces(cases):
             for i, (text, answers, current, _) in enumerate(cases, 1)]
 
 
-class ReviewTests(unittest.TestCase):
+class ConceptReviewTests(unittest.TestCase):
     """`place review`: the same placement, told as named concepts, with no level and no verdict code."""
 
     def test_the_shipped_concepts_are_complete(self):
@@ -367,6 +382,51 @@ class ReviewTests(unittest.TestCase):
             with self.subTest(piece=text):
                 row = place.place_piece(GRID, {"piece": text, "answers": answers, "current": current})
                 self.assertEqual(place.concept(GRID, row), expected)
+
+    def test_a_piece_held_where_the_grid_means_it_is_not_a_weakness_and_code_is_not_called_judgement(self):
+        for text, answers, current, expected in CONCEPT_EDGES:
+            with self.subTest(piece=text, current=current):
+                row = place.place_piece(GRID, {"piece": text, "answers": answers, "current": current})
+                self.assertEqual(place.concept(GRID, row), expected)
+
+    def test_a_skill_with_its_procedure_and_a_choice_left_to_the_agent_has_no_finding(self):
+        result = place.review(GRID, [
+            {"piece": "How to release", "answers": {"nature": "procedure"}, "current": "skill"},
+            {"piece": "Choose the release type", "answers": {"nature": "judgment", "isolation": "none"},
+             "current": "skill"}])
+        self.assertEqual((len(result["good"]), result["findings"], result["notes"]), (2, [], []))
+
+    def test_no_review_of_any_piece_anywhere_shows_a_level_a_code_or_an_id(self):
+        def paths(qid, answers):
+            for opt, option in GRID["questions"][qid]["options"].items():
+                kind, target = place._target(option)
+                if kind == "place":
+                    yield {**answers, qid: opt}
+                else:
+                    yield from paths(target, {**answers, qid: opt})
+        currents = [d for d in GRID["destinations"] if d != "nothing"]
+        pieces = [{"piece": "p", "answers": a, "current": c, "evidence": ["f.md:1"]}
+                  for a in paths(GRID["root"], {}) for c in currents]
+        self.assertGreater(len(pieces), 400)
+        out = place.render_review_md(GRID, place.review(GRID, pieces))
+        leak = re.compile(LEVEL_OR_CODE.pattern + r"|\blevels?\b")
+        self.assertEqual(sorted(set(leak.findall(out))), [])
+        for did in GRID["destinations"]:
+            self.assertNotIn(f"`{did}`", out)
+
+    def test_the_well_placed_pieces_say_why_they_hold(self):
+        out = place.render_review_md(GRID, place.review(GRID, [
+            {"piece": "How to release", "answers": {"nature": "procedure"}, "current": "skill"}]))
+        self.assertIn(GRID["destinations"]["skill"]["why"], out)
+        self.assertIn("1 piece read", out)
+
+    def test_an_evidence_cannot_break_the_page_and_must_be_text(self):
+        piece = {"piece": "x", "answers": {"nature": "procedure"}, "current": "skill"}
+        out = place.render_review_md(GRID, place.review(GRID, [{**piece, "evidence": ["a\n## Injected", None]}]))
+        self.assertNotIn("\n## Injected", out)
+        self.assertNotIn("None", out)
+        with self.assertRaises(ValueError):
+            place.review(GRID, [{**piece, "evidence": {"a": 1}}])
 
     def test_every_concept_but_the_note_has_a_case(self):
         self.assertEqual({c for *_, c in CONCEPT_CASES} | {"two_in_one"}, set(place.CONCEPTS))
@@ -403,7 +463,9 @@ class ReviewTests(unittest.TestCase):
                    "current": "skill"}]
         result = place.review(GRID, pieces)
         self.assertEqual(result["notes"], ["two_in_one"])
-        self.assertIn(GRID["concepts"]["two_in_one"]["name"], place.render_review_md(GRID, result))
+        out = place.render_review_md(GRID, result)
+        self.assertIn(GRID["concepts"]["two_in_one"]["name"], out)
+        self.assertEqual(out.count("Compute the next version"), 2)   # under its concept, and named by the note
         self.assertEqual(place.review(GRID, pieces[:1])["notes"], [])
 
     def test_a_piece_without_a_current_place_is_refused_in_review(self):
