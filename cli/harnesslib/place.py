@@ -120,7 +120,11 @@ def _reachable(grid: dict[str, Any]) -> tuple[set[str], set[str], list[str]]:
 
 
 def _validate_concepts(grid: dict[str, Any]) -> list[str]:
-    concepts = grid.get("concepts", {})
+    """A grid that names concepts names all those the review can file a piece under, and no other.
+    A grid without the block (the flow's own grid) is not reviewed, so it is not held to it."""
+    if "concepts" not in grid:
+        return []
+    concepts = grid["concepts"]
     errors = [f"concept {cid}: missing" for cid in CONCEPTS if cid not in concepts]
     errors += [f"concept {cid}: unknown, the review never names it" for cid in concepts if cid not in CONCEPTS]
     for cid, concept in concepts.items():

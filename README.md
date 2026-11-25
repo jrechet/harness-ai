@@ -9,7 +9,7 @@
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-0f5777)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-0f5777?logo=python&logoColor=white)](#try-it-in-two-minutes-without-claude-code)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-1b6e3f)](#try-it-in-two-minutes-without-claude-code)
-[![Claude Code: 2 plugins, 16 skills](https://img.shields.io/badge/Claude%20Code-2%20plugins%20%C2%B7%2016%20skills-7a5200)](#install-the-skills-in-claude-code)
+[![Claude Code: 2 plugins, 18 skills](https://img.shields.io/badge/Claude%20Code-2%20plugins%20%C2%B7%2018%20skills-7a5200)](#install-the-skills-in-claude-code)
 
 **[Try it](#try-it-in-two-minutes-without-claude-code)** ·
 **[How it works](#how-it-works)** ·
@@ -157,6 +157,7 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | See the files you have and miss, layer by layer, and walk the steps to your target, in one page to open in a browser ([example](docs/examples/state.html)) | `harness.py status <repo> --page F` | tooled |
 | See your level as a medal, with achievements and next steps | `harness.py medals <repo> [--write] [--page F]` | tooled |
 | Know where a piece of a skill or agent belongs: AGENTS.md, CLI, hook, permission, CI… | `harness.py place grid`, `place one`, `place plan <pieces.json>` | tooled |
+| Have the pieces of an existing skill or agent told as named concepts: what is well placed, what is weak and why, with no level | `harness.py place review <pieces.json>` | tooled |
 | Write an assessment as a one-page HTML report | `harness.py report build <report.json> -o <page.html>` | tooled |
 | Follow progress in a local page | `harness.py serve <repo>` | tooled, rendering not reviewed |
 | Know, before writing any workflow, whether you need one at all and which tool (LangChain, LangGraph, a workflow engine, Rust, or only the ticket's state and CI), from answers you record yourself, with the published costs it copies from the pages, dated and sourced ([the pages that explain each verdict](docs/workflow-harness/README.md)) | `harness.py flow fit --questions`, then `harness.py flow fit <answers.json>` | tooled, not measured with a user |
@@ -175,7 +176,8 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Write a first short `AGENTS.md`, or clean the one you have | `harness-init` | measured on four sample projects |
 | Move up one level, and stop | `harness-step` | measured on one project |
 | Audit your harness and remove what no longer serves | `harness-audit` | measured once on each of two projects: one compliant, 10 of 10; the other, held out, not compliant, 2 of 3 |
-| Create or review a skill, an agent, a rule, putting each piece in its place | `harness-design` | measured: 12 traps of 12 on a held-out case |
+| Create a skill, an agent or a rule, or put an existing one right, each piece in its place | `harness-design` | measured: 12 traps of 12 on a held-out case, on the text before 2026-11-25 |
+| Have one skill reviewed and explained: what is good, what is weak and which concept is behind it, with no level and nothing written | `harness-coach` | tooled, never played |
 | Ask "why this level?" | `harness-medals` | tooled |
 | Ask which skill or command fits what you want, or whether you need one at all | `harness-guide` | measured once: 20 questions of 20 routed, against 16 of 20 with the skill descriptions alone; the gap is the needs only a command line meets, and the questions were written from the same command help as the guide; triggering in a real session not measured ([the draw](docs/measurements/guide-routing-2026-11-23.json)) |
 | Draw rules from what happened in your PRs | `harness-harvest` | tooled, never played |
@@ -331,7 +333,7 @@ Both suites pass on a fresh clone, from Python 3.10 to 3.14. The repository's ru
 | Folder | Content |
 |---|---|
 | `cli/` | The `harness.py` CLI and its tests |
-| `skills/` | The ten skills of the `harness-ai` plugin: six for one repository's harness, three (`flow-why`, `flow-map`, `flow-place`) for a team's ticket workflow, and `harness-guide`, which says which one to use |
+| `skills/` | The eleven skills of the `harness-ai` plugin: six for one repository's harness, three (`flow-why`, `flow-map`, `flow-place`) for a team's ticket workflow, `harness-guide`, which says which one to use, and `harness-coach`, which reviews one skill and explains what is weak |
 | `plugins/ai-sdlc/` | The second plugin: skills `ticket`, `dev`, `qa`, `secu`, `review`, `ship` and `run`, and its CLI |
 | `fixtures/` | Sample projects, trapped cases, answer keys, recorded runs |
 | `app/` | The progress page served by `harness serve` |
