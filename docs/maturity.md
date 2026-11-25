@@ -18,6 +18,8 @@ A level is reached when all its checks pass and the previous level is reached. E
 
 **The source is the file found.** `AGENTS.md` is the source when it exists; otherwise a `CLAUDE.md` that is not a stub is the source, and such a repository can hold level 1 as it is. The state, the map and the page then name `CLAUDE.md` in their labels, next actions and steps, and the single-source line reads "CLAUDE.md is the source: fine, or move it to AGENTS.md and leave a pointer". Moving to `AGENTS.md` is offered, never required.
 
+**A check can be set aside.** The owner may not want one of the checks: `harness ignore <check> --reason "…"` writes it, with the reason and the day, in `.harness/config.json` (`ignored_checks`). The level is then reached without it and no next action asks for it. The measure does not change: in `state.json` the check stays `passed: false` and carries `ignored: true` and the reason; the state shows `[~] … → set aside by the owner`, the map lists it under "Set aside by you", and the medal's line says so. `harness ignore <check> --restore` takes the choice back, and `harness ignore <repo>` lists every check with its state. One check cannot be set aside: an instruction file exists. A level reached with checks set aside is the owner's level, not a measured equivalence: two repositories at the same level are comparable only on the checks neither set aside.
+
 ## Why these checks and not others
 
 - **Level 2 requires a signal, not a file.** A harvest marker set by harness-init is not enough: a harvest must have found something. Otherwise the loop is decorative. Orphan rules (S5) do not count: they say there is no signal, not that there is one.

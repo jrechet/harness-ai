@@ -54,6 +54,8 @@ The step is the **first failing check** of the first level not reached, in the o
 
 At level 0, the step is harness-init: hand over to it.
 
+**A check the user does not want.** When the user says of a check "not that one", "I do not care about this rule", "skip it", do not argue and do not do the step: ask why in one question if they did not say, then record the choice with `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" ignore <check> --reason "<their words>" --repo <repo>` (`ignore <repo>` lists the checks with their ids). The choice is written in `.harness/config.json`; from then on the level is reached without that check and it is never proposed again. Say what it means in one sentence: the map shows it as set aside, with the reason, not as done, and `ignore <check> --restore` takes it back. Never set a check aside on your own to make a level pass: it is the user's decision, in their words. The check that an instruction file exists cannot be set aside.
+
 ### 5. Announce before doing
 In four lines: what you will do, what it changes for the agent, what it touches (files, CI, team habits), what we will see afterwards. Wait for agreement, unless the request already said to go ahead. A step that needs information only the owner has starts with the question, asked with context.
 

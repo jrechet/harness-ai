@@ -190,7 +190,19 @@ def config_facts(hdir: str) -> dict[str, Any]:
     """`.harness/config.json`: what the owner decided, starting with the target level."""
     config = load_json(os.path.join(hdir, "config.json")) or {}
     target = config.get("target_level")
-    return {"target_level": target if isinstance(target, int) and 1 <= target <= 4 else None}
+    return {"target_level": target if isinstance(target, int) and 1 <= target <= 4 else None,
+            "ignored_checks": ignored_checks(config)}
+
+
+def ignored_checks(config: dict[str, Any]) -> dict[str, dict[str, str]]:
+    """The checks the owner set aside, each with its reason: `{"L1.forbidden": {"reason", "date"}}`.
+    An entry without a reason is not a decision: it is left aside, like a block of another shape."""
+    block = config.get("ignored_checks")
+    if not isinstance(block, dict):
+        return {}
+    return {str(cid): {"reason": entry["reason"].strip(), "date": str(entry.get("date") or "")}
+            for cid, entry in block.items()
+            if isinstance(entry, dict) and isinstance(entry.get("reason"), str) and entry["reason"].strip()}
 
 
 def _repo_files(repo: str, limit: int = 20000) -> list[str]:

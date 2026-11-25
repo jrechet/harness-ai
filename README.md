@@ -116,7 +116,7 @@ The harness grows in levels. Each level is earned by checks that `harness status
 
 </details>
 
-**A level is a place where you can stay.** You say which one you aim for (`harness target`); beyond it, the tool proposes nothing, and when it is held `status` says "target reached". Many teams are well served by level 1 or 2. Some checks only time can pass, such as a real review signal or clean agent PRs: they do not block work on the next level you aim for.
+**A level is a place where you can stay.** You say which one you aim for (`harness target`), and which of its checks you do not want (`harness ignore`); beyond it, the tool proposes nothing, and when it is held `status` says "target reached". Many teams are well served by level 1 or 2. Some checks only time can pass, such as a real review signal or clean agent PRs: they do not block work on the next level you aim for.
 
 > [!NOTE]
 > The level measures the **shape** of the harness: files, sections, mentions. It does not say that the agents work better. Model and thresholds: [docs/maturity.md](docs/maturity.md).
@@ -151,6 +151,7 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Know where your repository stands, in plain words | `harness.py status <repo> --map` | tooled |
 | Read every check behind the level, with its id | `harness.py status <repo>` | tooled |
 | Say at which level you stop | `harness.py target <level> <repo>` | tooled |
+| Set aside a check you do not want: the level is reached without it, and the state says "set aside", not "done" | `harness.py ignore <check> --reason "…" --repo <repo>`; `ignore <repo>` lists the checks | tooled |
 | See each rule, its age, its guardrail | `harness.py rules <repo>` | tooled |
 | Find the commands an agent does not guess | `harness.py commands <repo>` | tooled |
 | Know what has aged: a skill that cites a deleted file, a late harvest | `harness.py fresh <repo>` | tooled |

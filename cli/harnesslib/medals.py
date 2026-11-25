@@ -81,7 +81,8 @@ def evaluate_repo(repo: str, today: date | None = None) -> dict[str, Any]:
     for level in state["levels"][1:]:
         medal = MEDALS[level["level"]]
         tiers.append({"id": medal["id"], "name": medal["name"], "title": level["name"], "promise": level["summary"]})
-        successes += [_success(c["id"], medal["id"], c["label"], c["passed"],
+        successes += [_success(c["id"], medal["id"], c["label"], maturity.holds(c),
+                               f"{maturity.SET_ASIDE}: {c['reason']}" if c.get("ignored") else
                                maturity.WITH_FILE if c.get("follows") else _short(c.get("value")),
                                _plain_step(c), c.get("waits", False)) for c in level["checks"]]
     source = state["facts"]["instructions"]["source"]

@@ -121,7 +121,7 @@ def _steps(state: dict[str, Any]) -> list[dict[str, Any]]:
     out = []
     for level in state["levels"]:
         for check in level["checks"]:
-            if check["passed"]:
+            if maturity.holds(check):
                 continue
             follows = bool(check.get("follows"))
             missing, action = (NOT_MEASURED, maturity.WITH_FILE) if follows else maturity.CHECK_PLAIN[check["id"]]
