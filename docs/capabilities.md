@@ -1,6 +1,6 @@
 # What harness-ai can do, and where it stands
 
-Last updated: 2026-11-25
+Last updated: 2026-11-26
 
 This document lists what the repository can do today, and keeps the progress plan. It is updated in the same change as the work: an end-of-turn hook (`harness progress check`) sends the agent back to write it as long as the repository changes without it. The original requirements and their level of evidence stay in [requirements.md](requirements.md).
 
