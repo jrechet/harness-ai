@@ -28,7 +28,7 @@ Two answers are decisions and not facts: what it costs when a rule is not respec
 Write the pieces in a JSON file in a temporary folder outside the repository:
 
 ```json
-[{"piece": "Every text shown to a user has a key in each translation file",
+[{"piece": "Every image of a page has an alt text",
   "answers": {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "dev"},
   "current": "skill", "evidence": ["SKILL.md:24"]}]
 ```
