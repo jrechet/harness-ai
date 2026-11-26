@@ -4,6 +4,8 @@ root, and its own AGENTS.md holds level 1."""
 from __future__ import annotations
 
 import ast
+import glob
+import json
 import os
 import re
 import subprocess
@@ -186,6 +188,118 @@ class SkillsCallTheCliTests(unittest.TestCase):
         self.assertEqual(help_exit_code("harness.py", ("status",)), 0)
         self.assertNotEqual(help_exit_code("harness.py", ("no-such-command",)), 0)
         self.assertNotEqual(help_exit_code("ai_sdlc.py", ("qa", "no-such-action")), 0)
+
+
+EXAMPLE_BLOCK = re.compile(r"```json\n(.*?)```", re.S)
+PIECE_TEXT = re.compile(r'"piece"\s*:\s*"((?:[^"\\]|\\.)*)"')
+WORD = re.compile(r"[a-z]{4,}")
+STEM_LENGTH = 5
+# Words that say nothing of what a piece is about: sharing them is no resemblance.
+EMPTY_WORDS = frozenset("""about after always before cannot check checks contains does each every from have into
+    must never nothing only other should that their them then there this were what when with without your""".split())
+SKILLS_WITH_AN_EXAMPLE = ("skills/harness-coach/SKILL.md", "skills/harness-design/SKILL.md")
+
+
+def content_stems(text: str) -> set[str]:
+    """What a sentence is about: its words of four letters or more, without a final s, cut to five,
+    empty words left out."""
+    return {word.rstrip("s")[:STEM_LENGTH] for word in WORD.findall(text.lower()) if word not in EMPTY_WORDS}
+
+
+def example_pieces(text: str) -> list[str]:
+    """Every `"piece": "…"` a skill shows, wherever it is written: a block that does not parse is read too."""
+    return PIECE_TEXT.findall(text)
+
+
+def graded_lines() -> list[tuple[str, str]]:
+    """Every line an answer key of `fixtures/design` grades: (fixture and item, the line's text)."""
+    lines = []
+    for key in sorted(glob.glob(os.path.join(ROOT, "fixtures", "design", "*", "expected.json"))):
+        fixture = os.path.dirname(key)
+        with open(key, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        for item in expected.get("traps", []) + expected.get("healthy", []):
+            with open(os.path.join(fixture, "artifact", item["file"]), encoding="utf-8") as fh:
+                text = fh.read().split("\n")
+            first, last = item["lines"]
+            lines.append((f"{os.path.basename(fixture)} {item['id']}", " ".join(text[first - 1:last])))
+    return lines
+
+
+def leaked_examples(pieces: list[str], graded: list[tuple[str, str]]) -> list[str]:
+    """The examples that are about the same thing as a graded line: at least two stems shared, half of the
+    example's own, and either three of them or a third of the line's (a long line shares two words with
+    almost anything)."""
+    leaks = []
+    for piece in pieces:
+        stems = content_stems(piece)
+        for name, line in graded:
+            graded_stems = content_stems(line)
+            shared = stems & graded_stems
+            enough_of_the_line = len(shared) >= 3 or 3 * len(shared) >= len(graded_stems)
+            if len(shared) >= 2 and 2 * len(shared) >= len(stems) and enough_of_the_line:
+                leaks.append(f"{piece!r} shares {sorted(shared)} with {name}")
+    return leaks
+
+
+class SkillExamplesGiveNoAnswerAwayTests(unittest.TestCase):
+    """A skill's example must not be a piece an answer key grades: a blind run would be handed it.
+
+    The run of 2026-11-25 found 7 traps of 7 on `release-skill`, one of them copied from the example
+    of `harness-coach`. The guard compares what the sentences are about, word for word: a graded piece
+    told in other words passes, and so does one whose answers or evidence alone are copied."""
+
+    def test_the_answer_keys_grade_lines_that_exist(self):
+        graded = graded_lines()
+        self.assertGreaterEqual(len(graded), 20)
+        self.assertTrue(all(line.strip() for _, line in graded))
+
+    def test_the_guard_sees_the_example_that_leaked(self):
+        self.assertTrue(leaked_examples(["Refuse to release with uncommitted files"], graded_lines()))
+
+    def test_the_guard_sees_it_in_another_form_of_its_words(self):
+        self.assertTrue(leaked_examples(["Refuse releasing with an uncommitted file"], graded_lines()))
+
+    def test_the_guard_sees_every_graded_line_copied_as_it_is(self):
+        graded = graded_lines()
+        for name, line in graded:
+            with self.subTest(line=name):
+                self.assertTrue(any(name in leak for leak in leaked_examples([line], graded)))
+
+    def test_the_guard_reads_a_block_that_does_not_parse_and_a_bare_fence(self):
+        broken = '```json\n[{"piece": "Refuse to release with uncommitted files", ...}]\n```'
+        bare = '```\n{"pieces": [{"piece" : "Refuse to release with uncommitted files",}]}\n```'
+        for text in (broken, bare):
+            with self.subTest(text=text):
+                self.assertTrue(leaked_examples(example_pieces(text), graded_lines()))
+
+    def test_an_ordinary_example_does_not_trip_the_guard(self):
+        ordinary = ["Never commit without a review", "Refuse to deploy without an approval",
+                    "The package version is in the manifest", "Every image of a page has an alt text"]
+        self.assertEqual(leaked_examples(ordinary, graded_lines()), [])
+
+    def test_the_guard_reads_the_example_of_each_skill_that_shows_one(self):
+        for path in SKILLS_WITH_AN_EXAMPLE:
+            with self.subTest(skill=path):
+                self.assertTrue(example_pieces(read(path)), "no `piece` example found: the guard reads nothing")
+
+    def test_the_example_of_the_coach_is_one_the_command_accepts(self):
+        block = EXAMPLE_BLOCK.search(read("skills/harness-coach/SKILL.md"))
+        self.assertIsNotNone(block, "the coach shows no ```json example")
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "pieces.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(block.group(1))
+            result = subprocess.run([sys.executable, os.path.join(ROOT, "cli", "harness.py"), "place", "review", path],
+                                    capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("1 piece read", result.stdout)
+
+    def test_no_example_of_a_skill_is_a_graded_piece(self):
+        graded = graded_lines()
+        for path, _ in skill_files():
+            with self.subTest(skill=path):
+                self.assertEqual(leaked_examples(example_pieces(read(path)), graded), [])
 
 
 def shadowed_names(path: str) -> list[str]:
