@@ -59,6 +59,7 @@ The `harness-ai` plugin installs the whole repository, so both command lines are
 | `harness status` | the level 0 to 4 and the next action; `--map` in plain words, `--page` as one HTML page |
 | `harness target` | declares where you want to stop: beyond it, nothing is proposed |
 | `harness ignore` | sets a check of the levels aside, with its reason: the level is then reached without it, shown as set aside; alone, lists the checks |
+| `harness session` | `measure`: what one Claude Code session cost, by skill, and how often you had to step in; `note "…"`: your own words on what suited you or not; `list`: the sessions measured. Kept on the machine, nothing is sent |
 | `harness rules` | each rule of `AGENTS.md`, its date, its guardrail, its why |
 | `harness medals` | the medal and the achievements, `--page` for the page |
 | `harness commands` | the commands an agent does not guess: what the CI really runs |

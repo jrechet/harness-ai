@@ -11,6 +11,7 @@
   harness bench …                    the before-and-after bench: plan, prepare, check, selftest, record, report
   harness serve [repo]               local tracking app (http://127.0.0.1:8787)
   harness ignore [check] [--repo P]  sets a check of the level ladder aside, with its reason; lists them
+  harness session measure|note|list  the numbers of one Claude Code session and your own notes, kept on this machine
   harness place grid|one|plan|review … where each piece of a harness goes, and why
   harness commands [repo]            the commands an agent does not guess: what the CI really runs
   harness fresh [repo] [--hook|--strict]   what has aged: a skill citing a vanished file, a late harvest
@@ -32,7 +33,7 @@ if sys.version_info < (3, 10):  # before any import: the rest of the CLI does no
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harnesslib import bench, commands, fixtures, flow, fresh, github, ignore, keys, medals, place, progress, report, rules, serve, shape, status  # noqa: E402
+from harnesslib import bench, commands, fixtures, flow, fresh, github, ignore, keys, medals, place, progress, report, rules, serve, session, shape, status  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -43,6 +44,7 @@ def main(argv: list[str] | None = None) -> int:
     status.build_target_parser(sub.add_parser("target", help="declares or shows the target level"))
     rules.build_parser(sub.add_parser("rules", help="the rules and what is known about them"))
     ignore.build_parser(sub.add_parser("ignore", help="sets a check of the level ladder aside, with its reason"))
+    session.build_parser(sub.add_parser("session", help="the numbers of one Claude Code session and your notes, kept on this machine"))
     harvest = sub.add_parser("harvest", help="evidence collection for harness-harvest")
     hsub = harvest.add_subparsers(dest="source", required=True)
     github.build_parser(hsub.add_parser("github", help="GitHub adapter"))
@@ -72,6 +74,8 @@ def main(argv: list[str] | None = None) -> int:
         return status.target_main(args)
     if args.command == "ignore":
         return ignore.main(args)
+    if args.command == "session":
+        return session.main(args)
     if args.command == "rules":
         return rules.main(args=args)
     if args.command == "harvest" and args.source == "github":
