@@ -2783,10 +2783,10 @@ mode: append
 };
 
   const EXAMPLES = [
-    { label: "\"Never push to main\"", answers: [["nature", "limit"], ["bypass_limit", "dev"]] },
-    { label: "\"No release with uncommitted files\"", answers: [["nature", "rule"], ["incident", "forget"], ["checkable", "yes"], ["bypass_rule", "agent"]] },
-    { label: "\"Compute the next version\"", answers: [["nature", "compute"], ["when", "on_demand"]] },
-    { label: "\"Read the Jira ticket\"", answers: [["nature", "action"], ["access", "consult"]] }
+    { label: "\"No agent turns the telemetry off\"", answers: [["nature", "limit"], ["bypass_limit", "team"]] },
+    { label: "\"Messages shown to users are in plain words\"", answers: [["nature", "rule"], ["incident", "no"], ["scope", "always"]] },
+    { label: "\"Resize the uploaded photos\"", answers: [["nature", "compute"], ["when", "repo_event"]] },
+    { label: "\"Compare three libraries before choosing one\"", answers: [["nature", "judgment"], ["isolation", "parallel"]] }
   ];
 
   const layerTags = (layer) => {

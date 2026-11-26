@@ -1,22 +1,40 @@
 {
-  "subject": {"kind": "skill", "name": "add-locale", "path": ".claude/skills/add-locale/SKILL.md"},
+  "subject": {
+    "kind": "skill",
+    "name": "weekly-digest",
+    "path": ".claude/skills/weekly-digest/SKILL.md"
+  },
   "date": "2026-11-26",
   "source": "example written by hand",
-  "summary": "Two gaps: a rule told in prose, a list drawn up in prose.",
+  "summary": "Two gaps: a list drawn up in prose, a fact every session needs kept in one skill.",
   "items": [
-    {"scope": "No language ships with an untranslated key",
-     "expected": "A rule a program holds: a blocking check",
-     "observed": "A sentence of the skill, which the agent can skip",
-     "advice": "Write the check as a subcommand, called by a required check",
-     "status": "gap", "evidence": [".claude/skills/add-locale/SKILL.md:13"], "tag": "PUSH_DOWN"},
-    {"scope": "List the keys a language file lacks",
-     "expected": "Tested code, which gives the same result every time",
-     "observed": "Two sentences that describe how to compare the files",
-     "advice": "A `locale missing` subcommand with its tests",
-     "status": "gap", "evidence": [".claude/skills/add-locale/SKILL.md:12"], "tag": "PUSH_DOWN"},
-    {"scope": "Translate the new strings in the product's tone",
-     "expected": "A judgment left to the agent",
-     "observed": "The skill says where the agent decides",
-     "status": "ok"}
+    {
+      "scope": "List the pull requests merged since the last digest",
+      "expected": "Tested code, which gives the same list every time",
+      "observed": "Two sentences that describe how to read the history",
+      "advice": "A `digest list` subcommand with its tests, called by a scheduled workflow",
+      "status": "gap",
+      "evidence": [
+        ".claude/skills/weekly-digest/SKILL.md:5"
+      ],
+      "tag": "PUSH_DOWN"
+    },
+    {
+      "scope": "The team's week starts on a Thursday",
+      "expected": "A line every session reads",
+      "observed": "A sentence of one skill, which the other tasks never load",
+      "advice": "One line in AGENTS.md",
+      "status": "gap",
+      "evidence": [
+        ".claude/skills/weekly-digest/SKILL.md:23"
+      ],
+      "tag": "PROMOTE"
+    },
+    {
+      "scope": "Write the summary for readers who do not code",
+      "expected": "A judgment left to the agent",
+      "observed": "The skill says where the agent decides",
+      "status": "ok"
+    }
   ]
 }

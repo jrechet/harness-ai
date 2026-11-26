@@ -201,9 +201,15 @@ SKILLS_WITH_AN_EXAMPLE = ("skills/harness-coach/SKILL.md", "skills/harness-desig
 # What a row of a report is about (`harness report`): the piece, under another key. In a plan the same key
 # holds a one-word answer, which shares two words with nothing.
 SCOPE_TEXT = re.compile(r'"scope"\s*:\s*"((?:[^"\\]|\\.)*)"')
+# A piece a page offers to place, in its script: `label: "\"Never push to main\""`.
+LABEL_TEXT = re.compile(r'\blabel\s*:\s*"((?:[^"\\]|\\.)*)"')
 EXAMPLES_FOLDER = "docs/examples"
+PAGES_FOLDER = "docs"
+COURSE_PAGE = "docs/ai-sdlc/course/index.html"
+EXAMPLE_PLAN = "docs/examples/pieces.json"
+TRAPS_FOUND = re.compile(r"Traps found: (\d+)/(\d+); healthy items moved: (\d+)")
 EXAMPLES_WITH_PIECES = ("docs/examples/pieces.json", "docs/examples/report.json",
-                        "docs/examples/report-skill-add-locale.html")
+                        "docs/examples/report-skill-weekly-digest.html")
 
 
 def content_stems(text: str) -> set[str]:
@@ -218,17 +224,20 @@ def example_pieces(text: str) -> list[str]:
 
 
 def shown_pieces(text: str) -> list[str]:
-    """The pieces a shipped example shows: those of a plan, and what the rows of a report are about."""
-    return example_pieces(text) + SCOPE_TEXT.findall(text)
+    """The pieces a shipped example shows: those of a plan, what the rows of a report are about, and the
+    pieces a page offers to place."""
+    return example_pieces(text) + SCOPE_TEXT.findall(text) + LABEL_TEXT.findall(text)
 
 
 def shipped_examples() -> list[str]:
     """What the plugins ship beside their SKILL.md and a reader is sent to: the examples of what the
-    commands produce, and the reference pages of each skill. Paths relative to the repository."""
+    commands produce, every page of `docs/`, and the reference pages of each skill. Paths relative to
+    the repository."""
     found = glob.glob(os.path.join(ROOT, EXAMPLES_FOLDER, "**", "*"), recursive=True)
+    found += glob.glob(os.path.join(ROOT, PAGES_FOLDER, "**", "*.html"), recursive=True)
     for skill_root in SKILL_ROOTS:
         found += glob.glob(os.path.join(ROOT, skill_root, "*", "references", "**", "*"), recursive=True)
-    return sorted(os.path.relpath(path, ROOT) for path in found if os.path.isfile(path))
+    return sorted({os.path.relpath(path, ROOT) for path in found if os.path.isfile(path)})
 
 
 def fixture_contents() -> dict[bytes, str]:
@@ -350,6 +359,25 @@ class SkillExamplesGiveNoAnswerAwayTests(unittest.TestCase):
         self.assertTrue(leaked_examples(shown_pieces(row), graded_lines()))
         self.assertEqual(leaked_examples(shown_pieces('{"answers": {"scope": "discoverable"}}'), graded_lines()), [])
 
+    def test_the_guard_reads_a_piece_a_page_offers_to_place(self):
+        script = r'{ label: "\"No release with uncommitted files\"", answers: [["nature", "rule"]] }'
+        self.assertTrue(leaked_examples(shown_pieces(script), graded_lines()))
+        self.assertGreaterEqual(len(LABEL_TEXT.findall(read(COURSE_PAGE))), 4, "the course offers no piece to place")
+        self.assertIn(COURSE_PAGE, shipped_examples())
+
+    def test_the_example_plan_finds_no_trap_of_an_answer_key(self):
+        """Words apart, a plan that cites the graded lines of a fixture is its answer: `place check` says so."""
+        keys = sorted(glob.glob(os.path.join(ROOT, "fixtures", "design", "*", "expected.json")))
+        self.assertGreaterEqual(len(keys), 2)
+        for key in keys:
+            with self.subTest(key=os.path.relpath(key, ROOT)):
+                result = subprocess.run([sys.executable, os.path.join(ROOT, "cli", "harness.py"), "place", "check",
+                                         os.path.join(ROOT, EXAMPLE_PLAN), "--expected", key],
+                                        capture_output=True, text=True, timeout=60)
+                found = TRAPS_FOUND.search(result.stdout)
+                self.assertIsNotNone(found, result.stdout + result.stderr)
+                self.assertEqual((found.group(1), found.group(3)), ("0", "0"), result.stdout)
+
     def test_the_guard_reads_the_examples_and_the_reference_pages(self):
         shipped = shipped_examples()
         self.assertGreaterEqual(len([path for path in shipped if path.startswith(EXAMPLES_FOLDER)]), 5)
@@ -374,13 +402,13 @@ class SkillExamplesGiveNoAnswerAwayTests(unittest.TestCase):
                     self.assertIsNone(fixtures.get(fh.read().strip()), "an example copied from a fixture")
 
     def test_the_example_page_is_the_one_the_command_writes_from_the_example_plan(self):
-        page = read("docs/examples/report-skill-add-locale.html")
+        page = read("docs/examples/report-skill-weekly-digest.html")
         data = re.search(r'<script[^>]*id="report-data"[^>]*>(.*?)</script>', page, re.S)
         self.assertIsNotNone(data, "the page carries no report-data block")
         shown = json.loads(data.group(1))
         result = subprocess.run(
             [sys.executable, os.path.join(ROOT, "cli", "harness.py"), "report", "from-place",
-             os.path.join(ROOT, "docs", "examples", "pieces.json"), "--kind", "skill", "--name", "add-locale",
+             os.path.join(ROOT, "docs", "examples", "pieces.json"), "--kind", "skill", "--name", "weekly-digest",
              "--path", shown["subject"]["path"], "--date", shown["date"], "--format", "json"],
             capture_output=True, text=True, timeout=60)
         self.assertEqual(result.returncode, 0, result.stderr)

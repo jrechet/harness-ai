@@ -1,108 +1,94 @@
 [
   {
-    "piece": "Where the language files live",
-    "answers": {
-      "nature": "knowledge",
-      "scope": "discoverable"
-    },
-    "current": "skill",
-    "evidence": [
-      ".claude/skills/add-locale/SKILL.md:8"
-    ]
-  },
-  {
-    "piece": "List the keys a language file lacks",
-    "answers": {
-      "nature": "compute",
-      "when": "on_demand"
-    },
-    "current": "skill",
-    "evidence": [
-      ".claude/skills/add-locale/SKILL.md:12"
-    ]
-  },
-  {
-    "piece": "No language ships with an untranslated key",
-    "answers": {
-      "nature": "rule",
-      "incident": "yes",
-      "checkable": "yes",
-      "bypass_rule": "dev"
-    },
-    "current": "skill",
-    "evidence": [
-      ".claude/skills/add-locale/SKILL.md:13"
-    ]
-  },
-  {
-    "piece": "Add a language: file, keys, translation, screenshots",
+    "piece": "Prepare a digest: list, summary, links, post",
     "answers": {
       "nature": "procedure"
     },
     "current": "skill",
     "evidence": [
-      ".claude/skills/add-locale/SKILL.md:10"
+      ".claude/skills/weekly-digest/SKILL.md:3"
     ]
   },
   {
-    "piece": "Translate the new strings in the product's tone",
+    "piece": "List the pull requests merged since the last digest",
+    "answers": {
+      "nature": "compute",
+      "when": "repo_event"
+    },
+    "current": "skill",
+    "evidence": [
+      ".claude/skills/weekly-digest/SKILL.md:5"
+    ]
+  },
+  {
+    "piece": "Write the summary for readers who do not code",
     "answers": {
       "nature": "judgment",
       "isolation": "none"
     },
     "current": "session",
     "evidence": [
-      ".claude/skills/add-locale/SKILL.md:14"
+      ".claude/skills/weekly-digest/SKILL.md:9"
     ]
   },
   {
-    "piece": "Send the strings to the translation agency's portal",
+    "piece": "The digest names no customer",
+    "answers": {
+      "nature": "rule",
+      "incident": "yes",
+      "checkable": "no"
+    },
+    "current": "skill",
+    "evidence": [
+      ".claude/skills/weekly-digest/SKILL.md:11"
+    ]
+  },
+  {
+    "piece": "Post the digest to the team channel",
     "answers": {
       "nature": "action",
       "access": "write"
     },
     "current": "skill",
     "evidence": [
-      ".claude/skills/add-locale/SKILL.md:15"
+      ".claude/skills/weekly-digest/SKILL.md:21"
     ]
   },
   {
-    "piece": "The agent never rewrites the legal notices",
+    "piece": "The team's week starts on a Thursday",
+    "answers": {
+      "nature": "knowledge",
+      "scope": "always"
+    },
+    "current": "skill",
+    "evidence": [
+      ".claude/skills/weekly-digest/SKILL.md:23"
+    ]
+  },
+  {
+    "piece": "No agent posts in the company-wide announcement channel",
     "answers": {
       "nature": "limit",
-      "bypass_limit": "agent"
+      "bypass_limit": "team"
     },
     "current": "agents_md",
     "evidence": [
-      "AGENTS.md:9"
+      "AGENTS.md:15"
     ]
   },
   {
-    "piece": "Plural forms of each language",
+    "piece": "The house style of the digest",
     "answers": {
       "nature": "knowledge",
       "scope": "reference"
     },
     "current": "agents_md",
     "evidence": [
-      "AGENTS.md:10"
+      "AGENTS.md:18"
     ]
   },
   {
-    "piece": "Dates and amounts go through the formatting helper",
-    "answers": {
-      "nature": "rule",
-      "incident": "yes",
-      "checkable": "yes",
-      "bypass_rule": "dev"
-    },
-    "current": "ci_check",
-    "evidence": [
-      "AGENTS.md:11"
-    ]
-  },
-  {
-    "piece": "Take the screenshots of every screen in the new language",
+    "piece": "Read the discussion of each pull request for what users will notice",
     "answers": {
       "nature": "judgment",
       "isolation": "context"
