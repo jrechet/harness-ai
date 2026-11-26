@@ -28,9 +28,9 @@ Two answers are decisions and not facts: what it costs when a rule is not respec
 Write the pieces in a JSON file in a temporary folder outside the repository:
 
 ```json
-[{"piece": "Refuse to release with uncommitted files",
-  "answers": {"nature": "rule", "incident": "forget", "checkable": "yes", "bypass_rule": "agent"},
-  "current": "skill", "evidence": ["SKILL.md:19"]}]
+[{"piece": "Every text shown to a user has a key in each translation file",
+  "answers": {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "dev"},
+  "current": "skill", "evidence": ["SKILL.md:24"]}]
 ```
 
 Then `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place review <file>`. Exit code 3: an answer is missing, the output says which question in plain words, with its options; find the matching ids in `place grid`, answer it or ask the user. Exit code 2: invalid input, fix the file.

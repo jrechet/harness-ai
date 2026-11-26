@@ -4,6 +4,8 @@ root, and its own AGENTS.md holds level 1."""
 from __future__ import annotations
 
 import ast
+import glob
+import json
 import os
 import re
 import subprocess
@@ -186,6 +188,86 @@ class SkillsCallTheCliTests(unittest.TestCase):
         self.assertEqual(help_exit_code("harness.py", ("status",)), 0)
         self.assertNotEqual(help_exit_code("harness.py", ("no-such-command",)), 0)
         self.assertNotEqual(help_exit_code("ai_sdlc.py", ("qa", "no-such-action")), 0)
+
+
+EXAMPLE_BLOCK = re.compile(r"```json\n(.*?)```", re.S)
+LONG_WORD = re.compile(r"[a-z]{6,}")
+
+
+def example_pieces(text: str) -> list[str]:
+    """The `piece` texts of the JSON examples a skill shows."""
+    pieces = []
+    for block in EXAMPLE_BLOCK.findall(text):
+        try:
+            data = json.loads(block)
+        except ValueError:
+            continue
+        rows = data if isinstance(data, list) else [data]
+        pieces += [row["piece"] for row in rows if isinstance(row, dict) and isinstance(row.get("piece"), str)]
+    return pieces
+
+
+def graded_lines() -> list[tuple[str, str]]:
+    """Every line an answer key of `fixtures/design` grades: (fixture and item, the line's text)."""
+    lines = []
+    for key in sorted(glob.glob(os.path.join(ROOT, "fixtures", "design", "*", "expected.json"))):
+        fixture = os.path.dirname(key)
+        with open(key, encoding="utf-8") as fh:
+            expected = json.load(fh)
+        for item in expected.get("traps", []) + expected.get("healthy", []):
+            with open(os.path.join(fixture, "artifact", item["file"]), encoding="utf-8") as fh:
+                text = fh.read().split("\n")
+            first, last = item["lines"]
+            lines.append((f"{os.path.basename(fixture)} {item['id']}", " ".join(text[first - 1:last])))
+    return lines
+
+
+def leaked_examples(pieces: list[str], graded: list[tuple[str, str]]) -> list[str]:
+    """The examples that share two words of six letters or more with a graded line."""
+    leaks = []
+    for piece in pieces:
+        words = set(LONG_WORD.findall(piece.lower()))
+        for name, line in graded:
+            shared = words & set(LONG_WORD.findall(line.lower()))
+            if len(shared) >= 2:
+                leaks.append(f"{piece!r} shares {sorted(shared)} with {name}")
+    return leaks
+
+
+class SkillExamplesGiveNoAnswerAwayTests(unittest.TestCase):
+    """A skill's example must not be a piece an answer key grades: a blind run would be handed it.
+
+    The run of 2026-11-25 found 7 traps of 7 on `release-skill`, one of them copied from the example
+    of `harness-coach`."""
+
+    def test_the_answer_keys_grade_lines_that_exist(self):
+        graded = graded_lines()
+        self.assertGreaterEqual(len(graded), 20)
+        self.assertTrue(all(line.strip() for _, line in graded))
+
+    def test_the_guard_sees_the_example_that_leaked(self):
+        self.assertTrue(leaked_examples(["Refuse to release with uncommitted files"], graded_lines()))
+
+    def test_the_guard_reads_the_examples_of_the_skills(self):
+        found = [piece for path, _ in skill_files() for piece in example_pieces(read(path))]
+        self.assertTrue(found, "no JSON example with a `piece` found in any SKILL.md: the guard reads nothing")
+
+    def test_the_example_of_the_coach_is_one_the_command_accepts(self):
+        block = EXAMPLE_BLOCK.search(read("skills/harness-coach/SKILL.md")).group(1)
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "pieces.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(block)
+            result = subprocess.run([sys.executable, os.path.join(ROOT, "cli", "harness.py"), "place", "review", path],
+                                    capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("1 piece read", result.stdout)
+
+    def test_no_example_of_a_skill_is_a_graded_piece(self):
+        graded = graded_lines()
+        for path, _ in skill_files():
+            with self.subTest(skill=path):
+                self.assertEqual(leaked_examples(example_pieces(read(path)), graded), [])
 
 
 def shadowed_names(path: str) -> list[str]:
