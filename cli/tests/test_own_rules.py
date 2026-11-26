@@ -365,18 +365,34 @@ class SkillExamplesGiveNoAnswerAwayTests(unittest.TestCase):
         self.assertGreaterEqual(len(LABEL_TEXT.findall(read(COURSE_PAGE))), 4, "the course offers no piece to place")
         self.assertIn(COURSE_PAGE, shipped_examples())
 
+    def traps_found(self, plan: str, key: str) -> tuple[int, int]:
+        """What `place check` finds of an answer key in a plan: (traps found, healthy items moved)."""
+        result = subprocess.run([sys.executable, os.path.join(ROOT, "cli", "harness.py"), "place", "check",
+                                 plan, "--expected", key], capture_output=True, text=True, timeout=60)
+        found = TRAPS_FOUND.search(result.stdout)
+        self.assertIsNotNone(found, result.stdout + result.stderr)
+        return int(found.group(1)), int(found.group(3))
+
     def test_the_example_plan_finds_no_trap_of_an_answer_key(self):
         """Words apart, a plan that cites the graded lines of a fixture is its answer: `place check` says so."""
         keys = sorted(glob.glob(os.path.join(ROOT, "fixtures", "design", "*", "expected.json")))
         self.assertGreaterEqual(len(keys), 2)
         for key in keys:
             with self.subTest(key=os.path.relpath(key, ROOT)):
-                result = subprocess.run([sys.executable, os.path.join(ROOT, "cli", "harness.py"), "place", "check",
-                                         os.path.join(ROOT, EXAMPLE_PLAN), "--expected", key],
-                                        capture_output=True, text=True, timeout=60)
-                found = TRAPS_FOUND.search(result.stdout)
-                self.assertIsNotNone(found, result.stdout + result.stderr)
-                self.assertEqual((found.group(1), found.group(3)), ("0", "0"), result.stdout)
+                self.assertEqual(self.traps_found(os.path.join(ROOT, EXAMPLE_PLAN), key), (0, 0))
+
+    def test_that_check_sees_the_plan_that_was_the_example_even_in_other_words(self):
+        fixture = os.path.join(ROOT, "fixtures", "design", "release-skill")
+        with open(os.path.join(fixture, "runs", "2026-11-15-author", "pieces.json"), encoding="utf-8") as fh:
+            pieces = json.load(fh)
+        reworded = [dict(piece, piece=f"Piece {number}") for number, piece in enumerate(pieces)]
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "pieces.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(reworded, fh)
+            found, _ = self.traps_found(path, os.path.join(fixture, "expected.json"))
+        self.assertEqual(found, 7)
+        self.assertEqual(leaked_examples([piece["piece"] for piece in reworded], graded_lines()), [])
 
     def test_the_guard_reads_the_examples_and_the_reference_pages(self):
         shipped = shipped_examples()
