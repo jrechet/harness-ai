@@ -1,28 +1,28 @@
 [
   {
-    "piece": "The repository tree",
+    "piece": "Where the language files live",
     "answers": {
       "nature": "knowledge",
       "scope": "discoverable"
     },
     "current": "skill",
     "evidence": [
-      ".claude/skills/release/SKILL.md:8"
+      ".claude/skills/add-locale/SKILL.md:8"
     ]
   },
   {
-    "piece": "Compute the next version from the commits",
+    "piece": "List the keys a language file lacks",
     "answers": {
       "nature": "compute",
       "when": "on_demand"
     },
     "current": "skill",
     "evidence": [
-      ".claude/skills/release/SKILL.md:12"
+      ".claude/skills/add-locale/SKILL.md:12"
     ]
   },
   {
-    "piece": "Every published version has its changelog entry",
+    "piece": "No language ships with an untranslated key",
     "answers": {
       "nature": "rule",
       "incident": "yes",
@@ -31,76 +31,65 @@
     },
     "current": "skill",
     "evidence": [
-      ".claude/skills/release/SKILL.md:13"
+      ".claude/skills/add-locale/SKILL.md:13"
     ]
   },
   {
-    "piece": "Never publish outside main",
-    "answers": {
-      "nature": "limit",
-      "bypass_limit": "dev"
-    },
-    "current": "skill",
-    "evidence": [
-      ".claude/skills/release/SKILL.md:14"
-    ]
-  },
-  {
-    "piece": "Set the version, tag, push",
+    "piece": "Add a language: file, keys, translation, screenshots",
     "answers": {
       "nature": "procedure"
     },
     "current": "skill",
     "evidence": [
-      ".claude/skills/release/SKILL.md:15"
+      ".claude/skills/add-locale/SKILL.md:10"
     ]
   },
   {
-    "piece": "Publish the package with the registry token",
-    "answers": {
-      "nature": "action",
-      "access": "deliver"
-    },
-    "current": "skill",
-    "evidence": [
-      ".claude/skills/release/SKILL.md:16"
-    ]
-  },
-  {
-    "piece": "Write the announcement",
+    "piece": "Translate the new strings in the product's tone",
     "answers": {
       "nature": "judgment",
       "isolation": "none"
     },
     "current": "session",
     "evidence": [
-      ".claude/skills/release/SKILL.md:17"
+      ".claude/skills/add-locale/SKILL.md:14"
     ]
   },
   {
-    "piece": "Review the announcement without the author's bias",
+    "piece": "Send the strings to the translation agency's portal",
     "answers": {
-      "nature": "judgment",
-      "isolation": "independence"
+      "nature": "action",
+      "access": "write"
     },
-    "current": "subagent",
+    "current": "skill",
     "evidence": [
-      ".claude/agents/release-reviewer.md:1"
+      ".claude/skills/add-locale/SKILL.md:15"
     ]
   },
   {
-    "piece": "The agent never reads .npmrc.publish",
+    "piece": "The agent never rewrites the legal notices",
     "answers": {
       "nature": "limit",
       "bypass_limit": "agent"
     },
     "current": "agents_md",
     "evidence": [
-      "AGENTS.md:6"
+      "AGENTS.md:9"
     ]
   },
   {
-    "piece": "Commits follow Conventional Commits",
+    "piece": "Plural forms of each language",
+    "answers": {
+      "nature": "knowledge",
+      "scope": "reference"
+    },
+    "current": "agents_md",
+    "evidence": [
+      "AGENTS.md:10"
+    ]
+  },
+  {
+    "piece": "Dates and amounts go through the formatting helper",
     "answers": {
       "nature": "rule",
       "incident": "yes",
@@ -109,20 +98,14 @@
     },
     "current": "ci_check",
     "evidence": [
-      "AGENTS.md:7"
+      "AGENTS.md:11"
     ]
   },
   {
-    "piece": "No release with uncommitted files",
+    "piece": "Take the screenshots of every screen in the new language",
     "answers": {
-      "nature": "rule",
-      "incident": "forget",
-      "checkable": "yes",
-      "bypass_rule": "agent"
-    },
-    "current": "skill",
-    "evidence": [
-      ".claude/skills/release/SKILL.md:19"
-    ]
+      "nature": "judgment",
+      "isolation": "context"
+    }
   }
 ]

@@ -42,7 +42,7 @@ Ask the user only what is a decision, not a fact. In practice, almost always two
 Write the pieces in a JSON file outside the repository, then run `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place plan <file>` and show the plan as is, followed by one plain sentence per piece saying where it goes and why:
 
 ```json
-[{"piece": "Never push to main", "answers": {"nature": "limit", "bypass_limit": "dev"}, "current": "agents_md"}]
+[{"piece": "Messages shown to users are in plain words", "answers": {"nature": "rule", "incident": "no", "scope": "always"}, "current": "skill"}]
 ```
 
 `current` only serves in review: it is the id of the destination where the piece lives today (`place grid` lists them). A piece that does not exist yet has no `current`. The plan then gives a verdict: KEEP, PUSH_DOWN, PROMOTE, MOVE (same layer, another place) or REMOVE. No verdict while an answer is missing.
