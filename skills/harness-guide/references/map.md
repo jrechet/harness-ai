@@ -14,6 +14,7 @@ Not sure which of the lines below fits: `harness-guide`, the skill that reads th
 |---|---|---|
 | Start with Claude Code, Copilot or Cursor on a repository; write or redo `AGENTS.md` / `CLAUDE.md` | `harness-init` | `harness-step` once level 1 is reached |
 | Know where the repository stands, what the next step is, go up one level, or stop at one | `harness-step` | `harness-audit` for a full review |
+| Keep the level in view above the prompt while you work | the plugin harness-hud, a Claude Code mod: `/plugin install harness-hud@harness-ai`, then `/harness-hud` for its pane | it only shows the state last written: `harness-medals` to have it explained, `harness-step` to move |
 | Have the level told as a medal, the unlocked achievements, a badge or the medals page | `harness-medals` | it changes nothing but its medals file: to move, `harness-step` |
 | Audit an existing setup: is each rule, skill, agent, script and workflow in its place, what still serves | `harness-audit` | `harness-design` for one piece only |
 | Have one skill, agent or rule reviewed and explained: what is good, what is weak, which concept is behind it; nothing is written, no level is mentioned | `harness-coach` | `harness-design` to place the pieces and set up the files |

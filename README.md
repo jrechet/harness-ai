@@ -211,11 +211,11 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 /plugin install harness-hud@harness-ai
 ```
 
-The first line installs from GitHub; it works for anyone, as the repository is public. From a local clone or a private copy, use `claude plugin marketplace add <clone folder>` instead, then the two install lines.
+The first line installs from GitHub; it works for anyone, as the repository is public. From a local clone or a private copy, use `claude plugin marketplace add <clone folder>` instead, then the install lines.
 
 A skill triggers on its description ("audit my AGENTS.md", "review this PR") or by its name: `/harness-ai:harness-init`, `/ai-sdlc:review`.
 
-**What is verified, and what is not.** Both manifests pass `claude plugin validate`. The skills call their CLI through `${CLAUDE_PLUGIN_ROOT}`, which Claude Code replaces with the plugin's install folder. Loaded with `claude --plugin-dir` in a real session, the `ai-sdlc` plugin does what it says on what was tried: the guardrail refuses `git tag` before it runs and lets `git status` through, and the `ticket` skill finds its CLI. Both plugins also install from the repository's local marketplace (`claude plugin marketplace add <clone folder>`), and the installed guardrail does refuse a tag. Not tried yet: installing from GitHub, the other skills in a session, an interactive session. If a skill does not find its CLI, run the command by hand from your clone, as above, and open an issue.
+**What is verified, and what is not.** The three manifests pass `claude plugin validate`. The skills call their CLI through `${CLAUDE_PLUGIN_ROOT}`, which Claude Code replaces with the plugin's install folder. Loaded with `claude --plugin-dir` in a real session, the `ai-sdlc` plugin does what it says on what was tried: the guardrail refuses `git tag` before it runs and lets `git status` through, and the `ticket` skill finds its CLI. `harness-ai` and `ai-sdlc` also install from the repository's local marketplace (`claude plugin marketplace add <clone folder>`), and the installed guardrail does refuse a tag. Not tried yet: installing `harness-hud` from a marketplace (it was loaded from a folder, in the desktop app), installing from GitHub, the other skills in a session, an interactive session. If a skill does not find its CLI, run the command by hand from your clone, as above, and open an issue.
 
 To try without installing: `claude --plugin-dir /path/to/harness-ai`.
 
