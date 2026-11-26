@@ -2,17 +2,21 @@ import type { Hud, HudLevel, Reading } from '../types'
 
 const MAX_TEXT = 200
 const MAX_ROWS = 12
+const MAX_CHECKS = 100
+const MAX_NAME = 24
+// Controls (C0, C1), line and paragraph separators, and the format characters that hide or reorder text.
+const UNSAFE = /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u200b-\u200f\u2028-\u202e\u2060-\u206f\ufeff]+/g
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
 const isCount = (value: unknown): value is number =>
-  typeof value === 'number' && Number.isInteger(value) && value >= 0
+  typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= MAX_CHECKS
 
-// A state file is text someone else wrote: one line, bounded, no control characters.
+// A state file is text someone else wrote: one line, bounded, nothing that steers a terminal or hides text.
 const text = (value: unknown): string =>
   typeof value === 'string'
-    ? value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, MAX_TEXT)
+    ? value.replace(UNSAFE, ' ').trim().slice(0, MAX_TEXT)
     : ''
 
 const labels = (checks: unknown[], keep: (check: Record<string, unknown>) => boolean): string[] =>
@@ -79,10 +83,15 @@ export const nextLevel = (hud: Hud): HudLevel | null =>
 
 /** One line for the row above the prompt. */
 export const headline = (hud: Hud): string => {
-  const here = `harness · level ${hud.reached}${hud.reachedName ? ` ${hud.reachedName}` : ''}`
+  const name = hud.reachedName.slice(0, MAX_NAME)
+  const here = `harness · level ${hud.reached}${name ? ` ${name}` : ''}`
   const next = nextLevel(hud)
   if (next === null) {
-    return hud.target !== null ? `${here} · target reached` : `${here} · every level held`
+    if (hud.isTargetReached) {
+      return `${here} · target reached`
+    }
+
+    return hud.target === null && hud.levels.length > 0 && hud.levels.every(one => one.isAchieved) ? `${here} · every level held` : here
   }
 
   return `${here} · level ${next.level}: ${next.passed} of ${next.total} checks`

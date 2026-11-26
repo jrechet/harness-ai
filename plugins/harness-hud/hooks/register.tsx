@@ -13,8 +13,9 @@ const ABSENT: Reading = { kind: 'absent' }
 const reading = atom({ plugin: 'harness-hud', key: 'reading' } as const, ABSENT, { shape: 'reading-1' })
 const isHidden = atom({ plugin: 'harness-hud', key: 'isHidden' } as const, false)
 
-// Reads the state file of the working directory. It runs no command: the file is what
-// `harness status` last wrote, and its date is shown so a stale one is seen as stale.
+// Reads the state file of the folder the session started in. It runs no command: the file is what
+// `harness status` last wrote. Its date is the day the state last changed, not the day it was last
+// measured: a status that finds nothing new leaves the file alone.
 async function refresh($: EngineInterface): Promise<void> {
   let next: Reading = ABSENT
   try {
@@ -42,7 +43,9 @@ export const register: Register = on => {
   })
 
   on('turn.complete', async ($, e, next) => {
-    await refresh($)
+    if (e.agentId === undefined) {        // a sub-agent's end is heard too: only the session's own turn reads
+      await refresh($)
+    }
 
     return next(e)
   })
@@ -50,9 +53,9 @@ export const register: Register = on => {
   on('command.run', { command: 'harness-hud' }, async $ => {
     await refresh($)
     await update($, isHidden, () => false)
-    await $.ui.open({ id: PANE, title: TITLE })
+    const opened = await $.ui.open({ id: PANE, title: TITLE })
 
-    return { text: 'Harness pane opened.' }
+    return { text: opened.isPlaced ? 'Harness pane opened.' : 'The harness pane could not be shown here.' }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
@@ -64,8 +67,17 @@ export const register: Register = on => {
 
     return (
       <Box>
-        <Text dimColor>{headline(now.hud)} </Text>
-        <Button key="details" label="Details" onPress={() => void $.ui.open({ id: PANE, title: TITLE })} />
+        <Text dimColor wrap="truncate-end">
+          {headline(now.hud)}{' '}
+        </Text>
+        <Button
+          key="details"
+          label="Details"
+          onPress={async () => {
+            await refresh($)
+            await $.ui.open({ id: PANE, title: TITLE })
+          }}
+        />
         <Text> </Text>
         <Button key="hide" label="Hide" onPress={() => update($, isHidden, () => true)} />
       </Box>
@@ -78,7 +90,7 @@ export const register: Register = on => {
     if (now.kind === 'absent') {
       return (
         <Box flexDirection="column">
-          <Text>No harness state in this repository.</Text>
+          <Text>No harness state in the folder this session started in.</Text>
           <Text dimColor>The harness-ai plugin writes {STATE_FILE} when its status is measured.</Text>
         </Box>
       )
@@ -102,7 +114,7 @@ export const register: Register = on => {
         </Text>
         <Text dimColor>
           {hud.target === null ? 'No target level set' : hud.isTargetReached ? `Target level ${hud.target} reached` : `Target: level ${hud.target}`}
-          {hud.date ? ` · measured on ${hud.date}` : ''}
+          {hud.date ? ` · last changed on ${hud.date}` : ''}
         </Text>
         <Text> </Text>
         {hud.levels.map(one => (

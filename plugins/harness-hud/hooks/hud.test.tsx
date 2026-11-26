@@ -165,7 +165,7 @@ test('the pane shows the ladder, what is missing, what was set aside and the nex
     expect((await ui.find({ type: 'Text', text: /2 Looped/ }))?.text).toBe('2 Looped  ■■□□ 2/4')
     expect((await ui.find({ type: 'Text', text: /1 Framed/ }))?.text).toBe('1 Framed  ■■■■■ 5/5 · held')
     expect((await ui.find({ type: 'Text', text: /4 Delegated/ }))?.text).toMatch(/beyond the target/)
-    expect(await ui.find({ type: 'Text', text: /Target: level 3 · measured on 2026-11-22/ })).toBeDefined()
+    expect(await ui.find({ type: 'Text', text: /Target: level 3 · last changed on 2026-11-22/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /Missing for level 2/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /A harvest ran/ })).toBeDefined()
     expect(await ui.find({ type: 'Text', text: /A rule cites its check/ })).toBeDefined()
