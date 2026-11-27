@@ -8,7 +8,7 @@ description: Reviews one skill, agent, rule or instruction file and says what is
 A person who wrote a skill wants to know whether it holds, and to understand why when it does not. A level number or a verdict code tells them neither. This skill reads one artifact, says what is well placed, names the concept behind each weakness, and explains it. It stays outside the level ladder: no state file, no report, no target.
 
 Three rules that are not negotiable:
-- **The findings come from `harness place review`, not from your opinion.** So does the choice between assuming an answer and asking for it: `--decisions` says which answers change the review. You split the artifact and answer the grid's questions; the command names the concepts. If a finding seems wrong, an answer is wrong: change it and say why.
+- **The findings come from `harness place review`, not from your opinion.** With `--decisions` it also says what each answer you gave for the author would move. You split the artifact and answer the grid's questions; the command names the concepts. If a finding seems wrong, an answer is wrong: change it and say why.
 - **Nothing is written in the repository.** No `.harness/` file, no report, no fix. The pieces file goes in a temporary folder outside the repository.
 - **Concepts, not numbers.** Never show a level, a layer (L1…L4), a medal, a verdict code or a grid id, unless the user asks for them. Do not run `status`.
 
@@ -19,7 +19,7 @@ Read the whole file the user names (a SKILL.md, an agent, an AGENTS.md, a rule, 
 
 ### 2. Split and answer
 `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place grid` gives the kinds of pieces and the closed questions. Split the artifact into pieces of a single kind: a step followed by a condition, "and check that", "without ever" are signs of a piece to cut out. For each piece, answer the questions from the repository, and note:
-- `current`: where the piece is held **today**, not where the sentence is written. Its value is one of the ids listed under "Destinations" by `place grid`, and no other. A rule the text states and nothing checks is held by the text (`skill`, `agents_md`, `subagent`); a rule that cites a check you opened is held by that check only if the check fails on the fault **and** is required. A choice the text leaves to the agent is held by the session (`session`), wherever the sentence is written. A limit set by a setting the tool applies (a subagent's own list of tools, a denied permission) is held by `permission`.
+- `current`: where the piece is held **today**, not where the sentence is written. Its value is one of the ids listed under "Destinations" by `place grid`, except `nothing` (a piece you review exists, so it is held somewhere), and no other. A rule the text states and nothing checks is held by the text (`skill`, `agents_md`, `subagent`); a rule that cites a check you opened is held by that check only if the check fails on the fault **and** is required. A choice the text leaves to the agent is held by the session (`session`), wherever the sentence is written. A limit set by a setting the tool applies (a subagent's own list of tools, a denied permission) is held by `permission`.
 - `evidence`: the `path:line` that shows it.
 
 Whether a check is required is a setting of the forge, often invisible from the files: look for it (the branch protection through `gh`, a ruleset in the repository). If you cannot see it, it is an open point (step 3): until the user says, count the check as held by `ci_check` and say that you assumed it.
@@ -37,8 +37,12 @@ Write the pieces in a JSON file in a temporary folder outside the repository:
 
 Then `python3 "${CLAUDE_PLUGIN_ROOT}/cli/harness.py" place review <file> --decisions`. Exit code 3: an answer is missing, the output says which question in plain words, with its options; find the matching ids in `place grid`, answer it or ask the user. Exit code 2: invalid input, fix the file.
 
-The last section of the output, "Answers that are the author's to give", lists for each decision what every other answer would give. That section is for you: it decides what you ask, and you do not show it. An answer is an **open point** when another option moves the piece or opens another question, and the artifact's words do not rule that option out ("never", "stop" rule out "it costs nothing"; nothing in a sentence says who must not go around it). Three more things are open points, which the command cannot see:
-- a sentence that reads both as a rule on the result and as a limit on what anyone may do ("never publish outside main"): the two readings lead to different places;
+The last section of the output, "Answers that are the author's to give", lists for each decision what every other answer would give. That section is for you: it decides what you ask, and you do not show it. An answer is an **open point** when another option moves the piece or opens another question, and nothing you read rules that option out. The command cannot tell you that part; read it this way:
+- what it costs: a sentence that forbids or requires without condition rules out "it costs nothing", and the two other answers lead to the same place. It is open only when the words could be a plain preference;
+- who must not go around it: settled when the sentence names whom it binds ("the agent never…", "nobody may…"), or when the piece is held today by a guard you verified, whose reach is then the answer. Otherwise it is open: every answer leads to a different place.
+
+Three more things are open points, which the command cannot see:
+- a sentence that reads both as a rule on the result and as a limit on what anyone may do ("never deploy on a Friday": a check that fails, or a right nobody holds?): the two readings lead to different places;
 - a check whose required status you could not see;
 - two texts that contradict each other on the same piece.
 
@@ -64,9 +68,9 @@ Offer once, and do nothing without a yes:
 ## Common pitfalls
 - **Opening with the repository's level.** The user asked about one skill. Where the repository stands is another question (harness-step).
 - **Listing only defects.** What is well placed is half of the answer: it is what the author must keep.
-- **Getting `current` wrong.** A sentence in a SKILL.md that cites a check which exists and blocks is held by the check: open the workflow before saying the text is all there is. The reverse is as wrong: a job that exists, runs on pull requests only and that nothing makes required holds nobody.
+- **Getting `current` wrong.** A sentence in a SKILL.md that cites a check which exists and blocks is held by the check: open the workflow before saying the text is all there is. The reverse is as wrong: a job you can see is not blocking (it is allowed to fail, or a ruleset in the repository leaves it out) holds nobody.
 - **Assuming where the answer decides.** Stating an assumption at the end does not replace the question: the user reads a review built on an answer they would not have given. One grouped question costs less than a wrong destination.
-- **Asking what decides nothing.** An answer that every option leaves in the same place is assumed and said, not asked.
+- **Asking what the text already says.** A sentence that names whom it binds, or that cannot be a preference, is not an open point: its answer is assumed and said, not asked.
 - **Showing the grid's ids.** `bypass_rule` and `ci_check` belong to the pieces file, `PUSH_DOWN` to the other commands' output. Say "who must not be able to skip it?", "a check in the CI that blocks merging".
 - **Fixing while reviewing.** The review explains. The change is another request, with its own agreement.
 - **Turning a remark into a finding.** Only what the command lists is a finding; your own reading is given apart and named as such.

@@ -503,8 +503,8 @@ class ConceptReviewTests(unittest.TestCase):
 
 
 class DecisionTests(unittest.TestCase):
-    """`place review --decisions`: which of the answers that are the author's to give would change the
-    review. The coach assumes the ones that change nothing and asks the others."""
+    """`place review --decisions`: what every other option would give, for the answers that are the
+    author's to give. It says what an answer moves; whether to ask for it stays the coach's reading."""
 
     RULE = {"piece": "Tests pass before a release", "current": "skill", "evidence": ["SKILL.md:9"],
             "answers": {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "release"}}
@@ -531,7 +531,6 @@ class DecisionTests(unittest.TestCase):
 
     def test_who_must_not_skip_it_moves_the_piece_and_names_where(self):
         who = self._decisions(self.RULE)[1]
-        self.assertTrue(who["decides"])
         agent = self._others(who)["agent"]
         self.assertEqual((agent["outcome"], agent["destination"]), ("moves", "hook_check"))
         self.assertEqual(agent["concept"], "skippable_condition")
@@ -541,16 +540,21 @@ class DecisionTests(unittest.TestCase):
         dev = self._others(self._decisions(held)[1])["dev"]
         self.assertEqual((dev["outcome"], dev["destination"], dev["concept"]), ("moves", "ci_check", None))
 
-    def test_an_answer_no_other_option_changes_does_not_decide(self):
-        grid = json.loads(json.dumps(GRID))
-        for option in grid["questions"]["bypass_limit"]["options"].values():
-            option.pop("ask", None)
-            option["place"] = "permission"
-        limit = {"piece": "Never read the token", "answers": {"nature": "limit", "bypass_limit": "agent"},
-                 "current": "skill"}
-        entry, = place.decisions(grid, [limit])
-        self.assertFalse(entry["decides"])
-        self.assertEqual({o["outcome"] for o in entry["others"]}, {"same"})
+    def test_an_answer_the_piece_never_used_is_not_read_by_the_other_options(self):
+        for unused in ("always", "bogus"):
+            piece = {**self.RULE, "answers": {**self.RULE["answers"], "scope": unused}}
+            other = self._others(self._decisions(piece)[0])["no"]
+            self.assertEqual(other["outcome"], "opens", unused)
+
+    def test_the_flag_never_refuses_a_file_the_plain_review_accepts(self):
+        piece = {**self.RULE, "answers": {**self.RULE["answers"], "scope": "bogus"}}
+        self.assertEqual((self._review([piece])[0], self._review([piece], "--decisions")[0]), (0, 0))
+
+    def test_every_decision_of_the_shipped_grid_has_an_option_that_changes_the_result(self):
+        """Why the command cannot say "assume this one": the skill's text decides what to ask."""
+        for qid in place.DECISIONS:
+            targets = {place._target(o) for o in GRID["questions"][qid]["options"].values()}
+            self.assertGreater(len(targets), 1, qid)
 
     def test_a_piece_with_no_decision_or_still_waiting_is_not_listed(self):
         procedure = {"piece": "The steps", "answers": {"nature": "procedure"}, "current": "skill"}

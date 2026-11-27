@@ -378,8 +378,10 @@ def _reviewed(grid: dict[str, Any], item: Any) -> dict[str, Any]:
 
 def _other_answer(grid: dict[str, Any], item: dict[str, Any], row: dict[str, Any], qid: str,
                   answer: str) -> dict[str, Any]:
-    """What the review of this piece becomes with another answer to one question, the rest unchanged."""
-    answers = {**_normalize(grid, item["answers"]), qid: answer}
+    """What the review of this piece becomes with another answer to one question. Only the answers the
+    piece's own path used are kept: one given for a question off that path was never read, so it
+    neither answers the question the other option opens nor gets refused there."""
+    answers = {**{step["question"]: step["answer"] for step in row["path"]}, qid: answer}
     other = _reviewed(grid, {**item, "answers": answers})
     told = {"answer": answer, "label": grid["questions"][qid]["options"][answer]["label"]}
     if other["status"] != "placed":
@@ -391,8 +393,8 @@ def _other_answer(grid: dict[str, Any], item: dict[str, Any], row: dict[str, Any
 
 def decisions(grid: dict[str, Any], pieces: list[Any]) -> list[dict[str, Any]]:
     """For each answer that is a decision (`DECISIONS`) of a placed piece, what every other option
-    would give: the same place, another place, or another question. `decides` is true when at least
-    one option changes the result: that answer is worth asking, the others can be assumed."""
+    would give: the same place, another place, or another question. It says what an answer moves, not
+    whether to ask for it: on the shipped grid every such answer has an option that changes the result."""
     entries = []
     for item in pieces:
         row = _reviewed(grid, item)
@@ -406,8 +408,7 @@ def decisions(grid: dict[str, Any], pieces: list[Any]) -> list[dict[str, Any]]:
             others = [_other_answer(grid, item, row, qid, o) for o in options if o != step["answer"]]
             entries.append({"piece": row["piece"], "evidence": row["evidence"], "question": qid,
                             "text": grid["questions"][qid]["text"], "answer": step["answer"],
-                            "label": options[step["answer"]]["label"], "others": others,
-                            "decides": any(o["outcome"] != "same" for o in others)})
+                            "label": options[step["answer"]]["label"], "others": others})
     return entries
 
 
@@ -424,14 +425,10 @@ def render_decisions_md(grid: dict[str, Any], entries: list[dict[str, Any]]) -> 
     out = ["", "## Answers that are the author's to give", "",
            "What it costs and who must not go around it are decisions, not facts read in the repository. "
            "For each one given, what every other answer would change."]
-    for entry in [e for e in entries if e["decides"]]:
+    for entry in entries:
         out += ["", f"- **{_cell(entry['piece'])}**{_cited(entry)}: {entry['text']}",
                 f"  Answered: {entry['label']}"]
         out += [f"  - {_told_outcome(grid, o)}: {o['label']}" for o in entry["others"]]
-    settled = [e for e in entries if not e["decides"]]
-    if settled:
-        out += ["", "No other answer changes the result for: "
-                + "; ".join(f"{_cell(e['piece'])} ({e['text']})" for e in settled) + "."]
     if not entries:
         out += ["", "None of the pieces placed rests on such an answer."]
     return "\n".join(out) + "\n"
