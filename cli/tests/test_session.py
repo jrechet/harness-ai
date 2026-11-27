@@ -8,6 +8,7 @@ from __future__ import annotations
 import io
 import json
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -392,6 +393,207 @@ class ForkAndLateTotalsTests(SessionCase):
         self.assertIn("open for 9.0 h", out)
 
 
+class OneMessageSeveralRowsTests(SessionCase):
+    """Seen on a real session: Claude Code writes one row per block of a message, with the same id
+    and the same usage. Counting the first row only saw 1,869 tool calls where there were 9,949."""
+
+    def rows(self):
+        text = assistant("m1", 200)
+        first, second = assistant("m1", 200, tools=[("t1", "Bash")]), assistant("m1", 200, tools=[("t2", "Read")])
+        return [human(), text, first, second, tool_result("t1", error=True), tool_result("t2")]
+
+    def test_the_tool_calls_of_every_row_are_counted_and_the_usage_once(self):
+        self.transcript(self.rows())
+        self.measure("--session", SESSION)
+        data = self.stored()
+        self.assertEqual(data["counts"]["tool_calls"], 2)
+        self.assertEqual(data["counts"]["tool_errors"], 1)
+        self.assertEqual(data["counts"]["assistant_messages"], 1)
+        self.assertEqual(data["rows"]["output_tokens"], 200)
+        self.assertEqual(data["by_skill"][0]["tool_calls"], 2)
+
+    def test_a_row_without_usage_does_not_hide_the_row_that_has_it(self):
+        bare = {"type": "assistant", "sessionId": SESSION, "message": {"id": "m1", "content": []}}
+        self.transcript([human(), bare, assistant("m1", 50)])
+        code, _, _ = self.measure("--session", SESSION)
+        self.assertEqual(code, 0)
+        self.assertNotIn("no usage", self.stored()["reason"])
+        self.assertEqual(self.stored()["rows"]["output_tokens"], 50)
+
+    def test_failures_never_exceed_the_calls_seen(self):
+        self.transcript([human(), assistant("m1", 5), tool_result("unknown", error=True)])
+        self.measure("--session", SESSION)
+        self.assertEqual(self.stored()["counts"]["tool_errors"], 0)
+
+
+class HostileTranscriptTests(SessionCase):
+    """Every field copied out of the transcript is fed a path, an address, a link and a sentence."""
+    HOSTILE = ("/Users/someone/private-client/.claude/skills/deal", "someone@corp.example",
+               "https://user:pw@host.example/x", "une phrase entière", "../../etc/passwd")
+
+    def test_a_private_looking_name_comes_out_as_other(self):
+        for value in self.HOSTILE:
+            with self.subTest(value=value):
+                row = assistant("m1", 5, skill=value, plugin=value, version=value, model=value)
+                denied = {**tool_result("t9"), "toolDenialKind": value}
+                totals = cost_state()
+                totals["modelUsage"] = {value: totals["modelUsage"]["claude-x"]}
+                self.transcript([human(), row, denied, totals])
+                _, out, _ = self.measure("--session", SESSION)
+                with open(os.path.join(self.repo, ".harness", "session", SESSION + ".json"), encoding="utf-8") as fh:
+                    written = fh.read()
+                self.assertNotIn(value, written)
+                self.assertNotIn(value, out)
+                self.assertIn("(other)", written)
+
+    def test_ordinary_names_pass(self):
+        row = assistant("m1", 5, skill="harness-ai:harness-step", plugin="harness-ai", version="2.1.331", model="claude-fable-5-2")
+        self.transcript([human(), row, {**tool_result("t9"), "toolDenialKind": "user-rejected"}])
+        self.measure("--session", SESSION)
+        data = self.stored()
+        self.assertEqual(data["by_skill"][0]["skill"], "harness-ai:harness-step")
+        self.assertEqual(data["claude_code_versions"], ["2.1.331"])
+        self.assertEqual(data["counts"]["denials"], {"user-rejected": 1})
+
+    def test_every_string_written_is_of_a_known_kind(self):
+        self.transcript(FULL, subagents=[SUBAGENT])
+        self.measure("--session", SESSION)
+        data = self.stored()
+        self.assertEqual(set(data["counts"]), session.COUNT_KEYS)
+        self.assertEqual(set(data["totals"]), session.TOTAL_KEYS)
+        self.assertEqual(set(data["rows"]), set(session.COUNTED))
+        for model, numbers in data["totals"]["by_model"].items():
+            self.assertRegex(model, session.MODEL)
+            self.assertEqual(set(numbers), {"output_tokens", "cost_usd_estimate"})
+
+    def test_numbers_that_are_not_finite_are_not_numbers(self):
+        path = self.transcript([human(), assistant("m1", 5)])
+        with open(path, "a", encoding="utf-8") as fh:
+            fh.write('{"type":"assistant","sessionId":"%s","message":{"id":"m2","usage":{"output_tokens":NaN}}}\n' % SESSION)
+            fh.write('{"type":"cost-state","sessionId":"%s","totalCostUSD":Infinity,"modelUsage":{"m":{}}}\n' % SESSION)
+            fh.write('{"type":"assistant","x":' + "[" * 100000 + "]" * 100000 + "}\n")
+        code, out, err = self.measure("--session", SESSION)
+        self.assertEqual(code, 0, err)
+        self.assertNotIn("Traceback", err)
+        self.assertNotIn("nan", out.lower())
+        self.assertEqual(self.stored()["totals"]["source"], "rows")
+
+
+class WhereItIsWrittenTests(SessionCase):
+    def git(self, *argv):
+        subprocess.run(["git", "-C", self.repo, "-c", "user.name=t", "-c", "user.email=t@t", *argv], check=True, capture_output=True)
+
+    def test_a_harness_dir_outside_the_repository_is_refused(self):
+        for value in ("../esc", os.path.join(self.root, "abs"), "."):
+            with self.subTest(value=value):
+                code, _, err = self.run_cli("note", "x", "--repo", self.repo, "--harness-dir", value)
+                self.assertEqual(code, 2 if value != "." else 0, err)
+        self.assertFalse(os.path.exists(os.path.join(self.root, "esc")))
+        self.assertFalse(os.path.exists(os.path.join(self.root, "abs")))
+
+    def test_a_linked_session_folder_is_refused(self):
+        victim = os.path.join(self.root, "victim")
+        os.makedirs(victim)
+        os.makedirs(os.path.join(self.repo, ".harness"))
+        os.symlink(victim, os.path.join(self.repo, ".harness", "session"))
+        code, _, err = self.run_cli("note", "x", "--repo", self.repo)
+        self.assertEqual(code, 2)
+        self.assertEqual(os.listdir(victim), [])
+
+    def test_a_linked_notes_file_is_refused(self):
+        self.run_cli("note", "first", "--repo", self.repo, "--now", NOW)
+        notes = os.path.join(self.repo, ".harness", "session", "notes.jsonl")
+        target = os.path.join(self.root, "elsewhere.txt")
+        os.remove(notes)
+        os.symlink(target, notes)
+        code, _, _ = self.run_cli("note", "second", "--repo", self.repo, "--now", NOW)
+        self.assertEqual(code, 2)
+        self.assertFalse(os.path.exists(target))
+
+    def test_an_existing_gitignore_gets_the_line_that_ignores_everything(self):
+        folder = os.path.join(self.repo, ".harness", "session")
+        os.makedirs(folder)
+        with open(os.path.join(folder, ".gitignore"), "w", encoding="utf-8") as fh:
+            fh.write("# ours\n")
+        self.run_cli("note", "x", "--repo", self.repo, "--now", NOW)
+        with open(os.path.join(folder, ".gitignore"), encoding="utf-8") as fh:
+            self.assertEqual(fh.read().splitlines(), ["# ours", "*"])
+
+    def test_ignored_by_git_is_said_only_when_git_says_so(self):
+        _, out, _ = self.run_cli("note", "x", "--repo", self.repo, "--now", NOW)
+        self.assertNotIn("ignored by git", out)                # not a git repository: nothing is claimed
+        self.git("init", "-q")
+        _, out, _ = self.run_cli("note", "y", "--repo", self.repo, "--now", NOW)
+        self.assertIn("ignored by git", out)
+
+    def test_a_file_git_already_tracks_is_said_so(self):
+        self.git("init", "-q")
+        self.run_cli("note", "x", "--repo", self.repo, "--now", NOW)
+        self.git("add", "-f", ".harness/session/notes.jsonl")
+        self.git("commit", "-qm", "tracked by mistake")
+        _, out, _ = self.run_cli("note", "y", "--repo", self.repo, "--now", NOW)
+        self.assertIn("ALREADY TRACKS", out)
+        self.assertNotIn("ignored by git", out)
+
+    def test_a_time_that_is_not_one_is_refused(self):
+        code, _, err = self.run_cli("note", "x", "--repo", self.repo, "--now", "/Users/someone")
+        self.assertEqual(code, 2)
+
+
+class MoreRulesTests(SessionCase):
+    def test_a_summary_or_a_reminder_marked_human_is_not_a_prompt(self):
+        rows = [human(), {**human("summary"), "isCompactSummary": True}, {**human("meta"), "isMeta": True}, assistant("m1", 5)]
+        self.transcript(rows)
+        self.measure("--session", SESSION)
+        self.assertEqual(self.stored()["counts"]["human_prompts"], 1)
+
+    def test_the_late_totals_rule_starts_above_ten_percent(self):
+        for output, status in ((952, "measured"), (1000, "partial")):
+            with self.subTest(output=output):
+                self.transcript([human(), assistant("m1", output), cost_state(output=900)])
+                self.measure("--session", SESSION)
+                self.assertEqual(self.stored()["status"], status)
+
+    def test_an_unreadable_sub_agent_file_makes_the_measure_partial_not_refused(self):
+        path = self.transcript(FULL, subagents=[SUBAGENT])
+        os.makedirs(os.path.join(path[:-len(".jsonl")], "subagents", "agent-dir.jsonl"))     # a folder named like a file
+        code, _, err = self.measure("--session", SESSION)
+        self.assertEqual(code, 0, err)
+        self.assertIn("could not be read", self.stored()["reason"])
+        self.assertEqual(self.stored()["rows"]["output_tokens"], 850)
+
+    def test_a_copy_whose_rows_belong_to_another_session_says_so(self):
+        folder = os.path.join(self.projects, "-some-project")
+        os.makedirs(folder)
+        self.write_rows(os.path.join(folder, "agent-abcdef12.jsonl"), [assistant("m1", 5)])
+        code, _, _ = self.measure("--session", "agent-abcdef12")
+        self.assertEqual(code, 1)
+        self.assertIn("another session", self.stored("agent-abcdef12")["reason"])
+
+    def test_refusals_inside_sub_agents_are_counted_like_their_tool_calls(self):
+        sub = [assistant("s1", 5, tools=[("st1", "Bash")]), {**tool_result("st1", error=True), "toolDenialKind": "user-rejected"}]
+        self.transcript([human(), assistant("m1", 5)], subagents=[sub])
+        _, out, _ = self.measure("--session", SESSION)
+        self.assertEqual(self.stored()["counts"]["denials"], {"user-rejected": 1})
+        self.assertIn("sub-agents included", out)
+
+    def test_the_running_session_is_said_to_be_still_running(self):
+        self.transcript(FULL)
+        _, out, _ = self.measure(env=SESSION)
+        self.assertIn("still running", out)
+        _, out, _ = self.measure("--session", SESSION)
+        self.assertNotIn("still running", out)
+
+    def test_a_note_says_which_session_it_is_attached_to_and_the_list_shows_the_loose_ones(self):
+        _, out, _ = self.run_cli("note", "loose words", "--repo", self.repo, "--now", NOW)
+        self.assertIn("attached to no session", out)
+        _, out, _ = self.run_cli("note", "bound", "--repo", self.repo, "--now", NOW, env=SESSION)
+        self.assertIn("attached to session 11111111", out)
+        _, out, _ = self.run_cli("list", "--repo", self.repo)
+        self.assertIn("loose words", out)
+        self.assertIn("2 notes", out)
+
+
 class NoteTests(SessionCase):
     def notes(self):
         with open(os.path.join(self.repo, ".harness", "session", "notes.jsonl"), encoding="utf-8") as fh:
@@ -439,7 +641,7 @@ class ListTests(SessionCase):
         self.assertEqual(code, 0)
         self.assertIn(SESSION[:8], out)
         self.assertIn(other[:8], out)
-        self.assertIn("2 sessions measured", out)
+        self.assertIn("2 session files: 1 measured, 1 partial", out)
 
     def test_an_empty_list_says_how_to_start(self):
         code, out, _ = self.run_cli("list", "--repo", self.repo)
