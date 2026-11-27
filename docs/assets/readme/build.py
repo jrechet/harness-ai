@@ -95,7 +95,7 @@ def hero(c):
         b.append(f'<g {delay(3 + i, 0.18)}><rect x="{cx}" y="332" width="{width}" height="40" rx="8" fill="{fill}"/>'
                  + t(cx + width / 2, 358, label, 17, ink, HEAD, 600, "middle") + '</g>')
         cx += width + 10
-    stats = "2 plugins  ·  18 skills  ·  5 levels  ·  2 tested CLIs  ·  0 dependencies"
+    stats = "3 plugins  ·  18 skills  ·  5 levels  ·  2 tested CLIs  ·  0 dependencies"
     b.append(f'<g {delay(6)}>' + t(x, 406, stats, 15, c["muted"], MONO) + '</g>')
 
     # terminal card: real output of `harness.py status . --map` on this repository, lines shortened with …
