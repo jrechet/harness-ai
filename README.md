@@ -179,7 +179,7 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Move up one level, and stop | `harness-step` | measured on one project |
 | Audit your harness and remove what no longer serves | `harness-audit` | measured once on each of two projects: one compliant, 10 of 10; the other, held out, not compliant, 2 of 3 |
 | Create a skill, an agent or a rule, or put an existing one right, each piece in its place | `harness-design` | measured: 12 traps of 12 on a held-out case, on the text before 2026-11-25 |
-| Have one skill reviewed and explained: what is good, what is weak and which concept is behind it, with no level and nothing written | `harness-coach` | tooled, played once on a sample skill, not measured |
+| Have one skill reviewed and explained: what is good, what is weak and which concept is behind it, with no level and nothing written | `harness-coach` | tooled, played twice on a sample skill, not measured |
 | Ask "why this level?" | `harness-medals` | tooled |
 | Keep where the repository stands in view while you work: one quiet row above the prompt, a pane with the ladder (`/harness-hud`) | plugin `harness-hud`, a Claude Code mod that reads `.harness/state.json` and runs nothing | tooled: its own tests run under `claude plugin test`, not in CI; seen drawn once, in the desktop app |
 | Ask which skill or command fits what you want, or whether you need one at all | `harness-guide` | measured once: 20 questions of 20 routed, against 16 of 20 with the skill descriptions alone; the gap is the needs only a command line meets, and the questions were written from the same command help as the guide; triggering in a real session not measured ([the draw](docs/measurements/guide-routing-2026-11-23.json)) |
