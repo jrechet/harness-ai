@@ -13,6 +13,9 @@ same destination: that is what makes the grid a guarantee and not advice.
   harness place plan pieces.json            several pieces, with a verdict if `current` is given
   harness place review pieces.json          the same placement told as named concepts: what is well
                                             placed, what is weak and why; no layer, no verdict code
+  harness place review pieces.json --decisions   adds, for each answer that is the author's to give (what
+                                            it costs, who must not go around it), what every other
+                                            answer would change
   harness place check plan.json --expected … grades a review plan against a fixture's answer key
 
 Format of `pieces.json`: a list of
@@ -50,6 +53,8 @@ WRITTEN = ("skill", "agents_md", "agents_md_zone", "doc")
 # Held today exactly where the destination's own description puts it: not a move.
 SAME_PLACE = {("subagent", "judge")}
 # Whom a guard holds: the agent alone (1), everyone in the repository (2), every team (3).
+# The answers that are the author's decision, not a fact read in the repository.
+DECISIONS = ("incident", "bypass_rule", "bypass_limit")
 GUARD_REACH = {"permission": 1, "hook_check": 1, "hook_compute": 1, "cli": 1,
                "ci_check": 2, "release_gate": 2, "server_protection": 2, "workflow": 2, "pipeline": 2, "mcp": 2,
                "org_check": 3, "managed": 3}
@@ -363,16 +368,81 @@ def _evidence(item: dict[str, Any]) -> list[str]:
     return [e for e in entries if e and e.strip()]
 
 
+def _reviewed(grid: dict[str, Any], item: Any) -> dict[str, Any]:
+    """One piece of an existing artifact: placed, with its evidence and its concept if it is weak."""
+    row = place_piece(grid, item)
+    if row["current"] is None:
+        raise ValueError(f"{row['piece']}: current field missing; a review says where each piece is held today")
+    return {**row, "evidence": _evidence(item), "concept": concept(grid, row)}
+
+
+def _other_answer(grid: dict[str, Any], item: dict[str, Any], row: dict[str, Any], qid: str,
+                  answer: str) -> dict[str, Any]:
+    """What the review of this piece becomes with another answer to one question, the rest unchanged."""
+    answers = {**_normalize(grid, item["answers"]), qid: answer}
+    other = _reviewed(grid, {**item, "answers": answers})
+    told = {"answer": answer, "label": grid["questions"][qid]["options"][answer]["label"]}
+    if other["status"] != "placed":
+        return {**told, "outcome": "opens", "question": other["next"]["text"]}
+    if other["destination"]["id"] == row["destination"]["id"]:
+        return {**told, "outcome": "same"}
+    return {**told, "outcome": "moves", "destination": other["destination"]["id"], "concept": other["concept"]}
+
+
+def decisions(grid: dict[str, Any], pieces: list[Any]) -> list[dict[str, Any]]:
+    """For each answer that is a decision (`DECISIONS`) of a placed piece, what every other option
+    would give: the same place, another place, or another question. `decides` is true when at least
+    one option changes the result: that answer is worth asking, the others can be assumed."""
+    entries = []
+    for item in pieces:
+        row = _reviewed(grid, item)
+        if row["status"] != "placed":
+            continue
+        for step in row["path"]:
+            qid = step["question"]
+            if qid not in DECISIONS:
+                continue
+            options = grid["questions"][qid]["options"]
+            others = [_other_answer(grid, item, row, qid, o) for o in options if o != step["answer"]]
+            entries.append({"piece": row["piece"], "evidence": row["evidence"], "question": qid,
+                            "text": grid["questions"][qid]["text"], "answer": step["answer"],
+                            "label": options[step["answer"]]["label"], "others": others,
+                            "decides": any(o["outcome"] != "same" for o in others)})
+    return entries
+
+
+def _told_outcome(grid: dict[str, Any], other: dict[str, Any]) -> str:
+    if other["outcome"] == "same":
+        return "Same result"
+    if other["outcome"] == "opens":
+        return f"Opens another question ({other['question']})"
+    state = grid["concepts"][other["concept"]]["name"] if other["concept"] else "well placed"
+    return f"Moves to {grid['destinations'][other['destination']]['name']} ({state})"
+
+
+def render_decisions_md(grid: dict[str, Any], entries: list[dict[str, Any]]) -> str:
+    out = ["", "## Answers that are the author's to give", "",
+           "What it costs and who must not go around it are decisions, not facts read in the repository. "
+           "For each one given, what every other answer would change."]
+    for entry in [e for e in entries if e["decides"]]:
+        out += ["", f"- **{_cell(entry['piece'])}**{_cited(entry)}: {entry['text']}",
+                f"  Answered: {entry['label']}"]
+        out += [f"  - {_told_outcome(grid, o)}: {o['label']}" for o in entry["others"]]
+    settled = [e for e in entries if not e["decides"]]
+    if settled:
+        out += ["", "No other answer changes the result for: "
+                + "; ".join(f"{_cell(e['piece'])} ({e['text']})" for e in settled) + "."]
+    if not entries:
+        out += ["", "None of the pieces placed rests on such an answer."]
+    return "\n".join(out) + "\n"
+
+
 def review(grid: dict[str, Any], pieces: list[Any]) -> dict[str, Any]:
     """Every piece of an existing artifact, sorted: well placed, weak (with its concept), or still
     waiting for an answer. A review reads what exists: a piece without `current` is refused."""
     good, findings, waiting = [], [], []
     for item in pieces:
-        row = place_piece(grid, item)
-        if row["current"] is None:
-            raise ValueError(f"{row['piece']}: current field missing; a review says where each piece is held today")
-        row["evidence"] = _evidence(item)
-        row["concept"] = concept(grid, row)
+        row = _reviewed(grid, item)
         (waiting if row["status"] != "placed" else findings if row["concept"] else good).append(row)
     skill_keeps_its_procedure = any(r["current"] == "skill" for r in good)
     mixed = skill_keeps_its_procedure and any(r["current"] == "skill" for r in findings)
@@ -522,6 +592,8 @@ def build_parser(parser: argparse.ArgumentParser | None = None) -> argparse.Argu
     chk.add_argument("--expected", required=True, help="the fixture's expected.json")
     rev = sub.add_parser("review", help="an existing artifact's pieces, told as named concepts")
     rev.add_argument("file", help="list of {piece, answers, current, evidence?}")
+    rev.add_argument("--decisions", action="store_true",
+                     help="also say, for each answer that is the author's to give, what the other answers change")
     for sp in (grid, one, plan, chk, rev):
         sp.add_argument("--format", choices=["md", "json"], default="md")
     return p
@@ -558,8 +630,13 @@ def main(argv: list[str] | None = None, args: argparse.Namespace | None = None) 
             _emit(args.format, result, render_check_md(result))
             return 0 if result["passed"] else 1
         if args.place_command == "review":
-            result = review(grid, load_pieces(args.file))
-            _emit(args.format, result, render_review_md(grid, result))
+            pieces = load_pieces(args.file)
+            result = review(grid, pieces)
+            markdown = render_review_md(grid, result)
+            if args.decisions:
+                result = {**result, "decisions": decisions(grid, pieces)}
+                markdown += render_decisions_md(grid, result["decisions"])
+            _emit(args.format, result, markdown)
             return INCOMPLETE if result["waiting"] else 0
         rows = [place_piece(grid, item) for item in load_pieces(args.file)]
     except ValueError as exc:
