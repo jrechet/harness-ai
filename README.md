@@ -52,7 +52,7 @@ python3 harness-ai/cli/harness.py status /path/to/your/repo --map
 
 `status --map` prints the five levels in plain words, from 0 (None) to 4 (Delegated), with "you are here", what the next level still needs, and the next step. Without `--map`, `status` prints the detailed report the skills read: every check with its id. Both write `.harness/state.json` in your repository.
 
-Commit what `.harness/` keeps: `config.json` (the level you aim for and the checks you set aside), `state.json`, and `audit.json` and `harvest.json` once they exist. Ignore `.harness/state.html`: it is a page rebuilt on demand by `status --page`.
+Commit what `.harness/` keeps: `config.json` (the level you aim for and the checks you set aside), `state.json`, and `audit.json` and `harvest.json` once they exist. Ignore `.harness/state.html`: it is a page rebuilt on demand by `status --page`. `.harness/session/` ignores itself: the numbers of your sessions and your notes are yours, not the repository's.
 
 **By hand.** Without Claude Code, nothing writes `AGENTS.md` for you: copy the blocks of [the template](skills/harness-init/references/agents-template.md), one level at a time. Step 1 is the first `AGENTS.md` (level 1), Step 2 the maintenance block and the `rule:` convention (level 2), Step 4 the working process (level 4); level 3 has no block, it is earned by turning rules into checks. Run `status --map` again after each one. The review loop needs GitHub today: `harness.py harvest` has a single adapter, `github`.
 
@@ -152,6 +152,7 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Read every check behind the level, with its id | `harness.py status <repo>` | tooled |
 | Say at which level you stop | `harness.py target <level> <repo>` | tooled |
 | Set aside a check you do not want: the level is reached without it, and the state says "set aside", not "done", next to the level the checks alone give | `harness.py ignore <check> --reason "…" --repo <repo>`; `ignore <repo>` lists the checks | tooled |
+| See what one Claude Code session cost and where, and keep your own words on what suited you or not; all of it stays on your machine | `harness.py session measure` at the end of a session, `session note "…"` when something bothers you, `session list` | tooled |
 | See each rule, its age, its guardrail | `harness.py rules <repo>` | tooled |
 | Find the commands an agent does not guess | `harness.py commands <repo>` | tooled |
 | Know what has aged: a skill that cites a deleted file, a late harvest | `harness.py fresh <repo>` | tooled |
