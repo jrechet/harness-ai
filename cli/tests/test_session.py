@@ -661,3 +661,205 @@ class ListTests(SessionCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SecondReviewTests(SessionCase):
+    """What the second independent review found, each with the input that showed it."""
+
+    def one(self, rows, *extra, subagents=()):
+        code, out, err = self.measure("--transcript", self.transcript(rows, subagents=subagents), "--format", "json", *extra)
+        self.assertEqual(err, "")
+        return code, json.loads(out)
+
+    def test_a_number_too_large_to_be_one_is_refused_without_a_crash(self):
+        huge = int("1" + "0" * 400)
+        row = assistant("m1", 5)
+        row["message"]["usage"]["input_tokens"] = huge
+        total = {**cost_state(), "totalCostUSD": huge}
+        code, report = self.one([human(), row, total])
+        self.assertEqual(code, 0)
+        self.assertEqual(report["rows"]["input_tokens"], 0)
+        self.assertEqual(report["totals"]["source"], "rows")
+        code, report = self.one([human(), {**row, "message": {**row["message"], "usage": {"output_tokens": huge}}}])
+        self.assertEqual((code, report["status"]), (1, "unmeasured"))
+
+    def test_a_token_count_that_is_not_a_number_makes_the_measure_partial(self):
+        row = assistant("m1", 5)
+        row["message"]["usage"].update(input_tokens=float("nan"), cache_read_input_tokens=-3,
+                                       cache_creation_input_tokens="x")
+        _, report = self.one([human(), row, cost_state(output=5)])
+        self.assertEqual(report["status"], "partial")
+        self.assertIn("3 token counts are not numbers", report["reason"])
+        row = assistant("m2", 5)
+        del row["message"]["usage"]["cache_read_input_tokens"]          # absent is zero, and no fault
+        _, report = self.one([human(), row, cost_state(output=5)])
+        self.assertEqual(report["status"], "measured")
+
+    def test_a_refusal_copied_into_a_sub_agent_file_is_counted_once(self):
+        refused = {**tool_result("t1", error=True, denial="user-rejected"), "uuid": "u-1"}
+        rows = [human(), assistant("m1", 5, tools=[("t1", "Bash")]), refused, cost_state(output=5)]
+        _, report = self.one(rows, subagents=[[assistant("m1", 5, tools=[("t1", "Bash")]), refused]])
+        self.assertEqual(report["counts"]["denials"], {"user-rejected": 1})
+
+    def test_the_usage_of_a_message_is_the_row_that_shows_the_most_output(self):
+        early, final = assistant("m1", 3, skill="a-skill"), assistant("m1", 120, skill="a-skill", cache_read=50)
+        _, report = self.one([human(), early, final, assistant("m1", 3, skill="a-skill"), cost_state(output=120)])
+        self.assertEqual(report["counts"]["assistant_messages"], 1)
+        self.assertEqual(report["rows"]["output_tokens"], 120)
+        self.assertEqual(report["rows"]["cache_read_tokens"], 50)
+
+    def test_two_models_whose_names_are_not_names_add_up(self):
+        usage = {"inputTokens": 1, "outputTokens": 700, "cacheReadInputTokens": 0, "cacheCreationInputTokens": 0, "costUSD": 2.0}
+        total = {**cost_state(cost=3.0), "modelUsage": {"a b": usage, "c d": {**usage, "outputTokens": 300, "costUSD": 1.0}}}
+        _, report = self.one([human(), assistant("m1", 1000), total])
+        self.assertEqual(report["totals"]["by_model"], {"(other)": {"output_tokens": 1000, "cost_usd_estimate": 3.0}})
+
+    def test_a_tool_call_without_an_id_is_said_not_counted(self):
+        row = assistant("m1", 5)
+        row["message"]["content"] += [{"type": "tool_use", "name": "Bash"}, {"type": "tool_use", "id": 7}]
+        _, report = self.one([human(), row, cost_state(output=5)])
+        self.assertEqual(report["counts"]["tool_calls"], 0)
+        self.assertIn("2 tool calls carry no id", report["reason"])
+
+    def test_a_time_is_copied_only_when_it_is_one_and_compared_as_a_time(self):
+        rows = [human(timestamp="2026-11-26T10:30:00+02:00"),           # 08:30 UTC: the start
+                {**assistant("m1", 5), "timestamp": "2026-11-26T09:00:00Z"},
+                {**human("x"), "timestamp": PRIVATE_PATH}, {**human("y"), "timestamp": "2026-11-26T09:00:00." + "4" * 40 + "Z"},
+                {**human("z"), "timestamp": "２０２６-11-26T09:59:00Z"}, {**human("w"), "timestamp": "2026-13-41T09:59:00Z"},
+                cost_state(output=5)]
+        _, report = self.one(rows)
+        self.assertEqual(report["started_at"], "2026-11-26T10:30:00+02:00")
+        self.assertEqual(report["ended_at"], "2026-11-26T09:00:00Z")
+
+    def test_prompts_compactions_errors_and_totals_are_those_of_the_main_conversation(self):
+        sub = [assistant("s1", 50), human("typed inside a sub-agent"), cost_state(cost=99.0, output=50),
+               {"type": "system", "subtype": "compact_boundary", "sessionId": SESSION},
+               {"type": "system", "subtype": "api_error", "sessionId": SESSION},
+               {**human("late"), "timestamp": "2027-01-01T00:00:00Z"}]
+        _, report = self.one([human(), assistant("m1", 100), cost_state(cost=1.0, output=150)], subagents=[sub])
+        self.assertEqual(report["counts"]["human_prompts"], 1)
+        self.assertEqual((report["counts"]["compactions"], report["counts"]["api_errors"]), (0, 0))
+        self.assertEqual(report["totals"]["cost_usd_estimate"], 1.0)
+        self.assertEqual(report["ended_at"], "2026-11-26T09:00:00Z")
+        self.assertEqual(report["status"], "measured")
+
+    def test_a_linked_gitignore_is_refused_and_nothing_is_written_through_it(self):
+        folder = os.path.join(self.repo, ".harness", "session")
+        os.makedirs(folder)
+        outside = os.path.join(self.root, "outside.txt")
+        for target in (outside, None):
+            if target is None:
+                with open(outside, "w") as fh:
+                    fh.write("theirs\n")
+            os.symlink(outside, os.path.join(folder, ".gitignore"))
+            code, _, err = self.run_cli("note", "a word", "--repo", self.repo, "--now", NOW)
+            self.assertEqual(code, 2)
+            self.assertIn("is a link", err)
+            os.remove(os.path.join(folder, ".gitignore"))
+        with open(outside) as fh:
+            self.assertEqual(fh.read(), "theirs\n")
+        self.assertEqual(os.listdir(folder), [])
+
+    def test_a_session_folder_linked_to_another_folder_of_the_repository_is_refused(self):
+        os.makedirs(os.path.join(self.repo, "src"))
+        os.makedirs(os.path.join(self.repo, ".harness"))
+        os.symlink(os.path.join(self.repo, "src"), os.path.join(self.repo, ".harness", "session"))
+        code, _, err = self.run_cli("note", "a word", "--repo", self.repo, "--now", NOW)
+        self.assertEqual(code, 2)
+        self.assertIn("through a link", err)
+        self.assertEqual(os.listdir(os.path.join(self.repo, "src")), [])
+
+    def test_a_harness_dir_inside_git_is_refused(self):
+        subprocess.run(["git", "init", "-q", self.repo], check=True)
+        code, _, err = self.run_cli("note", "a word", "--repo", self.repo, "--harness-dir", ".git/refs", "--now", NOW)
+        self.assertEqual(code, 2)
+        self.assertIn(".git", err)
+        self.assertFalse(os.path.exists(os.path.join(self.repo, ".git", "refs", "session")))
+
+    def test_the_list_reads_nothing_outside_the_repository(self):
+        elsewhere = os.path.join(self.root, "elsewhere", "session")
+        os.makedirs(elsewhere)
+        self.write_rows(os.path.join(elsewhere, "notes.jsonl"), [{"note": "a note of another place", "session": None}])
+        for given in (os.path.join("..", "elsewhere"), os.path.join(self.root, "elsewhere")):
+            code, out, err = self.run_cli("list", "--repo", self.repo, "--harness-dir", given)
+            self.assertEqual((code, out), (2, ""))
+            self.assertIn("outside the repository", err)
+
+    def test_the_list_prints_nothing_of_a_file_that_is_not_a_session_file(self):
+        self.measure("--transcript", self.transcript(FULL))
+        folder = os.path.join(self.repo, ".harness", "session")
+        with open(os.path.join(folder, SESSION + ".json")) as fh:
+            report = json.load(fh)
+        planted = {**report, "started_at": PRIVATE_PATH, "by_skill": [{"skill": "me@example.com \x1b[2J", "plugin": None, "output_tokens": 5}]}
+        for name, changed in (("planted-01.json", planted), ("planted-02.json", {**report, "status": "sent to " + PRIVATE_PATH}),
+                              ("planted-03.json", {**report, "session": PRIVATE_PATH})):
+            with open(os.path.join(folder, name), "w") as fh:
+                json.dump(changed, fh)
+        code, out, _ = self.run_cli("list", "--repo", self.repo)
+        self.assertEqual(code, 0)
+        for private in (PRIVATE_PATH, "example.com", "\x1b"):
+            self.assertNotIn(private, out)
+        self.assertIn("planted-02.json: not readable", out)
+        self.assertIn("planted-03.json: not readable", out)
+        self.assertIn("(other) 5", out)
+
+    def test_a_note_is_one_printable_line_of_a_bounded_length(self):
+        code, _, _ = self.run_cli("note", "fine\nWritten to /etc/passwd (sent)\x1b[2J‮", "--repo", self.repo, "--now", NOW, env=SESSION)
+        self.assertEqual(code, 0)
+        with open(os.path.join(self.repo, ".harness", "session", "notes.jsonl")) as fh:
+            self.assertEqual(json.loads(fh.read())["note"], "fine Written to /etc/passwd (sent) [2J")
+        code, _, err = self.run_cli("note", "x" * (session.MAX_NOTE + 1), "--repo", self.repo, "--now", NOW)
+        self.assertEqual(code, 2)
+        self.assertIn("at most", err)
+        # A notes file written by hand is made printable when it is shown.
+        self.write_rows(os.path.join(self.repo, ".harness", "session", "notes.jsonl"),
+                        [{"note": "one\nWritten to nowhere\x1b[2J", "session": SESSION}, {"note": "loose\x07", "session": None}])
+        _, out, _ = self.measure("--transcript", self.transcript(FULL))
+        self.assertIn("- one Written to nowhere [2J\n", out)
+        _, out, _ = self.run_cli("list", "--repo", self.repo)
+        self.assertNotIn("\x07", out)
+
+    def test_git_is_asked_about_this_repository_whatever_the_environment_names(self):
+        other = os.path.join(self.root, "other")
+        for path in (self.repo, other):
+            subprocess.run(["git", "init", "-q", path], check=True)
+        self.measure("--transcript", self.transcript(FULL))
+        subprocess.run(["git", "-C", self.repo, "add", "-f", os.path.join(".harness", "session", SESSION + ".json")], check=True)
+        old = os.environ.get("GIT_DIR")
+        os.environ["GIT_DIR"] = os.path.join(other, ".git")
+        try:
+            _, out, _ = self.measure("--transcript", self.transcript(FULL))
+        finally:
+            os.environ.pop("GIT_DIR")
+            if old is not None:
+                os.environ["GIT_DIR"] = old
+        self.assertIn("ALREADY TRACKS", out)
+
+    def test_no_skill_is_explained_with_or_without_notes(self):
+        _, out, _ = self.measure("--transcript", self.transcript(FULL))
+        self.assertNotIn("Your notes", out)
+        self.assertIn("(no skill): output Claude Code attributes to no skill", out)
+
+    def test_the_running_session_is_said_so_however_it_was_named(self):
+        self.transcript(FULL)
+        _, out, _ = self.measure("--session", SESSION, env=SESSION)
+        self.assertIn("still running", out)
+        _, out, _ = self.measure("--session", SESSION, env="99999999-aaaa")
+        self.assertNotIn("still running", out)
+
+    def test_a_session_and_a_transcript_together_are_refused(self):
+        code, out, err = self.measure("--session", SESSION, "--transcript", self.transcript(FULL))
+        self.assertEqual((code, out), (2, ""))
+        self.assertIn("not both", err)
+
+    def test_a_transcript_whose_name_is_not_a_session_id_is_refused(self):
+        path = os.path.join(self.root, "notes about ACME.jsonl")
+        self.write_rows(path, FULL)
+        code, _, err = self.measure("--transcript", path)
+        self.assertEqual(code, 2)
+        self.assertIn("<session id>.jsonl", err)
+
+    def test_a_synthetic_message_without_usage_is_no_fault(self):
+        synthetic = {"type": "assistant", "sessionId": SESSION, "message": {"id": "x1", "model": "<synthetic>", "content": []}}
+        _, report = self.one([human(), assistant("m1", 5), synthetic, cost_state(output=5)])
+        self.assertEqual(report["status"], "measured")

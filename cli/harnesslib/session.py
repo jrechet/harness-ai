@@ -11,12 +11,14 @@ numbers are read by code from the session's transcript; the words are the user's
 What is read: the transcript Claude Code keeps under `~/.claude/projects/`, and the files of its
 sub-agents. Its format is internal to Claude Code and changes between versions, so the measure says
 `partial` or `unmeasured` when it does not find what it expects, never a number it is not sure of.
-What is written: counts, token sums and names of skills, plugins and models. No field that holds a
-prompt, an answer, a path, a branch or an account is read, and a name is copied only when it looks
-like one (no slash at its start, no "@", no space): anything else comes out as "(other)".
+What is written: counts, token sums and names of skills, plugins and models. Nothing is copied out of
+a field that holds a prompt, an answer, a path, a branch or an account (a message's content is read
+for the ids of its tool calls and whether they failed, nothing else), and a name is copied only when
+it is shaped like one (ASCII, no slash at its start, no "@", no space): anything else comes out as
+"(other)". A name-shaped word put in a name field is copied as it is.
 What the counts cover: tool calls, their failures, refusals and tokens include the sub-agents; your
 prompts, compactions and API errors are those of the main conversation. A session measured while it
-runs lacks the turn in progress.
+runs lacks the turn in progress. A message written twice with no id is counted twice.
 
 Dollar figures are the estimate Claude Code itself records, at list price: not a bill.
 Exit codes: 0 measured or partial, 1 unmeasured, 2 invalid input."""
@@ -45,7 +47,11 @@ MODEL = re.compile(r"[A-Za-z0-9][A-Za-z0-9._\[\]-]{0,63}", re.ASCII)
 DENIAL = re.compile(r"[a-z][a-z_-]{0,39}", re.ASCII)
 PLUGIN = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}", re.ASCII)
 SKILL = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,63}(:[A-Za-z0-9][A-Za-z0-9_.-]{0,63})?", re.ASCII)
-TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})")
+TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?(Z|[+-]\d{2}:\d{2})", re.ASCII)
+STATUSES = ("measured", "partial", "unmeasured")
+UNPRINTABLE = re.compile(r"[\x00-\x1f\x7f-\x9f\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]+")
+MAX_NOTE = 2000              # characters of one note
+MAX_NUMBER = 10 ** 15        # above this a count is not a count
 OTHER = "(other)"
 LATE_TOTALS = 1.1            # rows above the recorded totals by more than this: the totals started late
 # What the report calls each count, then its name in a message's usage and in Claude Code's totals.
@@ -98,18 +104,34 @@ def read_rows(path: str) -> Iterator[dict[str, Any]]:
                 yield row
 
 
+def _number(value: Any) -> int | float | None:
+    """A finite number between zero and MAX_NUMBER, or nothing."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    if isinstance(value, float) and not math.isfinite(value):
+        return None
+    return value if 0 <= value <= MAX_NUMBER else None
+
+
 def _count(value: Any) -> int | None:
     """A token count or a duration: a finite, non-negative number, or nothing."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
-        return None
-    return int(value)
+    number = _number(value)
+    return None if number is None else int(number)
 
 
 def _cost(value: Any) -> float | None:
     """A cost estimate: a finite, non-negative number, or nothing."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
-        return None
-    return round(float(value), 4)
+    number = _number(value)
+    return None if number is None else round(float(number), 4)
+
+
+def _plain(text: str) -> str:
+    """A text safe to print on one line: control and invisible characters become one space."""
+    return UNPRINTABLE.sub(" ", text).strip()
+
+
+def _when(stamp: str) -> datetime:
+    return datetime.fromisoformat(stamp.replace("Z", "+00:00"))
 
 
 def _name(value: Any, pattern: re.Pattern[str]) -> str | None:
@@ -163,8 +185,12 @@ def _totals_from_claude_code(row: dict[str, Any]) -> dict[str, Any] | None:
             if value is None:
                 return None
             totals[field] += value
-        by_model[_name(model, MODEL) or OTHER] = {"output_tokens": _count(numbers.get("outputTokens")),
-                                                  "cost_usd_estimate": _cost(numbers.get("costUSD"))}
+        name, cost = _name(model, MODEL) or OTHER, _cost(numbers.get("costUSD"))
+        before = by_model.get(name)
+        if before is not None:               # two names that are not names share "(other)": they add up
+            cost = None if cost is None or before["cost_usd_estimate"] is None else round(cost + before["cost_usd_estimate"], 4)
+        by_model[name] = {"output_tokens": _count(numbers.get("outputTokens")) + (before["output_tokens"] if before else 0),
+                          "cost_usd_estimate": cost}
     for field, key in (("duration_s", "totalDuration"), ("api_duration_s", "totalAPIDuration"),
                        ("tool_duration_s", "totalToolDuration")):
         value = _count(row.get(key))
@@ -178,20 +204,22 @@ def _totals_from_claude_code(row: dict[str, Any]) -> dict[str, Any] | None:
 def measure(transcript: str, session_id: str, now: str) -> dict[str, Any]:
     """Everything the report holds, from the transcript and the files of its sub-agents."""
     subs = subagent_files(transcript)
-    seen_messages: set[str] = set()
+    messages: dict[str, tuple[Any, dict[str, int]]] = {}
     no_usage: set[str] = set()
     seen_tools: set[str] = set()
     failed_tools: set[str] = set()
+    seen_denials: set[str] = set()
     skills: dict[tuple[str | None, str | None], dict[str, int]] = {}
     versions: set[str] = set()
     denials: dict[str, int] = {}
-    stamps: list[str] = []
+    stamps: list[tuple[datetime, str]] = []
     recorded: dict[str, Any] | None = None
     recorded_but_unreadable = False
     own_subagents = 0
     unreadable = 0
     counts = {"human": 0, "origins": 0, "assistant": 0, "without_usage": 0, "compactions": 0, "api_errors": 0,
-              "inherited": 0}
+              "inherited": 0, "odd_usage": 0, "odd_tools": 0}
+    keyless: list[tuple[Any, dict[str, int]]] = []
     for index, path in enumerate([transcript, *subs]):
         main = index == 0
         own_rows = 0
@@ -210,11 +238,14 @@ def measure(transcript: str, session_id: str, now: str) -> dict[str, Any]:
             own_rows += 1
             stamp = row.get("timestamp")
             if main and isinstance(stamp, str) and TIMESTAMP.fullmatch(stamp):
-                stamps.append(stamp)
+                try:
+                    stamps.append((_when(stamp), stamp))
+                except ValueError:
+                    pass                       # shaped like a time, but not one (month 13)
             if kind == "assistant":
-                _assistant(row, seen_messages, no_usage, seen_tools, skills, versions, counts)
+                _assistant(row, messages, keyless, no_usage, seen_tools, skills, versions, counts)
             elif kind == "user":
-                _user(row, main, failed_tools, denials, counts)
+                _user(row, main, failed_tools, denials, seen_denials, counts)
             elif kind == "system" and main:
                 if row.get("subtype") == "compact_boundary":
                     counts["compactions"] += 1
@@ -226,7 +257,12 @@ def measure(transcript: str, session_id: str, now: str) -> dict[str, Any]:
                 recorded = totals or recorded
         if not main and own_rows:
             own_subagents += 1
-    counts["without_usage"] += len(no_usage - seen_messages)
+    counts["without_usage"] += len(no_usage - set(messages))
+    for bucket, usage in [*messages.values(), *keyless]:
+        counts["assistant"] += 1
+        skills[bucket]["messages"] += 1
+        for field in USAGE_FIELDS:
+            skills[bucket][field] += usage[field]
     failed_tools &= seen_tools                 # a failure counts only for a call that was seen
     by_skill = [{"skill": skill, "plugin": plugin, **numbers} for (skill, plugin), numbers in skills.items()
                 if numbers["messages"] or numbers["tool_calls"]]
@@ -235,7 +271,7 @@ def measure(transcript: str, session_id: str, now: str) -> dict[str, Any]:
     report: dict[str, Any] = {
         "schema": SCHEMA, "status": "measured", "reason": None, "session": session_id, "measured_at": now,
         "claude_code_versions": sorted(versions),
-        "started_at": min(stamps) if stamps else None, "ended_at": max(stamps) if stamps else None,
+        "started_at": min(stamps)[1] if stamps else None, "ended_at": max(stamps)[1] if stamps else None,
         "counts": {"human_prompts": counts["human"] if counts["origins"] else None,
                    "assistant_messages": counts["assistant"], "tool_calls": len(seen_tools),
                    "tool_errors": len(failed_tools), "denials": dict(sorted(denials.items())),
@@ -269,31 +305,36 @@ def measure(transcript: str, session_id: str, now: str) -> dict[str, Any]:
         reasons.append("no row says whether a prompt came from a human: your prompts are not counted")
     if counts["without_usage"]:
         reasons.append(f"{counts['without_usage']} assistant messages carry no usage and are left out")
+    if counts["odd_usage"]:
+        reasons.append(f"{counts['odd_usage']} token counts are not numbers and count for nothing: the sums are a minimum")
+    if counts["odd_tools"]:
+        reasons.append(f"{counts['odd_tools']} tool calls carry no id and are not counted")
     if reasons:
         report.update(status="partial", reason="; ".join(reasons))
     return report
 
 
-def _assistant(row, seen_messages, no_usage, seen_tools, skills, versions, counts) -> None:
+def _assistant(row, messages, keyless, no_usage, seen_tools, skills, versions, counts) -> None:
     """One row of an assistant message. Claude Code writes a message as several rows, one per block,
-    that share the message id and its usage: the tool calls are read on every row, the usage once."""
+    that share the message id: the tool calls are read on every row, the usage once, from the row
+    that shows the most output (an early row may carry a count that was not final yet)."""
     message = row.get("message")
     if not isinstance(message, dict):
         return
     version = _name(row.get("version"), VERSION)
     if version and version != OTHER:
         versions.add(version)
-    numbers = skills.setdefault((_name(row.get("attributionSkill"), SKILL), _name(row.get("attributionPlugin"), PLUGIN)),
-                                {"messages": 0, "tool_calls": 0, **{field: 0 for field in USAGE_FIELDS}})
+    bucket = (_name(row.get("attributionSkill"), SKILL), _name(row.get("attributionPlugin"), PLUGIN))
+    numbers = skills.setdefault(bucket, {"messages": 0, "tool_calls": 0, **{field: 0 for field in USAGE_FIELDS}})
     for block in _blocks(row, "tool_use"):
         tool_id = block.get("id")
-        if isinstance(tool_id, str) and tool_id not in seen_tools:
+        if not isinstance(tool_id, str):
+            counts["odd_tools"] += 1
+        elif tool_id not in seen_tools:
             seen_tools.add(tool_id)
             numbers["tool_calls"] += 1
     key = message.get("id") or row.get("uuid")
     key = key if isinstance(key, str) else None
-    if key is not None and key in seen_messages:
-        return
     usage = message.get("usage")
     if not isinstance(usage, dict) or _count(usage.get("output_tokens")) is None:
         if message.get("model") != "<synthetic>":
@@ -302,21 +343,29 @@ def _assistant(row, seen_messages, no_usage, seen_tools, skills, versions, count
             else:
                 no_usage.add(key)
         return
-    if key is not None:
-        seen_messages.add(key)
-    counts["assistant"] += 1
-    numbers["messages"] += 1
-    for field, source in USAGE_FIELDS.items():
-        numbers[field] += _count(usage.get(source)) or 0
+    read = {field: _count(usage.get(source)) for field, source in USAGE_FIELDS.items()}
+    odd = sum(1 for field, source in USAGE_FIELDS.items() if read[field] is None and usage.get(source) is not None)
+    read = {field: value or 0 for field, value in read.items()}
+    if key is None:
+        keyless.append((bucket, read))
+        counts["odd_usage"] += odd
+    elif key not in messages:
+        messages[key] = (bucket, read)
+        counts["odd_usage"] += odd
+    elif read["output_tokens"] > messages[key][1]["output_tokens"]:
+        messages[key] = (messages[key][0], read)
 
 
-def _user(row, main, failed_tools, denials, counts) -> None:
+def _user(row, main, failed_tools, denials, seen_denials, counts) -> None:
     for block in _blocks(row, "tool_result"):
         if block.get("is_error") is True and isinstance(block.get("tool_use_id"), str):
             failed_tools.add(block["tool_use_id"])
     denial = _name(row.get("toolDenialKind"), DENIAL)
-    if denial:
+    uuid = row.get("uuid")
+    if denial and not (isinstance(uuid, str) and uuid in seen_denials):   # a row copied into two files counts once
         denials[denial] = denials.get(denial, 0) + 1
+        if isinstance(uuid, str):
+            seen_denials.add(uuid)
     if not main:
         return
     origin = row.get("origin")
@@ -328,23 +377,31 @@ def _user(row, main, failed_tools, denials, counts) -> None:
 
 # --- writing -----------------------------------------------------------------------------------
 
-def _folder(repo: str, harness_dir: str) -> str:
-    """The session folder inside the repository, with the file that makes git ignore everything in it.
-    Refused when it would land outside the repository, through `..`, an absolute path or a link."""
+def _place(repo: str, harness_dir: str) -> str:
+    """Where the session folder is, inside the repository. Refused when the path leaves the repository
+    (`..`, an absolute path), goes through a link, or enters `.git`."""
     root = os.path.realpath(repo)
-    folder = os.path.join(root, harness_dir, FOLDER)
-    if os.path.isabs(harness_dir) or os.path.commonpath([root, os.path.realpath(folder)]) != root \
-            or os.path.realpath(folder) == root:
-        raise Refused(f"--harness-dir {harness_dir} leads outside the repository: nothing was written")
+    folder = os.path.normpath(os.path.join(root, harness_dir, FOLDER))
+    inside = not os.path.isabs(harness_dir) and os.path.commonpath([root, folder]) == root and folder != root
+    if not inside or os.path.realpath(folder) != folder or ".git" in os.path.relpath(folder, root).split(os.sep):
+        raise Refused(f"--harness-dir {harness_dir} leads outside the repository, through a link or into .git: "
+                      "nothing was read or written")
+    return folder
+
+
+def _folder(repo: str, harness_dir: str) -> str:
+    """The session folder, created, with the file that makes git ignore everything in it."""
+    folder = _place(repo, harness_dir)
     os.makedirs(folder, exist_ok=True)
     ignore = os.path.join(folder, ".gitignore")
     lines = []
+    if os.path.islink(ignore):
+        raise Refused(".gitignore in the session folder is a link: nothing was written")
     if os.path.isfile(ignore):
         with open(ignore, encoding="utf-8", errors="replace") as fh:
             lines = fh.read().splitlines()
     if "*" not in [line.strip() for line in lines]:
-        with open(ignore, "w", encoding="utf-8") as fh:
-            fh.write("\n".join([*lines, "*"]) + "\n")
+        _write(folder, ".gitignore", "\n".join([*lines, "*"]) + "\n", "w")
     return folder
 
 
@@ -360,11 +417,13 @@ def _write(folder: str, name: str, text: str, mode: str) -> None:
 def kept(repo: str, folder: str, name: str) -> str:
     """Where the file stands for git, checked and not assumed: ignored, tracked, or unknown."""
     path = os.path.join(folder, name)
+    # Asked of this repository, not of the one a hook or a wrapper names in GIT_DIR.
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
     try:
         tracked = subprocess.run(["git", "-C", repo, "ls-files", "--error-unmatch", "--", path],
-                                 capture_output=True, timeout=10).returncode == 0
+                                 capture_output=True, timeout=10, env=env).returncode == 0
         ignored = subprocess.run(["git", "-C", repo, "check-ignore", "-q", "--", path],
-                                 capture_output=True, timeout=10).returncode == 0
+                                 capture_output=True, timeout=10, env=env).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return "kept on this machine; nothing is sent"
     if tracked:
@@ -385,12 +444,20 @@ def _running_session() -> str | None:
     return value if value and SESSION_ID.fullmatch(value) else None
 
 
-def read_notes(folder: str, session_id: str) -> list[str]:
+def _notes(folder: str) -> list[dict[str, Any]]:
+    """The notes of the folder, each made safe to print. A notes file that is a link is not read."""
+    path = os.path.join(folder, NOTES)
+    if os.path.islink(path):
+        return []
     try:
-        return [row["note"] for row in read_rows(os.path.join(folder, NOTES))
-                if row.get("session") == session_id and isinstance(row.get("note"), str)]
+        return [{**row, "note": _plain(row["note"])[:MAX_NOTE]} for row in read_rows(path)
+                if isinstance(row.get("note"), str)]
     except OSError:
         return []
+
+
+def read_notes(folder: str, session_id: str) -> list[str]:
+    return [row["note"] for row in _notes(folder) if row.get("session") == session_id]
 
 
 # --- telling -----------------------------------------------------------------------------------
@@ -440,11 +507,11 @@ def render(report: dict[str, Any], notes: list[str], shown: str, where: str, run
         for row in report["by_skill"]:
             out.append(f"- {_skill(row)}: {_n(row['output_tokens'])} "
                        f"({_plural(row['messages'], 'message')}, {_plural(row['tool_calls'], 'tool call')})")
+        if any(row["skill"] is None for row in report["by_skill"]):
+            out.append("  (no skill): output Claude Code attributes to no skill, the sub-agents a skill starts included.")
     if notes:
         out.append("Your notes on this session:")
         out += [f"- {note}" for note in notes]
-        if any(row["skill"] is None for row in report["by_skill"]):
-            out.append("  (no skill): output Claude Code attributes to no skill, the sub-agents a skill starts included.")
     if running:
         out.append("This session is still running: the turn in progress is not counted, and the totals are "
                    "the last ones Claude Code recorded.")
@@ -468,21 +535,24 @@ def render_list(folder: str) -> str:
             with open(path, encoding="utf-8") as fh:
                 report = json.load(fh)
             totals = report["totals"] or {}
-            cost, prompts = totals.get("cost_usd_estimate"), report["counts"]["human_prompts"]
+            cost, prompts = _cost(totals.get("cost_usd_estimate")), _count(report["counts"]["human_prompts"])
+            started = report.get("started_at")
+            started = started if isinstance(started, str) and TIMESTAMP.fullmatch(started) else None
+            if report["status"] not in STATUSES or not SESSION_ID.fullmatch(report["session"]):
+                raise ValueError("not a session file")      # nothing of a file that is not ours is printed
+            top = [{"skill": _name(row.get("skill"), SKILL), "plugin": _name(row.get("plugin"), PLUGIN),
+                    "output_tokens": _count(row.get("output_tokens"))} for row in report["by_skill"][:3]]
             states[report["status"]] = states.get(report["status"], 0) + 1
-            lines.append((str(report.get("started_at") or report["measured_at"]),
-                          f"- {str(report.get('started_at') or '?')[:10]} {report['session'][:8]} {report['status']}: "
+            lines.append((started or "",
+                          f"- {(started or '?')[:10]} {report['session'][:8]} {report['status']}: "
                           + ("prompts not counted" if prompts is None else _plural(prompts, "prompt") + " from you")
-                          + f", {_n(totals.get('output_tokens'))} output tokens"
-                          + (f", about ${cost:,.2f}" if _cost(cost) is not None else "")
-                          + "; top: " + (", ".join(f"{_skill(row)} {_n(row['output_tokens'])}"
-                                                   for row in report["by_skill"][:3]) or "nothing")))
+                          + f", {_n(_count(totals.get('output_tokens')))} output tokens"
+                          + (f", about ${cost:,.2f}" if cost is not None else "")
+                          + "; top: " + (", ".join(f"{_skill(row)} {_n(row['output_tokens'])}" for row in top)
+                                         or "nothing")))
         except (OSError, ValueError, KeyError, TypeError, AttributeError, RecursionError):
             broken.append(os.path.basename(path))
-    try:
-        notes = [row for row in read_rows(os.path.join(folder, NOTES)) if isinstance(row.get("note"), str)]
-    except OSError:
-        notes = []
+    notes = _notes(folder)
     loose = [row["note"] for row in notes if not row.get("session")]
     if not lines and not broken and not notes:
         return "No session measured yet. `harness session measure` at the end of a session writes one.\n"
@@ -500,6 +570,8 @@ def render_list(folder: str) -> str:
 # --- entry -------------------------------------------------------------------------------------
 
 def _measure(args: argparse.Namespace, repo: str) -> int:
+    if args.transcript and args.session:
+        raise Refused("give --session or --transcript, not both")
     if args.transcript:
         transcript = os.path.expanduser(args.transcript)
         session_id = os.path.basename(transcript)[:-len(".jsonl")] if transcript.endswith(".jsonl") else ""
@@ -523,16 +595,18 @@ def _measure(args: argparse.Namespace, repo: str) -> int:
         sys.stdout.write(text)
     else:
         shown = "/".join([args.harness_dir, FOLDER, session_id + ".json"])
-        running = not args.transcript and not args.session
+        running = session_id == _running_session()
         sys.stdout.write(render(report, read_notes(folder, session_id), shown,
                                 kept(repo, folder, session_id + ".json"), running))
     return 1 if report["status"] == "unmeasured" else 0
 
 
 def _note(args: argparse.Namespace, repo: str) -> int:
-    text = args.text.strip()
+    text = _plain(args.text)
     if not text:
         raise Refused("the note is empty: say in your own words what suits you or not")
+    if len(text) > MAX_NOTE:
+        raise Refused(f"the note is {len(text):,} characters long: {MAX_NOTE:,} at most")
     now, running = _now(args.now), _running_session()
     folder = _folder(repo, args.harness_dir)
     _write(folder, NOTES, json.dumps({"at": now, "session": running, "note": text}, ensure_ascii=False) + "\n", "a")
@@ -551,7 +625,7 @@ def main(args: argparse.Namespace) -> int:
             return _measure(args, repo)
         if args.action == "note":
             return _note(args, repo)
-        sys.stdout.write(render_list(os.path.join(os.path.realpath(repo), args.harness_dir, FOLDER)))
+        sys.stdout.write(render_list(_place(repo, args.harness_dir)))
         return 0
     except Refused as exc:
         print(f"harness session: {exc}", file=sys.stderr)
