@@ -1,0 +1,10 @@
+{
+  "name": "harness-hud",
+  "version": "0.1.0",
+  "description": "Shows where a repository's AI harness stands, read from .harness/state.json: one quiet row above the prompt and a pane with the ladder. Reads only, runs nothing, draws nothing in a repository without a harness.",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "jrechet"
+  },
+  "license": "MIT"
+}
