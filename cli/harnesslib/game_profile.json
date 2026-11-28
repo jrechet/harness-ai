@@ -1,0 +1,728 @@
+{
+  "schema": "harness-game-profile/1",
+  "about": "The video-game profile of harness-ai: the pieces of a game's development loop, the scale each one belongs to, the engines the profile recognises, and the lines an instruction file needs for an agent to work on a game. Read by `harness game`; explained in docs/game-profile.md, where each claim carries its source.",
+  "scales": {
+    "hour": {
+      "label": "one hour",
+      "plain": "a toy or a one-hour jam: one mechanic, no document; the loop is a person starting the game and playing it after each change",
+      "pieces": [
+        "version",
+        "run",
+        "instructions",
+        "owned_files",
+        "playtest"
+      ],
+      "playtest_days": null,
+      "suggested_target": 1,
+      "stacks": [
+        "web (a canvas page, or Phaser or KAPLAY, with Vite)",
+        "pygame"
+      ],
+      "stacks_why": "text project files and a shell that can start, test and screenshot the game, with no licence to activate"
+    },
+    "jam": {
+      "label": "a jam or a weekend",
+      "plain": "a weekend or a game jam: a build that exports from the first hour, a cut list, a capture the agent looks at, credited assets",
+      "pieces": [
+        "version",
+        "run",
+        "instructions",
+        "owned_files",
+        "scope",
+        "export",
+        "smoke",
+        "runner",
+        "capture",
+        "check",
+        "playtest",
+        "assets"
+      ],
+      "playtest_days": 1,
+      "suggested_target": 1,
+      "stacks": [
+        "web (Phaser or KAPLAY with Vite and Playwright)",
+        "Godot 4"
+      ],
+      "stacks_why": "text project files and a shell that can start, test and screenshot the game, with no licence to activate"
+    },
+    "weeks": {
+      "label": "weeks to months",
+      "plain": "a small game built over weeks: everything of a jam, plus game rules tested headless and the same loop run by the CI",
+      "pieces": [
+        "version",
+        "run",
+        "instructions",
+        "owned_files",
+        "scope",
+        "export",
+        "smoke",
+        "runner",
+        "capture",
+        "check",
+        "playtest",
+        "assets",
+        "test",
+        "ci"
+      ],
+      "playtest_days": 14,
+      "suggested_target": 3,
+      "stacks": [
+        "Godot 4",
+        "web (Phaser or three.js with Vite and Playwright)"
+      ],
+      "stacks_why": "text project files and a shell that can start, test and screenshot the game, with no licence to activate"
+    }
+  },
+  "pieces": [
+    {
+      "id": "version",
+      "label": "The engine and its exact version are pinned",
+      "kind": "auto",
+      "gives": "the agent writes the API of the version the project runs, not the one it remembers",
+      "why": "the version the project runs is read from its files; one vendor test found recent models no longer mix Godot 3 and 4, so the line's value is checking the API against the right documentation, not a measured gain",
+      "minutes": 1
+    },
+    {
+      "id": "run",
+      "label": "A command starts the game for a person",
+      "kind": "command",
+      "gives": "anyone, the agent included, can hand a playable build to the owner in one line",
+      "why": "the loop ends with a person playing; this command is never judged by the runner, it opens a window or a server",
+      "minutes": 2
+    },
+    {
+      "id": "instructions",
+      "label": "The instruction file tells the agent the engine, the loop and what done means",
+      "kind": "instructions",
+      "gives": "every session starts knowing the version, the commands of the loop and that a green run is not a working game",
+      "why": "these are the facts an agent cannot discover alone; `harness game instructions` proposes the lines",
+      "minutes": 5
+    },
+    {
+      "id": "owned_files",
+      "label": "The files the engine owns are named as not to be hand-edited",
+      "kind": "instructions",
+      "gives": "the agent stops breaking scenes and references by editing serialised files as text",
+      "why": "hand-edited scene, prefab and meta files break references silently; the most reported pitfall after declaring a game working without running it",
+      "minutes": 0
+    },
+    {
+      "id": "scope",
+      "label": "A short design with a cut list is in the repository",
+      "kind": "file",
+      "gives": "a new idea goes to the cut list instead of into the code",
+      "why": "scope is what kills small games; the cut list is the tool that says no",
+      "minutes": 15
+    },
+    {
+      "id": "export",
+      "label": "The game exports to a build a person can open",
+      "kind": "command",
+      "gives": "a late export failure, the most repeated jam post-mortem item, is found in the first hour",
+      "why": "export templates, presets and paths break at the end when nobody tried them at the start",
+      "minutes": 15
+    },
+    {
+      "id": "smoke",
+      "label": "A headless run boots the game and fails on errors",
+      "kind": "command",
+      "gives": "after each change, the agent knows the game still starts, judged by the log and not only by the exit code",
+      "why": "some engines exit 0 on script errors; a run is judged by its exit code, its error lines and a line the game prints once ready",
+      "minutes": 10
+    },
+    {
+      "id": "runner",
+      "label": "The loop's judge is in the repository",
+      "kind": "file",
+      "gives": "one command, `python3 .harness/game_loop.py <piece>`, runs and judges each piece the same way for the agent, a person and the CI",
+      "why": "a rule the text asks for is skipped one day in ten; a program that refuses is not",
+      "minutes": 1
+    },
+    {
+      "id": "capture",
+      "label": "A command writes a screenshot the agent opens",
+      "kind": "command",
+      "gives": "the agent sees what the player would see, and fixes a visible bug from a picture",
+      "why": "agents fix visible bugs from an image and not from text; headless tests pass while the screen is wrong",
+      "minutes": 15
+    },
+    {
+      "id": "check",
+      "label": "A static check parses or compiles every script",
+      "kind": "command",
+      "gives": "a typo is caught in seconds, before the game is started",
+      "why": "cheaper than a run and cannot be fooled by the game's state",
+      "minutes": 5
+    },
+    {
+      "id": "playtest",
+      "label": "A person played a recent build, and it is written down with the date",
+      "kind": "file",
+      "gives": "the owner, not the agent, decides whether it is fun, and the date says how long ago",
+      "why": "no run measures feel or fun; a dated playtest log is the game's equivalent of a harvest marker. How old it may be is the owner's choice; the defaults are ours, not a source's",
+      "minutes": 5
+    },
+    {
+      "id": "assets",
+      "label": "Every asset has its source and licence written",
+      "kind": "file",
+      "gives": "the game can ship: nothing in it has an unknown licence, placeholders are marked",
+      "why": "an asset without a known licence cannot be published, and jams have rules on generated or premade assets",
+      "minutes": 10
+    },
+    {
+      "id": "test",
+      "label": "The game rules are tested headless",
+      "kind": "command",
+      "gives": "rules change without breaking: logic tested apart from rendering, with a seeded random generator and a fixed timestep",
+      "why": "past the prototype the code is kept; logic separated from rendering is what makes it testable without a screen",
+      "minutes": 30
+    },
+    {
+      "id": "ci",
+      "label": "The CI runs the same loop",
+      "kind": "file",
+      "gives": "nothing merges that does not boot, whoever wrote it",
+      "why": "a check that only the agent runs is skipped when the agent forgets; the CI does not forget",
+      "minutes": 30
+    }
+  ],
+  "states": {
+    "ok": "in place",
+    "weak": "in place, with a gap",
+    "stale": "too old",
+    "missing": "missing",
+    "later": "not at this scale",
+    "n/a": "not for this engine or not needed yet"
+  },
+  "files": {
+    "runner": ".harness/game_loop.py",
+    "playtest_logs": [
+      "PLAYTESTS.md",
+      "playtests.md",
+      "docs/playtests.md",
+      "docs/PLAYTESTS.md",
+      "design/playtests.md"
+    ],
+    "design_state": "design/game.json",
+    "design_docs": [
+      "design/GDD.md",
+      "GDD.md",
+      "docs/GDD.md",
+      "DESIGN.md",
+      "docs/design.md",
+      "SCOPE.md",
+      "docs/scope.md"
+    ],
+    "cut_heading": "cut|coup[ée]|out of scope|hors (?:du )?p[ée]rim[èe]tre|not doing|won'?t do|parking lot|later|plus tard|backlog|ideas? for later",
+    "credits": [
+      "CREDITS.md",
+      "CREDITS.txt",
+      "credits.md",
+      "credits.txt",
+      "ASSETS.md",
+      "assets/CREDITS.md",
+      "assets/LICENSES.md",
+      "assets/README.md",
+      "docs/credits.md"
+    ],
+    "workflows": [
+      ".github/workflows",
+      ".forgejo/workflows",
+      ".gitea/workflows",
+      ".gitlab-ci.yml"
+    ],
+    "asset_extensions": [
+      ".png",
+      ".jpg",
+      ".jpeg",
+      ".gif",
+      ".webp",
+      ".bmp",
+      ".tga",
+      ".psd",
+      ".aseprite",
+      ".ase",
+      ".wav",
+      ".ogg",
+      ".mp3",
+      ".flac",
+      ".glb",
+      ".gltf",
+      ".fbx",
+      ".obj",
+      ".blend",
+      ".ttf",
+      ".otf",
+      ".woff",
+      ".woff2"
+    ],
+    "skip_dirs": [
+      ".git",
+      "node_modules",
+      ".godot",
+      ".import",
+      "Library",
+      "Temp",
+      "Logs",
+      "obj",
+      "target",
+      "dist",
+      "build",
+      "export",
+      "exports",
+      ".harness",
+      "__pycache__",
+      ".venv",
+      "venv",
+      "Binaries",
+      "Intermediate",
+      "Saved",
+      "DerivedDataCache",
+      "test-results",
+      "playwright-report"
+    ]
+  },
+  "never_record": {
+    "patterns": [
+      "butler\\s+push",
+      "steamcmd",
+      "\\bnpm\\s+publish\\b",
+      "\\bgh\\s+release\\b",
+      "\\bgit\\s+push\\b",
+      "\\bgit\\s+tag\\b",
+      "itch\\.io/api",
+      "\\bvercel\\b.*--prod",
+      "\\bnetlify\\s+deploy\\b.*--prod",
+      "\\bfirebase\\s+deploy\\b"
+    ],
+    "why": "publishing a game (itch.io, Steam, a store, a production site) is the owner's release, not a piece of the loop"
+  },
+  "engines": {
+    "godot": {
+      "name": "Godot",
+      "detect": {
+        "files": [
+          "project.godot"
+        ],
+        "depth": 2
+      },
+      "version": {
+        "file": "project.godot",
+        "patterns": [
+          "config/features=PackedStringArray\\(\"(\\d+\\.\\d+)\"",
+          "^config_version=(3|4)$"
+        ],
+        "godot3_when": "config_version"
+      },
+      "owned": [
+        ".tscn",
+        ".tres",
+        ".import",
+        ".uid",
+        "project.godot",
+        "export_presets.cfg"
+      ],
+      "owned_rule": "Never hand-edit `.tscn`, `.tres`, `.import` or `.uid` files as text without keeping their ids and uids; prefer the editor, or a script that builds the scene. Move a script together with its `.uid`.",
+      "exit_code_trusted": false,
+      "errors": [
+        "SCRIPT ERROR",
+        "Parse Error",
+        "Failed to load script",
+        "Could not find type"
+      ],
+      "candidates": {
+        "run": "godot --path .",
+        "check": "gdlint $(git ls-files '*.gd')",
+        "smoke": "godot --headless --path . --quit-after 300",
+        "capture": "godot --path . --write-movie shots/frame.png --fixed-fps 30 --quit-after 60",
+        "export": "mkdir -p build/web && godot --headless --path . --export-release \"Web\" build/web/index.html",
+        "test": "godot --headless --path . -d -s addons/gut/gut_cmdln.gd -gdir=res://test -ginclude_subdirs -gexit"
+      },
+      "notes": [
+        "Run `godot --headless --path . --import` once on a fresh clone before anything else: the class cache lives in `.godot/`, which is not committed. The import is a prerequisite, not a check: on a syntax error it can print nothing and exit 0.",
+        "Godot exits 0 on many failures (a script that does not parse, a failing import, test scripts that fail to load): a smoke run is judged by its log and by a line the game prints once ready, and a silent run fails.",
+        "The static check is gdtoolkit (`pip install \"gdtoolkit==4.*\"`): `gdlint` parses every script without the engine. `--check-only` gives false alarms on scripts that use an autoload.",
+        "`--headless` renders nothing: a capture opens a window. On macOS that is the only way; on a Linux CI, wrap the capture in `xvfb-run --auto-servernum` with `--rendering-driver opengl3`.",
+        "On macOS the binary is usually `/Applications/Godot.app/Contents/MacOS/Godot`: record the full path, or a `godot` on the PATH.",
+        "Export needs the editor build, the export templates of the pinned version, the preset named in `export_presets.cfg` and an existing output folder; a relative output path is relative to `project.godot`."
+      ],
+      "owner_actions": [
+        "install the export templates of the pinned version",
+        "name the export preset (Web, Linux…) in the editor once"
+      ],
+      "commands_checked": true
+    },
+    "unity": {
+      "name": "Unity",
+      "detect": {
+        "files": [
+          "ProjectSettings/ProjectVersion.txt"
+        ],
+        "depth": 1
+      },
+      "version": {
+        "file": "ProjectSettings/ProjectVersion.txt",
+        "patterns": [
+          "m_EditorVersion:\\s*(\\S+)"
+        ]
+      },
+      "owned": [
+        ".unity",
+        ".prefab",
+        ".meta",
+        ".asset",
+        ".mat",
+        ".controller",
+        ".anim"
+      ],
+      "owned_rule": "Never hand-edit `.unity`, `.prefab`, `.asset` or `.meta` files, never change a GUID, and add or move an asset together with its `.meta`; change scenes through the editor, an editor script run with `-executeMethod`, or an editor bridge.",
+      "exit_code_trusted": false,
+      "errors": [
+        "error CS\\d{4}",
+        "Scripts have compiler errors",
+        "Aborting batchmode due to failure"
+      ],
+      "candidates": {
+        "run": "unity -projectPath .",
+        "check": "unity -batchmode -nographics -projectPath . -logFile - -quit",
+        "smoke": "unity -batchmode -nographics -projectPath . -logFile - -executeMethod Smoke.Run",
+        "capture": "unity -batchmode -projectPath . -logFile - -executeMethod Capture.Shot",
+        "export": "unity -batchmode -nographics -projectPath . -logFile - -executeMethod Build.WebGL -quit",
+        "test": "unity -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults results.xml -logFile -"
+      },
+      "notes": [
+        "Unity defines no common exit code for its tools: the test run is judged by its results file (`failed=\"…\"`), the other runs by their log.",
+        "Never combine `-quit` with `-runTests`: the editor quits before the tests finish.",
+        "Under `-nographics` the logs are off unless `-logFile` is given: pass `-logFile -` and read the log.",
+        "A Personal licence cannot be activated from the command line: the owner activates it in Unity Hub, and the CI needs the licence file as a secret (GameCI).",
+        "`-executeMethod` calls a static method of a script under `Assets/Editor/`: the smoke, capture and build methods are code the project writes once."
+      ],
+      "owner_actions": [
+        "activate the licence in Unity Hub",
+        "for CI: store the licence file and the account as secrets"
+      ],
+      "outputs": {
+        "test": {
+          "output": "results.xml",
+          "output_errors": [
+            "failed=\"[1-9]",
+            "result=\"Failed"
+          ]
+        }
+      },
+      "commands_checked": true
+    },
+    "unreal": {
+      "name": "Unreal Engine",
+      "detect": {
+        "globs": [
+          "*.uproject"
+        ],
+        "depth": 1
+      },
+      "version": {
+        "glob": "*.uproject",
+        "patterns": [
+          "\"EngineAssociation\"\\s*:\\s*\"([^\"]+)\""
+        ]
+      },
+      "owned": [
+        ".uasset",
+        ".umap"
+      ],
+      "owned_rule": "`.uasset` and `.umap` files are binary: never edit them, change them in the editor or through a Python editor script or a commandlet.",
+      "exit_code_trusted": true,
+      "errors": [
+        "Error: ",
+        "LogScript: Error",
+        "Fatal error"
+      ],
+      "candidates": {
+        "run": "open the .uproject in the Unreal editor of the pinned version",
+        "check": "build the editor target with the project's UnrealBuildTool command",
+        "smoke": "UnrealEditor-Cmd <project>.uproject -ExecCmds=\"Automation RunTests Smoke;Quit\" -unattended -nullrhi -log",
+        "capture": "UnrealEditor <project>.uproject -game -ExecCmds=\"HighResShot 1;Quit\" -unattended",
+        "export": "RunUAT BuildCookRun -project=<project>.uproject -build -cook -stage -package",
+        "test": "UnrealEditor-Cmd <project>.uproject -ExecCmds=\"Automation RunTests Project;Quit\" -unattended -nullrhi -log"
+      },
+      "notes": [
+        "These commands are candidates written from the engine's documented automation tools and were not run here: confirm each on the project before recording it.",
+        "A full Unreal loop is slow (minutes per run): at the jam scale, a smoke run per change is often all the loop can afford."
+      ],
+      "owner_actions": [
+        "install the engine version of `EngineAssociation`",
+        "say whether Git LFS or Perforce holds the binary assets"
+      ],
+      "commands_checked": false
+    },
+    "web": {
+      "name": "Web",
+      "detect": {
+        "package_deps": {
+          "phaser": "Phaser",
+          "three": "three.js",
+          "pixi.js": "PixiJS",
+          "kaplay": "KAPLAY",
+          "kaboom": "Kaboom",
+          "excalibur": "Excalibur",
+          "@babylonjs/core": "Babylon.js",
+          "babylonjs": "Babylon.js",
+          "melonjs": "melonJS",
+          "littlejsengine": "LittleJS"
+        },
+        "canvas_html": [
+          "index.html",
+          "src/index.html",
+          "public/index.html"
+        ],
+        "depth": 1
+      },
+      "version": {
+        "file": "package.json"
+      },
+      "owned": [],
+      "owned_rule": "",
+      "exit_code_trusted": true,
+      "errors": [
+        "Uncaught",
+        "pageerror"
+      ],
+      "candidates": {
+        "run": "npm run dev",
+        "check": "npx tsc --noEmit",
+        "smoke": "npx playwright test smoke",
+        "capture": "npx playwright test capture",
+        "export": "npm run build",
+        "test": "npx vitest run"
+      },
+      "notes": [
+        "The cheapest closed loop: a dev server, a build, and a headless browser that loads the game, fails on console errors and saves a screenshot.",
+        "Have the game set a ready mark once the first frame is drawn (a `data-ready` attribute on the canvas, or a console line), so a smoke run waits for it instead of a delay.",
+        "WebGL without a GPU needs software rendering requested explicitly in Chromium; compare screenshots only in the environment that made the reference, with a tolerance.",
+        "For itch.io, the web build is a zip with `index.html` at its root and relative paths."
+      ],
+      "owner_actions": [],
+      "commands_checked": true
+    },
+    "love": {
+      "name": "LÖVE",
+      "detect": {
+        "files": [
+          "main.lua"
+        ],
+        "content": {
+          "main.lua": "\\blove\\.(?:load|update|draw)\\b"
+        },
+        "depth": 1
+      },
+      "version": {
+        "file": "conf.lua",
+        "patterns": [
+          "t\\.version\\s*=\\s*\"([\\d.]+)\""
+        ]
+      },
+      "owned": [],
+      "owned_rule": "",
+      "exit_code_trusted": false,
+      "errors": [
+        "Error: ",
+        "stack traceback"
+      ],
+      "candidates": {
+        "run": "love .",
+        "check": "luac -p *.lua",
+        "smoke": "love . --smoke",
+        "capture": "love . --capture shots/frame.png",
+        "export": "zip -9 -r build/game.love . -x '.git/*' 'build/*'",
+        "test": "busted"
+      },
+      "notes": [
+        "LÖVE has no headless flag: a smoke run is the game started with an argument the game reads (`--smoke`) that runs a few frames and quits, with the window module off in `conf.lua` for a logic-only run.",
+        "A Lua error shows the error screen and may not change the exit code: judge the run by its log."
+      ],
+      "owner_actions": [],
+      "commands_checked": false
+    },
+    "pygame": {
+      "name": "Pygame",
+      "detect": {
+        "python_deps": [
+          "pygame",
+          "pygame-ce"
+        ],
+        "depth": 1
+      },
+      "version": {
+        "files": [
+          "requirements.txt",
+          "requirements-dev.txt",
+          "pyproject.toml",
+          "setup.cfg"
+        ],
+        "patterns": [
+          "pygame(?:-ce)?\\s*(?:==|~=|>=)\\s*([\\d.]+)"
+        ]
+      },
+      "owned": [],
+      "owned_rule": "",
+      "exit_code_trusted": true,
+      "errors": [
+        "Traceback \\(most recent call last\\)"
+      ],
+      "candidates": {
+        "run": "python3 main.py",
+        "check": "python3 -m compileall -q .",
+        "smoke": "SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy python3 main.py --frames 300",
+        "capture": "SDL_VIDEODRIVER=dummy python3 main.py --frames 60 --capture shots/frame.png",
+        "export": "python3 -m pygbag --build .",
+        "test": "python3 -m pytest -q"
+      },
+      "notes": [
+        "Set `SDL_VIDEODRIVER=dummy` before pygame initialises the display: the game runs with no window, and the screen surface can still be saved to a PNG, which is a real screenshot.",
+        "`--frames` and `--capture` are arguments the game reads; a few lines in the main loop make the smoke run and the capture possible."
+      ],
+      "owner_actions": [],
+      "commands_checked": true
+    },
+    "bevy": {
+      "name": "Bevy",
+      "detect": {
+        "cargo_deps": [
+          "bevy"
+        ],
+        "depth": 1
+      },
+      "version": {
+        "file": "Cargo.toml",
+        "patterns": [
+          "^bevy\\s*=\\s*\"([^\"]+)\"",
+          "^bevy\\s*=\\s*\\{[^}]*version\\s*=\\s*\"([^\"]+)\""
+        ]
+      },
+      "owned": [],
+      "owned_rule": "",
+      "exit_code_trusted": true,
+      "errors": [
+        "panicked at"
+      ],
+      "candidates": {
+        "run": "cargo run",
+        "check": "cargo check",
+        "smoke": "CI_TESTING_CONFIG=ci/smoke.ron cargo run --features bevy/bevy_ci_testing",
+        "capture": "CI_TESTING_CONFIG=ci/capture.ron cargo run --features bevy/bevy_ci_testing",
+        "export": "cargo build --release",
+        "test": "cargo test"
+      },
+      "notes": [
+        "Game systems are tested on an `App` with no window: `app.update()` runs one frame, then the test reads the world.",
+        "The `bevy_ci_testing` feature reads a RON file of frame-numbered events (a fixed frame time, a screenshot, an exit): a deterministic smoke run and capture.",
+        "A capture opens a window; on a Linux CI, wrap it in `xvfb-run --auto-servernum`."
+      ],
+      "owner_actions": [],
+      "commands_checked": true
+    }
+  },
+  "instructions": {
+    "lines": [
+      {
+        "id": "engine",
+        "when": "engine",
+        "text": "- Engine: {engine} {version}, pinned in `{version_file}`. Check an API against the documentation of this version, not from memory; never upgrade the engine without the owner. Why: an API from another version compiles nowhere or behaves differently. (unverified) [{month}]"
+      },
+      {
+        "id": "handoff",
+        "when": "run_no_smoke",
+        "text": "- After each change, the owner plays it: start the game with `{run_cmd}` and say what to try. Why: at this scale a person playing is the whole loop. (unverified) [{month}]"
+      },
+      {
+        "id": "loop",
+        "when": "commands",
+        "text": "- After each change, run `{loop_all}`; it judges each run by its exit code, its error lines and the game's ready line. A green run is not a working game. Why: a headless run passes while the screen is wrong. {enforced} [{month}]"
+      },
+      {
+        "id": "look",
+        "when": "capture",
+        "text": "- Before saying a visible change is done, run `{capture_cmd}` and open `{capture_output}`. Why: a visible bug is found by looking, not by reading code. (unverified) [{month}]"
+      },
+      {
+        "id": "exit_code",
+        "when": "untrusted_exit",
+        "text": "- Never judge a {engine} run by its exit code alone: it exits 0 on script errors. Why: a broken scene looks like a pass. {judge_enforced} [{month}]"
+      },
+      {
+        "id": "owned",
+        "when": "owned",
+        "text": "- {owned_rule} Why: hand-edited engine files break references without an error. (unverified) [{month}]"
+      },
+      {
+        "id": "feel",
+        "when": "always",
+        "text": "- Feel, difficulty and fun are the owner's call: propose values, never declare them right, and end each report with \"not yet played by a person\" until the owner has played. Why: no run measures them. (unverified) [{month}]"
+      },
+      {
+        "id": "prototype",
+        "when": "prototype",
+        "text": "- This is a prototype: no coverage target, no refactoring, no architecture rule until the owner says the core loop is kept. Why: prototype code is meant to be thrown away. (unverified) [{month}]"
+      },
+      {
+        "id": "logic",
+        "when": "production",
+        "text": "- Game rules live in code that does not import the renderer, with one seeded random generator and a fixed timestep, so `{test_cmd}` runs them headless. Why: logic tied to the screen cannot be tested. (unverified) [{month}]"
+      },
+      {
+        "id": "scope",
+        "when": "scope",
+        "text": "- A new idea goes to the cut list of `{scope_file}`, not into the code. Why: scope is what kills small games. (unverified) [{month}]"
+      },
+      {
+        "id": "assets",
+        "when": "assets",
+        "text": "- Every asset added gets a line in `{credits_file}`: source, licence, author; a placeholder says so. Why: an asset with an unknown licence cannot ship. (unverified) [{month}]"
+      }
+    ],
+    "forbidden": [
+      {
+        "id": "publish",
+        "when": "always",
+        "text": "- Publishing the game (itch.io, Steam, a store, a production site) and using a publishing key or an engine licence. Why: the release is the owner's. (unverified) [{month}]"
+      }
+    ],
+    "questions": [
+      {
+        "id": "core_loop",
+        "ask": "What does the player do, second by second, in one sentence?",
+        "why": "it is the one thing every check of the loop serves; only the owner decides it"
+      },
+      {
+        "id": "player",
+        "ask": "Who plays the builds, and how often?",
+        "why": "it sets how old the last playtest may be before the loop calls it stale"
+      },
+      {
+        "id": "jam_rules",
+        "ask": "If this is for a jam: which one, and what do its rules say about AI-generated code and assets, and premade assets?",
+        "why": "some jams forbid generated code or assets: an agent-built entry would be ineligible",
+        "scales": [
+          "hour",
+          "jam"
+        ]
+      },
+      {
+        "id": "art",
+        "ask": "Is there an art direction or a reference game for the look and the feel?",
+        "why": "the agent can match a reference; it cannot choose one for you"
+      },
+      {
+        "id": "release",
+        "ask": "Where will it be released, if anywhere (itch.io, Steam, a web page, nowhere)?",
+        "why": "the export preset and the build format follow from it; publishing itself stays yours",
+        "scales": [
+          "jam",
+          "weeks"
+        ]
+      }
+    ],
+    "section": "Rules"
+  }
+}

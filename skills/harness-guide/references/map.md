@@ -20,6 +20,7 @@ Not sure which of the lines below fits: `harness-guide`, the skill that reads th
 | Have one skill, agent or rule reviewed and explained: what is good, what is weak, which concept is behind it; nothing is written, no level is mentioned | `harness-coach` | `harness-design` to place the pieces and set up the files |
 | Create one skill, agent, rule, hook or tool, or put an existing one right: "skill or agent?", "should this be code?", "where do I put this?" | `harness-design` | `harness-coach` to understand first, without changing anything |
 | Turn what happened in PRs and reviews (`rule:` comments, fixes after the fact, reverts) into rules | `harness-harvest` | `harness-audit` if no change is wanted |
+| Make a video game with an agent: the development loop sized to one hour, a jam or weeks, the engine's traps, and the lines an `AGENTS.md` needs for a game | `harness-game` | `harness-init` for a repository that is not a game; the game's design (concept, mechanics to cut) is the owner's |
 
 ## A team's path from ticket to production (plugin `harness-ai`)
 
@@ -47,6 +48,7 @@ Not sure which of the lines below fits: `harness-guide`, the skill that reads th
 - **coach or design?** Both read one piece with the same grid. `harness-coach` explains and stops: what holds, what does not, in named concepts. `harness-design` shows the plan and sets up the files.
 - **design or audit?** One piece, new or existing: `harness-design`. The whole setup: `harness-audit`.
 - **harvest or audit?** Evidence from real PRs, with a PR of changes: `harness-harvest`. A review of what exists today: `harness-audit`.
+- **game or init?** A video game: `harness-game`, which writes the instruction lines a game needs and sets up its loop. Any other repository: `harness-init`.
 - **step or medals?** Both start from the same measurement; `harness-medals` only shows it, `harness-step` acts on it.
 - **flow-place or harness-design?** A step of a team workflow spanning tickets and repositories: `flow-place`. A rule, script or hook inside one repository: `harness-design`.
 - **review or secu?** Both only comment. `secu` runs the scanners and looks at the sensitive places; `review` reads the whole change.
@@ -68,6 +70,7 @@ The `harness-ai` plugin installs the whole repository, so both command lines are
 | `harness place` | where a piece of a harness goes, from closed questions (`grid`, `one`, `plan`); `review` tells an existing piece as named concepts |
 | `harness report` | a one-page HTML assessment, always in the same format |
 | `harness serve` | a local page that follows the state (http://127.0.0.1:8787) |
+| `harness game` | the video-game profile: `loop` (the pieces of a game's development loop for its scale), `detect`, `set`, `command`, `run` (judges a run by its exit code, its error lines and the game's ready line), `runner`, `instructions`, `profile` |
 | `harness flow` | a ticket workflow on paper: `fit`, `new`, `check`, `place`, `next`, `status` |
 | `harness harvest` | the GitHub evidence `harness-harvest` reads |
 | `harness audit` | checks the file `harness-audit` writes |

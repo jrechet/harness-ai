@@ -161,6 +161,9 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Know where a piece of a skill or agent belongs: AGENTS.md, CLI, hook, permission, CI… | `harness.py place grid`, `place one`, `place plan <pieces.json>` | tooled |
 | Have the pieces of an existing skill or agent told as named concepts: what is well placed, what is weak and why, with no level | `harness.py place review <pieces.json>` | tooled |
 | Write an assessment as a one-page HTML report | `harness.py report build <report.json> -o <page.html>` | tooled |
+| For a video game: see which pieces of its development loop are in place for its scale (one hour, a jam, weeks), and the next one ([why each piece](docs/game-profile.md)) | `harness.py game loop <repo>` | tooled, never played |
+| Have a run of the game judged by its exit code, its error lines and the line the game prints once started, since some engines exit 0 on a script error | `harness.py game command smoke "<command>" --ready "<line>"`, then `harness.py game run all --repo <repo>` | tooled, never played |
+| Get the lines an `AGENTS.md` needs for a game, filled from the engine and the loop found | `harness.py game instructions <repo>` | tooled, never played |
 | Follow progress in a local page | `harness.py serve <repo>` | tooled, rendering not reviewed |
 | Know, before writing any workflow, whether you need one at all and which tool (LangChain, LangGraph, a workflow engine, Rust, or only the ticket's state and CI), from answers you record yourself, with the published costs it copies from the pages, dated and sourced ([the pages that explain each verdict](docs/workflow-harness/README.md)) | `harness.py flow fit --questions`, then `harness.py flow fit <answers.json>` | tooled, not measured with a user |
 | Start a team workflow from a ticket to production, written as a small table of steps: a feature or a bug template to edit, whose approvals wait for their judge's answer ([every key](docs/workflow-harness/flow-format.md)) | `harness.py flow new <feature\|bug>` | tooled, not measured with a user |
@@ -184,6 +187,7 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Keep where the repository stands in view while you work: one quiet row above the prompt, a pane with the ladder (`/harness-hud`) | plugin `harness-hud`, a Claude Code mod that reads `.harness/state.json` and runs nothing | tooled: its own tests run under `claude plugin test`, not in CI; seen drawn once, in the desktop app |
 | Ask which skill or command fits what you want, or whether you need one at all | `harness-guide` | measured once: 20 questions of 20 routed, against 16 of 20 with the skill descriptions alone; the gap is the needs only a command line meets, and the questions were written from the same command help as the guide; triggering in a real session not measured ([the draw](docs/measurements/guide-routing-2026-11-23.json)) |
 | Draw rules from what happened in your PRs | `harness-harvest` | tooled, never played |
+| Make a video game with an agent: the development loop set up one piece at a time, sized to one hour, a jam or weeks, and the lines `AGENTS.md` needs for a game | `harness-game` | tooled, never played |
 | Ask "do I need LangChain, LangGraph, a workflow engine or Rust for this?" before building anything | `flow-why` | tooled, never played |
 | Write your team's path from a ticket to production as one file a program has checked; nothing runs | `flow-map` | tooled, never played |
 | Know where each step of that workflow belongs, and whether any step needs a workflow engine | `flow-place` | tooled, never played |
@@ -337,7 +341,7 @@ Both suites pass on a fresh clone, from Python 3.10 to 3.14. The repository's ru
 | Folder | Content |
 |---|---|
 | `cli/` | The `harness.py` CLI and its tests |
-| `skills/` | The eleven skills of the `harness-ai` plugin: six for one repository's harness, three (`flow-why`, `flow-map`, `flow-place`) for a team's ticket workflow, `harness-guide`, which says which one to use, and `harness-coach`, which reviews one skill and explains what is weak |
+| `skills/` | The twelve skills of the `harness-ai` plugin: six for one repository's harness, three (`flow-why`, `flow-map`, `flow-place`) for a team's ticket workflow, `harness-guide`, which says which one to use, `harness-coach`, which reviews one skill and explains what is weak, and `harness-game`, the video-game profile |
 | `plugins/ai-sdlc/` | The second plugin: skills `ticket`, `dev`, `qa`, `secu`, `review`, `ship` and `run`, and its CLI |
 | `fixtures/` | Sample projects, trapped cases, answer keys, recorded runs |
 | `app/` | The progress page served by `harness serve` |

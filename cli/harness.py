@@ -20,6 +20,7 @@
   harness keys check [--base REF]    an answer key or a grader does not change with a skill or a run
   harness report build|from-place …  a one-page HTML assessment, always in the same format
   harness flow fit|new|check|next|place|status …   a team's workflow from a ticket to production, checked on paper
+  harness game loop|detect|set|command|run|runner|instructions|profile …   the video-game profile: a game's development loop
 
 Python 3.10+, standard library only."""
 from __future__ import annotations
@@ -33,7 +34,7 @@ if sys.version_info < (3, 10):  # before any import: the rest of the CLI does no
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from harnesslib import bench, commands, fixtures, flow, fresh, github, ignore, keys, medals, place, progress, report, rules, serve, session, shape, status  # noqa: E402
+from harnesslib import bench, commands, fixtures, flow, fresh, game, github, ignore, keys, medals, place, progress, report, rules, serve, session, shape, status  # noqa: E402
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -63,6 +64,7 @@ def main(argv: list[str] | None = None) -> int:
     medals.build_parser(sub.add_parser("medals", help="medals and achievements: the maturity level and why"))
     fresh.build_parser(sub.add_parser("fresh", help="what has aged: skills, agents, rules"))
     flow.build_parser(sub.add_parser("flow", help="a team's workflow from a ticket to production, checked on paper"))
+    game.build_parser(sub.add_parser("game", help="the video-game profile: a game's development loop, piece by piece"))
     args = parser.parse_args(argv)
     target = getattr(args, "repo", None)
     if args.command in ("status", "target", "rules", "serve") and isinstance(target, str) and not os.path.isdir(target):
@@ -104,6 +106,8 @@ def main(argv: list[str] | None = None) -> int:
         return fresh.main(args=args)
     if args.command == "flow":
         return flow.main(args=args)
+    if args.command == "game":
+        return game.main(args)
     parser.error("unknown command")
     return 2
 
