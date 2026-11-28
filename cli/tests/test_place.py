@@ -502,6 +502,105 @@ class ConceptReviewTests(unittest.TestCase):
         self.assertEqual(code, 2)
 
 
+class DecisionTests(unittest.TestCase):
+    """`place review --decisions`: what every other option would give, for the answers that are the
+    author's to give. It says what an answer moves; whether to ask for it stays the coach's reading."""
+
+    RULE = {"piece": "Tests pass before a release", "current": "skill", "evidence": ["SKILL.md:9"],
+            "answers": {"nature": "rule", "incident": "yes", "checkable": "yes", "bypass_rule": "release"}}
+
+    def _decisions(self, *pieces):
+        return place.decisions(GRID, list(pieces))
+
+    def _others(self, entry):
+        return {o["answer"]: o for o in entry["others"]}
+
+    def test_only_the_decision_questions_are_listed(self):
+        entries = self._decisions(self.RULE)
+        self.assertEqual([e["question"] for e in entries], ["incident", "bypass_rule"])
+        self.assertEqual({e["piece"] for e in entries}, {self.RULE["piece"]})
+
+    def test_a_cost_that_leads_to_the_same_place_changes_nothing(self):
+        cost = self._decisions(self.RULE)[0]
+        self.assertEqual(self._others(cost)["forget"]["outcome"], "same")
+
+    def test_a_cost_that_opens_another_question_says_which(self):
+        other = self._others(self._decisions(self.RULE)[0])["no"]
+        self.assertEqual(other["outcome"], "opens")
+        self.assertEqual(other["question"], GRID["questions"]["scope"]["text"])
+
+    def test_who_must_not_skip_it_moves_the_piece_and_names_where(self):
+        who = self._decisions(self.RULE)[1]
+        agent = self._others(who)["agent"]
+        self.assertEqual((agent["outcome"], agent["destination"]), ("moves", "hook_check"))
+        self.assertEqual(agent["concept"], "skippable_condition")
+
+    def test_an_answer_that_would_leave_the_piece_well_placed_says_so(self):
+        held = {**self.RULE, "current": "ci_check"}
+        dev = self._others(self._decisions(held)[1])["dev"]
+        self.assertEqual((dev["outcome"], dev["destination"], dev["concept"]), ("moves", "ci_check", None))
+
+    def test_an_answer_the_piece_never_used_is_not_read_by_the_other_options(self):
+        for unused in ("always", "bogus"):
+            piece = {**self.RULE, "answers": {**self.RULE["answers"], "scope": unused}}
+            other = self._others(self._decisions(piece)[0])["no"]
+            self.assertEqual(other["outcome"], "opens", unused)
+
+    def test_the_flag_never_refuses_a_file_the_plain_review_accepts(self):
+        piece = {**self.RULE, "answers": {**self.RULE["answers"], "scope": "bogus"}}
+        self.assertEqual((self._review([piece])[0], self._review([piece], "--decisions")[0]), (0, 0))
+
+    def test_every_decision_of_the_shipped_grid_has_an_option_that_changes_the_result(self):
+        """Why the command cannot say "assume this one": the skill's text decides what to ask."""
+        for qid in place.DECISIONS:
+            targets = {place._target(o) for o in GRID["questions"][qid]["options"].values()}
+            self.assertGreater(len(targets), 1, qid)
+
+    def test_a_piece_with_no_decision_or_still_waiting_is_not_listed(self):
+        procedure = {"piece": "The steps", "answers": {"nature": "procedure"}, "current": "skill"}
+        waiting = {"piece": "Tests pass", "answers": {"nature": "rule"}, "current": "skill"}
+        self.assertEqual(self._decisions(procedure, waiting), [])
+
+    def test_the_pieces_given_are_not_changed(self):
+        before = json.dumps(self.RULE, sort_keys=True)
+        self._decisions(self.RULE)
+        self.assertEqual(json.dumps(self.RULE, sort_keys=True), before)
+
+    def _review(self, pieces, *flags):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "pieces.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(pieces, fh)
+            return run_cli("place", "review", path, *flags)
+
+    def test_the_flag_adds_a_section_in_plain_words_after_the_same_review(self):
+        code_plain, plain = self._review([self.RULE])
+        code, out = self._review([self.RULE], "--decisions")
+        self.assertEqual((code_plain, code), (0, 0))
+        self.assertTrue(out.startswith(plain))
+        added = out[len(plain):]
+        self.assertIn(GRID["questions"]["bypass_rule"]["text"], added)
+        self.assertIn(GRID["questions"]["bypass_rule"]["options"]["agent"]["label"], added)
+        self.assertIn(GRID["destinations"]["hook_check"]["name"], added)
+        self.assertNotIn("bypass_rule", added)
+        self.assertNotIn("hook_check", added)
+        self.assertIsNone(LEVEL_OR_CODE.search(added), LEVEL_OR_CODE.findall(added))
+
+    def test_without_the_flag_the_json_review_has_no_decisions(self):
+        _, plain = self._review([self.RULE], "--format", "json")
+        _, flagged = self._review([self.RULE], "--decisions", "--format", "json")
+        self.assertNotIn("decisions", json.loads(plain))
+        self.assertEqual([d["question"] for d in json.loads(flagged)["decisions"]], ["incident", "bypass_rule"])
+
+    def test_the_flag_keeps_the_exit_code_of_a_review_that_waits(self):
+        waiting = {"piece": "Tests pass", "answers": {"nature": "rule"}, "current": "skill"}
+        code, _ = self._review([self.RULE, waiting], "--decisions")
+        self.assertEqual(code, 3)
+
+    def test_the_decision_questions_exist_in_the_grid(self):
+        self.assertEqual(set(place.DECISIONS) - set(GRID["questions"]), set())
+
+
 class CliTests(unittest.TestCase):
     def test_one_piece_placed_prints_destination_and_why(self):
         code, out = run_cli("place", "one", "nature=limit", "bypass_limit=dev")

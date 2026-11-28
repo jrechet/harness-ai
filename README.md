@@ -159,7 +159,7 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | See the files you have and miss, layer by layer, and walk the steps to your target, in one page to open in a browser ([example](docs/examples/state.html)) | `harness.py status <repo> --page F` | tooled |
 | See your level as a medal, with achievements and next steps | `harness.py medals <repo> [--write] [--page F]` | tooled |
 | Know where a piece of a skill or agent belongs: AGENTS.md, CLI, hook, permission, CI… | `harness.py place grid`, `place one`, `place plan <pieces.json>` | tooled |
-| Have the pieces of an existing skill or agent told as named concepts: what is well placed, what is weak and why, with no level | `harness.py place review <pieces.json>` | tooled |
+| Have the pieces of an existing skill or agent told as named concepts: what is well placed, what is weak and why, with no level; `--decisions` adds which of the author's answers would change it | `harness.py place review <pieces.json>` | tooled |
 | Write an assessment as a one-page HTML report | `harness.py report build <report.json> -o <page.html>` | tooled |
 | Follow progress in a local page | `harness.py serve <repo>` | tooled, rendering not reviewed |
 | Know, before writing any workflow, whether you need one at all and which tool (LangChain, LangGraph, a workflow engine, Rust, or only the ticket's state and CI), from answers you record yourself, with the published costs it copies from the pages, dated and sourced ([the pages that explain each verdict](docs/workflow-harness/README.md)) | `harness.py flow fit --questions`, then `harness.py flow fit <answers.json>` | tooled, not measured with a user |
