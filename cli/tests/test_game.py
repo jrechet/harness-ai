@@ -911,8 +911,6 @@ class JudgeProcessTests(Repo):
             os.kill(pid, 0)
 
     def test_a_pipe_does_not_hide_a_failure(self):
-        if not __import__("shutil").which("bash"):
-            self.skipTest("no bash: sh has no pipefail")
         verdict = self.judge("check", run=self.py("raise SystemExit(3)") + " | cat")
         self.assertFalse(verdict["passed"])
 
