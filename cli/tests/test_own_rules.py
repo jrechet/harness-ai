@@ -198,6 +198,22 @@ STEM_LENGTH = 5
 EMPTY_WORDS = frozenset("""about after always before cannot check checks contains does each every from have into
     must never nothing only other should that their them then there this were what when with without your""".split())
 SKILLS_WITH_AN_EXAMPLE = ("skills/harness-coach/SKILL.md", "skills/harness-design/SKILL.md")
+# What a row of a report is about (`harness report`): the piece, under another key. In a plan the same key
+# holds a one-word answer, which shares two words with nothing.
+SCOPE_TEXT = re.compile(r'"scope"\s*:\s*"((?:[^"\\]|\\.)*)"')
+# A piece a page offers to place, in its script: `label: "\"Never push to main\""`.
+LABEL_TEXT = re.compile(r'\blabel\s*:\s*"((?:[^"\\]|\\.)*)"')
+EXAMPLES_FOLDER = "docs/examples"
+PAGES_FOLDER = "docs"
+COURSE_PAGE = "docs/ai-sdlc/course/index.html"
+EXAMPLE_PLAN = "docs/examples/pieces.json"
+TRAPS_FOUND = re.compile(r"Traps found: (\d+)/(\d+); healthy items moved: (\d+)")
+# Examples this repository showed and removed because they were graded pieces with their answers: the
+# word guard misses some of them ("Never push to main" shares one word with T1), so they are named by the
+# words that carry them: a piece holding all the words of one brings it back, in whatever order or form.
+REMOVED_EXAMPLES = ("push main", "release uncommitted files", "compute version", "read jira ticket")
+EXAMPLES_WITH_PIECES = ("docs/examples/pieces.json", "docs/examples/report.json",
+                        "docs/examples/report-skill-weekly-digest.html")
 
 
 def content_stems(text: str) -> set[str]:
@@ -209,6 +225,57 @@ def content_stems(text: str) -> set[str]:
 def example_pieces(text: str) -> list[str]:
     """Every `"piece": "…"` a skill shows, wherever it is written: a block that does not parse is read too."""
     return PIECE_TEXT.findall(text)
+
+
+def shown_pieces(text: str) -> list[str]:
+    """The pieces a shipped example shows: those of a plan, what the rows of a report are about, and the
+    pieces a page offers to place."""
+    return example_pieces(text) + SCOPE_TEXT.findall(text) + LABEL_TEXT.findall(text)
+
+
+def shipped_examples() -> list[str]:
+    """What the plugins ship beside their SKILL.md and a reader is sent to: the examples of what the
+    commands produce, every page of `docs/`, and the reference pages of each skill. Paths relative to
+    the repository."""
+    found = glob.glob(os.path.join(ROOT, EXAMPLES_FOLDER, "**", "*"), recursive=True)
+    found += glob.glob(os.path.join(ROOT, PAGES_FOLDER, "**", "*.html"), recursive=True)
+    found += glob.glob(os.path.join(ROOT, PAGES_FOLDER, "**", "*.md"), recursive=True)
+    for skill_root in SKILL_ROOTS:
+        found += glob.glob(os.path.join(ROOT, skill_root, "*", "references", "**", "*"), recursive=True)
+    return sorted({os.path.relpath(path, ROOT) for path in found if os.path.isfile(path)})
+
+
+def fixture_contents() -> dict[bytes, str]:
+    """Every file of `fixtures/` by its content, blanks at both ends left out: (content, path)."""
+    contents = {}
+    for folder, _, files in os.walk(os.path.join(ROOT, "fixtures")):
+        for name in files:
+            path = os.path.join(folder, name)
+            with open(path, "rb") as fh:
+                data = fh.read().strip()
+            if data:
+                contents.setdefault(data, os.path.relpath(path, ROOT))
+    return contents
+
+
+def read_shipped(relative: str) -> str:
+    """A shipped file as text: a byte that is not UTF-8 is replaced, so one odd file is still read."""
+    with open(os.path.join(ROOT, relative), encoding="utf-8", errors="replace") as fh:
+        return fh.read()
+
+
+def removed_examples_shown(pieces: list[str]) -> list[str]:
+    """The pieces that bring back an example removed for being graded: every word of it is there, cut to
+    its stem, whatever the case, the quotes, the order or the words in between."""
+    def key_words(text: str) -> set[str]:
+        return {re.sub(r"e?s$", "", word)[:STEM_LENGTH] for word in WORD.findall(text.lower())}
+
+    found = []
+    for piece in pieces:
+        words = key_words(piece)
+        found += [f"{piece!r} brings back {removed!r}" for removed in REMOVED_EXAMPLES
+                  if key_words(removed) <= words]
+    return found
 
 
 def graded_lines() -> list[tuple[str, str]]:
@@ -300,6 +367,114 @@ class SkillExamplesGiveNoAnswerAwayTests(unittest.TestCase):
         for path, _ in skill_files():
             with self.subTest(skill=path):
                 self.assertEqual(leaked_examples(example_pieces(read(path)), graded), [])
+
+    def test_the_example_of_design_is_one_the_command_places(self):
+        block = EXAMPLE_BLOCK.search(read("skills/harness-design/SKILL.md"))
+        self.assertIsNotNone(block, "harness-design shows no ```json example")
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "pieces.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(block.group(1))
+            result = subprocess.run([sys.executable, os.path.join(ROOT, "cli", "harness.py"), "place", "plan", path],
+                                    capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_the_guard_reads_what_a_report_row_is_about(self):
+        row = '{"scope": "Refuse to release with uncommitted files", "status": "gap"}'
+        self.assertTrue(leaked_examples(shown_pieces(row), graded_lines()))
+        self.assertEqual(leaked_examples(shown_pieces('{"answers": {"scope": "discoverable"}}'), graded_lines()), [])
+
+    def test_the_guard_reads_a_piece_a_page_offers_to_place(self):
+        script = r'{ label: "\"No release with uncommitted files\"", answers: [["nature", "rule"]] }'
+        self.assertTrue(leaked_examples(shown_pieces(script), graded_lines()))
+        self.assertGreaterEqual(len(LABEL_TEXT.findall(read(COURSE_PAGE))), 4, "the course offers no piece to place")
+        self.assertIn(COURSE_PAGE, shipped_examples())
+
+    def traps_found(self, plan: str, key: str) -> tuple[int, int]:
+        """What `place check` finds of an answer key in a plan: (traps found, healthy items moved)."""
+        result = subprocess.run([sys.executable, os.path.join(ROOT, "cli", "harness.py"), "place", "check",
+                                 plan, "--expected", key], capture_output=True, text=True, timeout=60)
+        found = TRAPS_FOUND.search(result.stdout)
+        self.assertIsNotNone(found, result.stdout + result.stderr)
+        return int(found.group(1)), int(found.group(3))
+
+    def test_the_example_plan_finds_no_trap_of_an_answer_key(self):
+        """Words apart, a plan that cites the graded lines of a fixture is its answer: `place check` says so."""
+        keys = sorted(glob.glob(os.path.join(ROOT, "fixtures", "design", "*", "expected.json")))
+        self.assertGreaterEqual(len(keys), 2)
+        for key in keys:
+            with self.subTest(key=os.path.relpath(key, ROOT)):
+                self.assertEqual(self.traps_found(os.path.join(ROOT, EXAMPLE_PLAN), key), (0, 0))
+
+    def test_that_check_sees_the_plan_that_was_the_example_even_in_other_words(self):
+        fixture = os.path.join(ROOT, "fixtures", "design", "release-skill")
+        with open(os.path.join(fixture, "runs", "2026-11-15-author", "pieces.json"), encoding="utf-8") as fh:
+            pieces = json.load(fh)
+        reworded = [dict(piece, piece=f"Piece {number}") for number, piece in enumerate(pieces)]
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "pieces.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(reworded, fh)
+            found, _ = self.traps_found(path, os.path.join(fixture, "expected.json"))
+        self.assertEqual(found, 7)
+        self.assertEqual(leaked_examples([piece["piece"] for piece in reworded], graded_lines()), [])
+
+    def test_the_guard_reads_the_examples_and_the_reference_pages(self):
+        shipped = shipped_examples()
+        self.assertGreaterEqual(len([path for path in shipped if path.startswith(EXAMPLES_FOLDER)]), 5)
+        self.assertGreaterEqual(len([path for path in shipped if "/references/" in path]), 7)
+        for path in EXAMPLES_WITH_PIECES:
+            with self.subTest(example=path):
+                self.assertIn(path, shipped)
+                self.assertGreaterEqual(len(shown_pieces(read(path))), 3, "no piece found: the guard reads nothing")
+
+    def test_no_shipped_example_or_reference_page_shows_a_graded_piece(self):
+        graded = graded_lines()
+        for path in shipped_examples():
+            with self.subTest(file=path):
+                self.assertEqual(leaked_examples(shown_pieces(read_shipped(path)), graded), [])
+
+    def test_no_example_removed_for_being_graded_comes_back(self):
+        for path in shipped_examples() + [path for path, _ in skill_files()]:
+            with self.subTest(file=path):
+                self.assertEqual(removed_examples_shown(shown_pieces(read_shipped(path))), [])
+
+    def test_the_guard_sees_a_removed_example_brought_back(self):
+        self.assertTrue(removed_examples_shown(['\\"Never push to main\\"']))
+        self.assertTrue(removed_examples_shown(["Compute the next version number"]))
+        for reworded in ("Compute the version number", "Never pushes directly to the main branch",
+                         "Don't release with uncommitted files", "Read the Jira tickets"):
+            with self.subTest(piece=reworded):
+                self.assertTrue(removed_examples_shown([reworded]))
+        self.assertEqual(removed_examples_shown(["Never push a draft to the channel"]), [])
+
+    def test_a_shipped_file_that_is_not_utf8_is_still_read(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "odd.json")
+            with open(path, "wb") as fh:
+                fh.write(b'{"piece": "Read the Jira ticket \xff"}')
+            self.assertTrue(removed_examples_shown(shown_pieces(read_shipped(path))))
+
+    def test_no_shipped_example_is_a_file_of_a_fixture(self):
+        fixtures = fixture_contents()
+        self.assertGreaterEqual(len(fixtures), 100)
+        for path in shipped_examples():
+            with self.subTest(file=path):
+                with open(os.path.join(ROOT, path), "rb") as fh:
+                    self.assertIsNone(fixtures.get(fh.read().strip()), "an example copied from a fixture")
+
+    def test_the_example_page_is_the_one_the_command_writes_from_the_example_plan(self):
+        page = read("docs/examples/report-skill-weekly-digest.html")
+        data = re.search(r'<script[^>]*id="report-data"[^>]*>(.*?)</script>', page, re.S)
+        self.assertIsNotNone(data, "the page carries no report-data block")
+        shown = json.loads(data.group(1))
+        result = subprocess.run(
+            [sys.executable, os.path.join(ROOT, "cli", "harness.py"), "report", "from-place",
+             os.path.join(ROOT, "docs", "examples", "pieces.json"), "--kind", "skill", "--name", "weekly-digest",
+             "--path", shown["subject"]["path"], "--date", shown["date"], "--format", "json"],
+            capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout), shown)
 
 
 def shadowed_names(path: str) -> list[str]:
