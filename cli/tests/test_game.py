@@ -67,11 +67,13 @@ class Repo(unittest.TestCase):
         return game_run.judge(piece, spec, self.repo)
 
     def passed(self, piece: str, command: str, ok: bool = True) -> None:
-        """A judged run of the piece's command, as `harness game run` records it."""
-        path = os.path.join(self.repo, ".harness", game_run.RESULTS)
-        known = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
-        known[piece] = {"command": command, "passed": ok, "date": "2026-11-28", "seconds": 0.1}
-        self.write(f".harness/{game_run.RESULTS}", json.dumps(known))
+        """A judged run of the piece's spec of today, as `harness game run` records it."""
+        block = game.game_block(game.read_config(game.config_path(self.repo)))
+        spec = game.commands_of(block)[piece]
+        engine = self.profile["engines"].get(game.detect(self.repo, self.profile, block.get("engine"))["id"] or "")
+        key = game_run.spec_key(game.judged_with(spec, engine, piece))
+        self.write(f".harness/{game_run.RESULTS}/{piece}.json",
+                   json.dumps({"piece": piece, "command": command, "spec": key, "passed": ok, "date": "2026-11-28"}))
 
 
 class ProfileDataTests(unittest.TestCase):
@@ -133,7 +135,7 @@ class ProfileDataTests(unittest.TestCase):
         self.assertTrue({"godot", "unity", "love"} <= lying)
 
     def test_every_instruction_line_names_a_known_condition_and_carries_why_and_date(self):
-        known = {"engine", "commands", "run_no_smoke", "capture", "untrusted_exit", "owned", "always",
+        known = {"engine", "commands", "run_no_smoke", "run_and_smoke", "capture", "untrusted_exit", "owned", "always",
                  "prototype", "production", "scope", "assets"}
         data = self.profile["instructions"]
         for line in data["lines"] + data["forbidden"]:
@@ -438,7 +440,7 @@ class CommandTests(Repo):
 
     def test_publishing_is_never_recorded_whatever_the_piece(self):
         for command in ("butler push build user/game:web", "git push origin main", "npm publish",
-                        "steamcmd +login x", "gh release create v1", "netlify deploy --prod"):
+                        "steamcmd +login x +run_app_build app.vdf", "gh release create v1", "netlify deploy --prod"):
             with self.subTest(command=command):
                 with self.assertRaises(ValueError) as caught:
                     self.record("export", command)
@@ -562,7 +564,7 @@ class JudgeTests(Repo):
     def test_the_runner_imports_only_the_standard_library(self):
         with open(game.RUNNER_SOURCE, encoding="utf-8") as fh:
             imports = set(re.findall(r"^(?:import|from) (\w+)", fh.read(), re.M))
-        self.assertEqual(imports - {"__future__", "argparse", "datetime", "json", "os", "re", "shlex", "shutil", "signal",
+        self.assertEqual(imports - {"__future__", "argparse", "datetime", "hashlib", "json", "os", "re", "shlex", "shutil", "signal",
                                     "subprocess", "sys", "tempfile", "time"}, set())
 
 
@@ -696,12 +698,29 @@ REFUSED = (
     "python3 -m twine upload dist/x", "gh workflow run release.yml", "gh release create v1", "./scripts/release.sh",
     "./deploy-web.sh", "npx gh-pages -d dist", "npx netlify-cli deploy --prod", "vercel --prod",
     "steamcmd +login u +run_app_build x", "firebase deploy",
+    "git \\\n  push origin main", "docker \\\n push img", "if [ -n \"$CI\" ]; then git push origin main; fi",
+    "for t in v1; do git tag $t; done", "{ git push; }", "! git push", "while false; do npm publish; done",
+    "timeout 120 git push", "sh -c 'git push'", "bash -c \"butler push x y\"", "true && { git push; }",
+    "echo `git push`", "sudo -u ci git push", "env -C dir git push", "xargs git push",
+    "bash scripts/deploy.sh", "sh deploy.sh", "timeout 600 ./deploy.sh", "python3 tools/deploy.py",
+    "node scripts/publish.mjs", "yarn deploy", "yarn publish:itch", "pnpm deploy:web", "make deploy",
+    "npm -w game publish", "npm --workspace game publish", "pnpm --filter game publish", "cargo +stable publish",
+    "npx wrangler@3 pages deploy dist", "npx vercel@latest --prod", "npm run deploy --dry-run", "./deploy.sh --dry-run",
 )
 NOT_PUBLISHING = (
     "godot --headless --path . --quit-after 300", "npm publish --dry-run", 'git commit -m "do not git push"',
     "git status", "cargo build --release", "npm run build:release", "npm run dev", "npx playwright test smoke",
     "rsync -a build/ out/", "zip -9 -r build/game.love . -x '.git/*'", "xvfb-run --auto-servernum godot --path .",
     "gdlint $(git ls-files '*.gd')", "python3 -c \"import time; time.sleep(1)\"", "python3 -m pygbag --build .",
+    "mkdir -p build/itch && godot --headless --path . --export-release Web build/itch/index.html",
+    "godot --headless --export-release itch build/web/index.html", "python3 build.py --target itch",
+    "npm run test:upload", "./scripts/upload-tests.sh", "git tag -l", "git tag", "git tag --points-at HEAD",
+    "gh release download 4.3-stable -R godotengine/godot -p '*templates*'", "gh release view",
+    "aws s3 cp s3://bucket/assets ./assets --recursive", "aws s3 ls s3://bucket", "rsync -a host:assets/ ./assets",
+    "make web >> deploy.log 2>&1", "godot --headless --export-release Web build/index.html > publish.log",
+    "./build.sh 2> upload-errors.txt", "aws --version", "git log --oneline", "./build-release-notes.sh",
+    "python3 - <<EOF\ngit push\nEOF", "aws s3 sync build s3://b --dryrun", "git push -n origin main",
+    "rsync -an build/ host:/www", "npm publish --dry-run", "vercel dev",
 )
 
 
@@ -896,6 +915,87 @@ class ReviewFixTests(Repo):
         self.assertIn("did not finish in 1 s", verdict["failed"][0])
 
 
+class SecondReviewTests(Repo):
+    """What the second independent review of 2026-11-28 found in the fixes, each held by a test."""
+
+    def py(self, code: str) -> str:
+        return f'"{PY}" -c "{code}"'
+
+    def test_a_failing_test_that_logs_to_a_file_is_not_blamed_on_a_missing_program(self):
+        script = self.write("build/game", "#!/bin/sh\necho one test failed\nexit 1\n")
+        os.chmod(script, 0o755)
+        verdict = self.judge("test", run="cd build && ./game --test 2>&1 | tee ../test.log")
+        self.assertEqual(verdict["failed"][0], "exit code 1")
+        self.assertEqual(game_run.segments("make web >> deploy.log 2>&1"), [["make", "web"]])
+
+    def test_a_missing_program_is_named_only_when_the_shell_says_one_is(self):
+        self.assertEqual(game_run.missing_programs("cd build && ./game", self.repo), ["./game"])
+        self.write("build/game")
+        self.assertEqual(game_run.missing_programs("cd build && ./game", self.repo), [])
+        self.assertEqual(game_run.missing_programs("f() { make test; }; f", self.repo), [])
+        verdict = self.judge("check", run=self.py("raise SystemExit(4)"))
+        self.assertEqual(verdict["failed"], ["exit code 4"])
+
+    def test_a_verdict_counts_only_for_the_spec_it_judged(self):
+        self.set_game(scale="jam")
+        command = "echo 'SCRIPT ERROR: Parse Error'; echo GAME READY"
+        run_cli("game", "command", "smoke", command, "--repo", self.repo)
+        self.assertEqual(run_cli("game", "run", "smoke", "--repo", self.repo)[0], 0)
+        self.write("project.godot", GODOT)
+        run_cli("game", "command", "smoke", command, "--repo", self.repo, "--ready", "GAME READY")
+        self.assertIn("never judged", self.piece("smoke", None)["detail"])
+        self.assertEqual(run_cli("game", "run", "smoke", "--repo", self.repo)[0], 1)
+        self.assertIn("its last judged run failed", self.piece("smoke", None)["detail"])
+
+    def test_a_capture_recorded_again_with_its_output_is_judged_again(self):
+        self.set_game(scale="jam")
+        run_cli("game", "command", "capture", "echo hi > shot.png", "--repo", self.repo)
+        run_cli("game", "run", "capture", "--repo", self.repo)
+        run_cli("game", "command", "capture", "echo hi > shot.png", "--repo", self.repo, "--output", "shot.png")
+        self.assertIn("never judged", self.piece("capture", None)["detail"])
+
+    def test_a_unity_project_with_many_assets_is_still_found(self):
+        self.write("ProjectSettings/ProjectVersion.txt", "m_EditorVersion: 2022.3.10f1\n")
+        folder = os.path.join(self.repo, "Assets", "Art")
+        os.makedirs(folder)
+        for i in range(20100):
+            open(os.path.join(folder, f"a{i}.png.meta"), "w").close()
+        found = game.detect(self.repo, self.profile)
+        self.assertEqual((found["id"], found["version"]), ("unity", "2022.3.10f1"))
+
+    def test_the_proposed_lines_put_the_instructions_piece_in_place(self):
+        self.write("project.godot", GODOT)
+        self.set_game(scale="jam", commands={"run": {"run": "godot --path ."}, "smoke": {"run": "s", "ready": "R"}})
+        run_cli("game", "runner", self.repo, "--write")
+        result = game.instructions(self.repo, self.profile, TODAY)
+        rules = "\n".join(line["text"] for line in result["lines"])
+        forbidden = "\n".join(line["text"] for line in result["forbidden"])
+        self.write("AGENTS.md", f"# game\n\nMode: **assistance**.\n\n## Rules\n{rules}\n\n## Forbidden\n{forbidden}\n")
+        self.assertEqual(self.piece("instructions", None)["state"], "ok", self.piece("instructions", None))
+        self.assertEqual(self.piece("owned_files", None)["state"], "ok")
+
+    def test_plural_and_hyphenated_cut_headings_count(self):
+        for heading in ("Cuts", "Coupes", "Coupés", "Out-of-scope", "Parking lot"):
+            with self.subTest(heading=heading):
+                self.write("docs/design.md", f"# Design\n## {heading}\n- boss\n")
+                self.assertEqual(self.piece("scope")["state"], "ok")
+
+    def test_written_files_keep_the_usual_mode(self):
+        previous = os.umask(0o022)
+        self.addCleanup(os.umask, previous)
+        run_cli("game", "set", "--repo", self.repo, "--scale", "jam")
+        run_cli("game", "runner", self.repo, "--write")
+        for rel in (".harness/config.json", ".harness/game_loop.py"):
+            with self.subTest(file=rel):
+                self.assertEqual(os.stat(os.path.join(self.repo, rel)).st_mode & 0o777, 0o644)
+
+    def test_each_piece_keeps_its_verdict_in_a_file_of_its_own(self):
+        self.set_game(commands={"check": {"run": self.py("pass")}, "test": {"run": self.py("pass")}})
+        game_run.run("check", self.repo, stream=io.StringIO())
+        game_run.run("test", self.repo, stream=io.StringIO())
+        self.assertEqual(sorted(game_run.read_results(self.repo)), ["check", "test"])
+
+
 class JudgeProcessTests(Repo):
     def py(self, code: str) -> str:
         return f'"{PY}" -c "{code}"'
@@ -938,8 +1038,7 @@ class JudgeProcessTests(Repo):
         self.assertIn("1 of 2 passed", text)
         self.assertLess(text.index("smoke"), text.index("capture"))
         self.assertEqual(game_run.selected(game_run.load_commands(self.repo), "all"), ["smoke", "capture"])
-        with open(os.path.join(self.repo, ".harness", game_run.RESULTS), encoding="utf-8") as fh:
-            results = json.load(fh)
+        results = game_run.read_results(self.repo)
         self.assertEqual((results["smoke"]["passed"], results["capture"]["passed"]), (False, True))
         with open(os.path.join(self.repo, ".harness", "game_runs", ".gitignore"), encoding="utf-8") as fh:
             self.assertEqual(fh.read(), "*\n")

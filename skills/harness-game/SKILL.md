@@ -10,7 +10,7 @@ An agent building a game fails in a few known ways: it says the game works witho
 Four rules that are not negotiable:
 - **The state comes from `harness game loop`, not from your reading.** A piece is in place when the command says so. If its answer seems wrong, say why and fix the input (the recorded command, the file), never the conclusion.
 - **Fun is the owner's.** No run measures feel, difficulty or fun. Never say a change makes the game better; say what changed and that it is "not yet played by a person" until the owner has played it.
-- **Publishing is the owner's.** The judge refuses a publishing command when it is recorded and before every run, as far as the command's words tell; never run one yourself either (itch.io, Steam, a store, a production site), never hide one in a script, and never handle a publishing key or an engine licence.
+- **Publishing is the owner's.** The judge refuses a publishing command when it is recorded and before every run, as far as the command's words tell: a guard against mistakes, not a barrier; never run one yourself either (itch.io, Steam, a store, a production site), never hide one in a script, and never handle a publishing key or an engine licence.
 - **The scale is a place where one can stay.** A one-hour game needs five pieces, not fourteen. Never set up a piece the chosen scale puts "later".
 
 ## Guide the user

@@ -214,7 +214,7 @@
       "SCOPE.md",
       "docs/scope.md"
     ],
-    "cut_heading": "cut|coup[ée]|out of scope|hors (?:du )?p[ée]rim[èe]tre|not doing|won'?t do|parking lot|later|plus tard|backlog|ideas? for later",
+    "cut_heading": "cuts?|coup[ée]e?s?|out[- ]of[- ]scope|hors (?:du )?p[ée]rim[èe]tre|not doing|won'?t do|parking[- ]lot|later|plus tard|backlog|ideas? for later",
     "credits": [
       "CREDITS.md",
       "CREDITS.txt",
@@ -630,6 +630,11 @@
         "id": "handoff",
         "when": "run_no_smoke",
         "text": "- After each change, the owner plays it: start the game with `{run_cmd}` and say what to try. Why: at this scale a person playing is the whole loop. (unverified) [{month}]"
+      },
+      {
+        "id": "hand",
+        "when": "run_and_smoke",
+        "text": "- To hand a build to the owner, start it with `{run_cmd}` and say what changed and what to try. Why: the owner plays; no run judges feel. (unverified) [{month}]"
       },
       {
         "id": "loop",

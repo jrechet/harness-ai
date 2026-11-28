@@ -59,14 +59,17 @@ def _read(path: str) -> str | None:
         return None
 
 
-def _walk(repo: str, skip: set[str], depth: int | None = None, limit: int = 20000) -> list[str]:
-    """Files of the repository, relative and with `/`, outside the skipped folders."""
+def _walk(repo: str, skip: set[str], depth: int | None = None, limit: int = 20000, keep=None) -> list[str]:
+    """Files of the repository, relative and with `/`, outside the skipped folders; with `keep`, only the
+    names it accepts count towards the limit, so a folder of 20,000 assets cannot hide a project file."""
     found: list[str] = []
     for root, dirs, files in os.walk(repo):
         rel_root = os.path.relpath(root, repo).replace(os.sep, "/")
         level = 0 if rel_root == "." else rel_root.count("/") + 1
         dirs[:] = sorted(d for d in dirs if d not in skip and not (depth is not None and level >= depth))
         for name in sorted(files):
+            if keep is not None and not keep(name):
+                continue
             found.append(name if rel_root == "." else f"{rel_root}/{name}")
             if len(found) >= limit:
                 return found
@@ -167,7 +170,10 @@ def detect(repo: str, profile: dict[str, Any], chosen: str | None = None) -> dic
     found. An engine the owner chose (`game.engine`) wins over the files; otherwise the project file in the
     fewest folders, then the profile's order. A page with a `<canvas>` counts only when nothing else does."""
     skip = set(profile["files"]["skip_dirs"])
-    files = _walk(repo, skip, depth=3)
+    names = {os.path.basename((e["detect"].get("files") or [""])[0]) for e in profile["engines"].values()}
+    names |= {"package.json", "requirements.txt", "requirements-dev.txt", "pyproject.toml", "setup.cfg", "Cargo.toml"}
+    globs = [g for e in profile["engines"].values() for g in e["detect"].get("globs", [])]
+    files = _walk(repo, skip, depth=3, keep=lambda n: n in names or any(fnmatch.fnmatch(n, g) for g in globs))
     found = []
     for order, (eid, engine) in enumerate(profile["engines"].items()):
         hit = _match_engine(repo, eid, engine, files)
@@ -237,6 +243,9 @@ def safe_write(repo: str, rel: str, text: str) -> None:
         fd, tmp = tempfile.mkstemp(dir=folder, prefix="." + os.path.basename(target) + ".")
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(text)
+        umask = os.umask(0)
+        os.umask(umask)
+        os.chmod(tmp, (os.stat(target).st_mode & 0o7777) if os.path.exists(target) else 0o666 & ~umask)
         os.replace(tmp, target)
     except OSError as exc:
         raise ValueError(f"{rel}: {exc}") from exc
@@ -279,8 +288,7 @@ def commands_of(block: dict[str, Any]) -> dict[str, dict[str, Any]]:
 
 
 def results_of(repo: str, harness_dir: str = ".harness") -> dict[str, Any]:
-    data = facts.load_json(os.path.join(repo, harness_dir, game_run.RESULTS))
-    return data if isinstance(data, dict) else {}
+    return game_run.read_results(repo)
 
 
 def judged_with(spec: dict[str, Any], engine: dict[str, Any] | None, piece: str) -> dict[str, Any]:
@@ -290,6 +298,8 @@ def judged_with(spec: dict[str, Any], engine: dict[str, Any] | None, piece: str)
         return spec
     errors = list(dict.fromkeys(list(spec.get("errors") or []) + list(engine.get("errors", []))))
     trusted = spec.get("exit_code_trusted", True) is not False and engine.get("exit_code_trusted", True) is not False
+    if errors == list(spec.get("errors") or []) and trusted == (spec.get("exit_code_trusted", True) is not False):
+        return spec                                   # nothing to add: the spec is judged as recorded
     return {**spec, "errors": errors, "exit_code_trusted": trusted}
 
 
@@ -317,7 +327,7 @@ def _piece_command(piece: str, spec: dict[str, Any] | None, engine: dict[str, An
     if piece in ("capture", "export") and not spec.get("output"):
         gaps.append("no output file recorded: nothing says the run wrote it")
     if piece != "run" and not gaps:
-        last = result if isinstance(result, dict) and result.get("command") == command else None
+        last = result if isinstance(result, dict) and result.get("spec") == game_run.spec_key(judged) else None
         if last is None:
             gaps.append(f"never judged: `harness game run {piece}`")
         elif not last.get("passed"):
@@ -621,6 +631,7 @@ def instructions(repo: str, profile: dict[str, Any], today: date | None = None,
     when = {
         "engine": bool(found["id"]), "commands": isinstance(commands.get("smoke"), dict),
         "run_no_smoke": isinstance(commands.get("run"), dict) and not isinstance(commands.get("smoke"), dict),
+        "run_and_smoke": isinstance(commands.get("run"), dict) and isinstance(commands.get("smoke"), dict),
         "capture": bool(capture.get("output")) and "capture" in pieces,
         "untrusted_exit": (engine or {}).get("exit_code_trusted") is False and "smoke" in pieces,
         "owned": bool((engine or {}).get("owned_rule")), "always": True,
