@@ -839,6 +839,8 @@ class SecondReviewTests(SessionCase):
         _, out, _ = self.measure("--transcript", self.transcript(FULL))
         self.assertNotIn("Your notes", out)
         self.assertIn("(no skill): output Claude Code attributes to no skill", out)
+        self.assertIn("the sub-agents a skill starts carry its name", out)
+        self.assertNotIn("the sub-agents a skill starts included", out)
 
     def test_the_running_session_is_said_so_however_it_was_named(self):
         self.transcript(FULL)
