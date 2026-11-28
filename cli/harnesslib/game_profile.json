@@ -281,22 +281,8 @@
       "DerivedDataCache",
       "test-results",
       "playwright-report"
-    ]
-  },
-  "never_record": {
-    "patterns": [
-      "butler\\s+push",
-      "steamcmd",
-      "\\bnpm\\s+publish\\b",
-      "\\bgh\\s+release\\b",
-      "\\bgit\\s+push\\b",
-      "\\bgit\\s+tag\\b",
-      "itch\\.io/api",
-      "\\bvercel\\b.*--prod",
-      "\\bnetlify\\s+deploy\\b.*--prod",
-      "\\bfirebase\\s+deploy\\b"
     ],
-    "why": "publishing a game (itch.io, Steam, a store, a production site) is the owner's release, not a piece of the loop"
+    "design_journal": "design/journal.jsonl"
   },
   "engines": {
     "godot": {
@@ -311,7 +297,7 @@
         "file": "project.godot",
         "patterns": [
           "config/features=PackedStringArray\\(\"(\\d+\\.\\d+)\"",
-          "^config_version=(3|4)$"
+          "^config_version=(\\d+)$"
         ],
         "godot3_when": "config_version"
       },
@@ -329,7 +315,10 @@
         "SCRIPT ERROR",
         "Parse Error",
         "Failed to load script",
-        "Could not find type"
+        "Could not find type",
+        "^ERROR: ",
+        "Can't load script",
+        "Failed loading resource"
       ],
       "candidates": {
         "run": "godot --path .",
@@ -344,6 +333,7 @@
         "Godot exits 0 on many failures (a script that does not parse, a failing import, test scripts that fail to load): a smoke run is judged by its log and by a line the game prints once ready, and a silent run fails.",
         "The static check is gdtoolkit (`pip install \"gdtoolkit==4.*\"`): `gdlint` parses every script without the engine. `--check-only` gives false alarms on scripts that use an autoload.",
         "`--headless` renders nothing: a capture opens a window. On macOS that is the only way; on a Linux CI, wrap the capture in `xvfb-run --auto-servernum` with `--rendering-driver opengl3`.",
+        "`--write-movie shots/frame.png` writes a numbered sequence, `shots/frame00000000.png` first: that is the file the capture records.",
         "On macOS the binary is usually `/Applications/Godot.app/Contents/MacOS/Godot`: record the full path, or a `godot` on the PATH.",
         "Export needs the editor build, the export templates of the pinned version, the preset named in `export_presets.cfg` and an existing output folder; a relative output path is relative to `project.godot`."
       ],
@@ -351,7 +341,13 @@
         "install the export templates of the pinned version",
         "name the export preset (Web, Linux…) in the editor once"
       ],
-      "commands_checked": true
+      "commands_checked": true,
+      "outputs": {
+        "capture": {
+          "output": "shots/frame00000000.png",
+          "match": "shots/frame.png"
+        }
+      }
     },
     "unity": {
       "name": "Unity",

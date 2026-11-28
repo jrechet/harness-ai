@@ -52,7 +52,7 @@ python3 harness-ai/cli/harness.py status /path/to/your/repo --map
 
 `status --map` prints the five levels in plain words, from 0 (None) to 4 (Delegated), with "you are here", what the next level still needs, and the next step. Without `--map`, `status` prints the detailed report the skills read: every check with its id. Both write `.harness/state.json` in your repository.
 
-Commit what `.harness/` keeps: `config.json` (the level you aim for and the checks you set aside), `state.json`, and `audit.json` and `harvest.json` once they exist. Ignore `.harness/state.html`: it is a page rebuilt on demand by `status --page`. `.harness/session/` ignores itself: the numbers of your sessions and your notes are yours, not the repository's.
+Commit what `.harness/` keeps: `config.json` (the level you aim for and the checks you set aside), `state.json`, and `audit.json` and `harvest.json` once they exist. Ignore `.harness/state.html`: it is a page rebuilt on demand by `status --page`. `.harness/session/` ignores itself: the numbers of your sessions and your notes are yours, not the repository's. For a game, commit `.harness/game_loop.py` too, so the CI runs the same judge; `.harness/game_runs/`, the last verdicts of your runs, ignores itself.
 
 **By hand.** Without Claude Code, nothing writes `AGENTS.md` for you: copy the blocks of [the template](skills/harness-init/references/agents-template.md), one level at a time. Step 1 is the first `AGENTS.md` (level 1), Step 2 the maintenance block and the `rule:` convention (level 2), Step 4 the working process (level 4); level 3 has no block, it is earned by turning rules into checks. Run `status --map` again after each one. The review loop needs GitHub today: `harness.py harvest` has a single adapter, `github`.
 

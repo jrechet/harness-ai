@@ -66,6 +66,13 @@ class Repo(unittest.TestCase):
     def judge(self, piece: str, **spec) -> dict:
         return game_run.judge(piece, spec, self.repo)
 
+    def passed(self, piece: str, command: str, ok: bool = True) -> None:
+        """A judged run of the piece's command, as `harness game run` records it."""
+        path = os.path.join(self.repo, ".harness", game_run.RESULTS)
+        known = json.load(open(path, encoding="utf-8")) if os.path.exists(path) else {}
+        known[piece] = {"command": command, "passed": ok, "date": "2026-11-28", "seconds": 0.1}
+        self.write(f".harness/{game_run.RESULTS}", json.dumps(known))
+
 
 class ProfileDataTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -115,12 +122,11 @@ class ProfileDataTests(unittest.TestCase):
                     for pattern in spec.get("output_errors", []):
                         re.compile(pattern)
 
-    def test_no_candidate_command_is_one_the_profile_refuses_to_record(self):
-        patterns = [re.compile(p, re.I) for p in self.profile["never_record"]["patterns"]]
+    def test_no_candidate_command_is_one_the_judge_refuses_to_run(self):
         for eid, engine in self.profile["engines"].items():
             for piece, command in engine["candidates"].items():
                 with self.subTest(engine=eid, piece=piece):
-                    self.assertFalse(any(p.search(command) for p in patterns))
+                    self.assertIsNone(game_run.publishing(command))
 
     def test_the_engines_whose_exit_code_lies_are_the_ones_the_sources_name(self):
         lying = {eid for eid, e in self.profile["engines"].items() if e["exit_code_trusted"] is False}
@@ -249,13 +255,16 @@ class LoopTests(Repo):
         self.write("project.godot", GODOT)
         self.set_game(commands={"smoke": {"run": "godot --headless", "exit_code_trusted": False}})
         self.assertEqual(self.piece("smoke")["state"], "weak")
-        self.set_game(commands={"smoke": {"run": "godot --headless", "exit_code_trusted": False, "ready": "READY"}})
+        self.set_game(commands={"smoke": {"run": "godot --headless", "exit_code_trusted": False, "ready": "READY",
+                                          "errors": self.profile["engines"]["godot"]["errors"]}})
+        self.passed("smoke", "godot --headless")
         self.assertEqual(self.piece("smoke")["state"], "ok")
 
     def test_a_capture_without_an_output_file_is_weak(self):
         self.set_game(commands={"capture": {"run": "x"}})
         self.assertEqual(self.piece("capture")["state"], "weak")
         self.set_game(commands={"capture": {"run": "x", "output": "shots/a.png"}})
+        self.passed("capture", "x")
         self.assertEqual(self.piece("capture")["state"], "ok")
 
     def test_the_playtest_is_fresh_stale_or_undated(self):
@@ -304,7 +313,7 @@ class LoopTests(Repo):
         weak = self.piece("assets")
         self.assertEqual(weak["state"], "weak")
         self.assertIn("art/kenney_pack/tile.png", weak["detail"])
-        self.write("CREDITS.md", "- hero.png: drawn by me, CC0\n- kenney_pack: Kenney, CC0\n")
+        self.write("CREDITS.md", "- hero.png: drawn by me, CC0\n- kenney_pack/: Kenney, CC0\n")
         self.assertEqual(self.piece("assets")["state"], "ok")
 
     def test_a_generic_folder_name_does_not_credit_its_files(self):
@@ -357,7 +366,7 @@ class LoopTests(Repo):
     def test_the_ci_counts_when_a_workflow_runs_the_loop(self):
         self.assertEqual(self.piece("ci")["state"], "missing")
         self.write(".github/workflows/ci.yml", "jobs:\n  t:\n    steps:\n      - run: npm test\n")
-        self.assertIn("none of the loop", self.piece("ci")["detail"])
+        self.assertIn("does not run the judge", self.piece("ci")["detail"])
         self.write(".github/workflows/ci.yml", "jobs:\n  t:\n    steps:\n      - run: python3 .harness/game_loop.py all\n")
         ci = self.piece("ci")
         self.assertEqual((ci["state"], ci["file"]), ("ok", ".github/workflows/ci.yml"))
@@ -553,7 +562,8 @@ class JudgeTests(Repo):
     def test_the_runner_imports_only_the_standard_library(self):
         with open(game.RUNNER_SOURCE, encoding="utf-8") as fh:
             imports = set(re.findall(r"^(?:import|from) (\w+)", fh.read(), re.M))
-        self.assertEqual(imports - {"__future__", "argparse", "json", "os", "re", "subprocess", "sys", "time"}, set())
+        self.assertEqual(imports - {"__future__", "argparse", "datetime", "json", "os", "re", "shlex", "shutil", "signal",
+                                    "subprocess", "sys", "tempfile", "time"}, set())
 
 
 class InstructionsTests(Repo):
@@ -597,7 +607,8 @@ class InstructionsTests(Repo):
         handoff = next(line for line in result["lines"] if line["id"] == "handoff")
         self.assertIn("`godot --path .`", handoff["text"])
         self.assertNotIn("loop", [line["id"] for line in result["lines"]])
-        self.assertTrue(any("record the smoke command first" in note for note in result["notes"]))
+        self.assertFalse(any("smoke" in note or "game_loop.py" in note for note in result["notes"]))
+        self.assertNotIn("exit_code", [line["id"] for line in result["lines"]])
 
     def test_enforced_by_is_claimed_only_for_what_is_in_place(self):
         self.write("project.godot", GODOT)
@@ -673,6 +684,267 @@ class CommandLineTests(Repo):
 
     def test_the_cli_help_names_the_game_command(self):
         self.assertIn("harness game", sys.modules["harness"].__doc__)
+
+
+REFUSED = (
+    "butler push build u/game:web", "butler -v push build u/g:web", '"butler" push build u/g', "/usr/local/bin/butler push .",
+    "xvfb-run -a -s 'x y' butler push b", "git push", "git -C . push origin main", "git --no-pager push",
+    "git -C . tag v1 && git -C . push origin v1", "pnpm publish", "yarn publish", "cargo publish", "npm run deploy",
+    "npm run publish:itch", "env FOO=1 npm publish", "echo ok; npm publish", "npx wrangler pages deploy dist",
+    "wrangler deploy", "npx surge dist x.surge.sh", "aws s3 sync build s3://game", "gsutil cp -r build gs://x",
+    "rsync -a build/ host:/var/www", "rsync -a build/ me@host.example.com:/www", "docker push img",
+    "python3 -m twine upload dist/x", "gh workflow run release.yml", "gh release create v1", "./scripts/release.sh",
+    "./deploy-web.sh", "npx gh-pages -d dist", "npx netlify-cli deploy --prod", "vercel --prod",
+    "steamcmd +login u +run_app_build x", "firebase deploy",
+)
+NOT_PUBLISHING = (
+    "godot --headless --path . --quit-after 300", "npm publish --dry-run", 'git commit -m "do not git push"',
+    "git status", "cargo build --release", "npm run build:release", "npm run dev", "npx playwright test smoke",
+    "rsync -a build/ out/", "zip -9 -r build/game.love . -x '.git/*'", "xvfb-run --auto-servernum godot --path .",
+    "gdlint $(git ls-files '*.gd')", "python3 -c \"import time; time.sleep(1)\"", "python3 -m pygbag --build .",
+)
+
+
+class PublishingTests(Repo):
+    def test_the_check_refuses_the_ordinary_forms_of_publishing(self):
+        for command in REFUSED:
+            with self.subTest(command=command):
+                self.assertIsNotNone(game_run.publishing(command))
+
+    def test_the_check_leaves_what_does_not_publish(self):
+        for command in NOT_PUBLISHING:
+            with self.subTest(command=command):
+                self.assertIsNone(game_run.publishing(command))
+
+    def test_a_publishing_command_written_by_hand_is_never_run(self):
+        proof = os.path.join(self.repo, "ran")
+        self.set_game(commands={"export": {"run": f'touch "{proof}" && npm publish', "output": "x"}})
+        out = io.StringIO()
+        self.assertEqual(game_run.run("export", self.repo, stream=out), 1)
+        self.assertIn("REFUSED export", out.getvalue())
+        self.assertFalse(os.path.exists(proof))
+        self.assertIn("the judge refuses to run it", self.piece("export")["detail"])
+
+    def test_recording_refuses_it_too(self):
+        code, _, err = run_cli("game", "command", "export", "git -C . tag v1", "--repo", self.repo)
+        self.assertEqual(code, 2)
+        self.assertIn("refused", err)
+
+
+class ReviewFixTests(Repo):
+    """What the independent review of 2026-11-28 found, each held by a test."""
+
+    def py(self, code: str) -> str:
+        return f'"{PY}" -c "{code}"'
+
+    def fake_godot(self, *lines: str, code: int = 0) -> str:
+        path = self.write("bin/godot", "#!/bin/sh\n" + "".join(f"echo '{l}'\n" for l in lines) + f"exit {code}\n")
+        os.chmod(path, 0o755)
+        return path
+
+    def test_a_command_recorded_before_the_engine_was_known_is_judged_with_its_errors(self):
+        godot = self.fake_godot("SCRIPT ERROR: Parse Error: bad", "GAME READY")
+        self.assertEqual(run_cli("game", "command", "smoke", godot, "--repo", self.repo, "--ready", "GAME READY")[0], 0)
+        self.assertEqual(self.config()["game"]["commands"]["smoke"]["errors"], [])
+        self.write("project.godot", GODOT)
+        smoke = self.piece("smoke")
+        self.assertEqual(smoke["state"], "weak")
+        self.assertIn("record it again", smoke["detail"])
+        self.assertEqual(run_cli("game", "run", "smoke", "--repo", self.repo)[0], 1)
+
+    def test_a_recorded_command_counts_once_its_last_judged_run_passed(self):
+        self.set_game(scale="jam", commands={"check": {"run": self.py("raise SystemExit(2)")}})
+        self.assertIn("never judged", self.piece("check", None)["detail"])
+        run_cli("game", "run", "check", "--repo", self.repo)
+        failed = self.piece("check", None)
+        self.assertEqual(failed["state"], "weak")
+        self.assertIn("its last judged run failed", failed["detail"])
+        self.set_game(scale="jam", commands={"check": {"run": self.py("pass")}})
+        self.assertIn("never judged", self.piece("check", None)["detail"])
+        self.assertEqual(run_cli("game", "run", "check", "--repo", self.repo)[0], 0)
+        self.assertEqual(self.piece("check", None)["state"], "ok")
+
+    def test_godot_s_error_lines_fail_a_run_that_says_it_is_ready(self):
+        self.write("project.godot", GODOT)
+        godot = self.fake_godot("ERROR: Failed loading resource: res://enemy.tscn.", "GAME READY")
+        run_cli("game", "command", "smoke", godot, "--repo", self.repo, "--ready", "GAME READY")
+        out = io.StringIO()
+        with redirect_stdout(out):
+            self.assertEqual(run_cli("game", "run", "smoke", "--repo", self.repo)[0], 1)
+
+    def test_the_godot_capture_records_the_first_numbered_frame(self):
+        self.write("project.godot", GODOT)
+        command = self.profile["engines"]["godot"]["candidates"]["capture"]
+        for given in (None, "shots/frame.png"):
+            with self.subTest(output=given):
+                argv = ["game", "command", "capture", command, "--repo", self.repo] + (["--output", given] if given else [])
+                run_cli(*argv)
+                self.assertEqual(self.config()["game"]["commands"]["capture"]["output"], "shots/frame00000000.png")
+
+    def test_a_bevy_web_build_is_bevy_and_a_nested_tool_does_not_win(self):
+        self.write("Cargo.toml", '[dependencies]\nbevy = "0.14"\n')
+        self.write("index.html", '<canvas id="bevy"></canvas>')
+        self.write("tools/preview/requirements.txt", "pygame==2.5.2\n")
+        found = game.detect(self.repo, self.profile)
+        self.assertEqual((found["id"], found["version"]), ("bevy", "0.14"))
+        self.assertNotIn("web", found["others"])
+
+    def test_godot_3_0_is_godot_3(self):
+        self.write("project.godot", "config_version=3\n[application]\n")
+        self.assertEqual(game.detect(self.repo, self.profile)["version"], "3.x")
+
+    def test_the_engine_line_or_a_documentation_link_does_not_name_the_engine_files(self):
+        self.write("project.godot", GODOT)
+        self.write("AGENTS.md", AGENTS + "- Engine: Godot 4.3, pinned in `project.godot`.\n")
+        self.assertEqual(self.piece("owned_files")["state"], "missing")
+        os.remove(os.path.join(self.repo, "project.godot"))
+        self.write("ProjectSettings/ProjectVersion.txt", "m_EditorVersion: 2022.3.10f1\n")
+        self.write("AGENTS.md", AGENTS + "- Unity 2022.3.10f1, see https://docs.unity3d.com/Manual.\n")
+        self.assertEqual(self.piece("owned_files")["state"], "missing")
+        self.write("AGENTS.md", AGENTS + "- Never hand-edit `.prefab` or `.meta` files.\n")
+        self.assertEqual(self.piece("owned_files")["state"], "ok")
+
+    def test_cutscenes_is_not_a_cut_list(self):
+        self.write("docs/design.md", "# Design\n## Core loop\n## Cutscenes\n## Shortcuts\n")
+        self.assertEqual(self.piece("scope")["state"], "weak")
+
+    def test_a_config_of_another_shape_does_not_crash_the_loop(self):
+        self.write("art/a.png")
+        for commands in (["a"], 5, {"check": {"ready": "x"}, "test": {}}, {"check": {"run": 5}}):
+            with self.subTest(commands=commands):
+                self.set_game(scale="weeks", commands=commands)
+                self.loop()
+                game.instructions(self.repo, self.profile, TODAY)
+        self.set_game(commands=["a"])
+        code, _, err = run_cli("game", "command", "smoke", "x", "--repo", self.repo)
+        self.assertEqual(code, 2)
+        self.assertIn("is not an object", err)
+
+    def test_the_ci_counts_only_the_judge_and_not_a_raw_command_or_a_comment(self):
+        self.set_game(commands={"check": {"run": "gdlint ."}})
+        self.write(".github/workflows/lint.yml", "jobs:\n  l:\n    steps:\n      - run: gdlint .\n")
+        ci = self.piece("ci")
+        self.assertEqual(ci["state"], "weak")
+        self.assertIn("not judged by its log", ci["detail"])
+        self.write(".github/workflows/lint.yml", "# later: python3 .harness/game_loop.py all\nsteps:\n  - run: npx tsc --version\n")
+        self.assertEqual(self.piece("ci")["state"], "missing")
+
+    def test_a_piece_beyond_the_scale_is_not_recorded(self):
+        self.set_game(scale="hour")
+        code, _, err = run_cli("game", "command", "test", "echo ok", "--repo", self.repo)
+        self.assertEqual(code, 2)
+        self.assertIn("is not a piece of the hour scale", err)
+
+    def test_the_playtests_of_a_design_workshop_are_dated_by_its_journal(self):
+        self.write("design/game.json", json.dumps({"playtests": [{"id": "p1", "tester": "Lea", "verdict": "keep"}]}))
+        self.assertEqual(self.piece("playtest", "jam")["state"], "weak")
+        self.write("design/journal.jsonl", json.dumps({"ts": "2026-11-28T10:00:00+00:00", "skill": "playtest"}) + "\n")
+        self.assertEqual(self.piece("playtest", "jam")["state"], "ok")
+
+    def test_the_latest_playtest_counts(self):
+        self.write("docs/playtests.md", "- 2025-01-01 Sam\n- 2026-11-27 Lea\n")
+        self.assertIn("last playtest 2026-11-27", self.piece("playtest", "jam")["detail"])
+
+    def test_credits_name_a_file_or_a_folder_as_a_word_of_its_own(self):
+        self.write("sprites/enemies/bat.png")
+        self.write("sprites/hero/hero.png")
+        self.write("CREDITS.md", "TODO: credit the enemies once we know.\nsuperhero.png from somewhere\n")
+        self.assertIn("2 of 2", self.piece("assets")["detail"])
+        self.write("CREDITS.md", "- enemies/: Kenney, CC0\n- hero.png: me, CC0\n")
+        self.assertEqual(self.piece("assets")["state"], "ok")
+
+    def test_an_output_outside_the_repository_is_refused(self):
+        for output in ("../victim/out.zip", "/tmp/out.zip"):
+            with self.subTest(output=output):
+                code, _, err = run_cli("game", "command", "export", "echo hi", "--repo", self.repo, "--output", output)
+                self.assertEqual(code, 2)
+                self.assertIn("outside the repository", err)
+        verdict = self.judge("export", run=self.py("pass"), output="../x.zip")
+        self.assertIn("outside the repository", " ".join(verdict["failed"]))
+
+    def test_a_link_in_the_harness_folder_is_never_written_through(self):
+        outside = tempfile.mkdtemp()
+        self.addCleanup(lambda: __import__("shutil").rmtree(outside))
+        victim = os.path.join(outside, "profile.sh")
+        with open(victim, "w", encoding="utf-8") as fh:
+            fh.write("keep me\n")
+        os.makedirs(os.path.join(self.repo, ".harness"))
+        os.symlink(victim, os.path.join(self.repo, ".harness", "game_loop.py"))
+        code, _, err = run_cli("game", "runner", self.repo, "--write")
+        self.assertEqual(code, 2)
+        self.assertIn("symbolic link", err)
+        with open(victim, encoding="utf-8") as fh:
+            self.assertEqual(fh.read(), "keep me\n")
+
+    def test_the_owner_s_files_and_engine_are_read_by_the_loop(self):
+        self.write("project.godot", GODOT)
+        self.write("art/a.png")
+        self.write("docs/licences.md", "- a.png: me, CC0\n")
+        self.write("notes/tests.md", "- 2026-11-28 Sam played\n")
+        self.write("notes/plan.md", "# Plan\n## Later\n- boss\n")
+        run_cli("game", "set", "--repo", self.repo, "--credits-file", "docs/licences.md", "--playtest-log", "notes/tests.md",
+                "--scope-file", "notes/plan.md", "--engine", "web")
+        rows = {p["id"]: p for p in self.loop("weeks")["pieces"]}
+        self.assertEqual(self.loop("weeks")["engine"]["id"], "web")
+        for pid in ("assets", "playtest", "scope"):
+            self.assertEqual(rows[pid]["state"], "ok", rows[pid])
+
+    def test_a_recorded_timeout_is_kept_and_used(self):
+        spec = game.record_command({}, self.profile, None, "smoke", "x", None, None, 2, False, TODAY)["game"]["commands"]["smoke"]
+        self.assertEqual(spec["timeout"], 2)
+        verdict = game_run.judge("smoke", {"run": self.py("import time; time.sleep(5)"), "timeout": 1}, self.repo)
+        self.assertIn("did not finish in 1 s", verdict["failed"][0])
+
+
+class JudgeProcessTests(Repo):
+    def py(self, code: str) -> str:
+        return f'"{PY}" -c "{code}"'
+
+    def test_a_timeout_stops_everything_the_command_started(self):
+        pid_file = os.path.join(self.repo, "pid")
+        sleeper = self.py(f"import os, time; open('{pid_file}', 'w').write(str(os.getpid())); time.sleep(30)")
+        verdict = game_run.judge("export", {"run": f"mkdir -p build && {sleeper}"}, self.repo, timeout=2)
+        self.assertIn("did not finish in 2 s", verdict["failed"][0])
+        with open(pid_file, encoding="utf-8") as fh:
+            pid = int(fh.read())
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
+
+    def test_a_pipe_does_not_hide_a_failure(self):
+        if not __import__("shutil").which("bash"):
+            self.skipTest("no bash: sh has no pipefail")
+        verdict = self.judge("check", run=self.py("raise SystemExit(3)") + " | cat")
+        self.assertFalse(verdict["passed"])
+
+    def test_a_helper_left_in_the_background_does_not_make_a_finished_run_time_out(self):
+        verdict = game_run.judge("check", {"run": "(sleep 20 &) ; echo checked"}, self.repo, timeout=10)
+        self.assertTrue(verdict["passed"], verdict)
+        self.assertLess(verdict["seconds"], 8)
+
+    def test_an_error_line_on_stderr_fails_the_run(self):
+        code = "import sys; sys.stderr.write('SCRIPT ERROR: x\\\\n'); print('GAME READY')"
+        verdict = self.judge("smoke", run=self.py(code), errors=["SCRIPT ERROR"], ready="GAME READY")
+        self.assertFalse(verdict["passed"])
+        self.assertEqual(verdict["error_lines"], ["SCRIPT ERROR: x"])
+
+    def test_the_missing_program_of_a_compound_command_is_the_one_named(self):
+        verdict = self.judge("export", run="mkdir -p build && no-such-engine-xyz --export")
+        self.assertIn("no-such-engine-xyz was not found", verdict["failed"][0])
+        self.assertNotIn("mkdir", verdict["failed"][0])
+
+    def test_all_exits_one_when_one_piece_fails_and_runs_them_in_the_loop_order(self):
+        self.set_game(commands={"capture": {"run": self.py("pass")}, "smoke": {"run": self.py("raise SystemExit(1)")}})
+        out = io.StringIO()
+        self.assertEqual(game_run.run("all", self.repo, stream=out), 1)
+        text = out.getvalue()
+        self.assertIn("1 of 2 passed", text)
+        self.assertLess(text.index("smoke"), text.index("capture"))
+        self.assertEqual(game_run.selected(game_run.load_commands(self.repo), "all"), ["smoke", "capture"])
+        with open(os.path.join(self.repo, ".harness", game_run.RESULTS), encoding="utf-8") as fh:
+            results = json.load(fh)
+        self.assertEqual((results["smoke"]["passed"], results["capture"]["passed"]), (False, True))
+        with open(os.path.join(self.repo, ".harness", "game_runs", ".gitignore"), encoding="utf-8") as fh:
+            self.assertEqual(fh.read(), "*\n")
 
 
 if __name__ == "__main__":

@@ -26,6 +26,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from datetime import date
 from typing import Any
 
@@ -92,7 +93,7 @@ def _version(repo: str, base: str, spec: dict[str, Any]) -> tuple[str | None, st
             if match:
                 found = match.group(1)
                 if spec.get("godot3_when") and pattern.startswith("^config_version"):
-                    found = "3.x" if found == "4" else "4"
+                    found = "4" if int(found) >= 5 else "3.x"      # 3 and 4: Godot 3.0 and 3.x; 5: Godot 4
                 return found, _join(base, rel)
     return None, _join(base, files[0]) if files else None
 
@@ -113,18 +114,27 @@ def _package_deps(repo: str, base: str) -> dict[str, str]:
     return deps
 
 
+def _folders(path: str) -> int:
+    return 0 if path in ("", ".") else path.count("/") + 1
+
+
 def _match_engine(repo: str, eid: str, engine: dict[str, Any], files: list[str]) -> dict[str, Any] | None:
-    """The engine's evidence in the repository, or None. `files` are the shallow files of the repository."""
+    """The engine's evidence in the repository, or None: the project file found in the fewest folders, no
+    deeper than the engine's `depth`. `files` are the shallow files of the repository."""
     rule = engine["detect"]
-    for rel in files:
+    depth = rule.get("depth", 1)
+    marker = (rule.get("files") or [None])[0]
+    for rel in sorted(files, key=lambda r: (r.count("/"), r)):
         base = os.path.dirname(rel)
         name = os.path.basename(rel)
-        marker = (rule.get("files") or [None])[0]
         if marker and (rel == marker or rel.endswith("/" + marker)):
+            base = rel[: -len(marker)].rstrip("/")
             pattern = (rule.get("content") or {}).get(marker)
-            if pattern and not re.search(pattern, _read(os.path.join(repo, rel)) or ""):
+            if _folders(base) > depth or pattern and not re.search(pattern, _read(os.path.join(repo, rel)) or ""):
                 continue
-            return {"base": rel[: -len(marker)].rstrip("/"), "evidence": rel}
+            return {"base": base, "evidence": rel}
+        if _folders(base) > depth:
+            continue
         if rule.get("globs") and any(fnmatch.fnmatch(name, g) for g in rule["globs"]):
             return {"base": base, "evidence": rel}
         if rule.get("package_deps") and name == "package.json":
@@ -141,23 +151,32 @@ def _match_engine(repo: str, eid: str, engine: dict[str, Any], files: list[str])
             text = _read(os.path.join(repo, rel)) or ""
             if any(re.search(rf"^{re.escape(d)}\s*=", text, re.M) for d in rule["cargo_deps"]):
                 return {"base": base, "evidence": rel}
-    if rule.get("canvas_html"):
-        for rel in rule["canvas_html"]:
-            if re.search(r"<canvas\b", _read(os.path.join(repo, rel)) or "", re.I):
-                return {"base": os.path.dirname(rel), "evidence": f"{rel}: <canvas>", "flavour": "plain canvas"}
+    return None
+
+
+def _canvas_page(repo: str, engine: dict[str, Any]) -> dict[str, Any] | None:
+    """A page with a `<canvas>` and no engine: the last resort, since every web build of an engine has one."""
+    for rel in engine["detect"].get("canvas_html", []):
+        if re.search(r"<canvas\b", _read(os.path.join(repo, rel)) or "", re.I):
+            return {"base": os.path.dirname(rel), "evidence": f"{rel}: <canvas>", "flavour": "plain canvas"}
     return None
 
 
 def detect(repo: str, profile: dict[str, Any], chosen: str | None = None) -> dict[str, Any]:
     """The engine of the repository: `id`, `name`, `version`, `version_file`, `evidence`, and the others
-    found. An engine the owner chose (`game.engine`) wins over the files."""
+    found. An engine the owner chose (`game.engine`) wins over the files; otherwise the project file in the
+    fewest folders, then the profile's order. A page with a `<canvas>` counts only when nothing else does."""
     skip = set(profile["files"]["skip_dirs"])
     files = _walk(repo, skip, depth=3)
     found = []
-    for eid, engine in profile["engines"].items():
+    for order, (eid, engine) in enumerate(profile["engines"].items()):
         hit = _match_engine(repo, eid, engine, files)
         if hit:
-            found.append((eid, hit))
+            found.append((_folders(hit["base"]), order, eid, hit))
+    found = [(eid, hit) for _, _, eid, hit in sorted(found, key=lambda f: (f[0], f[1]))]
+    if not found:
+        canvas = _canvas_page(repo, profile["engines"]["web"]) if "web" in profile["engines"] else None
+        found = [("web", canvas)] if canvas else []
     if chosen and chosen in profile["engines"]:
         picked = next(((eid, hit) for eid, hit in found if eid == chosen), (chosen, {"base": "", "evidence": "chosen by the owner"}))
     elif found:
@@ -202,14 +221,31 @@ def game_block(config: dict[str, Any]) -> dict[str, Any]:
     return block if isinstance(block, dict) else {}
 
 
-def write_config(path: str, config: dict[str, Any]) -> None:
+def safe_write(repo: str, rel: str, text: str) -> None:
+    """Writes `rel` inside the repository, through a new file renamed in place. A link on the way (the
+    `.harness` folder or the file itself) is refused: a cloned repository could point it anywhere."""
+    parts = rel.split("/")
+    for i in range(1, len(parts) + 1):
+        if os.path.islink(os.path.join(repo, *parts[:i])):
+            raise ValueError(f"{'/'.join(parts[:i])} is a symbolic link: nothing was written, remove the link first")
+    target = game_run.inside(repo, rel)
+    if target is None:
+        raise ValueError(f"{rel} is outside the repository: nothing was written")
+    folder = os.path.dirname(target)
     try:
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as fh:
-            json.dump(config, fh, ensure_ascii=False, indent=2)
-            fh.write("\n")
+        os.makedirs(folder, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=folder, prefix="." + os.path.basename(target) + ".")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        os.replace(tmp, target)
     except OSError as exc:
-        raise ValueError(f"{path}: {exc}") from exc
+        raise ValueError(f"{rel}: {exc}") from exc
+
+
+def write_config(path: str, config: dict[str, Any]) -> None:
+    repo = os.path.dirname(os.path.dirname(path))
+    safe_write(repo, os.path.relpath(path, repo).replace(os.sep, "/"),
+               json.dumps(config, ensure_ascii=False, indent=2) + "\n")
 
 
 def with_game(config: dict[str, Any], **changes: Any) -> dict[str, Any]:
@@ -231,19 +267,67 @@ def _said(text: str, needle: str) -> bool:
     return bool(needle) and needle.lower() in text.lower()
 
 
+def _token(text: str, needle: str) -> bool:
+    """The needle as a word of its own: `.tscn` in "edit `.tscn` files", not `.unity` in docs.unity3d.com."""
+    return bool(needle) and re.search(rf"(?<![\w./-]){re.escape(needle)}(?![\w-])", text, re.I) is not None
+
+
+def commands_of(block: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """The recorded commands, each an object; anything else in the block is left out."""
+    commands = block.get("commands")
+    return {k: v for k, v in commands.items() if isinstance(v, dict)} if isinstance(commands, dict) else {}
+
+
+def results_of(repo: str, harness_dir: str = ".harness") -> dict[str, Any]:
+    data = facts.load_json(os.path.join(repo, harness_dir, game_run.RESULTS))
+    return data if isinstance(data, dict) else {}
+
+
+def judged_with(spec: dict[str, Any], engine: dict[str, Any] | None, piece: str) -> dict[str, Any]:
+    """The spec as the engine found today judges it: its error lines added, its exit code distrusted when
+    the engine's is. A command recorded before the engine was known, or for another one, is judged right."""
+    if not engine or piece == "run":
+        return spec
+    errors = list(dict.fromkeys(list(spec.get("errors") or []) + list(engine.get("errors", []))))
+    trusted = spec.get("exit_code_trusted", True) is not False and engine.get("exit_code_trusted", True) is not False
+    return {**spec, "errors": errors, "exit_code_trusted": trusted}
+
+
 def _piece_command(piece: str, spec: dict[str, Any] | None, engine: dict[str, Any] | None,
-                   candidate: str | None) -> dict[str, Any]:
+                   candidate: str | None, result: Any) -> dict[str, Any]:
     if not isinstance(spec, dict):
         how = f'harness game command {piece} "{candidate}"' if candidate else f'harness game command {piece} "<command>"'
         return {"state": "missing", "detail": "no command recorded", "how": how + (
             f", then `harness game run {piece}`" if piece != "run" else "")}
+    command = spec.get("run")
+    if not isinstance(command, str) or not command.strip():
+        return {"state": "weak", "detail": "recorded with no command", "how": f'harness game command {piece} "<command>"'}
+    published = game_run.publishing(command)
+    if published:
+        return {"state": "weak", "detail": f"`{command}` publishes (`{published}`): the judge refuses to run it",
+                "how": f'harness game command {piece} --remove, then record a command that does not publish'}
+    judged = judged_with(spec, engine, piece)
     gaps = []
-    if piece == "smoke" and spec.get("exit_code_trusted") is False and not spec.get("ready"):
+    if engine and piece != "run" and (judged.get("errors") != list(spec.get("errors") or [])
+                                      or judged.get("exit_code_trusted") != spec.get("exit_code_trusted", True)):
+        gaps.append(f"recorded without {engine['name']}'s error lines of today (before the engine was known, "
+                    "for another engine, or by an older profile): record it again")
+    if piece == "smoke" and judged.get("exit_code_trusted") is False and not spec.get("ready"):
         gaps.append("no ready line recorded, and this engine exits 0 on errors")
     if piece in ("capture", "export") and not spec.get("output"):
         gaps.append("no output file recorded: nothing says the run wrote it")
-    detail = f"`{spec.get('run')}`" + (f" ({'; '.join(gaps)})" if gaps else "")
-    how = f'harness game command {piece} "{spec.get("run")}" --{"ready" if piece == "smoke" else "output"} …' if gaps else None
+    if piece != "run" and not gaps:
+        last = result if isinstance(result, dict) and result.get("command") == command else None
+        if last is None:
+            gaps.append(f"never judged: `harness game run {piece}`")
+        elif not last.get("passed"):
+            gaps.append(f"its last judged run failed ({last.get('date')}): `harness game run {piece}`")
+    detail = f"`{command}`" + (f" ({'; '.join(gaps)})" if gaps else "")
+    how = None
+    if gaps:
+        option = {"smoke": " --ready \"<line the game prints>\"", "capture": " --output <file>", "export": " --output <file>"}
+        how = (f'harness game command {piece} "{command}"{option.get(piece, "")}' if "record" in gaps[0] or "recorded" in gaps[0]
+               else f"harness game run {piece}")
     return {"state": "weak" if gaps else "ok", "detail": detail, "how": how}
 
 
@@ -261,16 +345,30 @@ def _playtest(repo: str, files: dict[str, Any], block: dict[str, Any], days: int
         where = where or files["design_state"]
         dates += [str(t.get(k)) for t in tests if isinstance(t, dict) for k in ("date", "day", "at")
                   if isinstance(t.get(k), str) and DATE_RE.match(str(t.get(k)))]
+        dates += _journal_dates(repo, files["design_journal"])
     how = "after a person plays a build, add a dated line to docs/playtests.md: the date, who played, which build, where they hesitated, where they stopped"
     if not where:
         return {"state": "missing", "detail": "no playtest written down", "how": how}
     last = max((d[:10] for d in dates), default=None)
     if not last:
-        return {"state": "weak", "detail": f"{where} has no date", "how": "date each playtest (YYYY-MM-DD)"}
+        return {"state": "weak", "detail": f"{where} has no date", "how": "date each playtest (YYYY-MM-DD) in docs/playtests.md"}
     age = facts.days_since(last, today)
     if days is not None and age is not None and age > days:
         return {"state": "stale", "detail": f"last playtest {last}, {age} days ago (more than {days})", "how": how}
     return {"state": "ok", "detail": f"last playtest {last} in {where}", "how": None}
+
+
+def _journal_dates(repo: str, rel: str) -> list[str]:
+    """The days a design workshop's journal recorded a playtest step (`{"ts": …, "skill": "playtest"}`)."""
+    out = []
+    for line in (_read(os.path.join(repo, rel)) or "").splitlines():
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(entry, dict) and "playtest" in str(entry.get("skill", "")) and re.match(r"\d{4}-\d{2}-\d{2}", str(entry.get("ts", ""))):
+            out.append(str(entry["ts"])[:10])
+    return out
 
 
 def _scope(repo: str, files: dict[str, Any], block: dict[str, Any]) -> dict[str, Any]:
@@ -279,7 +377,7 @@ def _scope(repo: str, files: dict[str, Any], block: dict[str, Any]) -> dict[str,
     if not doc or not os.path.isfile(os.path.join(repo, doc)):
         return {"state": "missing", "detail": "no design file", "how": how}
     text = _read(os.path.join(repo, doc)) or ""
-    heading = re.compile(rf"^#{{1,6}}\s.*(?:{files['cut_heading']})", re.I | re.M)
+    heading = re.compile(rf"^#{{1,6}}\s.*\b(?:{files['cut_heading']})\b", re.I | re.M)
     if not heading.search(text):
         return {"state": "weak", "detail": f"{doc} has no cut list", "how": f"add a cut list heading to {doc}"}
     return {"state": "ok", "detail": f"cut list in {doc}", "how": None, "file": doc}
@@ -287,23 +385,24 @@ def _scope(repo: str, files: dict[str, Any], block: dict[str, Any]) -> dict[str,
 
 def asset_files(repo: str, profile: dict[str, Any], block: dict[str, Any]) -> list[str]:
     skip = set(profile["files"]["skip_dirs"]) | {"shots", "screenshots"}
-    outputs = {os.path.dirname(str(spec.get("output") or "")) for spec in (block.get("commands") or {}).values()
-               if isinstance(spec, dict) and spec.get("output")}
+    outputs = {os.path.dirname(str(spec.get("output") or "")) for spec in commands_of(block).values()
+               if isinstance(spec.get("output"), str)}
     exts = tuple(profile["files"]["asset_extensions"])
     return [rel for rel in _walk(repo, skip) if rel.lower().endswith(exts)
             and not any(o and rel.startswith(o + "/") for o in outputs)]
 
 
 def _credited(rel: str, text: str) -> bool:
-    low = text.lower()
-    if os.path.basename(rel).lower() in low:
+    """The file's name, or one of its folders written as a folder (`enemies/`, `sprites/enemies`), as a
+    word of its own: "credit the enemies later" names no folder, `superhero.png` is not `hero.png`."""
+    if _token(text, os.path.basename(rel)):
         return True
     parts = rel.split("/")[:-1]
     for i in range(len(parts)):
         path = "/".join(parts[: i + 1])
-        if "/" in path and path.lower() in low:
+        if "/" in path and _token(text, path):
             return True
-        if parts[i].lower() not in GENERIC_DIRS and len(parts[i]) >= 3 and parts[i].lower() in low:
+        if parts[i].lower() not in GENERIC_DIRS and _token(text, parts[i] + "/"):
             return True
     return False
 
@@ -338,12 +437,19 @@ def _ci(repo: str, profile: dict[str, Any], commands: dict[str, Any]) -> dict[st
     how = f"a CI job that runs `{RUNNER_CALL} all` on every change"
     if not texts:
         return {"state": "missing", "detail": "no CI workflow", "how": how}
-    needles = ["game_loop.py"] + [spec["run"] for p, spec in commands.items()
-                                  if p in ("check", "test", "smoke") and isinstance(spec, dict) and spec.get("run")]
-    hit = next((path for path, text in texts.items() if any(n in text for n in needles)), None)
-    if not hit:
-        return {"state": "missing", "detail": "the CI runs none of the loop's commands", "how": how}
-    return {"state": "ok", "detail": f"run by {hit}", "how": None, "file": hit}
+    judge = re.compile(r"(?<![\w-])(?:\.harness/game_loop\.py|harness(?:\.py)?\s+game\s+run)\b")
+    hit = next((path for path, text in texts.items()
+                if any(judge.search(line) and not line.lstrip().startswith("#") for line in text.splitlines())), None)
+    if hit:
+        return {"state": "ok", "detail": f"the judge is run by {hit}", "how": None, "file": hit}
+    raw = [spec["run"] for spec in commands.values() if isinstance(spec.get("run"), str)]
+    step = re.compile(r"^\s*(?:-\s*)?(?:run:\s*)?(.+?)\s*$")
+    direct = next((path for path, text in texts.items()
+                   for line in text.splitlines() for m in [step.match(line)] if m and m.group(1) in raw), None)
+    if direct:
+        return {"state": "weak", "detail": f"{direct} runs a recorded command itself, not judged by its log",
+                "how": f"run `{RUNNER_CALL} all` in {direct} instead"}
+    return {"state": "missing", "detail": "the CI does not run the judge", "how": how}
 
 
 def _runner(repo: str) -> dict[str, Any]:
@@ -383,9 +489,10 @@ def _owned(repo: str, engine: dict[str, Any] | None) -> dict[str, Any]:
     if not owned:
         return {"state": "n/a", "detail": "this engine keeps no serialised files to protect", "how": None}
     _, text = _instruction_text(repo)
-    if any(_said(text, ext) for ext in owned):
+    extensions = [ext for ext in owned if ext.startswith(".")]
+    if any(_token(text, ext) for ext in extensions):
         return {"state": "ok", "detail": "named in the instruction file", "how": None}
-    return {"state": "missing", "detail": f"the instruction file does not name {', '.join(owned[:4])}",
+    return {"state": "missing", "detail": f"the instruction file does not name {', '.join(extensions[:4])}",
             "how": "harness game instructions gives the line"}
 
 
@@ -412,7 +519,8 @@ def loop(repo: str, profile: dict[str, Any], scale: str | None = None, today: da
         raise ValueError(f"{scale} is not a scale ({', '.join(profile['scales'])})")
     found = detect(repo, profile, block.get("engine"))
     engine = profile["engines"].get(found["id"]) if found["id"] else None
-    commands = block.get("commands") if isinstance(block.get("commands"), dict) else {}
+    commands = commands_of(block)
+    results = results_of(repo, harness_dir)
     in_scale = profile["scales"][scale or "weeks"]["pieces"]
     days = block.get("playtest_days", profile["scales"][scale]["playtest_days"] if scale else None)
     rows = []
@@ -423,7 +531,8 @@ def loop(repo: str, profile: dict[str, Any], scale: str | None = None, today: da
         elif pid == "version":
             row = _version_piece(found)
         elif pid in COMMAND_PIECES:
-            row = _piece_command(pid, commands.get(pid), engine, (engine or {}).get("candidates", {}).get(pid))
+            row = _piece_command(pid, commands.get(pid), engine, (engine or {}).get("candidates", {}).get(pid),
+                                 results.get(pid))
         elif pid == "runner":
             row = _runner(repo)
         elif pid == "instructions":
@@ -490,8 +599,10 @@ def instructions(repo: str, profile: dict[str, Any], today: date | None = None,
     scale = block.get("scale")
     found = result["engine"]
     engine = profile["engines"].get(found["id"]) if found["id"] else {}
-    commands = block.get("commands") if isinstance(block.get("commands"), dict) else {}
+    commands = commands_of(block)
     rows = {r["id"]: r for r in result["pieces"]}
+    pieces = set(profile["scales"][scale or "weeks"]["pieces"])
+    runner_written = _runner(repo)["state"] == "ok"
     ci = _ci(repo, profile, commands)
     capture = commands.get("capture") if isinstance(commands.get("capture"), dict) else {}
     values = {
@@ -505,12 +616,13 @@ def instructions(repo: str, profile: dict[str, Any], today: date | None = None,
         "scope_file": rows.get("scope", {}).get("file") or block.get("scope_file") or "docs/design.md",
         "credits_file": rows.get("assets", {}).get("file") or block.get("credits_file") or "CREDITS.md",
         "enforced": f"Enforced by: `{ci['file']}`" if ci["state"] == "ok" else "(unverified)",
-        "judge_enforced": "Enforced by: `.harness/game_loop.py`" if rows["runner"]["state"] == "ok" else "(unverified)",
+        "judge_enforced": "Enforced by: `.harness/game_loop.py`" if runner_written else "(unverified)",
     }
     when = {
         "engine": bool(found["id"]), "commands": isinstance(commands.get("smoke"), dict),
         "run_no_smoke": isinstance(commands.get("run"), dict) and not isinstance(commands.get("smoke"), dict),
-        "capture": bool(capture.get("output")), "untrusted_exit": (engine or {}).get("exit_code_trusted") is False,
+        "capture": bool(capture.get("output")) and "capture" in pieces,
+        "untrusted_exit": (engine or {}).get("exit_code_trusted") is False and "smoke" in pieces,
         "owned": bool((engine or {}).get("owned_rule")), "always": True,
         "prototype": scale in ("hour", "jam"), "production": scale == "weeks" and isinstance(commands.get("test"), dict),
         "scope": scale in ("jam", "weeks"), "assets": scale in ("jam", "weeks"),
@@ -520,9 +632,9 @@ def instructions(repo: str, profile: dict[str, Any], today: date | None = None,
     forbidden = [{"id": l["id"], "text": l["text"].format(**values)} for l in data["forbidden"] if when[l["when"]]]
     questions = [q for q in data["questions"] if scale is None or scale in q.get("scales", [scale])]
     notes = []
-    if not when["commands"]:
+    if "smoke" in pieces and not when["commands"]:
         notes.append("record the smoke command first (`harness game command smoke \"…\"`): the loop line needs it")
-    if rows["runner"]["state"] != "ok":
+    if "runner" in pieces and not runner_written:
         notes.append("the lines call `.harness/game_loop.py`: write it with `harness game runner --write`")
     if not found.get("version"):
         notes.append("the engine version is not pinned: the engine line says so until it is")
@@ -578,18 +690,26 @@ def record_command(config: dict[str, Any], profile: dict[str, Any], engine_id: s
     if piece not in COMMAND_PIECES:
         raise ValueError(f"{piece} is not a piece with a command ({', '.join(COMMAND_PIECES)})")
     block = game_block(config)
+    if "commands" in block and not isinstance(block["commands"], dict):
+        raise ValueError("game.commands in .harness/config.json is not an object: fix or remove it, nothing was written")
     commands = dict(block.get("commands") or {})
     if remove:
         if piece not in commands:
             raise ValueError(f"no command is recorded for {piece}")
         rest = {k: v for k, v in commands.items() if k != piece}
         return with_game(config, commands=rest or None)
+    scale = block.get("scale")
+    if scale in profile["scales"] and piece not in profile["scales"][scale]["pieces"]:
+        raise ValueError(f"{piece} is not a piece of the {scale} scale: the loop does not ask for it "
+                         "(`harness game set --scale …` widens the scale)")
     command = (command or "").strip()
     if not command:
         raise ValueError(f'give the command: harness game command {piece} "<command>"')
-    for pattern in profile["never_record"]["patterns"]:
-        if re.search(pattern, command, re.I):
-            raise ValueError(f"refused: {profile['never_record']['why']} (the command matches {pattern})")
+    published = game_run.publishing(command)
+    if published:
+        raise ValueError(f"refused: `{published}`: {game_run.PUBLISH_WHY}")
+    if output and (os.path.isabs(output) or os.path.normpath(output).split(os.sep)[0] == ".."):
+        raise ValueError(f"--output {output} is outside the repository: give a path inside it")
     for name, value in (("ready", ready),):
         if value:
             try:
@@ -606,8 +726,9 @@ def record_command(config: dict[str, Any], profile: dict[str, Any], engine_id: s
     if ready:
         spec["ready"] = ready
     default = (engine.get("outputs") or {}).get(piece) or {}
-    if not output and default.get("output") and default["output"] in command:
-        output = default["output"]
+    if default.get("output") and (not output or output == default.get("match")) \
+            and (default.get("match") or default["output"]) in command:
+        output = default["output"]      # Godot's movie writer numbers its frames: shots/frame.png gives frame00000000.png
     if output:
         spec["output"] = output.replace(os.sep, "/")
         if default.get("output_errors") and spec["output"] == default.get("output"):
@@ -765,13 +886,14 @@ def main(args: argparse.Namespace) -> int:
                                                             else f" Try it: harness game run {args.piece}"))
             return 0
         if action == "run":
-            return game_run.run(args.piece, repo, args.timeout)
+            block = game_block(read_config(path))
+            engine = profile["engines"].get(detect(repo, profile, block.get("engine"))["id"] or "")
+            commands = {p: judged_with(spec, engine, p) for p, spec in commands_of(block).items()}
+            return game_run.run(args.piece, repo, args.timeout, commands=commands)
         if action == "runner":
             state = _runner(repo)
             if args.write:
-                os.makedirs(os.path.join(repo, ".harness"), exist_ok=True)
-                with open(os.path.join(repo, ".harness", "game_loop.py"), "w", encoding="utf-8") as fh:
-                    fh.write(_read(RUNNER_SOURCE) or "")
+                safe_write(repo, ".harness/game_loop.py", _read(RUNNER_SOURCE) or "")
                 print(f"Written: .harness/game_loop.py. Run it with `{RUNNER_CALL} all` (or one piece: check, test, smoke, capture, export).")
                 return 0
             print(f"{MARKS[state['state']]} {state['detail']}" + (f" — {state['how']}" if state["how"] else ""))
