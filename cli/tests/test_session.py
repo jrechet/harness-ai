@@ -671,6 +671,13 @@ class SecondReviewTests(SessionCase):
         self.assertEqual(err, "")
         return code, json.loads(out)
 
+    def test_a_sub_agent_counts_under_the_skill_its_rows_name(self):
+        sub = [assistant("s1", 40, skill="plugin-authoring"), assistant("s2", 7)]
+        _, report = self.one([human(), assistant("m1", 10, skill="plugin-authoring"), assistant("m2", 3)],
+                             subagents=[sub])
+        by_skill = {row["skill"]: row["output_tokens"] for row in report["by_skill"]}
+        self.assertEqual(by_skill, {"plugin-authoring": 50, None: 10})
+
     def test_a_number_too_large_to_be_one_is_refused_without_a_crash(self):
         huge = int("1" + "0" * 400)
         row = assistant("m1", 5)
@@ -839,6 +846,8 @@ class SecondReviewTests(SessionCase):
         _, out, _ = self.measure("--transcript", self.transcript(FULL))
         self.assertNotIn("Your notes", out)
         self.assertIn("(no skill): output Claude Code attributes to no skill", out)
+        self.assertIn("A sub-agent counts under the skill its rows name", out)
+        self.assertNotIn("the sub-agents a skill starts included", out)
 
     def test_the_running_session_is_said_so_however_it_was_named(self):
         self.transcript(FULL)
