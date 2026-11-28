@@ -9,7 +9,7 @@
 [![Licence: MIT](https://img.shields.io/badge/licence-MIT-0f5777)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-0f5777?logo=python&logoColor=white)](#try-it-in-two-minutes-without-claude-code)
 [![Dependencies: none](https://img.shields.io/badge/dependencies-none-1b6e3f)](#try-it-in-two-minutes-without-claude-code)
-[![Claude Code: 2 plugins, 18 skills](https://img.shields.io/badge/Claude%20Code-2%20plugins%20%C2%B7%2018%20skills-7a5200)](#install-the-skills-in-claude-code)
+[![Claude Code: 3 plugins, 18 skills](https://img.shields.io/badge/Claude%20Code-3%20plugins%20%C2%B7%2018%20skills-7a5200)](#install-the-skills-in-claude-code)
 
 **[Try it](#try-it-in-two-minutes-without-claude-code)** ·
 **[How it works](#how-it-works)** ·
@@ -52,7 +52,7 @@ python3 harness-ai/cli/harness.py status /path/to/your/repo --map
 
 `status --map` prints the five levels in plain words, from 0 (None) to 4 (Delegated), with "you are here", what the next level still needs, and the next step. Without `--map`, `status` prints the detailed report the skills read: every check with its id. Both write `.harness/state.json` in your repository.
 
-Commit what `.harness/` keeps: `config.json` (the level you aim for and the checks you set aside), `state.json`, and `audit.json` and `harvest.json` once they exist. Ignore `.harness/state.html`: it is a page rebuilt on demand by `status --page`.
+Commit what `.harness/` keeps: `config.json` (the level you aim for and the checks you set aside), `state.json`, and `audit.json` and `harvest.json` once they exist. Ignore `.harness/state.html`: it is a page rebuilt on demand by `status --page`. `.harness/session/` ignores itself: the numbers of your sessions and your notes are yours, not the repository's.
 
 **By hand.** Without Claude Code, nothing writes `AGENTS.md` for you: copy the blocks of [the template](skills/harness-init/references/agents-template.md), one level at a time. Step 1 is the first `AGENTS.md` (level 1), Step 2 the maintenance block and the `rule:` convention (level 2), Step 4 the working process (level 4); level 3 has no block, it is earned by turning rules into checks. Run `status --map` again after each one. The review loop needs GitHub today: `harness.py harvest` has a single adapter, `github`.
 
@@ -152,6 +152,7 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Read every check behind the level, with its id | `harness.py status <repo>` | tooled |
 | Say at which level you stop | `harness.py target <level> <repo>` | tooled |
 | Set aside a check you do not want: the level is reached without it, and the state says "set aside", not "done", next to the level the checks alone give | `harness.py ignore <check> --reason "…" --repo <repo>`; `ignore <repo>` lists the checks | tooled |
+| See what one Claude Code session cost and where, and keep your own words on what suited you or not; all of it stays on your machine | `harness.py session measure` at the end of a session, `session note "…"` when something bothers you, `session list` | tooled |
 | See each rule, its age, its guardrail | `harness.py rules <repo>` | tooled |
 | Find the commands an agent does not guess | `harness.py commands <repo>` | tooled |
 | Know what has aged: a skill that cites a deleted file, a late harvest | `harness.py fresh <repo>` | tooled |
@@ -178,8 +179,9 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 | Move up one level, and stop | `harness-step` | measured on one project |
 | Audit your harness and remove what no longer serves | `harness-audit` | measured once on each of two projects: one compliant, 10 of 10; the other, held out, not compliant, 2 of 3 |
 | Create a skill, an agent or a rule, or put an existing one right, each piece in its place | `harness-design` | measured: 12 traps of 12 on a held-out case, on the text before 2026-11-25 |
-| Have one skill reviewed and explained: what is good, what is weak and which concept is behind it, with no level and nothing written | `harness-coach` | tooled, played once on a sample skill, not measured |
+| Have one skill reviewed and explained: what is good, what is weak and which concept is behind it, with no level and nothing written | `harness-coach` | tooled, played twice on a sample skill, not measured |
 | Ask "why this level?" | `harness-medals` | tooled |
+| Keep where the repository stands in view while you work: one quiet row above the prompt, a pane with the ladder (`/harness-hud`) | plugin `harness-hud`, a Claude Code mod that reads `.harness/state.json` and runs nothing | tooled: its own tests run under `claude plugin test`, not in CI; seen drawn once, in the desktop app |
 | Ask which skill or command fits what you want, or whether you need one at all | `harness-guide` | measured once: 20 questions of 20 routed, against 16 of 20 with the skill descriptions alone; the gap is the needs only a command line meets, and the questions were written from the same command help as the guide; triggering in a real session not measured ([the draw](docs/measurements/guide-routing-2026-11-23.json)) |
 | Draw rules from what happened in your PRs | `harness-harvest` | tooled, never played |
 | Ask "do I need LangChain, LangGraph, a workflow engine or Rust for this?" before building anything | `flow-why` | tooled, never played |
@@ -207,13 +209,14 @@ Three states, always the same words, those of [docs/capabilities.md](docs/capabi
 /plugin marketplace add jrechet/harness-ai
 /plugin install harness-ai@harness-ai
 /plugin install ai-sdlc@harness-ai
+/plugin install harness-hud@harness-ai
 ```
 
-The first line installs from GitHub; it works for anyone, as the repository is public. From a local clone or a private copy, use `claude plugin marketplace add <clone folder>` instead, then the two install lines.
+The first line installs from GitHub; it works for anyone, as the repository is public. From a local clone or a private copy, use `claude plugin marketplace add <clone folder>` instead, then the install lines.
 
 A skill triggers on its description ("audit my AGENTS.md", "review this PR") or by its name: `/harness-ai:harness-init`, `/ai-sdlc:review`.
 
-**What is verified, and what is not.** Both manifests pass `claude plugin validate`. The skills call their CLI through `${CLAUDE_PLUGIN_ROOT}`, which Claude Code replaces with the plugin's install folder. Loaded with `claude --plugin-dir` in a real session, the `ai-sdlc` plugin does what it says on what was tried: the guardrail refuses `git tag` before it runs and lets `git status` through, and the `ticket` skill finds its CLI. Both plugins also install from the repository's local marketplace (`claude plugin marketplace add <clone folder>`), and the installed guardrail does refuse a tag. Not tried yet: installing from GitHub, the other skills in a session, an interactive session. If a skill does not find its CLI, run the command by hand from your clone, as above, and open an issue.
+**What is verified, and what is not.** The three manifests pass `claude plugin validate`. The skills call their CLI through `${CLAUDE_PLUGIN_ROOT}`, which Claude Code replaces with the plugin's install folder. Loaded with `claude --plugin-dir` in a real session, the `ai-sdlc` plugin does what it says on what was tried: the guardrail refuses `git tag` before it runs and lets `git status` through, and the `ticket` skill finds its CLI. `harness-ai` and `ai-sdlc` also install from the repository's local marketplace (`claude plugin marketplace add <clone folder>`), and the installed guardrail does refuse a tag. Not tried yet: installing `harness-hud` from a marketplace (it was loaded from a folder, in the desktop app), installing from GitHub, the other skills in a session, an interactive session. If a skill does not find its CLI, run the command by hand from your clone, as above, and open an issue.
 
 To try without installing: `claude --plugin-dir /path/to/harness-ai`.
 

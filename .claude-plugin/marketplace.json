@@ -16,6 +16,11 @@
       "name": "ai-sdlc",
       "source": "./plugins/ai-sdlc",
       "description": "The phases of the development cycle assisted by an agent, from ticket to production: a shared base that each team completes in its repository. Available phases: ticket, dev, qa, secu, review, ship and run."
+    },
+    {
+      "name": "harness-hud",
+      "source": "./plugins/harness-hud",
+      "description": "A heads-up display for a repository set up with harness-ai: one quiet row above the prompt and a pane with the level ladder, read from .harness/state.json. Reads only, runs nothing."
     }
   ]
 }
