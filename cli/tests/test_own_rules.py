@@ -208,6 +208,10 @@ PAGES_FOLDER = "docs"
 COURSE_PAGE = "docs/ai-sdlc/course/index.html"
 EXAMPLE_PLAN = "docs/examples/pieces.json"
 TRAPS_FOUND = re.compile(r"Traps found: (\d+)/(\d+); healthy items moved: (\d+)")
+# Examples this repository showed and removed because they were graded pieces with their answers: the
+# word guard misses some of them ("Never push to main" shares one word with T1), so they are named.
+REMOVED_EXAMPLES = ("never push to main", "no release with uncommitted files", "compute the next version",
+                    "read the jira ticket")
 EXAMPLES_WITH_PIECES = ("docs/examples/pieces.json", "docs/examples/report.json",
                         "docs/examples/report-skill-weekly-digest.html")
 
@@ -235,6 +239,7 @@ def shipped_examples() -> list[str]:
     the repository."""
     found = glob.glob(os.path.join(ROOT, EXAMPLES_FOLDER, "**", "*"), recursive=True)
     found += glob.glob(os.path.join(ROOT, PAGES_FOLDER, "**", "*.html"), recursive=True)
+    found += glob.glob(os.path.join(ROOT, PAGES_FOLDER, "**", "*.md"), recursive=True)
     for skill_root in SKILL_ROOTS:
         found += glob.glob(os.path.join(ROOT, skill_root, "*", "references", "**", "*"), recursive=True)
     return sorted({os.path.relpath(path, ROOT) for path in found if os.path.isfile(path)})
@@ -251,6 +256,21 @@ def fixture_contents() -> dict[bytes, str]:
             if data:
                 contents.setdefault(data, os.path.relpath(path, ROOT))
     return contents
+
+
+def read_shipped(relative: str) -> str:
+    """A shipped file as text: a byte that is not UTF-8 is replaced, so one odd file is still read."""
+    with open(os.path.join(ROOT, relative), encoding="utf-8", errors="replace") as fh:
+        return fh.read()
+
+
+def removed_examples_shown(pieces: list[str]) -> list[str]:
+    """The pieces that bring back an example removed for being graded, whatever the case and quotes."""
+    found = []
+    for piece in pieces:
+        words = " ".join(re.findall(r"[a-z]+", piece.lower()))
+        found += [f"{piece!r} brings back {removed!r}" for removed in REMOVED_EXAMPLES if removed in words]
+    return found
 
 
 def graded_lines() -> list[tuple[str, str]]:
@@ -407,7 +427,24 @@ class SkillExamplesGiveNoAnswerAwayTests(unittest.TestCase):
         graded = graded_lines()
         for path in shipped_examples():
             with self.subTest(file=path):
-                self.assertEqual(leaked_examples(shown_pieces(read(path)), graded), [])
+                self.assertEqual(leaked_examples(shown_pieces(read_shipped(path)), graded), [])
+
+    def test_no_example_removed_for_being_graded_comes_back(self):
+        for path in shipped_examples() + [path for path, _ in skill_files()]:
+            with self.subTest(file=path):
+                self.assertEqual(removed_examples_shown(shown_pieces(read_shipped(path))), [])
+
+    def test_the_guard_sees_a_removed_example_brought_back(self):
+        self.assertTrue(removed_examples_shown(['\\"Never push to main\\"']))
+        self.assertTrue(removed_examples_shown(["Compute the next version number"]))
+        self.assertEqual(removed_examples_shown(["Never push a draft to the channel"]), [])
+
+    def test_a_shipped_file_that_is_not_utf8_is_still_read(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "odd.json")
+            with open(path, "wb") as fh:
+                fh.write(b'{"piece": "Read the Jira ticket \xff"}')
+            self.assertTrue(removed_examples_shown(shown_pieces(read_shipped(path))))
 
     def test_no_shipped_example_is_a_file_of_a_fixture(self):
         fixtures = fixture_contents()
