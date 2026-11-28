@@ -209,9 +209,9 @@ COURSE_PAGE = "docs/ai-sdlc/course/index.html"
 EXAMPLE_PLAN = "docs/examples/pieces.json"
 TRAPS_FOUND = re.compile(r"Traps found: (\d+)/(\d+); healthy items moved: (\d+)")
 # Examples this repository showed and removed because they were graded pieces with their answers: the
-# word guard misses some of them ("Never push to main" shares one word with T1), so they are named.
-REMOVED_EXAMPLES = ("never push to main", "no release with uncommitted files", "compute the next version",
-                    "read the jira ticket")
+# word guard misses some of them ("Never push to main" shares one word with T1), so they are named by the
+# words that carry them: a piece holding all the words of one brings it back, in whatever order or form.
+REMOVED_EXAMPLES = ("push main", "release uncommitted files", "compute version", "read jira ticket")
 EXAMPLES_WITH_PIECES = ("docs/examples/pieces.json", "docs/examples/report.json",
                         "docs/examples/report-skill-weekly-digest.html")
 
@@ -265,11 +265,16 @@ def read_shipped(relative: str) -> str:
 
 
 def removed_examples_shown(pieces: list[str]) -> list[str]:
-    """The pieces that bring back an example removed for being graded, whatever the case and quotes."""
+    """The pieces that bring back an example removed for being graded: every word of it is there, cut to
+    its stem, whatever the case, the quotes, the order or the words in between."""
+    def key_words(text: str) -> set[str]:
+        return {re.sub(r"e?s$", "", word)[:STEM_LENGTH] for word in WORD.findall(text.lower())}
+
     found = []
     for piece in pieces:
-        words = " ".join(re.findall(r"[a-z]+", piece.lower()))
-        found += [f"{piece!r} brings back {removed!r}" for removed in REMOVED_EXAMPLES if removed in words]
+        words = key_words(piece)
+        found += [f"{piece!r} brings back {removed!r}" for removed in REMOVED_EXAMPLES
+                  if key_words(removed) <= words]
     return found
 
 
@@ -437,6 +442,10 @@ class SkillExamplesGiveNoAnswerAwayTests(unittest.TestCase):
     def test_the_guard_sees_a_removed_example_brought_back(self):
         self.assertTrue(removed_examples_shown(['\\"Never push to main\\"']))
         self.assertTrue(removed_examples_shown(["Compute the next version number"]))
+        for reworded in ("Compute the version number", "Never pushes directly to the main branch",
+                         "Don't release with uncommitted files", "Read the Jira tickets"):
+            with self.subTest(piece=reworded):
+                self.assertTrue(removed_examples_shown([reworded]))
         self.assertEqual(removed_examples_shown(["Never push a draft to the channel"]), [])
 
     def test_a_shipped_file_that_is_not_utf8_is_still_read(self):
