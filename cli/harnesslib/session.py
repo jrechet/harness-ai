@@ -508,8 +508,9 @@ def render(report: dict[str, Any], notes: list[str], shown: str, where: str, run
             out.append(f"- {_skill(row)}: {_n(row['output_tokens'])} "
                        f"({_plural(row['messages'], 'message')}, {_plural(row['tool_calls'], 'tool call')})")
         if any(row["skill"] is None for row in report["by_skill"]):
-            out.append("  (no skill): output Claude Code attributes to no skill; "
-                       "the sub-agents a skill starts carry its name.")
+            out.append("  (no skill): output Claude Code attributes to no skill. "
+                       "A sub-agent counts under the skill its rows name: from 2.1.325 to 2.1.331 at least, "
+                       "the skill that started it.")
     if notes:
         out.append("Your notes on this session:")
         out += [f"- {note}" for note in notes]
